@@ -18,10 +18,11 @@ After you've downloaded the code from GitHub, you can build it on Mac OS using /
 
 ### Dependencies
 The build depends on
-* Autoconf
-* Cmake 3.7
-* Bison 2.4
-* Automake
+* autoconf
+* cmake 3.7
+* bison 2.4
+* automake
+* libtool
 * xCode (Mac OS) / clang / gcc 
 
 ## Open Source Dependencies
@@ -31,6 +32,12 @@ The projects depend on a number of open source components. Running install-scrip
 Define AWS_ACCESS_KEY_ID and AWS_SECRET_KEY_ID environment variables with the AWS access key id and secret key:
 `export AWS_ACCESS_KEY_ID={AccessKeyId}`
 `export AWS_SECRET_KEY_ID={SecretKeyId}`
+
+#### C++ Unit tests
+* The executable will be built in kinesis-video-native-build/start. Launch it and it will run the unit test and kick off dummy frame streaming.
+
+#### GStreamer demo app
+* The GStreamer demo app will be built in kinesis-video-native-build/gst_demo. Launch it with a stream name and it will start streaming from the camera.
 
 ### Enabling verbose logs
 Define HEAP_DEBUG and LOG_STREAMING C-defines by uncommenting the appropriate lines in CMakeList.txt
