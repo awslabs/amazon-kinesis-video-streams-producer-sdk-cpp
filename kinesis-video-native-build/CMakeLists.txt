@@ -242,7 +242,7 @@ link_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/lib)
 add_library(producer SHARED ${PRODUCER_SOURCE_FILES})
 add_library(KinesisVideoProducerJNI SHARED ${PRODUCER_SOURCE_FILES_JNI})
 add_executable(start ${TST_PRODUCER_SOURCE_FILES})
-add_executable(gst_demo ${GST_DEMO_APP})
+add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
 
 target_link_libraries(KinesisVideoProducerJNI producer)
 
@@ -256,5 +256,5 @@ target_link_libraries(producer
 
 target_link_libraries(start producer)
 
-target_link_libraries(gst_demo producer pthread dl gstreamer-1.0 gstapp-1.0 gobject-2.0 glib-2.0)
+target_link_libraries(kinesis_video_gstreamer_sample_app producer pthread dl gstreamer-1.0 gstapp-1.0 gobject-2.0 glib-2.0)
 

@@ -6,7 +6,7 @@ CMAKE_VERSION=`cmake --version`
 CMAKE_VERSION_EXPECTED="cmake version 3.7"
 if [ "$CMAKE_VERSION" \< "$CMAKE_VERSION_EXPECTED" ]; then
   echo "CMake 3.7 or higher is required.  You are running $CMAKE_VERSION"
-  exit 
+  exit
 fi
 
 DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
@@ -117,7 +117,7 @@ fi
 
 echo "Checking glib at $DOWNLOADS/local/lib/libglib-2.0.dylib/.so"
 if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.dylib ]; then
-  if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.so ]; then
     export LIBFFI_CFLAGS="-I$DOWNLOADS/local/include -I$DOWNLOADS/local/lib/libffi-3.2.1/include -L$DOWNLOADS/local/lib"
     export LIBFFI_LIBS="-L$DOWNLOADS/local/lib -lffi"
     export LDFLAGS="-L$DOWNLOADS/local/lib"
@@ -137,6 +137,8 @@ if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.dylib ]; then
   fi
 fi
 
+export GLIB_CFLAGS="-I$DOWNLOADS/local/include/glib-2.0 -I$DOWNLOADS/local/include/glib-2.0/glib -I$DOWNLOADS/local/lib/glib-2.0/include"
+
 echo "Checking gstreamer at $DOWNLOADS/local/lib/libgstreamer-1.0.dylib/.so"
 if [ ! -f $DOWNLOADS/local/lib/libgstreamer-1.0.dylib ]; then
   if [ ! -f $DOWNLOADS/local/lib/libgstreamer-1.0.so ]; then
@@ -148,7 +150,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgstreamer-1.0.dylib ]; then
     cd $DOWNLOADS
     tar -xvf gstreamer-1.12.3.tar.xz
     cd $DOWNLOADS/gstreamer-1.12.3
-    ./autogen.sh --prefix=$DOWNLOADS/local --disable-gtk-doc
+    ./autogen.sh --prefix=$DOWNLOADS/local --disable-gtk-doc -- CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
   fi
@@ -165,7 +167,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgstvideo-1.0.dylib ]; then
     cd $DOWNLOADS
     tar -xvf gst-plugins-base-1.12.3.tar.xz
     cd $DOWNLOADS/gst-plugins-base-1.12.3
-    ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc
+    ./autogen.sh --prefix=$DOWNLOADS/local --disable-gtk-doc -- CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
   fi
@@ -181,7 +183,7 @@ if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstavi.la ]; then
   cd $DOWNLOADS
   tar -xvf gst-plugins-good-1.12.3.tar.xz
   cd $DOWNLOADS/gst-plugins-good-1.12.3
-  ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc
+  ./autogen.sh --prefix=$DOWNLOADS/local --disable-gtk-doc -- CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
   make
   make install
 fi
@@ -197,7 +199,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgstbadvideo-1.0.dylib ]; then
     cd $DOWNLOADS
     tar -xvf gst-plugins-bad-1.12.3.tar.xz
     cd $DOWNLOADS/gst-plugins-bad-1.12.3
-    ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc --disable-wayland  --disable-opencv --disable-ldap --disable-rtsp --without-zlib --without-ssl --disable-yadif --disable-sdl --disable-debug --disable-dependency-tracking
+    ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc --disable-wayland  --disable-opencv --disable-ldap --disable-rtsp --without-zlib --without-ssl --disable-yadif --disable-sdl --disable-debug --disable-dependency-tracking CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
   fi
@@ -219,7 +221,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgtest.a ]; then
   cp -r ./include $DOWNLOADS/local
   cp ./lib*.a $DOWNLOADS/local/lib
 fi
- 
+
 
 ## --------- build kinesis video ---------
 cd $KINESIS_VIDEO_ROOT
