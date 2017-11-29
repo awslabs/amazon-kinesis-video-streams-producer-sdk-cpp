@@ -1,0 +1,158 @@
+/**
+ * Memory heap public include file
+ */
+#ifndef __MEM_HEAP_INCLUDE_I_H__
+#define __MEM_HEAP_INCLUDE_I_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#pragma once
+#pragma pack(push, include, 1) // for byte alignment
+
+/**
+ * Including the headers
+ */
+#include "com/amazonaws/kinesis/video/heap/Include.h"
+
+/**
+ * Invalid allocation value
+ */
+#ifndef INVALID_ALLOCATION_VALUE
+#define INVALID_ALLOCATION_VALUE MAX_UINT32
+#endif
+
+/**
+ * Diable string warnings
+ */
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
+////////////////////////////////////////////////////////////////////
+// Forward declaration of the functions
+////////////////////////////////////////////////////////////////////
+
+/**
+ * Releases the entire heap.
+ * IMPORTANT: Some heaps will leak memory if the allocations are not freed previously
+ */
+typedef STATUS (*HeapReleaseFunc)(PHeap);
+
+/**
+ * Frees allocated memory
+ */
+typedef STATUS (*HeapFreeFunc)(PHeap, ALLOCATION_HANDLE);
+
+/**
+ * Gets the heap size
+ */
+typedef STATUS (*HeapGetSizeFunc)(PHeap, PUINT64);
+
+/**
+ * Gets the allocation size
+ */
+typedef STATUS (*HeapGetAllocSizeFunc)(PHeap, ALLOCATION_HANDLE, PUINT32);
+
+/**
+ * Allocates memory from the heap
+ */
+typedef STATUS (*HeapAllocFunc)(PHeap, UINT32, PALLOCATION_HANDLE);
+
+/**
+ * Maps the allocated handle and retrieves a memory address
+ */
+typedef STATUS (*HeapMapFunc)(PHeap, ALLOCATION_HANDLE, PVOID*, PUINT32);
+
+/**
+ * Un-maps the previously mapped memory
+ */
+typedef STATUS (*HeapUnmapFunc)(PHeap, PVOID);
+
+/**
+ * Debug validates/outputs information about the heap
+ */
+typedef STATUS (*HeapDebugCheckAllocatorFunc)(PHeap, BOOL);
+
+/**
+ * Creates and initializes the heap
+ */
+typedef STATUS (*HeapInitializeFunc)(PHeap, UINT64);
+
+/**
+ * Returns the allocation size
+ */
+typedef UINT32 (*GetAllocationSizeFunc)(PHeap, ALLOCATION_HANDLE);
+
+/**
+ * Returns the allocation header size
+ */
+typedef UINT32 (*GetAllocationHeaderSizeFunc)();
+
+/**
+ * Returns the allocation footer size
+ */
+typedef UINT32 (*GetAllocationFooterSizeFunc)();
+
+/**
+ * Returns the allocation limits
+ */
+typedef VOID (*GetHeapLimitsFunc)(PUINT64, PUINT64);
+
+/**
+ * Definition macros making it easier for function declarations/definitions
+ */
+#define DEFINE_CREATE_HEAP(name)          STATUS name(PHeap* ppHeap)
+#define DEFINE_INIT_HEAP(name)            STATUS name(PHeap pHeap, UINT64 heapLimit)
+#define DEFINE_RELEASE_HEAP(name)         STATUS name(PHeap pHeap)
+#define DEFINE_GET_HEAP_SIZE(name)        STATUS name(PHeap pHeap, PUINT64 pHeapSize)
+#define DEFINE_HEAP_ALLOC(name)           STATUS name(PHeap pHeap, UINT32 size, PALLOCATION_HANDLE pHandle)
+#define DEFINE_HEAP_FREE(name)            STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle)
+#define DEFINE_HEAP_GET_ALLOC_SIZE(name)  STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT32 pAllocSize)
+#define DEFINE_HEAP_MAP(name)             STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PVOID* ppAllocation, PUINT32 pSize)
+#define DEFINE_HEAP_UNMAP(name)           STATUS name(PHeap pHeap, PVOID pAllocation)
+#define DEFINE_HEAP_CHK(name)             STATUS name(PHeap pHeap, BOOL dump)
+#define DEFINE_ALLOC_SIZE(name)           UINT32 name(PHeap pHeap, ALLOCATION_HANDLE handle)
+#define DEFINE_HEADER_SIZE(name)          UINT32 name()
+#define DEFINE_FOOTER_SIZE(name)          UINT32 name()
+#define DEFINE_HEAP_LIMITS(name)          VOID name(PUINT64 pMinHeapSize, PUINT64 pMaxHeapSize)
+
+typedef struct
+{
+    /**
+     * Public Heap struct encapsulation
+     */
+    Heap heap;
+
+    /**
+     * Heap functions - polymorphism
+     */
+    HeapInitializeFunc heapInitializeFn;
+    HeapReleaseFunc heapReleaseFn;
+    HeapGetSizeFunc heapGetSizeFn;
+    HeapFreeFunc heapFreeFn;
+    HeapGetAllocSizeFunc heapGetAllocSizeFn;
+    HeapAllocFunc heapAllocFn;
+    HeapMapFunc heapMapFn;
+    HeapUnmapFunc heapUnmapFn;
+    HeapDebugCheckAllocatorFunc heapDebugCheckAllocatorFn;
+    GetAllocationSizeFunc getAllocationSizeFn;
+    GetAllocationHeaderSizeFunc getAllocationHeaderSizeFn;
+    GetAllocationFooterSizeFunc getAllocationFooterSizeFn;
+    GetHeapLimitsFunc getHeapLimitsFn;
+} BaseHeap, *PBaseHeap;
+
+/**
+ * Including the internal headers
+ */
+#include "Common.h"
+#include "SystemHeap.h"
+#include "AivHeap.h"
+#include "HybridHeap.h"
+
+#pragma pack(pop, include) // pop the existing settings
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // __MEM_HEAP_INCLUDE_I_H__
