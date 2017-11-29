@@ -1,0 +1,227 @@
+#!/bin/bash
+# --------- create require directories ---------
+KINESIS_VIDEO_ROOT=`pwd`
+
+CMAKE_VERSION=`cmake --version`
+CMAKE_VERSION_EXPECTED="cmake version 3.7"
+if [ "$CMAKE_VERSION" \< "$CMAKE_VERSION_EXPECTED" ]; then
+  echo "CMake 3.7 or higher is required.  You are running $CMAKE_VERSION"
+  exit 
+fi
+
+DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
+mkdir $DOWNLOADS
+export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
+echo $PATH
+
+# --------- download libs ---------
+
+# --------- build + install libs ---------
+echo "Checking openssl at $DOWNLOADS/local/lib/libssl.a"
+if [ ! -f $DOWNLOADS/local/lib/libssl.a ]; then
+  echo "openssl lib not found. Installing"
+  if [ ! -f $DOWNLOADS/openssl-1.1.0f.tar.gz ]; then
+    cd $DOWNLOADS
+    curl -L "https://www.openssl.org/source/openssl-1.1.0f.tar.gz" -o "openssl-1.1.0f.tar.gz"
+  fi
+  cd $DOWNLOADS
+  tar -xvf openssl-1.1.0f.tar.gz
+  cd $DOWNLOADS/openssl-1.1.0f
+  ./config --prefix=$DOWNLOADS/local/
+  make
+  make install
+fi
+
+echo "Checking curl at $DOWNLOADS/local/lib/libcurl.a"
+if [ ! -f $DOWNLOADS/local/lib/libcurl.a ]; then
+  echo "Curl lib not found. Installing"
+  if [ ! -f $DOWNLOADS/curl-7.55.0.tar.xz ]; then
+    cd $DOWNLOADS
+    curl -L "https://curl.haxx.se/download/curl-7.55.0.tar.xz" -o "curl-7.55.0.tar.xz"
+  fi
+  cd $DOWNLOADS
+  tar -xvf curl-7.55.0.tar.xz
+  cd $DOWNLOADS/curl-7.55.0
+  ./configure --prefix=$DOWNLOADS/local/ --enable-dynamic --disable-rtsp --disable-ldap --without-zlib --with-ssl=$DOWNLOADS/local/
+  make
+  make install
+fi
+
+echo "Checking log4cplus at $DOWNLOADS/local/lib/liblog4cplus.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.so ]; then
+    echo "log4cplus lib not found. Installing"
+    if [ ! -f $DOWNLOADS/log4cplus-1.2.0.tar.xz ]; then
+      cd $DOWNLOADS
+      curl -L "https://versaweb.dl.sourceforge.net/project/log4cplus/log4cplus-stable/1.2.0/log4cplus-1.2.0.tar.xz" -o "log4cplus-1.2.0.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf log4cplus-1.2.0.tar.xz
+    cd $DOWNLOADS/log4cplus-1.2.0
+    ./configure --prefix=$DOWNLOADS/local/
+    make
+    make install
+  fi
+fi
+
+echo "Checking gettext at $DOWNLOADS/local/lib/libgettextlib.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/libgettextlib.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libgettextlib.so ]; then
+    echo "gettext lib not found. Installing"
+    if [ ! -f $DOWNLOADS/gettext-0.19.8.tar.xz ]; then
+      cd $DOWNLOADS
+      curl -L "http://ftp.gnu.org/pub/gnu/gettext/gettext-0.19.8.tar.xz" -o "gettext-0.19.8.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf gettext-0.19.8.tar.xz
+    cd $DOWNLOADS/gettext-0.19.8
+    ./configure --prefix=$DOWNLOADS/local/
+    make
+    make install
+  fi
+fi
+
+echo "Checking libffi at $DOWNLOADS/local/lib/libffi.a"
+if [ ! -f $DOWNLOADS/local/lib/libffi.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libffi.a ]; then
+    echo "libffi lib not found. Installing"
+    if [ ! -f $DOWNLOADS/libffi-3.2.1.tar.gz ]; then
+      cd $DOWNLOADS
+      curl -L "ftp://sourceware.org/pub/libffi/libffi-3.2.1.tar.gz" -o "libffi-3.2.1.tar.gz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf libffi-3.2.1.tar.gz
+    cd $DOWNLOADS/libffi-3.2.1
+    ./configure --prefix=$DOWNLOADS/local/
+    make
+    make install
+  fi
+fi
+
+echo "Checking pcre at $DOWNLOADS/local/lib/libpcre.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/libpcre.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libpcre.so ]; then
+    echo "pcre lib not found. Installing"
+    if [ ! -f $DOWNLOADS/pcre-8.41.tar.gz ]; then
+      cd $DOWNLOADS
+      curl -L "https://ftp.pcre.org/pub/pcre/pcre-8.41.tar.gz" -o "pcre-8.41.tar.gz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf pcre-8.41.tar.gz
+    cd $DOWNLOADS/pcre-8.41
+    ./configure --prefix=$DOWNLOADS/local/
+    make
+    make install
+  fi
+fi
+
+echo "Checking glib at $DOWNLOADS/local/lib/libglib-2.0.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.dylib ]; then
+    export LIBFFI_CFLAGS="-I$DOWNLOADS/local/include -I$DOWNLOADS/local/lib/libffi-3.2.1/include -L$DOWNLOADS/local/lib"
+    export LIBFFI_LIBS="-L$DOWNLOADS/local/lib -lffi"
+    export LDFLAGS="-L$DOWNLOADS/local/lib"
+    export CPPFLAGS="-I$DOWNLOADS/local/include"
+
+    echo "glib lib not found. Installing"
+    if [ ! -f $DOWNLOADS/glib-2.54.2.tar.xz ]; then
+      cd $DOWNLOADS
+      curl -L "http://ftp.gnome.org/pub/gnome/sources/glib/2.54/glib-2.54.2.tar.xz" -o "glib-2.54.2.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf glib-2.54.2.tar.xz
+    cd $DOWNLOADS/glib-2.54.2
+    ./configure --prefix=$DOWNLOADS/local/ --with-pcre
+    make
+    make install
+  fi
+fi
+
+echo "Checking gstreamer at $DOWNLOADS/local/lib/libgstreamer-1.0.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/libgstreamer-1.0.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libgstreamer-1.0.so ]; then
+    echo "gstreamer lib not found. Installing"
+    if [ ! -f $DOWNLOADS/gstreamer-1.12.3.tar.xz ]; then
+      cd $DOWNLOADS
+      curl -L "https://gstreamer.freedesktop.org/src/gstreamer/gstreamer-1.12.3.tar.xz" -o "gstreamer-1.12.3.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf gstreamer-1.12.3.tar.xz
+    cd $DOWNLOADS/gstreamer-1.12.3
+    ./autogen.sh --prefix=$DOWNLOADS/local --disable-gtk-doc
+    make
+    make install
+  fi
+fi
+
+echo "Checking gst-plugin-base at $DOWNLOADS/local/lib/libgstvideo-1.0.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/libgstvideo-1.0.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libgstvideo-1.0.so ]; then
+    echo "gst-plugin-base not found. Installing"
+    if [ ! -f $DOWNLOADS/gst-plugins-base-1.12.3.tar.xz ]; then
+      cd $DOWNLOADS
+      curl -L "https://gstreamer.freedesktop.org/src/gst-plugins-base/gst-plugins-base-1.12.3.tar.xz" -o "gst-plugins-base-1.12.3.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf gst-plugins-base-1.12.3.tar.xz
+    cd $DOWNLOADS/gst-plugins-base-1.12.3
+    ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc
+    make
+    make install
+  fi
+fi
+
+echo "Checking gst-plugin-good at $DOWNLOADS/local/lib/gstreamer-1.0/libgstavi.la"
+if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstavi.la ]; then
+  echo "gst-plugin-good not found. Installing"
+  if [ ! -f $DOWNLOADS/gst-plugins-good-1.12.3.tar.xz ]; then
+    cd $DOWNLOADS
+    curl -L "https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-1.12.3.tar.xz" -o "gst-plugins-good-1.12.3.tar.xz"
+  fi
+  cd $DOWNLOADS
+  tar -xvf gst-plugins-good-1.12.3.tar.xz
+  cd $DOWNLOADS/gst-plugins-good-1.12.3
+  ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc
+  make
+  make install
+fi
+
+echo "Checking gst-plugin-bad at $DOWNLOADS/local/libgstbadvideo-1.0.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/libgstbadvideo-1.0.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libgstbadvideo-1.0.so ]; then
+    echo "gst-plugin-bad not found. Installing"
+    if [ ! -f $DOWNLOADS/gst-plugins-bad-1.12.3.tar.xz ]; then
+      cd $DOWNLOADS
+      curl -L "https://gstreamer.freedesktop.org/src/gst-plugins-bad/gst-plugins-bad-1.12.3.tar.xz" -o "gst-plugins-bad-1.12.3.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf gst-plugins-bad-1.12.3.tar.xz
+    cd $DOWNLOADS/gst-plugins-bad-1.12.3
+    ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc --disable-wayland  --disable-opencv --disable-ldap --disable-rtsp --without-zlib --without-ssl --disable-yadif --disable-sdl --disable-debug --disable-dependency-tracking
+    make
+    make install
+  fi
+fi
+
+echo "Checking googletest at $DOWNLOADS/local/lib/libgtest.a"
+if [ ! -f $DOWNLOADS/local/lib/libgtest.a ]; then
+  echo "gtest lib not found. Installing"
+  if [ ! -f $DOWNLOADS/google-test.zip ]; then
+    cd $DOWNLOADS
+    curl -L "https://github.com/google/googletest/archive/master.zip" -o "google-test.zip"
+  fi
+  cd $DOWNLOADS
+  unzip google-test.zip
+  cd googletest-master/googletest
+  cmake CMakeLists.txt
+  make
+  mkdir -p $DOWNLOADS/local/lib
+  cp -r ./include $DOWNLOADS/local
+  cp ./lib*.a $DOWNLOADS/local/lib
+fi
+ 
+
+## --------- build kinesis video ---------
+cd $KINESIS_VIDEO_ROOT
+cmake CMakeLists.txt
+make
