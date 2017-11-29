@@ -22,7 +22,7 @@ int gstreamer_init(int, char **);
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 #define ACCESS_KEY_ENV_VAR "AWS_ACCESS_KEY_ID"
-#define SECRET_KEY_ENV_VAR "AWS_SECRET_KEY_ID"
+#define SECRET_KEY_ENV_VAR "AWS_SECRET_ACCESS_KEY"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -129,13 +129,7 @@ SampleStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STRE
 }  // namespace amazonaws
 }  // namespace com;
 
-  /*
-     const char cpd[] = { 0x01, 0x64, 0x00, 0x1e, 0xff, 0xe1, 0x00, 0x1d, 0x67, 0x64, 0x00, 0x1e, 0xac, 0xd9, 0x40, 0xa0, 0x3d, 0xb0, 0x16, 0xa0, 0xc0, 0x20, 0xb4, 0xa0, 0x00, 0x00, 0x03, 0x00, 0x20, 0x00, 0x00, 0x07, 0x91, 0xe2, 0xc5, 0xb2, 0xc0, 0x01, 0x00, 0x06, 0x68, 0xeb, 0xe1, 0x72, 0xc8, 0xb0 };
-   */
-const unsigned char cpd[] = { 0x01, 0x42, 0x00, 0x1e, 0xff, 0xe1, 0x00, 0x22, 0x27, 0x42, 0x00, 0x1e, 0x89, 0x8b, 0x60, 0x50, 0x1e, 0xd8, 0x09, 0xe0, 0x00, 0x04, 0xe2, 0x00, 0x00, 0xf4, 0x24, 0x1c, 0x0c, 0x00, 0x17, 0x70, 0x00, 0x05, 0xdc, 0x17, 0xbd, 0xf0, 0x7c, 0x22, 0x11, 0xb8, 0x01, 0x00, 0x04, 0x28, 0xce, 0x1f, 0x20 };
-/*
-const unsigned char cpd[] = { 0x01, 0x42, 0xc0, 0x16, 0xff, 0xe1, 0x00, 0x1c, 0x67, 0x42, 0xc0, 0x16, 0xd9, 0x00, 0xa0, 0x3d, 0xb0, 0x16, 0xa0, 0xc0, 0x20, 0xa8, 0x00, 0x00, 0x03, 0x00, 0x08, 0x00, 0x00, 0x03, 0x00, 0xf4, 0x78, 0xb1, 0x72, 0x40, 0x01, 0x00, 0x05, 0x68, 0xcb, 0x81, 0x72, 0xc8 };
-*/
+const unsigned char cpd[] = { 0x01, 0x42, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x23, 0x27, 0x42, 0x00, 0x20, 0x89, 0x8b, 0x60, 0x28, 0x02, 0xdd, 0x80, 0x9e, 0x00, 0x00, 0x4e, 0x20, 0x00, 0x0f, 0x42, 0x41, 0xc0, 0xc0, 0x01, 0x77, 0x00, 0x00, 0x5d, 0xc1, 0x7b, 0xdf, 0x07, 0xc2, 0x21, 0x1b, 0x80, 0x01, 0x00, 0x04, 0x28, 0xce, 0x1f, 0x20 };
 unique_ptr<Credentials> credentials_;
 
 typedef struct _CustomData {
@@ -264,7 +258,7 @@ int gstreamer_init(int argc, char* argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_KEY_ID=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name");
         return 1;
     }
 
@@ -284,7 +278,7 @@ int gstreamer_init(int argc, char* argv[]) {
 
     /* create the elemnents */
     /*
-       gst-launch-1.0 v4l2src device=/dev/video0 ! video/x-raw,format=I420,width=640,height=480,framerate=15/1 ! x264enc pass=quant bframes=0 ! video/x-h264,profile=baseline,format=I420,width=640,height=480,framerate=15/1 ! matroskamux ! filesink location=test.mkv
+       gst-launch-1.0 v4l2src device=/dev/video0 ! video/x-raw,format=I420,width=1280,height=720,framerate=15/1 ! x264enc pass=quant bframes=0 ! video/x-h264,profile=baseline,format=I420,width=1280,height=720,framerate=15/1 ! matroskamux ! filesink location=test.mkv
      */
     data.source = gst_element_factory_make("autovideosrc", "source");
     data.source_filter = gst_element_factory_make("capsfilter", "source_filter");
@@ -304,8 +298,8 @@ int gstreamer_init(int argc, char* argv[]) {
 
     /* source filter */
     GstCaps *source_caps = gst_caps_new_simple("video/x-raw",
-                                               "width", G_TYPE_INT, 640,
-                                               "height", G_TYPE_INT, 480,
+                                               "width", G_TYPE_INT, 1280,
+                                               "height", G_TYPE_INT, 720,
                                                "framerate", GST_TYPE_FRACTION, 30, 1,
                                                NULL);
     g_object_set(G_OBJECT (data.source_filter), "caps", source_caps, NULL);
@@ -320,8 +314,8 @@ int gstreamer_init(int argc, char* argv[]) {
                                              "profile", G_TYPE_STRING, "baseline",
                                              "stream-format", G_TYPE_STRING, "avc",
                                              "alignment", G_TYPE_STRING, "au",
-                                             "width", G_TYPE_INT, 640,
-                                             "height", G_TYPE_INT, 480,
+                                             "width", G_TYPE_INT, 1280,
+                                             "height", G_TYPE_INT, 720,
                                              "framerate", GST_TYPE_FRACTION, 30, 1,
                                              NULL);
     g_object_set(G_OBJECT (data.filter), "caps", h264_caps, NULL);

@@ -16,7 +16,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
 
 #define ACCESS_KEY_ENV_VAR  "AWS_ACCESS_KEY_ID"
-#define SECRET_KEY_ENV_VAR  "AWS_SECRET_KEY_ID"
+#define SECRET_KEY_ENV_VAR  "AWS_SECRET_ACCESS_KEY"
 
 #define FRAME_DURATION_IN_MICROS                            40000
 #define TEST_EXECUTION_DURATION_IN_SECONDS                  3 * 60
