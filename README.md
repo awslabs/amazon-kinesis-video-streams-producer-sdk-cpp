@@ -30,7 +30,7 @@ The projects depend on the following open source components. Running install-scr
 * jsoncpp - https://github.com/open-source-parsers/jsoncpp/blob/master/LICENSE
 
 ### Build Dependencies 
-Running install-script-mac depends on the following additional build tools.
+Please install the following additional build tools before running install-script-mac.
 * autoconf 2.69 (License GPLv3+/Autoconf: GNU GPL version 3 or later) http://www.gnu.org/software/autoconf/autoconf.html
 * cmake 3.7/3.8 https://cmake.org/
 * bison 2.4 (GNU License)
@@ -52,7 +52,7 @@ Many platforms come with a cert file with a lot of the well-known public certs i
 ### Launching the sample application / unit test
 Define AWS_ACCESS_KEY_ID and AWS_SECRET_KEY_ID environment variables with the AWS access key id and secret key:
 `export AWS_ACCESS_KEY_ID={AccessKeyId}`
-`export AWS_SECRET_KEY_ID={SecretKeyId}`
+`export AWS_SECRET_ACCESS_KEY={SecretAccessKey}`
 
 #### C++ Unit tests
 * The executable will be built in kinesis-video-native-build/start. Launch it and it will run the unit test and kick off dummy frame streaming.
