@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 # --------- create require directories ---------
 KINESIS_VIDEO_ROOT=`pwd`
 
@@ -10,8 +11,11 @@ if [ "$CMAKE_VERSION" \< "$CMAKE_VERSION_EXPECTED" ]; then
 fi
 
 DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
-mkdir $DOWNLOADS
-export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
+if [ ! -d "$DOWNLOADS" ]; then
+    mkdir "$DOWNLOADS"
+fi
+export PATH="\"$KINESIS_VIDEO_ROOT/downloads/local/bin\":$PATH"
+export PKG_CONFIG_PATH="$DOWNLOADS/local/lib/pkgconfig"
 echo $PATH
 
 # --------- download libs ---------
@@ -143,6 +147,7 @@ echo "Checking gstreamer at $DOWNLOADS/local/lib/libgstreamer-1.0.dylib/.so"
 if [ ! -f $DOWNLOADS/local/lib/libgstreamer-1.0.dylib ]; then
   if [ ! -f $DOWNLOADS/local/lib/libgstreamer-1.0.so ]; then
     echo "gstreamer lib not found. Installing"
+    export ARCHFLAGS="-arch x86_64"
     if [ ! -f $DOWNLOADS/gstreamer-1.12.3.tar.xz ]; then
       cd $DOWNLOADS
       curl -L "https://gstreamer.freedesktop.org/src/gstreamer/gstreamer-1.12.3.tar.xz" -o "gstreamer-1.12.3.tar.xz"
@@ -199,7 +204,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgstbadvideo-1.0.dylib ]; then
     cd $DOWNLOADS
     tar -xvf gst-plugins-bad-1.12.3.tar.xz
     cd $DOWNLOADS/gst-plugins-bad-1.12.3
-    ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc --disable-wayland  --disable-opencv --disable-ldap --disable-rtsp --without-zlib --without-ssl --disable-yadif --disable-sdl --disable-debug --disable-dependency-tracking CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+    ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc --disable-wayland  --disable-opencv --disable-ldap --disable-rtsp --without-zlib --without-ssl --disable-yadif --disable-sdl --disable-debug --disable-dependency-tracking LIBTOOL="$DOWNLOADS/gst-plugins-bad-1.12.3/libtool --tag=CC" CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
   fi
