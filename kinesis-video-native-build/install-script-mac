@@ -3,6 +3,11 @@ set -e
 # --------- create require directories ---------
 KINESIS_VIDEO_ROOT=`pwd`
 
+if [[ "$KINESIS_VIDEO_ROOT" == *\ * ]]; then
+    echo "Current working path cannot have space in it !"
+    exit
+fi
+
 CMAKE_VERSION=`cmake --version`
 CMAKE_VERSION_EXPECTED="cmake version 3.7"
 if [ "$CMAKE_VERSION" \< "$CMAKE_VERSION_EXPECTED" ]; then
@@ -14,7 +19,7 @@ DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
 if [ ! -d "$DOWNLOADS" ]; then
     mkdir "$DOWNLOADS"
 fi
-export PATH="\"$KINESIS_VIDEO_ROOT/downloads/local/bin\":$PATH"
+export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
 export PKG_CONFIG_PATH="$DOWNLOADS/local/lib/pkgconfig"
 echo $PATH
 
