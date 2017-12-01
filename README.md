@@ -17,12 +17,12 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ contains the following sub-d
 * kinesis-video-native-build - Native build directory with a build script for Mac OS. This is the directory that will contain the artifacts after the build.
 
 ## Building from Source
-After you've downloaded the code from GitHub, you can build it on Mac OS using /kinesis-video-native-build/install-script-mac script. This will produce the core library, the JNI library, unit tests executable and the sample GStreamer application. The script will download and build the dependent open source components in the 'downloads' directory and link against it. 
+After you've downloaded the code from GitHub, you can build it on Mac OS or Ubuntu using /kinesis-video-native-build/install-script script. This will produce the core library, the JNI library, unit tests executable and the sample GStreamer application. The script will download and build the dependent open source components in the 'downloads' directory and link against it. 
 
 The bulk of the install script is building the open source dependencies. The project is based on CMake so the open source components building can be skipped if the system versions can be used for linking.
 
 ## Open Source Dependencies
-The projects depend on the following open source components. Running install-script-mac will download and build the necessary components automatically.
+The projects depend on the following open source components. Running install-script will download and build the necessary components automatically.
 
 * curl lib - https://curl.haxx.se/docs/copyright.html
 * openssl (crypto and ssl) - https://github.com/openssl/openssl/blob/master/LICENSE
@@ -30,13 +30,14 @@ The projects depend on the following open source components. Running install-scr
 * jsoncpp - https://github.com/open-source-parsers/jsoncpp/blob/master/LICENSE
 
 ### Build Dependencies 
-Please install the following additional build tools before running install-script-mac.
+Please install the following additional build tools before running install-script.
 * autoconf 2.69 (License GPLv3+/Autoconf: GNU GPL version 3 or later) http://www.gnu.org/software/autoconf/autoconf.html
 * cmake 3.7/3.8 https://cmake.org/
 * bison 2.4 (GNU License)
 * automake 1.15.1 (GNU License)
 * libtool (Apple Inc. version cctools-898)
 * xCode (Mac OS) / clang / gcc (xcode-select version 2347)
+* Java jdk (for Java JNI compilation)
 
 ## Certificate store integration
 Kinesis Video Streams Produicer SDK for C++ needs to establish trust with the backend service through TLS. This is done through validating the CAs in the public certificate store. On Linux-based models, this store is located in /etc/ssl/ directory by default. 
