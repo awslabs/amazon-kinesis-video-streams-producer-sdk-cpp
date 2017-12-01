@@ -36,17 +36,31 @@ else()
     set(KINESIS_VIDEO_GST_DEMO_SRC "../kinesis-video-gst-demo")
 endif()
 
+set(JAVA_HOME $ENV{JAVA_HOME})
+message(STATUS "System name is ${CMAKE_SYSTEM_NAME}")
+
+STRING(TOLOWER "${CMAKE_SYSTEM_NAME}" CMAKE_SYSTEM_NAME_LOWER_CASE)
+
 message(STATUS "Kinesis Video PIC path is ${KINESIS_VIDEO_PIC_SRC}")
 message(STATUS "Kinesis Video Producer path is ${KINESIS_VIDEO_PRODUCER_SRC}")
 message(STATUS "Kinesis Video JNI path is ${KINESIS_VIDEO_PRODUCER_JNI_SRC}")
 message(STATUS "Kinesis Video Gstreamer demp app path is ${KINESIS_VIDEO_GST_DEMO_SRC}")
 message(STATUS "Kinesis Video Open Source path is ${KINESIS_VIDEO_OPEN_SOURCE_SRC}")
 
+STRING(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+
 # Uncomment below line for debug heap
 #add_definitions(-DHEAP_DEBUG)
 
 # Uncomment below line for very verbose logging
 #add_definitions(-DLOG_STREAMING)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++14")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ldl -lrt -lpthread")
+endif()
 
 set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/client/include/com/amazonaws/kinesis/video/client/Include.h
@@ -237,6 +251,8 @@ include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/include/glib-2.0)
 include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/glib-2.54.2)
 include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/lib/glib-2.0/include)
 include_directories(/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers)
+include_directories(${JAVA_HOME}/include)
+include_directories(${JAVA_HOME}/include/${CMAKE_SYSTEM_NAME_LOWER_CASE})
 
 link_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/lib)
 add_library(producer SHARED ${PRODUCER_SOURCE_FILES})
@@ -247,14 +263,23 @@ add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
 target_link_libraries(KinesisVideoProducerJNI producer)
 
 target_link_libraries(producer
-        liblog4cplus.dylib
-        libcrypto.a
-        libssl.a
-        libgtest.a
-        libgtest_main.a
-        libcurl.a)
+        log4cplus
+        crypto
+        ssl
+        gtest
+        gtest_main
+        curl)
 
-target_link_libraries(start producer)
+target_link_libraries(start
+        producer
+        pthread)
 
-target_link_libraries(kinesis_video_gstreamer_sample_app producer pthread dl gstreamer-1.0 gstapp-1.0 gobject-2.0 glib-2.0)
+target_link_libraries(kinesis_video_gstreamer_sample_app
+        producer
+        pthread
+        dl
+        gstreamer-1.0
+        gstapp-1.0
+        gobject-2.0
+        glib-2.0)
 

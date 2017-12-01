@@ -6,6 +6,7 @@
 #include <mutex>
 #include <iostream>
 #include <utility>
+#include <condition_variable>
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
 #include "KinesisVideoProducer.h"
