@@ -66,7 +66,7 @@ to `/stc/ssl/cert.pem`. Append to the end of the file if it exists.
 Many platforms come with a cert file with a lot of the well-known public certs in them.
 
 ### Launching the sample application / unit test
-Define AWS_ACCESS_KEY_ID and AWS_SECRET_KEY_ID environment variables with the AWS access key id and secret key:
+Define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables with the AWS access key id and secret key:
 `export AWS_ACCESS_KEY_ID={AccessKeyId}`
 `export AWS_SECRET_ACCESS_KEY={SecretAccessKey}`
 
