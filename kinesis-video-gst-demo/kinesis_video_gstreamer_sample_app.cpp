@@ -23,6 +23,8 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 #define ACCESS_KEY_ENV_VAR "AWS_ACCESS_KEY_ID"
 #define SECRET_KEY_ENV_VAR "AWS_SECRET_ACCESS_KEY"
+#define SESSION_TOKEN_ENV_VAR "AWS_SESSION_TOKEN"
+#define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -133,7 +135,7 @@ const unsigned char cpd[] = { 0x01, 0x42, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x23, 0x
 unique_ptr<Credentials> credentials_;
 
 typedef struct _CustomData {
-    GstElement *pipeline, *source, *source_filter, *encoder, *filter, *appsink;
+    GstElement *pipeline, *source, *source_filter, *encoder, *filter, *appsink, *videorate;
     GstBus *bus;
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
@@ -198,6 +200,10 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
 
     char const *accessKey;
     char const *secretKey;
+    char const *sessionToken;
+    char const *defaultRegion;
+    string defaultRegionStr;
+    string sessionTokenStr;
     if (nullptr == (accessKey = getenv(ACCESS_KEY_ENV_VAR))) {
         accessKey = "AccessKey";
     }
@@ -206,14 +212,29 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
         secretKey = "SecretKey";
     }
 
-    credentials_ = make_unique<Credentials>(string(accessKey), string(secretKey), "", std::chrono::seconds(180));;
-    unique_ptr<CredentialProvider> credential_provider = make_unique<SampleCredentialProvider>(*credentials_.get());;
+    if (nullptr == (sessionToken = getenv(SESSION_TOKEN_ENV_VAR))) {
+        sessionTokenStr = "";
+    } else {
+        sessionTokenStr = string(sessionToken);
+    }
+
+    if (nullptr == (defaultRegion = getenv(DEFAULT_REGION_ENV_VAR))) {
+        defaultRegionStr = DEFAULT_AWS_REGION;
+    } else {
+        defaultRegionStr = string(defaultRegion);
+    }
+
+    credentials_ = make_unique<Credentials>(string(accessKey),
+                                            string(secretKey),
+                                            sessionTokenStr,
+                                            std::chrono::seconds(180));
+    unique_ptr<CredentialProvider> credential_provider = make_unique<SampleCredentialProvider>(*credentials_.get());
 
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
                                                                     move(client_callback_provider),
                                                                     move(stream_callback_provider),
                                                                     move(credential_provider),
-                                                                    DEFAULT_AWS_REGION);
+                                                                    defaultRegionStr);
 
     LOG_DEBUG("Client is ready");
     /* create a test stream */
@@ -264,6 +285,7 @@ int gstreamer_init(int argc, char* argv[]) {
 
     CustomData data;
     GstStateChangeReturn ret;
+    bool vtenc;
 
     /* init data struct */
     memset(&data, 0, sizeof(data));
@@ -280,21 +302,35 @@ int gstreamer_init(int argc, char* argv[]) {
     /*
        gst-launch-1.0 v4l2src device=/dev/video0 ! video/x-raw,format=I420,width=1280,height=720,framerate=15/1 ! x264enc pass=quant bframes=0 ! video/x-h264,profile=baseline,format=I420,width=1280,height=720,framerate=15/1 ! matroskamux ! filesink location=test.mkv
      */
-    data.source = gst_element_factory_make("autovideosrc", "source");
     data.source_filter = gst_element_factory_make("capsfilter", "source_filter");
-    data.encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
     data.filter = gst_element_factory_make("capsfilter", "encoder_filter");
     data.appsink = gst_element_factory_make("appsink", "appsink");
+    data.videorate = gst_element_factory_make("videorate", "videorate");
+
+    // Attempt to create vtenc encoder
+    data.encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
+    if (data.encoder) {
+        data.source = gst_element_factory_make("autovideosrc", "source");
+        vtenc = true;
+    } else {
+        // Failed creating vtenc - attempt x264
+        data.encoder = gst_element_factory_make("x264enc", "encoder");
+        data.source = gst_element_factory_make("v4l2src", "source");
+        vtenc = false;
+    }
 
     /* create an empty pipeline */
     data.pipeline = gst_pipeline_new("test-pipeline");
 
-    if (!data.pipeline || !data.source || !data.source_filter || !data.encoder || !data.filter || !data.appsink) {
+    if (!data.pipeline || !data.source || !data.source_filter || !data.encoder || !data.filter || !data.appsink || !data.videorate) {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
 
     /* configure source */
+    if (!vtenc) {
+        g_object_set(G_OBJECT (data.source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
+    }
 
     /* source filter */
     GstCaps *source_caps = gst_caps_new_simple("video/x-raw",
@@ -306,8 +342,12 @@ int gstreamer_init(int argc, char* argv[]) {
     gst_caps_unref(source_caps);
 
     /* configure encoder */
-    g_object_set(G_OBJECT (data.encoder), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval",
-                 90, "bitrate", 512, NULL);
+    if (vtenc) {
+        g_object_set(G_OBJECT (data.encoder), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval",
+                          45, "bitrate", 512, NULL);
+    } else {
+        g_object_set(G_OBJECT (data.encoder), "bframes", 0, "key-int-max", 45, "bitrate", 512, NULL);
+    }
 
     /* configure filter */
     GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
@@ -326,9 +366,9 @@ int gstreamer_init(int argc, char* argv[]) {
     g_signal_connect(data.appsink, "new-sample", G_CALLBACK(on_new_sample), &data);
 
     /* build the pipeline */
-    gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.source_filter, data.encoder, data.filter, data.appsink,
-                     NULL);
-    if (gst_element_link_many(data.source, data.source_filter, data.encoder, data.filter, data.appsink, NULL) != TRUE) {
+    gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.videorate, data.source_filter, data.encoder, data.filter, 
+        data.appsink, NULL);
+    if (gst_element_link_many(data.source, data.videorate, data.source_filter, data.encoder, data.filter, data.appsink, NULL) != TRUE) {
         g_printerr("Elements could not be linked.\n");
         gst_object_unref(data.pipeline);
         return 1;

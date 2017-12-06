@@ -1,0 +1,78 @@
+#!/bin/bash
+set -e
+# --------- create require directories ---------
+KINESIS_VIDEO_ROOT=`pwd`
+
+if [[ "$KINESIS_VIDEO_ROOT" == *\ * ]]; then
+    echo "Current working path cannot have space in it !"
+    exit
+fi
+
+CMAKE_VERSION_STRING=`cmake --version`
+echo $CMAKE_VERSION_STRING
+CMAKE_EXPECTED_MAJOR_VERSION=3
+VERSION_ARRAY=( $CMAKE_VERSION_STRING )
+CMAKE_VERSION=${VERSION_ARRAY[2]}
+CMAKE_MAJOR_VERSION=${CMAKE_VERSION:0:1}
+
+if [ "$CMAKE_MAJOR_VERSION" \< "$CMAKE_EXPECTED_MAJOR_VERSION" ]; then
+  echo "CMake 3.x or higher is required.  You are running $CMAKE_VERSION"
+  exit
+fi
+
+DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
+if [ ! -d "$DOWNLOADS" ]; then
+    mkdir "$DOWNLOADS"
+fi
+
+export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
+export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
+
+# --------- download libs ---------
+
+# --------- build + install libs ---------
+
+echo "Checking log4cplus at $DOWNLOADS/local/lib/liblog4cplus.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.so ]; then
+    echo "log4cplus lib not found. Installing"
+    if [ ! -f $DOWNLOADS/log4cplus-1.2.0.tar.xz ]; then
+      cd $DOWNLOADS
+      curl -L "https://versaweb.dl.sourceforge.net/project/log4cplus/log4cplus-stable/1.2.0/log4cplus-1.2.0.tar.xz" -o "log4cplus-1.2.0.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf log4cplus-1.2.0.tar.xz
+    cd $DOWNLOADS/log4cplus-1.2.0
+    ./configure --prefix=$DOWNLOADS/local/ --with-pic
+    make
+    make install
+  fi
+fi
+
+echo "Checking googletest at $DOWNLOADS/local/lib/libgtest.a"
+if [ ! -f $DOWNLOADS/local/lib/libgtest.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libgtest.so ]; then
+    echo "gtest lib not found. Installing"
+    if [ ! -f $DOWNLOADS/google-test-1.8.0.gz ]; then
+      cd $DOWNLOADS
+      curl -L "https://github.com/google/googletest/archive/release-1.8.0.tar.gz" -o "google-test-1.8.0.gz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf google-test-1.8.0.gz
+    cd googletest-release-1.8.0/googletest
+    cmake -DBUILD_SHARED_LIBS=ON .
+    make
+    mkdir -p $DOWNLOADS/local/lib
+    cp -r ./include $DOWNLOADS/local
+    cp ./lib* $DOWNLOADS/local/lib
+  fi
+fi
+
+## --------- build kinesis video ---------
+cd $KINESIS_VIDEO_ROOT
+cmake CMakeLists.txt
+make
+
+echo "**********************************************************"
+echo Success!!!
+echo "**********************************************************"
