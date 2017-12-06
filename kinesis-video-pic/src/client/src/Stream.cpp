@@ -338,7 +338,7 @@ STATUS stopStream(PKinesisVideoStream pKinesisVideoStream)
                 TO_STREAM_HANDLE(pKinesisVideoStream),
                 pKinesisVideoStream->streamInfo.name,
                 duration,
-                viewByteSize));
+                viewByteSize + pKinesisVideoStream->curViewItem.length - pKinesisVideoStream->curViewItem.offset));
     }
 
     // We need to proactively call the EOS notification as the client

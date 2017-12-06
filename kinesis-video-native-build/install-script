@@ -26,7 +26,8 @@ if [ ! -d "$DOWNLOADS" ]; then
 fi
 
 export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
-export PKG_CONFIG_PATH="$DOWNLOADS/local/lib/pkgconfig"
+export PKG_CONFIG_LIBDIR="$DOWNLOADS/local/lib/pkgconfig"
+export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
 
 PLATFORM='unknown'
 unamestr=`uname`
@@ -51,7 +52,7 @@ if [ ! -f $DOWNLOADS/local/lib/libssl.a ]; then
   cd $DOWNLOADS
   tar -xvf openssl-1.1.0f.tar.gz
   cd $DOWNLOADS/openssl-1.1.0f
-  ./config --prefix=$DOWNLOADS/local/
+  ./config -fPIC --prefix=$DOWNLOADS/local/ --openssldir=$DOWNLOADS/local/
   make
   make install
 fi
@@ -288,7 +289,7 @@ if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstavi.la ]; then
   make install
 fi
 
-echo "Checking gst-plugin-bad at $DOWNLOADS/local/libgstbadvideo-1.0.dylib/.so"
+echo "Checking gst-plugin-bad at $DOWNLOADS/local/lib/libgstbadvideo-1.0.dylib/.so"
 if [ ! -f $DOWNLOADS/local/lib/libgstbadvideo-1.0.dylib ]; then
   if [ ! -f $DOWNLOADS/local/lib/libgstbadvideo-1.0.so ]; then
     echo "gst-plugin-bad not found. Installing"
@@ -312,6 +313,54 @@ if [ ! -f $DOWNLOADS/local/lib/libgstbadvideo-1.0.dylib ]; then
   fi
 fi
 
+echo "Checking x264 at $DOWNLOADS/local/lib/libx264.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/libx264.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libx264.so ]; then
+    echo "gst-plugin-ugly not found. Installing"
+    if [ ! -f $DOWNLOADS/x264-snapshot-20171204-2245-stable.tar.bz2 ]; then
+      cd $DOWNLOADS
+      curl -L "https://download.videolan.org/x264/snapshots/x264-snapshot-20171204-2245-stable.tar.bz2" -o "x264-snapshot-20171204-2245-stable.tar.bz2"
+    fi
+    cd $DOWNLOADS
+    tar -xvf x264-snapshot-20171204-2245-stable.tar.bz2
+    cd $DOWNLOADS/x264-snapshot-20171204-2245-stable
+
+    for d in ./*/ ; do
+      if [ -f "$d/configure.ac" ]; then
+        (cd "$d" && autoreconf -f -i);
+      fi
+    done
+
+    ./configure --prefix=$DOWNLOADS/local --enable-shared --disable-cli --disable-asm
+    make
+    make install
+  fi
+fi
+
+echo "Checking gst-plugin-ugly at $DOWNLOADS/local/lib/gstreamer-1.0/libgstx264.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstx264.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstx264.so ]; then
+    echo "gst-plugin-ugly not found. Installing"
+    if [ ! -f $DOWNLOADS/gst-plugins-ugly-1.12.3.tar.xz ]; then
+      cd $DOWNLOADS
+      curl -L "https://gstreamer.freedesktop.org/src/gst-plugins-ugly/gst-plugins-ugly-1.12.3.tar.xz" -o "gst-plugins-ugly-1.12.3.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf gst-plugins-ugly-1.12.3.tar.xz
+    cd $DOWNLOADS/gst-plugins-ugly-1.12.3
+
+    for d in ./*/ ; do
+      if [ -f "$d/configure.ac" ]; then
+        (cd "$d" && autoreconf -f -i);
+      fi
+    done
+
+    ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+    make
+    make install
+  fi
+fi
+
 echo "Checking googletest at $DOWNLOADS/local/lib/libgtest.a"
 if [ ! -f $DOWNLOADS/local/lib/libgtest.dylib ]; then
   if [ ! -f $DOWNLOADS/local/lib/libgtest.so ]; then
@@ -330,6 +379,9 @@ if [ ! -f $DOWNLOADS/local/lib/libgtest.dylib ]; then
     cp ./lib* $DOWNLOADS/local/lib
   fi
 fi
+
+export PKG_CONFIG_LIBDIR="$DOWNLOADS/local/lib/pkgconfig"
+export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
 
 ## --------- build kinesis video ---------
 cd $KINESIS_VIDEO_ROOT
