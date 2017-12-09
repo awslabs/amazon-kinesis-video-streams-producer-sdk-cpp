@@ -953,7 +953,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         control_plane_uri_ = CONTROL_PLANE_URI_PREFIX
                              + KINESIS_VIDEO_SERVICE_NAME
                              + "."
-                             + DEFAULT_AWS_REGION
+                             + region_
                              + CONTROL_PLANE_URI_POSTFIX;
     }
 }
