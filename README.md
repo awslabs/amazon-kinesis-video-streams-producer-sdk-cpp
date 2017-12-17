@@ -61,7 +61,7 @@ Kinesis Video Streams Produicer SDK for C++ needs to establish trust with the ba
 Please download the PEM file from 
 https://www.amazontrust.com/repository/SFSRootCAG2.pem
  
-to `/stc/ssl/cert.pem`. Append to the end of the file if it exists.
+to '/etc/ssl/cert.pem'. Append to the end of the file if it exists.
 
 Many platforms come with a cert file with a lot of the well-known public certs in them.
 
