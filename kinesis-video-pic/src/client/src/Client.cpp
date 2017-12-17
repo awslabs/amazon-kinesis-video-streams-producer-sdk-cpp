@@ -704,7 +704,9 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
 
     // Notify the client about the dropped frame - only if we are removing the current view item
     // or the item that's been partially sent is being removed which was the one before the current.
-    if (currentRemoved || pViewItem->handle == pKinesisVideoStream->curViewItem.handle) {
+    if (currentRemoved ||
+            (pViewItem->handle == pKinesisVideoStream->curViewItem.handle &&
+                    pKinesisVideoStream->curViewItem.offset != pKinesisVideoStream->curViewItem.length)) {
         DLOGW("Reporting a dropped frame/fragment.");
 
         // Invalidate the streams current view item

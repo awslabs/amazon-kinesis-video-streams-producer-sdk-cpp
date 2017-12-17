@@ -885,9 +885,8 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
                              STREAM_HANDLE stream_handle) -> auto {
             // Wait for the specified amount of time before calling the provided callback
             // NOTE: We will add an extra time for curl handle to settle and close the stream.
-            auto time_point = std::chrono::time_point<std::chrono::steady_clock, std::chrono::milliseconds>
-                    (std::chrono::milliseconds(TIMEOUT_AFTER_STREAM_STOPPED + CURL_CLOSE_HANDLE_DELAY_IN_MILLIS));
-            std::this_thread::sleep_until(time_point);
+            std::this_thread::sleep_for(std::chrono::milliseconds(TIMEOUT_AFTER_STREAM_STOPPED +
+                                                                  CURL_CLOSE_HANDLE_DELAY_IN_MILLIS));
 
             STATUS status = client_eos_callback(custom_data, stream_handle);
             if (STATUS_FAILED(status)) {
@@ -954,7 +953,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         control_plane_uri_ = CONTROL_PLANE_URI_PREFIX
                              + KINESIS_VIDEO_SERVICE_NAME
                              + "."
-                             + DEFAULT_AWS_REGION
+                             + region_
                              + CONTROL_PLANE_URI_POSTFIX;
     }
 }
