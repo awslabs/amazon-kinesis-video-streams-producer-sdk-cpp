@@ -17,6 +17,8 @@ LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
 
 #define ACCESS_KEY_ENV_VAR  "AWS_ACCESS_KEY_ID"
 #define SECRET_KEY_ENV_VAR  "AWS_SECRET_ACCESS_KEY"
+#define SESSION_TOKEN_ENV_VAR "AWS_SESSION_TOKEN"
+#define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 
 #define FRAME_DURATION_IN_MICROS                            40000
 #define TEST_EXECUTION_DURATION_IN_SECONDS                  3 * 60
@@ -99,7 +101,8 @@ public:
     ProducerTestBase() : producer_thread_(0),
                          start_producer_(false),
                          stop_called_(false),
-                         stop_producer_(false) {
+                         stop_producer_(false),
+                         defaultRegion_(DEFAULT_AWS_REGION) {
 
         // Set the global to this object so we won't need to allocate structures in the heap
         gProducerApiTest = this;
@@ -109,8 +112,11 @@ public:
         stream_callback_provider_ = make_unique<TestStreamCallbackProvider>();
 
         // Read the credentials from the environmental variables if defined. Use defaults if not.
-        char *accessKey;
-        char *secretKey;
+        char const *accessKey;
+        char const *secretKey;
+        char const *sessionToken;
+        char const *defaultRegion;
+        string sessionTokenStr;
         if (nullptr == (accessKey = getenv(ACCESS_KEY_ENV_VAR))) {
             accessKey = "AccessKey";
         }
@@ -119,8 +125,21 @@ public:
             secretKey = "SecretKey";
         }
 
-        credentials_ = make_unique<Credentials>(string(accessKey), string(secretKey), "",
+        if (nullptr == (sessionToken = getenv(SESSION_TOKEN_ENV_VAR))) {
+            sessionTokenStr = "";
+        } else {
+            sessionTokenStr = string(sessionToken);
+        }
+
+        if (nullptr != (defaultRegion = getenv(DEFAULT_REGION_ENV_VAR))) {
+            defaultRegion_ = string(defaultRegion);
+        }
+
+        credentials_ = make_unique<Credentials>(string(accessKey),
+                                                string(secretKey),
+                                                sessionTokenStr,
                                                 std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
+
         credential_provider_ = make_unique<TestCredentialProvider>(*credentials_.get());
     }
 
@@ -136,7 +155,7 @@ protected:
                                                                    move(client_callback_provider_),
                                                                    move(stream_callback_provider_),
                                                                    move(credential_provider_),
-                                                                   DEFAULT_AWS_REGION);
+                                                                   defaultRegion_);
     };
 
     unique_ptr<KinesisVideoStream> CreateTestStream(int index) {
@@ -186,6 +205,8 @@ protected:
     unique_ptr<StreamCallbackProvider> stream_callback_provider_;
     unique_ptr<Credentials> credentials_;
     unique_ptr<CredentialProvider> credential_provider_;
+
+    string defaultRegion_;
 
     pthread_t producer_thread_;
     volatile bool start_producer_;

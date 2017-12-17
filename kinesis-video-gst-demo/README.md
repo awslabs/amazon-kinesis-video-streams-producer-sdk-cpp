@@ -42,11 +42,14 @@ $ tree -L 1
 
 ```
 cd kinesis-video-native-build
-./install-script-mac
+./install-script
 ```
 
 ## Run the application
 
 ```
-AWS_ACCESS_KEY_ID=AKIASAMPLEKEYID AWS_SECRET_KEY_ID=MYSECRETKEYKID ./gst_demo my-stream-name
+AWS_ACCESS_KEY_ID=AKIASAMPLEKEYID AWS_SECRET_ACCESS_KEY=MYSECRETACCESSKEY ./kinesis_video_gstreamer_sample_app my-stream-name
+
+optionally, AWS_SESSION_TOKEN and AWS_DEFAULT_REGION environment variables can be specified.
+
 ```

@@ -62,6 +62,11 @@ if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ldl -lrt -lpthread")
 endif()
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GST REQUIRED gstreamer-1.0>=1.2
+                               gstreamer-video-1.0>=1.2
+                               gstreamer-app-1.0>=1.2)
+
 set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/client/include/com/amazonaws/kinesis/video/client/Include.h
         ${KINESIS_VIDEO_PIC_SRC}/src/client/src/AuthIntegration.cpp
@@ -260,6 +265,8 @@ add_library(KinesisVideoProducerJNI SHARED ${PRODUCER_SOURCE_FILES_JNI})
 add_executable(start ${TST_PRODUCER_SOURCE_FILES})
 add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
 
+target_include_directories(kinesis_video_gstreamer_sample_app PRIVATE ${GST_INCLUDE_DIRS})
+
 target_link_libraries(KinesisVideoProducerJNI producer)
 
 target_link_libraries(producer
@@ -282,4 +289,3 @@ target_link_libraries(kinesis_video_gstreamer_sample_app
         gstapp-1.0
         gobject-2.0
         glib-2.0)
-
