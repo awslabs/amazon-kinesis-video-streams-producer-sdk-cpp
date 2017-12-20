@@ -17,9 +17,22 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ contains the following sub-d
 * kinesis-video-native-build - Native build directory with a build script for Mac OS/Linux/Raspberry PI. This is the directory that will contain the artifacts after the build.
 
 ## Building from Source
+There are few build-time tools/dependencies which need to be installed in order to build the core SDK libraries and the samples.
+
+### Build Dependencies 
+Please install the following additional build tools before proceeding (the example below is for Mac Os X).
+* autoconf 2.69 (License GPLv3+/Autoconf: GNU GPL version 3 or later) http://www.gnu.org/software/autoconf/autoconf.html
+* cmake 3.7/3.8 https://cmake.org/
+* flex 2.5.35 Apple(flex-31)
+* bison 2.4 (GNU License)
+* automake 1.15.1 (GNU License)
+* libtool (Apple Inc. version cctools-898)
+* xCode (Mac OS) / clang / gcc (xcode-select version 2347)
+* Java jdk (for Java JNI compilation)
+
 After you've downloaded the code from GitHub, you can build it on Mac OS or Ubuntu using ./kinesis-video-native-build/install-script script. This will produce the core library, the JNI library, unit tests executable and the sample GStreamer application. The script will download and build the dependent open source components in the 'downloads' directory and link against it. 
 
-Important: Set the JAVA_HOME environment variable to your version of the JDK `export JAVA_HOME=<your java home directory>` in order to build and link JNI component.
+**Important:** Set the JAVA_HOME environment variable to your version of the JDK `export JAVA_HOME=<your java home directory>` in order to build and link JNI component.
 
 The bulk of the install script is building the open source dependencies. The project is based on CMake so the open source components building can be skipped if the system versions can be used for linking. Running 'cmake . && make' from the kinesis-video-native-build directory will build and link the SDK.
 
@@ -44,16 +57,6 @@ The projects depend on the following open source components. Running `install-sc
 * gst-plugins-bad 
 * gst-plugins-ugly
 * x264 - https://www.videolan.org/developers/x264.html
-
-### Build Dependencies 
-Please install the following additional build tools before running install-script.
-* autoconf 2.69 (License GPLv3+/Autoconf: GNU GPL version 3 or later) http://www.gnu.org/software/autoconf/autoconf.html
-* cmake 3.7/3.8 https://cmake.org/
-* bison 2.4 (GNU License)
-* automake 1.15.1 (GNU License)
-* libtool (Apple Inc. version cctools-898)
-* xCode (Mac OS) / clang / gcc (xcode-select version 2347)
-* Java jdk (for Java JNI compilation)
 
 ## Certificate store integration
 Kinesis Video Streams Produicer SDK for C++ needs to establish trust with the backend service through TLS. This is done through validating the CAs in the public certificate store. On Linux-based models, this store is located in /etc/ssl/ directory by default. 
@@ -216,11 +219,29 @@ OpenJDK 64-Bit Server VM (build 25.151-b12, mixed mode)
 
 * Raspberry PI failure to load the camera device. To check this is the case run `ls /dev/video*` - it should be file not found. The remedy is to run the following:
 
-> vcgencmd get_camera
-supported=1 detected=1
+$ls /dev/video* {not found}
 
-> sudo modprobe bcm2835-v4l2
-> ls /dev/video*
+$vcgencmd get_camera {output is similar to supported=1 detected=1}
+
+if the driver does not detect the camera then 
+
+* Check for the camera setup and whether it's connected properly
+* Run firmware update `$ sudo rpi-update` and restart
+
+$sudo modprobe bcm2835-v4l2
+
+$ls /dev/video* {lists the device}
+
+
+* Raspberry PI timestamp/range assertion at runtime. Update the Raspberry PI firmware.
+
+$ sudo rpi-update 
+
+$ sudo reboot
+
+
+* Raspberry PI GStreamer assertion on gst_value_set_fraction_range_full: assertion 'gst_util_fraction_compare (numerator_start, denominator_start, numerator_end, denominator_end) < 0' failed. The uv4l service running in the background. Kill the service and restart the sample app.
+
 
 * Raspberry PI seg fauls after some time running on libx264.so. Rebuilding the libx264.so library and re-linking the demo application fixes the issue.
 

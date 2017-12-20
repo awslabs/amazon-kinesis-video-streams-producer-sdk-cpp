@@ -108,6 +108,7 @@ public:
                       mDuration(0),
                       mFrameTime(0),
                       mFragmentTime(0),
+                      mStatus(STATUS_SUCCESS),
                       mStreamHandle(INVALID_STREAM_HANDLE_VALUE),
                       mStreamReady(FALSE),
                       mStreamClosed(FALSE),
@@ -151,7 +152,10 @@ public:
                       mCreateDeviceFuncCount(0),
                       mDeviceCertToTokenFuncCount(0),
                       mClientReadyFuncCount(0),
-                      mStreamDataAvailableFuncCount(0)
+                      mStreamDataAvailableFuncCount(0),
+                      mStreamErrorReportFuncCount(0),
+                      mStreamConnectionStaleFuncCount(0),
+                      mFragmentAckReceivedFuncCount(0)
     {
         globalMemAlloc = instrumentedMemAlloc;
         globalMemAlignAlloc = instrumentedMemAlignAlloc;
@@ -173,6 +177,7 @@ public:
         MEMSET(mKmsKeyId, 0x00, MAX_ARN_LEN);
         MEMSET(mApiName, 0x00, 256);
         MEMSET(mResourceArn, 0x00, MAX_ARN_LEN);
+        MEMSET(&mFragmentAck, 0x00, SIZEOF(FragmentAck));
 
         // Set the magic number for verification later
         mMagic = TEST_CLIENT_MAGIC_NUMBER;
@@ -207,6 +212,9 @@ public:
         mClientCallbacks.getRandomNumberFn = getRandomNumberFunc;
         mClientCallbacks.clientReadyFn = clientReadyFunc;
         mClientCallbacks.streamDataAvailableFn = streamDataAvailableFunc;
+        mClientCallbacks.streamErrorReportFn = streamErrorReportFunc;
+        mClientCallbacks.streamConnectionStaleFn = streamConnectionStaleFunc;
+        mClientCallbacks.fragmentAckReceivedFn = fragmentAckReceivedFunc;
 
         // Initialize the device info, etc..
         mDeviceInfo.version = DEVICE_INFO_CURRENT_VERSION;
@@ -265,6 +273,8 @@ protected:
     UINT64 mDuration;
     UINT64 mFrameTime;
     UINT64 mFragmentTime;
+    STATUS mStatus;
+    FragmentAck mFragmentAck;
     BOOL mStreamReady;
     BOOL mStreamClosed;
     BOOL mClientReady;
@@ -320,6 +330,9 @@ protected:
     volatile UINT32 mDeviceCertToTokenFuncCount;
     volatile UINT32 mClientReadyFuncCount;
     volatile UINT32 mStreamDataAvailableFuncCount;
+    volatile UINT32 mStreamErrorReportFuncCount;
+    volatile UINT32 mStreamConnectionStaleFuncCount;
+    volatile UINT32 mFragmentAckReceivedFuncCount;
 
     STATUS CreateClient()
     {
@@ -561,5 +574,19 @@ protected:
                                           PCHAR,
                                           UINT64,
                                           UINT64);
+
+    static STATUS streamErrorReportFunc(UINT64,
+                                        STREAM_HANDLE,
+                                        UINT64,
+                                        STATUS);
+
+    static STATUS streamConnectionStaleFunc(UINT64,
+                                            STREAM_HANDLE,
+                                            UINT64);
+
+    static STATUS fragmentAckReceivedFunc(UINT64,
+                                          STREAM_HANDLE,
+                                          PFragmentAck);
+
 
 };

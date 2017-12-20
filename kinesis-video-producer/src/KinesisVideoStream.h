@@ -12,7 +12,6 @@
 #include "KinesisVideoProducer.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
-
 /**
 * This definition comes from the Kinesis Video PIC, the typedef is to allow differentiation in case of other "Frame" definitions.
 */
@@ -36,14 +35,9 @@ using KinesisVideoFrame = ::Frame;
 */
 class KinesisVideoProducer;
 class KinesisVideoStream {
+    friend KinesisVideoProducer;
 public:
-    explicit KinesisVideoStream(const KinesisVideoProducer& kinesis_video_producer, const std::string stream_name)
-            : stream_handle_(INVALID_STREAM_HANDLE_VALUE),
-              stream_name_(stream_name),
-              kinesis_video_producer_(kinesis_video_producer),
-              stream_ready_(false) {
-        // the handle is NULL to start. We will set it later once Kinesis Video PIC gives us a stream handle.
-    }
+    virtual ~KinesisVideoStream();
 
     /**
      * @return A pointer to the Kinesis Video STREAM_HANDLE for this instance.
@@ -84,12 +78,6 @@ public:
      * will continue emptying until it's finished and the close stream will be called.
      */
     bool stop();
-
-    /**
-     * Stops the the stream immediately and frees the resources.
-     * Consecutive calls will fail.
-     */
-    void free();
 
     bool operator==(const KinesisVideoStream &rhs) const {
         return stream_handle_ == rhs.stream_handle_ &&
@@ -132,6 +120,14 @@ public:
     void getStreamMetrics(StreamMetrics& metrics);
 
 private:
+    KinesisVideoStream(const KinesisVideoProducer& kinesis_video_producer, const std::string stream_name);
+
+    /**
+     * Stops the the stream immediately and frees the resources.
+     * Consecutive calls will fail.
+     */
+    void free();
+
     /**
      * Pointer to an opaque Kinesis Video stream.
      */
@@ -166,7 +162,6 @@ private:
      * Condition variable used to signal the stream being ready.
      */
     std::condition_variable stream_ready_var_;
-
 };
 
 } // namespace video

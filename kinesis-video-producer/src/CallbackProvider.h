@@ -72,7 +72,21 @@ class CallbackProvider {
 public:
     using callback_t = ClientCallbacks;
 
+    /**
+     * Gets the callbacks
+     * @return ClientCallbacks
+     */
     virtual callback_t getCallbacks();
+
+    /**
+     * Shutting down
+     */
+    virtual void shutdown();
+
+    /**
+     * Stream is being freed
+     */
+    virtual void shutdownStream(STREAM_HANDLE stream_handle);
 
     /**
      * @return Kinesis Video client default implementation
@@ -196,6 +210,21 @@ public:
      *  @return a function pointer conforming to the description above.
      */
     virtual StreamLatencyPressureFunc getStreamLatencyPressureCallback();
+
+    /**
+     * The function returned by this callback takes three arguments:
+     * - UINT64 custom_data: A handle to this class.
+     * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which is reporting received ACK.
+     * - PFragmentAck fragment ack: The fragment ACK received
+     *
+     * Optional Callback.
+     *
+     * The callback returned shall take the appropriate action (decided by the implementor) to get notified
+     * when an ack is received and processed.
+     *
+     *  @return a function pointer conforming to the description above.
+     */
+    virtual FragmentAckReceivedFunc getFragmentAckReceivedCallback();
 
     /**
      * The function returned by this callback takes three arguments:

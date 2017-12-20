@@ -826,6 +826,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mClientCallbacks.storageOverflowPressureFn = storageOverflowPressureFunc;
     mClientCallbacks.streamLatencyPressureFn = streamLatencyPressureFunc;
     mClientCallbacks.streamConnectionStaleFn = streamConnectionStaleFunc;
+    mClientCallbacks.fragmentAckReceivedFn = fragmentAckReceivedFunc;
     mClientCallbacks.droppedFrameReportFn = droppedFrameReportFunc;
     mClientCallbacks.droppedFragmentReportFn = droppedFragmentReportFunc;
     mClientCallbacks.streamErrorReportFn = streamErrorReportFunc;
@@ -895,6 +896,12 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mStreamConnectionStaleMethodId = env->GetMethodID(thizCls, "streamConnectionStale", "(JJ)V");
     if (mStreamConnectionStaleMethodId == NULL) {
         DLOGE("Couldn't find method id streamConnectionStale");
+        return FALSE;
+    }
+
+    mFragmentAckReceivedMethodId = env->GetMethodID(thizCls, "fragmentAckReceived", "(JLcom/amazonaws/kinesisvideo/producer/KinesisVideoFragmentAck;)V");
+    if (mFragmentAckReceivedMethodId == NULL) {
+        DLOGE("Couldn't find method id fragmentAckReceived");
         return FALSE;
     }
 
@@ -1264,7 +1271,65 @@ STATUS KinesisVideoClientWrapper::streamConnectionStaleFunc(UINT64 customData, S
     env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamConnectionStaleMethodId, streamHandle, duration);
     CHK_JVM_EXCEPTION(env);
 
-    CleanUp:
+CleanUp:
+
+    // Detach the thread if we have attached it to JVM
+    if (detached) {
+        pWrapper->mJvm->DetachCurrentThread();
+    }
+
+    return retStatus;
+}
+
+STATUS KinesisVideoClientWrapper::fragmentAckReceivedFunc(UINT64 customData, STREAM_HANDLE streamHandle, PFragmentAck pFragmentAck)
+{
+    DLOGS("TID 0x%016lx fragmentAckReceivedFunc called.", GETTID());
+
+    KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
+    CHECK(pWrapper != NULL);
+
+    // Get the ENV from the JavaVM
+    JNIEnv *env;
+    BOOL detached = FALSE;
+    STATUS retStatus = STATUS_SUCCESS;
+    jstring jstrSequenceNum = NULL;
+    jobject ack = NULL;
+    jmethodID methodId = NULL;
+    jclass ackClass = NULL;
+
+    INT32 envState = pWrapper->mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+    if (envState == JNI_EDETACHED) {
+        ATTACH_CURRENT_THREAD_TO_JVM(env);
+
+        // Store the detached so we can detach the thread after the call
+        detached = TRUE;
+    }
+
+    // Get the class object for Ack
+    ackClass = env->FindClass("com/amazonaws/kinesisvideo/producer/KinesisVideoFragmentAck");
+    CHK(ackClass != NULL, STATUS_INVALID_OPERATION);
+
+    // Get the Ack constructor method id
+    methodId = env->GetMethodID(ackClass, "<init>", "(IJLjava/lang/String;I)V");
+    CHK(methodId != NULL, STATUS_INVALID_OPERATION);
+
+    jstrSequenceNum = env->NewStringUTF(pFragmentAck->sequenceNumber);
+    CHK(jstrSequenceNum != NULL, STATUS_NOT_ENOUGH_MEMORY);
+
+    // Create a new tag object
+    ack = env->NewObject(ackClass,
+                         methodId,
+                         (jint) pFragmentAck->ackType,
+                         (jlong) pFragmentAck->timestamp,
+                         jstrSequenceNum,
+                         (jint) pFragmentAck->result);
+    CHK(ack != NULL, STATUS_NOT_ENOUGH_MEMORY);
+
+    // Call the Java func
+    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mFragmentAckReceivedMethodId, streamHandle, ack);
+    CHK_JVM_EXCEPTION(env);
+
+CleanUp:
 
     // Detach the thread if we have attached it to JVM
     if (detached) {

@@ -25,7 +25,8 @@ LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
 #define TEST_STREAM_COUNT                                   3
 #define TEST_FRAME_SIZE                                     1000
 #define TEST_STREAMING_TOKEN_DURATION_IN_SECONDS            (45 * 60)
-#define TEST_STORAGE_SIZE_IN_BYTES                          1024 * 1024 * 1024ull
+#define TEST_STORAGE_SIZE_IN_BYTES                          128 * 1024 * 1024ull
+#define TEST_MAX_STREAM_LATENCY_IN_MILLIS                   60000
 
 class TestClientCallbackProvider : public ClientCallbackProvider {
 public:
@@ -55,21 +56,23 @@ public:
         return streamClosedHandler;
     }
 
+    StreamLatencyPressureFunc getStreamLatencyPressureCallback() override {
+        return streamLatencyPressureHandler;
+    }
+
 private:
     static STATUS streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 last_buffering_ack);
     static STATUS streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 errored_timecode, STATUS status);
     static STATUS droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 dropped_frame_timecode);
     static STATUS streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle);
+    static STATUS streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 duration);
 };
 
 class TestDeviceInfoProvider : public DefaultDeviceInfoProvider {
 public:
     device_info_t getDeviceInfo() override {
         auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
-
-        // Set the storage size to 256mb
         device_info.storageInfo.storageSize = TEST_STORAGE_SIZE_IN_BYTES;
-
         return device_info;
     }
 };
@@ -145,17 +148,32 @@ public:
 
     PVOID basicProducerRoutine(KinesisVideoStream*);
 
+    void freeStreams() {
+        stop_producer_ = true;
+        for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
+            LOG_DEBUG("Freeing stream " << streams_[i]->getStreamName());
+
+            // Freeing the stream
+            kinesis_video_producer_->freeStream(move(streams_[i]));
+            streams_[i] = nullptr;
+        }
+    }
+
     volatile bool stop_called_;
 
 protected:
 
     void CreateProducer() {
         // Create the producer client
-        kinesis_video_producer_ = KinesisVideoProducer::createSync(move(device_provider_),
-                                                                   move(client_callback_provider_),
-                                                                   move(stream_callback_provider_),
-                                                                   move(credential_provider_),
-                                                                   defaultRegion_);
+        try {
+            kinesis_video_producer_ = KinesisVideoProducer::createSync(move(device_provider_),
+                                                                       move(client_callback_provider_),
+                                                                       move(stream_callback_provider_),
+                                                                       move(credential_provider_),
+                                                                       defaultRegion_);
+        } catch (std::runtime_error) {
+            ASSERT_TRUE(false) << "Failed creating kinesis video producer";
+        }
     };
 
     unique_ptr<KinesisVideoStream> CreateTestStream(int index) {
@@ -177,7 +195,7 @@ protected:
                                                                "",
                                                                STREAMING_TYPE_REALTIME,
                                                                "video/h264",
-                                                               milliseconds::zero(),
+                                                               milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
                                                                seconds(2),
                                                                milliseconds(1),
                                                                true,
@@ -212,7 +230,9 @@ protected:
     volatile bool start_producer_;
     volatile bool stop_producer_;
 
-    BYTE frameBuffer[TEST_FRAME_SIZE];
+    BYTE frameBuffer_[TEST_FRAME_SIZE];
+
+    unique_ptr<KinesisVideoStream> streams_[TEST_STREAM_COUNT];
 };
 
 }  // namespace video

@@ -1,6 +1,4 @@
 #include "Response.h"
-#include "Auth.h"
-#include "Logger.h"
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
@@ -224,6 +222,7 @@ void Response::terminate() {
 }
 
 void Response::closeCurlHandles() {
+    std::unique_lock<std::mutex> lock(termination_mutex_);
     if (request_headers_) {
         curl_slist_free_all(request_headers_);
         request_headers_ = NULL;
@@ -264,76 +263,6 @@ int Response::getStatusCode() const {
 
 SERVICE_CALL_RESULT Response::getServiceCallResult() const {
     return service_call_result_;
-}
-
-FRAGMENT_ACK_TYPE Response::getAckType(const std::string& ackType) {
-    if (0 == ackType.compare("BUFFERING")) {
-        return FRAGMENT_ACK_TYPE_BUFFERING;
-    }
-
-    if (0 == ackType.compare("RECEIVED")) {
-        return FRAGMENT_ACK_TYPE_RECEIVED;
-    }
-
-    if (0 == ackType.compare("PERSISTED")) {
-        return FRAGMENT_ACK_TYPE_PERSISTED;
-    }
-
-    if (0 == ackType.compare("IDLE")) {
-        return FRAGMENT_ACK_TYPE_IDLE;
-    }
-
-    if (0 == ackType.compare("ERROR")) {
-        return FRAGMENT_ACK_TYPE_ERROR;
-    }
-
-    return FRAGMENT_ACK_TYPE_UNDEFINED;
-}
-
-SERVICE_CALL_RESULT Response::getAckErrorType(const std::string& errorType) {
-
-    // Special handling for OK and Idle
-    if (errorType == "" || 0 == errorType.compare("OK") || 0 == errorType.compare("IDLE")) {
-        return SERVICE_CALL_RESULT_OK;
-    }
-
-    if (0 == errorType.compare("STREAM_READ_ERROR")) {
-        return SERVICE_CALL_RESULT_STREAM_READ_ERROR;
-    }
-
-    if (0 == errorType.compare("MAX_FRAGMENT_SIZE_REACHED")) {
-        return SERVICE_CALL_RESULT_FRAGMENT_SIZE_REACHED;
-    }
-
-    if (0 == errorType.compare("MAX_FRAGMENT_DURATION_REACHED")) {
-        return SERVICE_CALL_RESULT_FRAGMENT_DURATION_REACHED;
-    }
-
-    if (0 == errorType.compare("MAX_CONNECTION_DURATION_REACHED")) {
-        return SERVICE_CALL_RESULT_CONNECTION_DURATION_REACHED;
-    }
-
-    if (0 == errorType.compare("FRAGMENT_TIMECODE_LESSER_THAN_PREVIOUS")) {
-        return SERVICE_CALL_RESULT_FRAGMENT_TIMECODE_NOT_MONOTONIC;
-    }
-
-    if (0 == errorType.compare("INVALID_MKV_DATA")) {
-        return SERVICE_CALL_RESULT_INVALID_MKV_DATA;
-    }
-
-    if (0 == errorType.compare("STREAM_DELETED")) {
-        return SERVICE_CALL_RESULT_STREAM_DELETED;
-    }
-
-    if (0 == errorType.compare("ARCHIVAL_ERROR")) {
-        return SERVICE_CALL_RESULT_FRAGMENT_ARCHIVAL_ERROR;
-    }
-
-    if (0 == errorType.compare("INTERNAL_ERROR")) {
-        return SERVICE_CALL_RESULT_ACK_INTERNAL_ERROR;
-    }
-
-    return SERVICE_CALL_UNKNOWN;
 }
 
 inline SERVICE_CALL_RESULT Response::getServiceCallResultFromHttpStatus(int http_status) {

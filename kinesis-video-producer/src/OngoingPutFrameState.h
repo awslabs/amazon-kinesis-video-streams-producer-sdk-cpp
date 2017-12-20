@@ -31,7 +31,8 @@ public:
                          std::string stream_name)
             : stream_handle_(stream_handle), duration_available_(0),
               bytes_available_(0), stream_name_(stream_name),
-              end_of_stream_(false), next_state_(nullptr), active_(false),
+              end_of_stream_(false), next_state_(nullptr),
+              active_(false), shutdown_(false),
               callback_provider_(callback_provider) {}
 
     ~OngoingPutFrameState() = default;
@@ -100,6 +101,21 @@ public:
      */
     void endOfStream() {
         end_of_stream_ = true;
+    }
+
+    /**
+     * Returns whether CURL is in shutdown state
+     */
+    bool isShutdown() {
+        return shutdown_;
+    }
+
+    /**
+     * Signals the CURL shutdown
+     */
+    void shutdown() {
+        end_of_stream_ = true;
+        shutdown_ = true;
     }
 
     /**
@@ -206,7 +222,12 @@ private:
     /**
      * Whether we have reached end-of-stream and the connection needs to be closed
      */
-    bool end_of_stream_;
+    volatile bool end_of_stream_;
+
+    /**
+     * CURL is shutting down
+     */
+    volatile bool shutdown_;
 
     /**
      * Ongoing CURL response object

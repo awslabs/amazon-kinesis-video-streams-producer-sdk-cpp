@@ -1200,6 +1200,19 @@ typedef STATUS (*StreamErrorReportFunc)(UINT64,
                                         UINT64,
                                         STATUS);
 
+/**
+ * Reports a received fragment ack for the stream.
+ *
+ * @param 1 UINT64 - Custom handle passed by the caller.
+ * @param 2 STREAM_HANDLE - The stream to report for.
+ * @param 3 PFragmentAck - The constructed fragment ack.
+ *
+ * @return Status of the callback
+ */
+typedef STATUS (*FragmentAckReceivedFunc)(UINT64,
+                                          STREAM_HANDLE,
+                                          PFragmentAck);
+
 ///////////////////////////////////////////////////////////////
 // State transition callbacks
 ///////////////////////////////////////////////////////////////
@@ -1484,6 +1497,7 @@ struct __ClientCallbacks {
     DroppedFrameReportFunc droppedFrameReportFn;
     DroppedFragmentReportFunc droppedFragmentReportFn;
     StreamErrorReportFunc streamErrorReportFn;
+    FragmentAckReceivedFunc fragmentAckReceivedFn;
     StreamDataAvailableFunc streamDataAvailableFn;
     StreamReadyFunc streamReadyFn;
     StreamClosedFunc streamClosedFn;

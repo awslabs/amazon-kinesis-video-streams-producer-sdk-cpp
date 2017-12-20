@@ -2,6 +2,11 @@
 
 #include <com/amazonaws/kinesis/video/client/Include.h>
 #include <curl/curl.h>
+#include <mutex>
+#include <thread>
+#include "Response.h"
+#include "Auth.h"
+#include "Logger.h"
 #include "Request.h"
 
 // forward-declare CURL types to restrict visibility of curl.h
@@ -34,25 +39,10 @@ public:
     int getStatusCode() const; ///< Get the response status code.
     SERVICE_CALL_RESULT getServiceCallResult() const; ///< Get the response overall result as a service call result.
 
-    // TODO (johnsos) refactor and move these to a ResponseWriter
     void completeSync();
 
     // Force closes the CURL connection
     void terminate();
-
-    /**
-     * Returns a fragment ack type from the string representation
-     * @param ackType String representation of the ack type
-     * @return Fragment ACK type
-     */
-    static FRAGMENT_ACK_TYPE getAckType(const std::string& ackType);
-
-    /**
-     * Returns the error ack error type as a service call result
-     * @param errorType String representation of the error status code
-     * @return Error type as a service call result
-     */
-    static SERVICE_CALL_RESULT getAckErrorType(const std::string& errorType);
 
     /**
      * Convenience method to convert HTTP statuses to SERVICE_CALL_RESULT status.
@@ -80,8 +70,9 @@ private:
 
     Response &operator=(const Response &);
 
+    std::mutex termination_mutex_;
     CURL *curl_;
-    bool terminated_;
+    volatile bool terminated_;
     char error_buffer_[CURL_ERROR_SIZE];
     curl_slist *request_headers_;
     HeaderMap response_headers_;

@@ -31,6 +31,11 @@ STATUS TestStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data,
     return STATUS_SUCCESS;
 }
 
+STATUS TestStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 duration) {
+    LOG_WARN("Reporting stream latency pressure. Current buffer duration " << duration);
+    return STATUS_SUCCESS;
+}
+
 STATUS TestStreamCallbackProvider::streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle) {
     LOG_INFO("Reporting stream stopped.");
     if (nullptr != gProducerApiTest) {

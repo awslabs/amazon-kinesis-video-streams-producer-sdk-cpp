@@ -19,8 +19,8 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
 
     // Loop until cancelled
     frame.duration = FRAME_DURATION_IN_MICROS * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
-    frame.size = SIZEOF(frameBuffer);
-    frame.frameData = frameBuffer;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.frameData = frameBuffer_;
     MEMSET(frame.frameData, 0x55, frame.size);
 
     while (!stop_producer_) {
@@ -67,14 +67,12 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
 
 TEST_F(ProducerApiTest, create_produce_stream)
 {
-    unique_ptr<KinesisVideoStream> streams[TEST_STREAM_COUNT];
-
     for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
         // Create the stream
-        streams[i] = CreateTestStream(i);
+        streams_[i] = CreateTestStream(i);
 
         // Spin off the producer
-        EXPECT_EQ(0, pthread_create(&producer_thread_, NULL, staticProducerRoutine, reinterpret_cast<PVOID> (streams[i].get())));
+        EXPECT_EQ(0, pthread_create(&producer_thread_, NULL, staticProducerRoutine, reinterpret_cast<PVOID> (streams_[i].get())));
     }
 
 #if 0
@@ -93,7 +91,7 @@ TEST_F(ProducerApiTest, create_produce_stream)
 
     // Free the streams
     for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
-        kinesis_video_producer_->freeStream(move(streams[i]));
+        kinesis_video_producer_->freeStream(move(streams_[i]));
     }
 
     LOG_DEBUG("Starting the streams again");
@@ -101,10 +99,10 @@ TEST_F(ProducerApiTest, create_produce_stream)
     // Create new streams
     for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
         // Create the stream
-        streams[i] = CreateTestStream(i);
+        streams_[i] = CreateTestStream(i);
 
         // Spin off the producer
-        EXPECT_EQ(0, pthread_create(&producer_thread_, NULL, staticProducerRoutine, reinterpret_cast<PVOID> (streams[i].get())));
+        EXPECT_EQ(0, pthread_create(&producer_thread_, NULL, staticProducerRoutine, reinterpret_cast<PVOID> (streams_[i].get())));
     }
 #endif
 
@@ -126,12 +124,7 @@ TEST_F(ProducerApiTest, create_produce_stream)
     // producer threads to finish properly - here we just simulate a media pipeline.
     usleep(100000L);
 
-    for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
-        LOG_DEBUG("Stream " << streams[i]->getStreamName() << " exited");
-
-        // Freeing the stream
-        kinesis_video_producer_->freeStream(move(streams[i]));
-    }
+    freeStreams();
 }
 
 }  // namespace video

@@ -29,6 +29,7 @@ CallbackProvider::callback_t CallbackProvider::getCallbacks() {
     callbacks.createDeviceFn = getCreateDeviceCallback();
     callbacks.deviceCertToTokenFn = getDeviceCertToTokenCallback();
     callbacks.streamConnectionStaleFn = getStreamConnectionStaleCallback();
+    callbacks.fragmentAckReceivedFn = getFragmentAckReceivedCallback();
     callbacks.streamDataAvailableFn = getStreamDataAvailableCallback();
 
     // These callbacks are optional and platform specific defaults are provided by
@@ -42,6 +43,14 @@ CallbackProvider::callback_t CallbackProvider::getCallbacks() {
     callbacks.getRandomNumberFn = getRandomNumberCallback();
 
     return callbacks;
+}
+
+void CallbackProvider::shutdown() {
+    // No-op
+}
+
+void CallbackProvider::shutdownStream(STREAM_HANDLE stream_handle) {
+    // No-op
 }
 
 CreateMutexFunc CallbackProvider::getCreateMutexCallback() {
@@ -105,6 +114,10 @@ DroppedFrameReportFunc CallbackProvider::getDroppedFrameReportCallback() {
 }
 
 StreamLatencyPressureFunc CallbackProvider::getStreamLatencyPressureCallback() {
+    return nullptr;
+}
+
+FragmentAckReceivedFunc CallbackProvider::getFragmentAckReceivedCallback() {
     return nullptr;
 }
 

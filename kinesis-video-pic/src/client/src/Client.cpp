@@ -176,7 +176,7 @@ STATUS freeKinesisVideoClient(PCLIENT_HANDLE pClientHandle)
 
     // Release the underlying objects
     for (i = 0; i < pKinesisVideoClient->deviceInfo.streamCount; i++) {
-        // Call is indempotent so NULL is OK
+        // Call is idempotent so NULL is OK
         retStatus = freeStream(pKinesisVideoClient->streams[i]);
         freeStreamStatus = STATUS_FAILED(retStatus) ? retStatus : freeStreamStatus;
     }
@@ -485,7 +485,7 @@ STATUS describeStreamResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResu
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(customData);
 
     DLOGI("Describe stream result event.");
 
@@ -505,7 +505,7 @@ STATUS createStreamResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(customData);
 
     DLOGI("Create stream result event.");
 
@@ -525,7 +525,7 @@ STATUS getStreamingTokenResultEvent(UINT64 customData, SERVICE_CALL_RESULT callR
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(customData);
 
     DLOGI("Get streaming token result event.");
 
@@ -545,7 +545,7 @@ STATUS getStreamingEndpointResultEvent(UINT64 customData, SERVICE_CALL_RESULT ca
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(customData);
 
     DLOGI("Get streaming endpoint result event.");
 
@@ -565,7 +565,7 @@ STATUS putStreamResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult, U
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(customData);
 
     DLOGI("Put stream result event.");
 
@@ -595,23 +595,20 @@ STATUS tagResourceResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult)
 
     objectIdentifier = KINESIS_VIDEO_OBJECT_IDENTIFIER_FROM_CUSTOM_DATA(customData);
 
-    switch(objectIdentifier) {
-        case KINESIS_VIDEO_OBJECT_IDENTIFIER_CLIENT:
-            pKinesisVideoClient = CLIENT_FROM_CUSTOM_DATA(customData);
+    // Check if it's a client
+    if (objectIdentifier == KINESIS_VIDEO_OBJECT_IDENTIFIER_CLIENT) {
+        pKinesisVideoClient = CLIENT_FROM_CUSTOM_DATA(customData);
 
-            // Call tagging result for client
-            CHK_STATUS(tagClientResult(pKinesisVideoClient, callResult));
-            break;
+        // Call tagging result for client
+        CHK_STATUS(tagClientResult(pKinesisVideoClient, callResult));
+    } else {
+        pKinesisVideoStream = FROM_STREAM_HANDLE(customData);
 
-        case KINESIS_VIDEO_OBJECT_IDENTIFIER_STREAM:
-            pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
+        // Validate it's a stream object
+        CHK(pKinesisVideoStream->base.identifier == KINESIS_VIDEO_OBJECT_IDENTIFIER_STREAM, STATUS_INVALID_CUSTOM_DATA);
 
-            // Call tagging result for stream
-            CHK_STATUS(tagStreamResult(pKinesisVideoStream, callResult));
-            break;
-
-        default:
-            CHK(FALSE, STATUS_INVALID_CUSTOM_DATA);
+        // Call tagging result for stream
+        CHK_STATUS(tagStreamResult(pKinesisVideoStream, callResult));
     }
 
 CleanUp:
@@ -626,7 +623,7 @@ STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, SERVICE_CALL_RES
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(streamHandle);
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
 
     DLOGI("Stream terminated event.");
 
@@ -646,7 +643,7 @@ STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE streamHandle, PFragmentAck pF
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(streamHandle);
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
 
     DLOGS("Stream fragment ACK event.");
 
@@ -666,7 +663,7 @@ STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE streamHandle, PCHAR ackS
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(streamHandle);
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
 
     DLOGS("Parsing stream fragment ACK.");
 
@@ -690,7 +687,7 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(customData);
+    PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
     PKinesisVideoClient pKinesisVideoClient = NULL;
     BOOL streamLocked = FALSE;
 

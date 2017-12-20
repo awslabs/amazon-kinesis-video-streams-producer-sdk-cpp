@@ -127,7 +127,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
 
     LOG_DEBUG("createStreamHandler post body: " << post_body);
 
-    auto async_call = [](const CurlCallManager* ccm,
+    auto async_call = [](const DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_name_str,
@@ -140,7 +140,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
-        unique_ptr<Response> response = ccm->call(std::move(request), request_signer.get());
+        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get());
 
         SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
 
@@ -164,12 +164,10 @@ STATUS DefaultCallbackProvider::createStreamHandler(
         STATUS status = createStreamResultEvent(custom_data, service_call_result,
                                                 const_cast<PCHAR>(stream_arn.c_str()));
 
-        if (STATUS_FAILED(status)) {
-            LOG_ERROR("createStreamResultEvent failed with: " << status);
-        }
+        this_obj->notifyResult(status, custom_data);
     };
 
-    thread worker(async_call, &this_obj->ccm_, move(request), move(request_signer), stream_name_str, service_call_ctx);
+    thread worker(async_call, this_obj, move(request), move(request_signer), stream_name_str, service_call_ctx);
     worker.detach();
     return STATUS_SUCCESS;
 }
@@ -214,7 +212,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
 
     LOG_DEBUG("tagResourceHandler post body: " << post_body);
 
-    auto async_call = [](const CurlCallManager* ccm,
+    auto async_call = [](const DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_arn_str,
@@ -228,7 +226,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
-        unique_ptr<Response> response = ccm->call(std::move(request), request_signer.get());
+        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get());
 
         if (HTTP_OK != response->getStatusCode()) {
             LOG_ERROR("Failed to set tags on Kinesis Video stream: " << string(stream_arn_str)
@@ -239,12 +237,11 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
 
         SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
         STATUS status = tagResourceResultEvent(custom_data, service_call_result);
-        if (STATUS_FAILED(status)) {
-            LOG_ERROR("tagResourceResultEvent failed with: " << status);
-        }
+
+        this_obj->notifyResult(status, custom_data);
     };
 
-    thread worker(async_call, &this_obj->ccm_, move(request), move(request_signer), stream_arn_str, service_call_ctx);
+    thread worker(async_call, this_obj, move(request), move(request_signer), stream_arn_str, service_call_ctx);
     worker.detach();
     return STATUS_SUCCESS;
 }
@@ -279,7 +276,7 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
     request->setHeader("content-type", "application/json");
     request->setBody(post_body);
 
-    auto async_call = [](const CurlCallManager* ccm,
+    auto async_call = [](const DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_name_str,
@@ -292,7 +289,7 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
-        unique_ptr<Response> response = ccm->call(std::move(request), request_signer.get());
+        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get());
 
         LOG_DEBUG("describeStream response: " << response->getData());
         StreamDescription stream_description;
@@ -366,13 +363,11 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
         STATUS status = describeStreamResultEvent(custom_data,
                                                   service_call_result,
                                                   stream_description_ptr);
-        if (STATUS_FAILED(status)) {
-            LOG_ERROR("describeStreamResultEvent failed with: " << status);
-        }
+
+        this_obj->notifyResult(status, custom_data);
     };
 
-
-    thread worker(async_call, &this_obj->ccm_, move(request), move(request_signer), stream_name_str, service_call_ctx);
+    thread worker(async_call, this_obj, move(request), move(request_signer), stream_name_str, service_call_ctx);
     worker.detach();
     return STATUS_SUCCESS;
 }
@@ -407,7 +402,7 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
     request->setHeader("host", endpoint);
     request->setBody(post_body);
 
-    auto async_call = [](const CurlCallManager* ccm,
+    auto async_call = [](const DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_name_str,
@@ -420,7 +415,7 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
-        unique_ptr<Response> response = ccm->call(std::move(request), request_signer.get());
+        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get());
 
         LOG_DEBUG("getStreamingEndpoint response: " << response->getData());
 
@@ -447,12 +442,10 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
                                                         service_call_result,
                                                         streaming_endpoint_chars);
 
-        if (STATUS_FAILED(status)) {
-            LOG_ERROR("getStreamingEndpointResultEvent failed with: " << status);
-        }
+        this_obj->notifyResult(status, custom_data);
     };
 
-    thread worker(async_call, &this_obj->ccm_, move(request), move(request_signer), stream_name_str, service_call_ctx);
+    thread worker(async_call, this_obj, move(request), move(request_signer), stream_name_str, service_call_ctx);
     worker.detach();
     return STATUS_SUCCESS;
 }
@@ -487,9 +480,7 @@ STATUS DefaultCallbackProvider::streamingTokenHandler(
             bufferSize,
             expiration);
 
-    if (STATUS_FAILED(status)) {
-        LOG_ERROR("getStreamingTokenResultEvent failed with: " << status);
-    }
+    this_obj->notifyResult(status, custom_data);
 
     // Delete the allocated object
     safeFreeBuffer(&buffer);
@@ -552,7 +543,6 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     request->setHeader("connection", "keep-alive");
 
     auto async_call = [](DefaultCallbackProvider* this_obj,
-                         const CurlCallManager* ccm,
                          shared_ptr<OngoingPutFrameState> state,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
@@ -562,14 +552,13 @@ STATUS DefaultCallbackProvider::putStreamHandler(
 
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
-        auto time_point = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds> (call_after_time);
+        auto time_point = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>(call_after_time);
         std::this_thread::sleep_until(time_point);
 
         LOG_INFO("Creating new connection for Kinesis Video stream: " << stream_name_str);
 
         // Perform a sync call
-        CURL* curl_handle;
-        unique_ptr<Response> response = ccm->call(std::move(request), request_signer.get(), state);
+        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get(), state);
 
         LOG_DEBUG("Connection for Kinesis Video stream: " << stream_name_str << " closed.");
 
@@ -578,28 +567,31 @@ STATUS DefaultCallbackProvider::putStreamHandler(
         LOG_INFO("Network thread for Kinesis Video stream: " << stream_name_str << " exited. http status: "
                                                              << response->getStatusCode());
 
-        // Remove the state from the active list
-        this_obj->removeActiveState(state.get());
+        if (state->isShutdown()) {
+            LOG_INFO("Stream terminated");
+        } else {
+            // Remove the state from the active list
+            this_obj->removeActiveState(state.get());
 
-        // If we terminated abnormally then terminate the stream
-        if (!state->isEndOfStream()) {
-            LOG_WARN("Stream for "
-                             << stream_name_str
-                             << " has exited without triggering end-of-stream. Service call result: "
-                             << response->getServiceCallResult());
+            // If we terminated abnormally then terminate the stream
+            if (!state->isEndOfStream()) {
+                LOG_WARN("Stream for "
+                                 << stream_name_str
+                                 << " has exited without triggering end-of-zstream. Service call result: "
+                                 << response->getServiceCallResult());
 
-            kinesisVideoStreamTerminated(custom_data, response->getServiceCallResult());
+                kinesisVideoStreamTerminated(custom_data, response->getServiceCallResult());
+            }
         }
     };
 
-    thread worker(async_call, this_obj, &this_obj->ccm_, state, move(request), move(request_signer), stream_name_str, service_call_ctx);
+    thread worker(async_call, this_obj, state, move(request), move(request_signer), stream_name_str, service_call_ctx);
     worker.detach();
 
     // Return 200 to Kinesis Video SDK on successful connection establishment as the POST is theoretically infinite.
     STATUS status = putStreamResultEvent(service_call_ctx->customData, SERVICE_CALL_RESULT_OK, clientStreamHandle);
-    if (STATUS_FAILED(status)) {
-        LOG_ERROR("putStreamResultEvent failed with: " << status);
-    }
+
+    this_obj->notifyResult(status, custom_data);
 
     return status;
 }
@@ -619,6 +611,11 @@ size_t DefaultCallbackProvider::postBodyStreamingReadFunc(
         char *buffer, size_t item_size, size_t n_items, void *custom_data) {
     LOG_DEBUG("postBodyStreamingReadFunc (curl callback) invoked");
     OngoingPutFrameState *state = reinterpret_cast<OngoingPutFrameState *>(custom_data);
+    if (nullptr == state) {
+        // Something is really wrong. Aborting
+        return CURL_READFUNC_ABORT;
+    }
+
     DefaultCallbackProvider* this_obj = (DefaultCallbackProvider*) state->getCallbackProvider();
 
     // Block until the stream is current
@@ -639,6 +636,10 @@ size_t DefaultCallbackProvider::postBodyStreamingReadFunc(
     size_t bytes_written = 0;
     while (bytes_written == 0 && !state->isEndOfStream()) {
         size_t available_bytes = state->awaitData(buffer_size);
+
+        if (state->isShutdown()) {
+            return CURL_READFUNC_ABORT;
+        }
 
         UINT64 client_stream_handle = 0;
         bytes_written = 0;
@@ -695,7 +696,7 @@ size_t DefaultCallbackProvider::postBodyStreamingReadFunc(
 }
 
 void DefaultCallbackProvider::insertActiveState(OngoingPutFrameState* state) {
-    std::unique_lock<std::mutex> lock(active_streams_mutex_);
+    std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
 
     // Check if we already have an entry - this could be during token rotation
     auto stream_handle = state->getStreamHandle();
@@ -717,7 +718,7 @@ void DefaultCallbackProvider::insertActiveState(OngoingPutFrameState* state) {
 }
 
 void DefaultCallbackProvider::removeActiveState(OngoingPutFrameState* state) {
-    std::unique_lock<std::mutex> lock(active_streams_mutex_);
+    std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
 
     auto stream_handle = state->getStreamHandle();
     auto existing_state = active_streams_.get(stream_handle);
@@ -753,7 +754,7 @@ void DefaultCallbackProvider::removeActiveState(OngoingPutFrameState* state) {
 }
 
 void DefaultCallbackProvider::activateNextState(OngoingPutFrameState* state) {
-    std::unique_lock<std::mutex> lock(active_streams_mutex_);
+    std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
 
     auto stream_handle = state->getStreamHandle();
     auto existing_state = active_streams_.get(stream_handle);
@@ -786,6 +787,23 @@ void DefaultCallbackProvider::activateNextState(OngoingPutFrameState* state) {
     }
 }
 
+void DefaultCallbackProvider::shutdownStream(STREAM_HANDLE stream_handle) {
+    std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
+
+    auto state = active_streams_.get(stream_handle);
+    active_streams_.remove(stream_handle);
+
+    while (nullptr != state) {
+        state->shutdown();
+        auto response = state->getResponse();
+        if (nullptr != response) {
+            response->terminate();
+        }
+
+        state = state->getNextState();
+    }
+}
+
 size_t DefaultCallbackProvider::postBodyStreamingWriteFunc(
         char *buffer, size_t item_size, size_t n_items, void *custom_data) {
     LOG_DEBUG("postBodyStreamingWriteFunc (curl callback) invoked");
@@ -804,14 +822,21 @@ size_t DefaultCallbackProvider::postBodyStreamingWriteFunc(
     // we will need to re-implement this parsing logic. We will be stream parsing the data as it comes.
 
     OngoingPutFrameState *state = reinterpret_cast<OngoingPutFrameState *>(custom_data);
-    status = kinesisVideoStreamParseFragmentAck(state->getStreamHandle(), buffer, data_size);
-    if (STATUS_FAILED(status)) {
-        LOG_ERROR("Failed to submit ACK: "
-                          << data_as_string
-                          << " with status code: "
-                          << status);
-    } else {
-        LOG_DEBUG("Processed ACK OK.");
+    if (nullptr == state) {
+        // Something is really wrong. Returning 0 will abort
+        return 0;
+    }
+
+    if (!state->isShutdown()) {
+        status = kinesisVideoStreamParseFragmentAck(state->getStreamHandle(), buffer, data_size);
+        if (STATUS_FAILED(status)) {
+            LOG_ERROR("Failed to submit ACK: "
+                              << data_as_string
+                              << " with status code: "
+                              << status);
+        } else {
+            LOG_DEBUG("Processed ACK OK.");
+        }
     }
 
     return data_size;
@@ -827,7 +852,7 @@ STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
     auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
 
     {
-        std::unique_lock<std::mutex> lock(this_obj->active_streams_mutex_);
+        std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
 
         auto state = this_obj->getActiveStreams().get(stream_handle);
         while (nullptr != state) {
@@ -855,7 +880,7 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
     auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
 
     {
-        std::unique_lock<std::mutex> lock(this_obj->active_streams_mutex_);
+        std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
 
         auto state = this_obj->getActiveStreams().get(stream_handle);
         while (nullptr != state) {
@@ -932,6 +957,17 @@ STATUS DefaultCallbackProvider::streamErrorHandler(UINT64 custom_data,
     }
 }
 
+void DefaultCallbackProvider::notifyResult(STATUS status, STREAM_HANDLE stream_handle) const {
+    // Check whether we succeeded or failed with STATUS_NULL_ARG which is an OK case on teardown
+    if (status != STATUS_SUCCESS && status != STATUS_NULL_ARG) {
+        LOG_ERROR("Submitting event result for stream: " << stream_handle << " failed with: " << status);
+        auto client_stream_report_callback = stream_callback_provider_->getStreamErrorReportCallback();
+        if (nullptr != client_stream_report_callback) {
+            client_stream_report_callback(reinterpret_cast<UINT64>(this), stream_handle, 0, status);
+        }
+    }
+}
+
 DefaultCallbackProvider::DefaultCallbackProvider(
         unique_ptr <ClientCallbackProvider> client_callback_provider,
         unique_ptr <StreamCallbackProvider> stream_callback_provider,
@@ -946,7 +982,6 @@ DefaultCallbackProvider::DefaultCallbackProvider(
     client_callback_provider_ = move(client_callback_provider);
     stream_callback_provider_ = move(stream_callback_provider);
     credentials_provider_ = move(credentials_provider);
-    internal_stream_callback_provider_ = make_unique<StreamCallbackProvider>();
 
     if (control_plane_uri_.empty()) {
         // Create a fully qualified URI
@@ -960,7 +995,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
 
 void DefaultCallbackProvider::safeFreeBuffer(uint8_t** ppBuffer) {
     if (ppBuffer && *ppBuffer) {
-        free(*ppBuffer);
+        ::free(*ppBuffer);
         *ppBuffer = nullptr;
     }
 }
@@ -991,6 +1026,10 @@ StreamReadyFunc DefaultCallbackProvider::getStreamReadyCallback() {
 
 StreamClosedFunc DefaultCallbackProvider::getStreamClosedCallback() {
     return streamClosedHandler;
+}
+
+FragmentAckReceivedFunc DefaultCallbackProvider::getFragmentAckReceivedCallback() {
+    return stream_callback_provider_->getFragmentAckReceivedCallback();
 }
 
 CreateStreamFunc DefaultCallbackProvider::getCreateStreamCallback() {
