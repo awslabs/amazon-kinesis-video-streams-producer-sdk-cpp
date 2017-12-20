@@ -639,6 +639,13 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, PFragment
 
 CleanUp:
 
+    // Notify on success and if we have the callback
+    if (STATUS_SUCCEEDED(retStatus) && pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn != NULL) {
+        pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                                   TO_STREAM_HANDLE(pKinesisVideoStream),
+                                                                   pFragmentAck);
+    }
+
     // Unlock the stream
     if (locked) {
         pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);

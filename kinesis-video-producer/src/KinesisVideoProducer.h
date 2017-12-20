@@ -125,6 +125,10 @@ protected:
      * Frees the resources in the underlying Kinesis Video client.
      */
     void freeKinesisVideoClient() {
+        if (nullptr != callback_provider_) {
+            callback_provider_->shutdown();
+        }
+
         std::call_once(free_kinesis_video_client_flag_, ::freeKinesisVideoClient, &client_handle_);
     }
 
@@ -147,7 +151,7 @@ protected:
 
     /**
      * We keep the reference to callback_provider_ as a field variable
-     * to ensure its lifetime is the lifetime of the client because the APIL
+     * to ensure its lifetime is the lifetime of the client because the API
      * is a C only library and doesn't know about managed pointers.
      */
     std::unique_ptr<CallbackProvider> callback_provider_;
@@ -270,6 +274,9 @@ protected:
     static STATUS streamConnectionStaleFunc(UINT64,
                                             STREAM_HANDLE,
                                             UINT64);
+    static STATUS fragmentAckReceivedFunc(UINT64,
+                                          STREAM_HANDLE,
+                                          PFragmentAck);
 };
 
 } // namespace video

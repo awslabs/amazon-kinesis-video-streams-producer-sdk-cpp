@@ -245,6 +245,59 @@ STATUS ClientTestBase::streamDataAvailableFunc(UINT64 customData,
     return STATUS_SUCCESS;
 }
 
+STATUS ClientTestBase::streamErrorReportFunc(UINT64 customData,
+                                             STREAM_HANDLE streamHandle,
+                                             UINT64 timecode,
+                                             STATUS status)
+{
+    DLOGV("TID 0x%016llx streamErrorReportFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mStreamErrorReportFuncCount++;
+
+    pClient->mStreamHandle = streamHandle;
+    pClient->mFragmentTime = timecode;
+    pClient->mStatus = status;
+
+    return STATUS_SUCCESS;
+}
+
+STATUS ClientTestBase::streamConnectionStaleFunc(UINT64 customData,
+                                                 STREAM_HANDLE streamHandle,
+                                                 UINT64 duration)
+{
+    DLOGV("TID 0x%016llx streamConnectionStaleFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mStreamConnectionStaleFuncCount++;
+
+    pClient->mStreamHandle = streamHandle;
+    pClient->mDuration = duration;
+
+    return STATUS_SUCCESS;
+}
+
+STATUS ClientTestBase::fragmentAckReceivedFunc(UINT64 customData,
+                                               STREAM_HANDLE streamHandle,
+                                               PFragmentAck pFragmentAck)
+{
+    DLOGV("TID 0x%016llx fragmentAckReceivedFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mFragmentAckReceivedFuncCount++;
+
+    pClient->mStreamHandle = streamHandle;
+    pClient->mFragmentAck = *pFragmentAck;
+
+    return STATUS_SUCCESS;
+}
+
 STATUS ClientTestBase::clientReadyFunc(UINT64 customData, CLIENT_HANDLE clientHandle)
 {
     DLOGV("TID 0x%016llx clientReadyFunc called.", GETTID());

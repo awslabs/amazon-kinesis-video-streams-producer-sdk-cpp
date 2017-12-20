@@ -181,7 +181,7 @@ STATUS createStream(PKinesisVideoClient pKinesisVideoClient, PStreamInfo pStream
     CHK_STATUS(createContentView(maxViewItems,
                                  pKinesisVideoStream->streamInfo.streamCaps.bufferDuration,
                                  viewItemRemoved,
-                                 (UINT64) pKinesisVideoStream,
+                                 TO_CUSTOM_DATA(pKinesisVideoStream),
                                  &pView));
     pKinesisVideoStream->pView = pView;
 
@@ -1388,4 +1388,26 @@ CleanUp:
 
     LEAVES();
     return retStatus;
+}
+
+/**
+ * Converts the stream to a stream handle
+ */
+STREAM_HANDLE toStreamHandle(PKinesisVideoStream pKinesisVideoStream) {
+    if (pKinesisVideoStream == NULL) {
+        return INVALID_STREAM_HANDLE_VALUE;
+    } else {
+        return (STREAM_HANDLE) &pKinesisVideoStream->pKinesisVideoClient->streams[pKinesisVideoStream->streamId];
+    }
+}
+
+/**
+ * Converts handle to a stream
+ */
+PKinesisVideoStream fromStreamHandle(STREAM_HANDLE streamHandle) {
+    if (streamHandle == INVALID_STREAM_HANDLE_VALUE) {
+        return NULL;
+    } else {
+        return *((PKinesisVideoStream*) streamHandle);
+    }
 }

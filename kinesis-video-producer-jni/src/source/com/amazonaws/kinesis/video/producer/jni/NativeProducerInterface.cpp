@@ -12,7 +12,7 @@
 // IMPORTANT: This version number *must* be incremented every time a new library build is checked in.
 // We are seeing a very high incidence of runtime failures due to APKs being deployed with the wrong native libraries,
 // and they are much easier to diagnose when the numeric version check fails.
-#define NATIVE_LIBRARY_VERSION "1.1"
+#define NATIVE_LIBRARY_VERSION "1.2"
 
 // Used for serializing the access to functions
 static SyncMutex ACCESS_LOCK;

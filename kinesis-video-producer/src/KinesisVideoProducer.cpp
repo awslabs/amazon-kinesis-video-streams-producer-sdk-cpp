@@ -56,6 +56,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     override_callbacks.deviceCertToTokenFn = kinesis_video_producer->stored_callbacks_.deviceCertToTokenFn == NULL ? NULL : KinesisVideoProducer::deviceCertToTokenFunc;
     override_callbacks.streamConnectionStaleFn = kinesis_video_producer->stored_callbacks_.streamConnectionStaleFn == NULL ? NULL : KinesisVideoProducer::streamConnectionStaleFunc;
     override_callbacks.streamDataAvailableFn = kinesis_video_producer->stored_callbacks_.streamDataAvailableFn == NULL ? NULL : KinesisVideoProducer::streamDataAvailableFunc;
+    override_callbacks.fragmentAckReceivedFn = kinesis_video_producer->stored_callbacks_.fragmentAckReceivedFn == NULL ? NULL : KinesisVideoProducer::fragmentAckReceivedFunc;
     override_callbacks.createMutexFn = kinesis_video_producer->stored_callbacks_.createMutexFn == NULL ? NULL : KinesisVideoProducer::createMutexFunc;
     override_callbacks.lockMutexFn = kinesis_video_producer->stored_callbacks_.lockMutexFn == NULL ? NULL : KinesisVideoProducer::lockMutexFunc;
     override_callbacks.unlockMutexFn = kinesis_video_producer->stored_callbacks_.unlockMutexFn == NULL ? NULL : KinesisVideoProducer::unlockMutexFunc;
@@ -143,7 +144,7 @@ unique_ptr<KinesisVideoStream> KinesisVideoProducer::createStream(unique_ptr<Str
     assert(stream_definition.get());
 
     StreamInfo stream_info = stream_definition->getStreamInfo();
-    auto kinesis_video_stream = make_unique<KinesisVideoStream> (*this, stream_definition->getStreamName());
+    std::unique_ptr<KinesisVideoStream> kinesis_video_stream(new KinesisVideoStream(*this, stream_definition->getStreamName()));
     STATUS status = createKinesisVideoStream(client_handle_, &stream_info, kinesis_video_stream.get()->getStreamHandle());
 
     if (STATUS_FAILED(status)) {
@@ -200,11 +201,11 @@ void KinesisVideoProducer::freeStream(std::unique_ptr<KinesisVideoStream> kinesi
         LOG_AND_THROW("Kinesis Video stream can't be null");
     }
 
+    // Stop the ongoing CURL operations
+    callback_provider_->shutdownStream(*kinesis_video_stream->getStreamHandle());
+
     // Find the stream and remove it from the map
     active_streams_.remove(*kinesis_video_stream->getStreamHandle());
-
-    // Free the stream
-    kinesis_video_stream->free();
 }
 
 KinesisVideoProducer::~KinesisVideoProducer() {
@@ -519,6 +520,15 @@ STATUS KinesisVideoProducer::streamConnectionStaleFunc(UINT64 custom_data,
     return this_obj->stored_callbacks_.streamConnectionStaleFn(this_obj->stored_callbacks_.customData,
                                                                stream_handle,
                                                                duration);
+}
+
+STATUS KinesisVideoProducer::fragmentAckReceivedFunc(UINT64 custom_data,
+                                                     STREAM_HANDLE stream_handle,
+                                                     PFragmentAck fragment_ack) {
+    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    return this_obj->stored_callbacks_.fragmentAckReceivedFn(this_obj->stored_callbacks_.customData,
+                                                             stream_handle,
+                                                             fragment_ack);
 }
 
 } // namespace video

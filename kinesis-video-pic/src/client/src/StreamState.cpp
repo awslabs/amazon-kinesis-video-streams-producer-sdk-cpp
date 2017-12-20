@@ -84,7 +84,7 @@ STATUS executeDescribeStreamState(UINT64 customData, UINT64 time)
 
     pKinesisVideoStream->base.serviceCallContext.pAuthInfo = &pKinesisVideoClient->tokenAuthInfo;
     pKinesisVideoStream->base.serviceCallContext.version = SERVICE_CALL_CONTEXT_CURRENT_VERSION;
-    pKinesisVideoStream->base.serviceCallContext.customData = TO_CUSTOM_DATA(pKinesisVideoStream);
+    pKinesisVideoStream->base.serviceCallContext.customData = TO_STREAM_HANDLE(pKinesisVideoStream);
     pKinesisVideoStream->base.serviceCallContext.timeout = SERVICE_CALL_DEFAULT_TIMEOUT;
     pKinesisVideoStream->base.serviceCallContext.callAfter = time;
 
@@ -406,7 +406,7 @@ STATUS executeGetEndpointStreamState(UINT64 customData, UINT64 time)
 
     pKinesisVideoStream->base.serviceCallContext.pAuthInfo = &pKinesisVideoClient->tokenAuthInfo;
     pKinesisVideoStream->base.serviceCallContext.version = SERVICE_CALL_CONTEXT_CURRENT_VERSION;
-    pKinesisVideoStream->base.serviceCallContext.customData = TO_CUSTOM_DATA(pKinesisVideoStream);
+    pKinesisVideoStream->base.serviceCallContext.customData = TO_STREAM_HANDLE(pKinesisVideoStream);
     pKinesisVideoStream->base.serviceCallContext.timeout = SERVICE_CALL_DEFAULT_TIMEOUT;
     pKinesisVideoStream->base.serviceCallContext.callAfter = time;
 
@@ -442,7 +442,7 @@ STATUS executeGetTokenStreamState(UINT64 customData, UINT64 time)
 
     pKinesisVideoStream->base.serviceCallContext.pAuthInfo = &pKinesisVideoClient->tokenAuthInfo;
     pKinesisVideoStream->base.serviceCallContext.version = SERVICE_CALL_CONTEXT_CURRENT_VERSION;
-    pKinesisVideoStream->base.serviceCallContext.customData = TO_CUSTOM_DATA(pKinesisVideoStream);
+    pKinesisVideoStream->base.serviceCallContext.customData = TO_STREAM_HANDLE(pKinesisVideoStream);
     pKinesisVideoStream->base.serviceCallContext.timeout = SERVICE_CALL_DEFAULT_TIMEOUT;
     pKinesisVideoStream->base.serviceCallContext.callAfter = time;
 
@@ -478,7 +478,7 @@ STATUS executeCreateStreamState(UINT64 customData, UINT64 time)
 
     pKinesisVideoStream->base.serviceCallContext.pAuthInfo = &pKinesisVideoClient->tokenAuthInfo;
     pKinesisVideoStream->base.serviceCallContext.version = SERVICE_CALL_CONTEXT_CURRENT_VERSION;
-    pKinesisVideoStream->base.serviceCallContext.customData = TO_CUSTOM_DATA(pKinesisVideoStream);
+    pKinesisVideoStream->base.serviceCallContext.customData = TO_STREAM_HANDLE(pKinesisVideoStream);
     pKinesisVideoStream->base.serviceCallContext.timeout = SERVICE_CALL_DEFAULT_TIMEOUT;
     pKinesisVideoStream->base.serviceCallContext.callAfter = time;
 
@@ -518,7 +518,7 @@ STATUS executeTagStreamState(UINT64 customData, UINT64 time)
 
     pKinesisVideoStream->base.serviceCallContext.pAuthInfo = &pKinesisVideoClient->tokenAuthInfo;
     pKinesisVideoStream->base.serviceCallContext.version = SERVICE_CALL_CONTEXT_CURRENT_VERSION;
-    pKinesisVideoStream->base.serviceCallContext.customData = TO_CUSTOM_DATA(pKinesisVideoStream);
+    pKinesisVideoStream->base.serviceCallContext.customData = TO_STREAM_HANDLE(pKinesisVideoStream);
     pKinesisVideoStream->base.serviceCallContext.timeout = SERVICE_CALL_DEFAULT_TIMEOUT;
     pKinesisVideoStream->base.serviceCallContext.callAfter = time;
 
@@ -584,7 +584,7 @@ STATUS executePutStreamState(UINT64 customData, UINT64 time)
 
     pKinesisVideoStream->base.serviceCallContext.pAuthInfo = &pKinesisVideoStream->streamingAuthInfo;
     pKinesisVideoStream->base.serviceCallContext.version = SERVICE_CALL_CONTEXT_CURRENT_VERSION;
-    pKinesisVideoStream->base.serviceCallContext.customData = TO_CUSTOM_DATA(pKinesisVideoStream);
+    pKinesisVideoStream->base.serviceCallContext.customData = TO_STREAM_HANDLE(pKinesisVideoStream);
     pKinesisVideoStream->base.serviceCallContext.timeout = SERVICE_CALL_DEFAULT_TIMEOUT;
     pKinesisVideoStream->base.serviceCallContext.callAfter = time;
 

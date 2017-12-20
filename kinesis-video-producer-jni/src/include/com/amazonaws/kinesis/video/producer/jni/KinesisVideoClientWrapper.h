@@ -75,6 +75,7 @@ class KinesisVideoClientWrapper
     jmethodID mStorageOverflowPressureMethodId;
     jmethodID mStreamLatencyPressureMethodId;
     jmethodID mStreamConnectionStaleMethodId;
+    jmethodID mFragmentAckReceivedMethodId;
     jmethodID mDroppedFrameReportMethodId;
     jmethodID mDroppedFragmentReportMethodId;
     jmethodID mStreamErrorReportMethodId;
@@ -109,6 +110,7 @@ class KinesisVideoClientWrapper
     static STATUS storageOverflowPressureFunc(UINT64, UINT64);
     static STATUS streamLatencyPressureFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS streamConnectionStaleFunc(UINT64, STREAM_HANDLE, UINT64);
+    static STATUS fragmentAckReceivedFunc(UINT64, STREAM_HANDLE, PFragmentAck);
     static STATUS droppedFrameReportFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS droppedFragmentReportFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS streamErrorReportFunc(UINT64, STREAM_HANDLE, UINT64, STATUS);

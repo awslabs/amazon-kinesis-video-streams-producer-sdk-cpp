@@ -1,1 +1,12 @@
 .DS_Store
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+kinesis-video-native-build/downloads/
+kinesis-video-native-build/kinesis_video_gstreamer_sample_app
+kinesis-video-native-build/libKinesisVideoProducerJNI.dylib
+kinesis-video-native-build/libproducer.dylib
+kinesis-video-native-build/start
+kinesis-video-native-build/test_h264_jpg.mkv
+kinesis-video-native-build/test_jpeg.mkv

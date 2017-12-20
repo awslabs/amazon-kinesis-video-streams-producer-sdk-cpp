@@ -104,8 +104,8 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
 #define TO_CLIENT_HANDLE(p) ((CLIENT_HANDLE) (p))
 #define FROM_CLIENT_HANDLE(h) ((PKinesisVideoClient) (h))
 
-#define TO_STREAM_HANDLE(p) ((STREAM_HANDLE) (p))
-#define FROM_STREAM_HANDLE(h) ((PKinesisVideoStream) (h))
+#define TO_STREAM_HANDLE(p) (toStreamHandle(p))
+#define FROM_STREAM_HANDLE(h) (fromStreamHandle(h))
 
 #define TO_CUSTOM_DATA(p) ((UINT64) (p))
 #define STREAM_FROM_CUSTOM_DATA(h) ((PKinesisVideoStream) (h))
@@ -205,6 +205,16 @@ typedef __KinesisVideoClient* PKinesisVideoClient;
 ////////////////////////////////////////////////////
 // Internal functionality
 ////////////////////////////////////////////////////
+/**
+ * Converts the stream to a stream handle
+ */
+STREAM_HANDLE toStreamHandle(PKinesisVideoStream);
+
+/**
+ * Converts handle to a stream
+ */
+PKinesisVideoStream fromStreamHandle(STREAM_HANDLE);
+
 /**
  * Callback function which is invoked when an item gets purged from the view
  */

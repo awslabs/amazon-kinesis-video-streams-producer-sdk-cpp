@@ -47,6 +47,11 @@ public:
     virtual ~DefaultCallbackProvider();
 
     /**
+     * Stream is being freed
+     */
+    void shutdownStream(STREAM_HANDLE stream_handle) override;
+
+    /**
      * @copydoc com::amazonaws::kinesis::video::CallbackProvider::getCurrentTimeCallback()
      */
     GetCurrentTimeFunc getCurrentTimeCallback() override;
@@ -105,6 +110,11 @@ public:
      * @copydoc com::amazonaws::kinesis::video::CallbackProvider::getStreamClosedCallback()
      */
     StreamClosedFunc getStreamClosedCallback() override;
+
+    /**
+     * @copydoc com::amazonaws::kinesis::video::CallbackProvider::getFragmentAckReceivedCallback()
+     */
+    FragmentAckReceivedFunc getFragmentAckReceivedCallback() override;
 
     /**
      * @copydoc com::amazonaws::kinesis::video::CallbackProvider::getCreateStreamCallback()
@@ -457,6 +467,11 @@ protected:
     void insertActiveState(OngoingPutFrameState* state);
 
     /**
+     * Notifies the client callback on an error status
+     */
+    void notifyResult(STATUS status, STREAM_HANDLE stream_handle) const;
+
+    /**
      * SIGV4 request signer used by curl call manager to sign HTTP requests.
      */
     CurlCallManager &ccm_;
@@ -492,11 +507,6 @@ protected:
     std::unique_ptr <StreamCallbackProvider> stream_callback_provider_;
 
     /**
-     * Stores the internal implementation of the stream level API for data availability reporting
-     */
-    std::unique_ptr <StreamCallbackProvider> internal_stream_callback_provider_;
-
-    /**
      * Storage for the serialized security token
      */
     uint8_t* security_token_;
@@ -504,7 +514,7 @@ protected:
     /**
      * Mutex needed for locking the states for atomic operations
      */
-    std::mutex active_streams_mutex_;
+    std::recursive_mutex active_streams_mutex_;
 
     /**
      * A map which holds a reference mapping the stream handle to th OngoingPutFrameState instance associated with that

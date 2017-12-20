@@ -5,6 +5,15 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
+KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video_producer, const std::string stream_name)
+        : stream_handle_(INVALID_STREAM_HANDLE_VALUE),
+          stream_name_(stream_name),
+          kinesis_video_producer_(kinesis_video_producer),
+          stream_ready_(false) {
+    LOG_INFO("Creating Kinesis Video Stream " << stream_name_);
+    // the handle is NULL to start. We will set it later once Kinesis Video PIC gives us a stream handle.
+}
+
 bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
     if (!isReady()) {
         LOG_ERROR("Kinesis Video stream is not ready.");
@@ -114,6 +123,8 @@ void KinesisVideoStream::free() {
     // Set the ready indicator to false
     stream_ready_ = false;
 
+    LOG_INFO("Freeing Kinesis Video Stream " << stream_name_);
+
     // Free the underlying stream
     std::call_once(free_kinesis_video_stream_flag_, freeKinesisVideoStream, getStreamHandle());
 }
@@ -135,6 +146,10 @@ bool KinesisVideoStream::stop() {
 void KinesisVideoStream::getStreamMetrics(StreamMetrics& metrics) {
     STATUS status = ::getKinesisVideoStreamMetrics(stream_handle_, &metrics);
     LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get stream metrics with: " << status);
+}
+
+KinesisVideoStream::~KinesisVideoStream() {
+    free();
 }
 
 } // namespace video

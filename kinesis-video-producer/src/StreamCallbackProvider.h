@@ -18,6 +18,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 *    getStreamReadyCallback();
 *    getStreamClosedCallback();
 *    getStreamDataAvailableCallback();
+*    getFragmentAckReceivedCallback();
 *
 * The optional callbacks are virtual, but there are default implementations defined for them that return nullptr,
 * which will therefore use the defaults provided by the Kinesis Video SDK.
@@ -160,17 +161,34 @@ public:
      *
      * Optional callback.
      *
-     * The function returned by this callback takes four arguments:
+     * The function returned by this callback takes the following arguments:
      *
      * @param 1 UINT64 - Custom handle passed by the caller.
      * @param 2 STREAM_HANDLE - The stream to report for.
      * @param 3 PCHAR - the name of the stream that has data available.
-     * @param 3 UINT64 - The duration of content currently available in 100ns.
-     * @param 4 UINT64 - The size of content in bytes currently available.
+     * @param 4 UINT64 - The duration of content currently available in 100ns.
+     * @param 5 UINT64 - The size of content in bytes currently available.
      *
      *  @return a function pointer conforming to the description above.
      */
     virtual StreamDataAvailableFunc getStreamDataAvailableCallback() {
+        return nullptr;
+    };
+
+    /**
+     * Reports FragmentAck received for the stream. Can be used for diagnostic purposes.
+     *
+     * Optional callback.
+     *
+     * The function returned by this callback takes the following arguments:
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - The stream to report for.
+     * @param 3 PFragmentAck - the fragment ack received.
+     *
+     *  @return a function pointer conforming to the description above.
+     */
+    virtual FragmentAckReceivedFunc getFragmentAckReceivedCallback() {
         return nullptr;
     };
 };
