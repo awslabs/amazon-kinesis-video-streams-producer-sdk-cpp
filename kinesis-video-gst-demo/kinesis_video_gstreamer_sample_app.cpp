@@ -135,7 +135,7 @@ const unsigned char cpd[] = { 0x01, 0x42, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x23, 0x
 unique_ptr<Credentials> credentials_;
 
 typedef struct _CustomData {
-    GstElement *pipeline, *source, *source_filter, *encoder, *filter, *appsink, *videorate;
+    GstElement *pipeline, *source, *source_filter, *encoder, *filter, *appsink;
     GstBus *bus;
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
@@ -305,7 +305,6 @@ int gstreamer_init(int argc, char* argv[]) {
     data.source_filter = gst_element_factory_make("capsfilter", "source_filter");
     data.filter = gst_element_factory_make("capsfilter", "encoder_filter");
     data.appsink = gst_element_factory_make("appsink", "appsink");
-    data.videorate = gst_element_factory_make("videorate", "videorate");
 
     // Attempt to create vtenc encoder
     data.encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
@@ -322,7 +321,7 @@ int gstreamer_init(int argc, char* argv[]) {
     /* create an empty pipeline */
     data.pipeline = gst_pipeline_new("test-pipeline");
 
-    if (!data.pipeline || !data.source || !data.source_filter || !data.encoder || !data.filter || !data.appsink || !data.videorate) {
+    if (!data.pipeline || !data.source || !data.source_filter || !data.encoder || !data.filter || !data.appsink) {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
@@ -366,9 +365,9 @@ int gstreamer_init(int argc, char* argv[]) {
     g_signal_connect(data.appsink, "new-sample", G_CALLBACK(on_new_sample), &data);
 
     /* build the pipeline */
-    gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.videorate, data.source_filter, data.encoder, data.filter, 
+    gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.source_filter, data.encoder, data.filter, 
         data.appsink, NULL);
-    if (gst_element_link_many(data.source, data.videorate, data.source_filter, data.encoder, data.filter, data.appsink, NULL) != TRUE) {
+    if (gst_element_link_many(data.source, data.source_filter, data.encoder, data.filter, data.appsink, NULL) != TRUE) {
         g_printerr("Elements could not be linked.\n");
         gst_object_unref(data.pipeline);
         return 1;
