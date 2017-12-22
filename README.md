@@ -246,6 +246,12 @@ $ sudo reboot
 * Raspberry PI seg fauls after some time running on libx264.so. Rebuilding the libx264.so library and re-linking the demo application fixes the issue.
 
 ## Release Notes
+### Release 1.1.0 (December 2017)
+* Addition of a received application ACK notification callback
+* Lifecycle management improvements
+* Exposed failure on progressive back-off/retry logic
+* Hardening/fixing various edge-cases
+* Fixing Raspberry PI frame dropping issue
 ### Release 1.0.0 (November 2017)
 * First release of the Amazon Kinesis Video Producer SDK for Cpp.
 * Known issues:
