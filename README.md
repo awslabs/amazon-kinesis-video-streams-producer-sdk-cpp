@@ -245,7 +245,18 @@ $ sudo reboot
 
 * Raspberry PI seg fauls after some time running on libx264.so. Rebuilding the libx264.so library and re-linking the demo application fixes the issue.
 
+
+* If an USB webcam is used with a Raspberry PI and the webcam does not support 720p. The following error can occur. Reduce the resolution to 480p at line 336 and 356 should fix the problem. (change the number from 1280 and 720 to 640 and 480)
+
+Error received from element source: Internal data stream error.
+Debugging information: gstbasesrc.c(2939): gst_base_src_loop (): /GstPipeline:test-pipeline/GstV4l2Src:source:
+streaming stopped, reason not-negotiated (-4)
+
 ## Release Notes
+### Release 1.1.1 (December 2017)
+* Fix USB webcam support
+* Known issues:
+    * If USB webcam doesn't support 720p, then gstreamer negotiation will fail. Trying lower resolution as mentioned in Troubleshooting may fix this issue.
 ### Release 1.1.0 (December 2017)
 * Addition of a received application ACK notification callback
 * Lifecycle management improvements
