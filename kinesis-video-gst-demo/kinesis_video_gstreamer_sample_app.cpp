@@ -334,9 +334,9 @@ int gstreamer_init(int argc, char* argv[]) {
 
     /* source filter */
     GstCaps *source_caps = gst_caps_new_simple("video/x-raw",
-                                               "width", G_TYPE_INT, 1280,
-                                               "height", G_TYPE_INT, 720,
-                                               "framerate", GST_TYPE_FRACTION, 30, 1,
+                                               "width", GST_TYPE_INT_RANGE, 320, 1920,
+                                               "height", GST_TYPE_INT_RANGE, 240, 1080,
+                                               "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, 30, 1,
                                                NULL);
     g_object_set(G_OBJECT (data.source_filter), "caps", source_caps, NULL);
     gst_caps_unref(source_caps);
@@ -354,9 +354,9 @@ int gstreamer_init(int argc, char* argv[]) {
                                              "profile", G_TYPE_STRING, "baseline",
                                              "stream-format", G_TYPE_STRING, "avc",
                                              "alignment", G_TYPE_STRING, "au",
-                                             "width", G_TYPE_INT, 1280,
-                                             "height", G_TYPE_INT, 720,
-                                             "framerate", GST_TYPE_FRACTION, 30, 1,
+                                             "width", GST_TYPE_INT_RANGE, 320, 1920,
+                                             "height", GST_TYPE_INT_RANGE, 240, 1080,
+                                             "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, 30, 1,
                                              NULL);
     g_object_set(G_OBJECT (data.filter), "caps", h264_caps, NULL);
     gst_caps_unref(h264_caps);
