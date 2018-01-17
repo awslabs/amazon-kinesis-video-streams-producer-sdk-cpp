@@ -131,7 +131,6 @@ SampleStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STRE
 }  // namespace amazonaws
 }  // namespace com;
 
-const unsigned char cpd[] = { 0x01, 0x42, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x23, 0x27, 0x42, 0x00, 0x20, 0x89, 0x8b, 0x60, 0x28, 0x02, 0xdd, 0x80, 0x9e, 0x00, 0x00, 0x4e, 0x20, 0x00, 0x0f, 0x42, 0x41, 0xc0, 0xc0, 0x01, 0x77, 0x00, 0x00, 0x5d, 0xc1, 0x7b, 0xdf, 0x07, 0xc2, 0x21, 0x1b, 0x80, 0x01, 0x00, 0x04, 0x28, 0xce, 0x1f, 0x20 };
 unique_ptr<Credentials> credentials_;
 
 typedef struct _CustomData {
@@ -140,6 +139,7 @@ typedef struct _CustomData {
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
+    bool stream_started;
 } CustomData;
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
@@ -160,6 +160,16 @@ bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, 
 
 static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     GstSample *sample = gst_app_sink_pull_sample(GST_APP_SINK (sink));
+    GstCaps* gstcaps  = (GstCaps*) gst_sample_get_caps(sample);
+    GstStructure * gststructforcaps = gst_caps_get_structure(gstcaps, 0); 
+
+    if (!data->stream_started) {
+        data->stream_started = true;
+        const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
+        gchar *cpd = gst_value_serialize(gstStreamFormat);
+        data->kinesis_video_stream->start(std::string(cpd));
+    }
+
     GstBuffer *buffer = gst_sample_get_buffer(sample);
     size_t buffer_size = gst_buffer_get_size(buffer);
     uint8_t *frame_data = new uint8_t[buffer_size];
@@ -266,8 +276,8 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
                                                            seconds(30),
                                                            "V_MPEG4/ISO/AVC",
                                                            "kinesis_video",
-                                                           cpd,
-                                                           sizeof(cpd));
+                                                           nullptr,
+                                                           0);
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
 
     LOG_DEBUG("Stream is ready");
