@@ -1,5 +1,44 @@
 #!/bin/bash
+#
+# Installs the open source dependencies 
+# for Kinesis Video Sdk demo application
+# and builds the demo application 
+#
+
 set -e
+
+# Confirm the tools
+echo " Starting to build the Kinesis Video Stream Demo Application 
+       - will be using the following open source libraries and tools
+        openssl
+        curl
+        log4cplus
+        gettext
+        libffi
+        libpcre
+        zlib
+        iconv
+        googletest
+        bison
+        flex
+        libtools
+        autoconf
+        automake
+        m4
+        also the gstreamer , gstreamer plugins and x264.
+ "
+
+echo "
+    Y - Confirm to proceed with build install
+    N - Exit build install "
+echo -n "Enter selection: "
+read confirm
+echo ""
+
+if [[ "$confirm" = "N" || "$confirm" = "n" ]]; then
+     exit
+fi
+
 # --------- create require directories ---------
 KINESIS_VIDEO_ROOT=`pwd`
 
@@ -20,6 +59,7 @@ if [ "$CMAKE_MAJOR_VERSION" \< "$CMAKE_EXPECTED_MAJOR_VERSION" ]; then
   exit
 fi
 
+
 DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
 if [ ! -d "$DOWNLOADS" ]; then
     mkdir "$DOWNLOADS"
@@ -39,9 +79,8 @@ elif [[ "$unamestr" == 'Darwin' ]]; then
    PLATFORM='mac'
 fi
 
-# --------- download libs ---------
 
-# --------- build + install libs ---------
+#--------- build + install libs ---------
 echo "Checking openssl at $DOWNLOADS/local/lib/libssl.a"
 if [ ! -f $DOWNLOADS/local/lib/libssl.a ]; then
   echo "openssl lib not found. Installing"
@@ -52,7 +91,7 @@ if [ ! -f $DOWNLOADS/local/lib/libssl.a ]; then
   cd $DOWNLOADS
   tar -xvf openssl-1.1.0f.tar.gz
   cd $DOWNLOADS/openssl-1.1.0f
-  ./config -fPIC --prefix=$DOWNLOADS/local/ --openssldir=$DOWNLOADS/local/
+  ./config  --prefix=$DOWNLOADS/local/ --openssldir=$DOWNLOADS/local/
   make
   make install
 fi
@@ -83,7 +122,7 @@ if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.dylib ]; then
     cd $DOWNLOADS
     tar -xvf log4cplus-1.2.0.tar.xz
     cd $DOWNLOADS/log4cplus-1.2.0
-    ./configure --prefix=$DOWNLOADS/local/ --with-pic
+    ./configure --prefix=$DOWNLOADS/local/ 
     make
     make install
   fi
@@ -91,20 +130,21 @@ fi
 
 echo "Checking gettext at $DOWNLOADS/local/lib/libgettextlib.dylib/.so"
 if [ ! -f $DOWNLOADS/local/lib/libgettextlib.dylib ]; then
-  if [ ! -f $DOWNLOADS/local/lib/libgettextlib.so ]; then
-    echo "gettext lib not found. Installing"
-    if [ ! -f $DOWNLOADS/gettext-0.19.8.tar.xz ]; then
-      cd $DOWNLOADS
-      curl -L "http://ftp.gnu.org/pub/gnu/gettext/gettext-0.19.8.tar.xz" -o "gettext-0.19.8.tar.xz"
-    fi
-    cd $DOWNLOADS
-    tar -xvf gettext-0.19.8.tar.xz
-    cd $DOWNLOADS/gettext-0.19.8
-    ./configure --prefix=$DOWNLOADS/local/
-    make
-    make install
-  fi
+ if [ ! -f $DOWNLOADS/local/lib/libgettextlib.so ]; then
+   echo "gettext lib not found. Installing"
+   if [ ! -f $DOWNLOADS/gettext-0.19.8.tar.xz ]; then
+     cd $DOWNLOADS
+     curl -L "http://ftp.gnu.org/pub/gnu/gettext/gettext-0.19.8.tar.xz" -o "gettext-0.19.8.tar.xz"
+   fi
+   cd $DOWNLOADS
+   tar -xvf gettext-0.19.8.tar.xz
+   cd $DOWNLOADS/gettext-0.19.8
+   ./configure --prefix=$DOWNLOADS/local/
+   make
+   make install
+ fi
 fi
+ 
 
 echo "Checking libffi at $DOWNLOADS/local/lib/libffi.a"
 if [ ! -f $DOWNLOADS/local/lib/libffi.dylib ]; then
@@ -193,27 +233,143 @@ if [[ $PLATFORM == 'linux' ]]; then
   fi
 fi
 
-echo "Checking glib at $DOWNLOADS/local/lib/libglib-2.0.dylib/.so"
-if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.dylib ]; then
-  if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.so ]; then
-    export LIBFFI_CFLAGS="-I$DOWNLOADS/local/include -I$DOWNLOADS/local/lib/libffi-3.2.1/include -L$DOWNLOADS/local/lib"
-    export LIBFFI_LIBS="-L$DOWNLOADS/local/lib -lffi"
-    export LDFLAGS="-L$DOWNLOADS/local/lib"
-    export CPPFLAGS="-I$DOWNLOADS/local/include"
-
-    echo "glib lib not found. Installing"
-    if [ ! -f $DOWNLOADS/glib-2.54.2.tar.xz ]; then
+# -----  libfl.2.dylib and libfl.2.so ---------------------
+  if [ ! -f $DOWNLOADS/local/lib/libfl.2.dylib ]; then
+    if [ ! -f $DOWNLOADS/local/lib/libfl.2.so ]; then
+        if [ ! -f $DOWNLOADS/local/lib/libfl.so ]; then
+          echo "flex not found. Installing"
+          if [ ! -f $DOWNLOADS/flex-2.6.4.tar.gz ]; then
+            cd $DOWNLOADS
+            curl -L "https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz" -o "flex-2.6.4.tar.xz"
+          fi
+          cd $DOWNLOADS
+          tar -xvf flex-2.6.4.tar.xz
+          cd $DOWNLOADS/flex-2.6.4 
+          ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+          make
+          make install
+      fi
+  fi
+fi
+#-----------------------liby.a----------------------------
+ if [ ! -f $DOWNLOADS/local/lib/liby.a ]; then
+    echo "bison not found. Installing"
+    if [ ! -f $DOWNLOADS/bison-2.3.tar.gz ]; then
       cd $DOWNLOADS
-      curl -L "http://ftp.gnome.org/pub/gnome/sources/glib/2.54/glib-2.54.2.tar.xz" -o "glib-2.54.2.tar.xz"
+      curl -L "http://ftp.gnu.org/gnu/bison/bison-3.0.4.tar.gz" -o "bison-3.0.4.tar.xz"
     fi
     cd $DOWNLOADS
-    tar -xvf glib-2.54.2.tar.xz
-    cd $DOWNLOADS/glib-2.54.2
-    autoreconf -f -i
-    ./configure --prefix=$DOWNLOADS/local/ --with-pcre --with-libiconv
+    tar -xvf bison-3.0.4.tar.xz
+    cd $DOWNLOADS/bison-3.0.4
+    ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
+fi
+# --------- libltdl------------------------------------------
+ if [ ! -f $DOWNLOADS/local/lib/libltdl.7.dylib ]; then
+   if [ ! -f $DOWNLOADS/local/lib/libltdl.7.so ]; then
+    if [ ! -f $DOWNLOADS/local/lib/libltdl.so ]; then
+      echo "libtools not found. Installing"
+      if [ ! -f $DOWNLOADS/libtool-2.4.6.tar.gz ]; then
+        cd $DOWNLOADS
+        curl -L "http://ftpmirror.gnu.org/libtool/libtool-2.4.6.tar.gz" -o "libtool-2.4.6.tar.xz"
+      fi
+      cd $DOWNLOADS
+      tar -xvf libtool-2.4.6.tar.xz
+      cd $DOWNLOADS/libtool-2.4.6
+      ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+      make
+      make install
+    fi
+  fi 
+fi
+
+# --------- glib ------------------------------------------
+echo "Checking glib at $DOWNLOADS/local/lib/libglib-2.0.dylib/.so"
+if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.dylib ]; then
+ if [ ! -f $DOWNLOADS/local/lib/libglib-2.0.so ]; then
+   export LIBFFI_CFLAGS="-I$DOWNLOADS/local/include -I$DOWNLOADS/local/lib/libffi-3.2.1/include -L$DOWNLOADS/local/lib"
+   export LIBFFI_LIBS="-L$DOWNLOADS/local/lib -lffi"
+   export LDFLAGS="-L$DOWNLOADS/local/lib"
+   export CPPFLAGS="-I$DOWNLOADS/local/include"
+
+  echo "glib lib not found. Installing"
+   if [ ! -f $DOWNLOADS/glib-2.54.2.tar.xz ]; then
+     cd $DOWNLOADS
+     curl -L "http://ftp.gnome.org/pub/gnome/sources/glib/2.54/glib-2.54.2.tar.xz" -o "glib-2.54.2.tar.xz"
+   fi
+   cd $DOWNLOADS
+   tar -xvf glib-2.54.2.tar.xz
+   cd $DOWNLOADS/glib-2.54.2
+  # autoreconf -f -i
+   ./configure --prefix=$DOWNLOADS/local/ --with-pcre --with-libiconv
+   make
+   make install
+ fi
+fi
+# --------- googletest------------------------------------------
+echo "Checking googletest at $DOWNLOADS/local/lib/libgtest.a"
+if [ ! -f $DOWNLOADS/local/lib/libgtest.dylib ]; then
+  if [ ! -f $DOWNLOADS/local/lib/libgtest.so ]; then
+    echo "gtest lib not found. Installing"
+    if [ ! -f $DOWNLOADS/google-test-1.8.0.gz ]; then
+      cd $DOWNLOADS
+      curl -L "https://github.com/google/googletest/archive/release-1.8.0.tar.gz" -o "google-test-1.8.0.gz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf google-test-1.8.0.gz
+    cd googletest-release-1.8.0/googletest
+    cmake -DBUILD_SHARED_LIBS=ON .
+    make
+    mkdir -p $DOWNLOADS/local/lib
+    cp -r ./include $DOWNLOADS/local
+    cp ./lib* $DOWNLOADS/local/lib
   fi
+fi
+
+#-------------------------install program m4 --------------------------------------------------------------------
+  if [ ! -f $DOWNLOADS/local/bin/m4 ]; then
+    echo "m4 not found. Installing"
+    if [ ! -f $DOWNLOADS/m4-1.4.10.tar.gz ]; then
+      cd $DOWNLOADS
+      curl -L "http://ftpmirror.gnu.org/m4/m4-1.4.10.tar.gz" -o "m4-1.4.10.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf m4-1.4.10.tar.xz
+    cd $DOWNLOADS/m4-1.4.10 
+    ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+    make
+    make install
+ fi
+
+#-------------------autoconf, autoheader, autom4te, autoreconf, autoscan, autoupdate, and ifnames------------------
+ if [ ! -f $DOWNLOADS/local/bin/autoconf ]; then
+    echo "autoconf not found. Installing"
+    if [ ! -f $DOWNLOADS/autoconf-2.69.tar.gz ]; then
+      cd $DOWNLOADS
+      curl -L "http://ftpmirror.gnu.org/autoconf/autoconf-2.69.tar.gz" -o "autoconf-2.69.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf autoconf-2.69.tar.xz
+    cd $DOWNLOADS/autoconf-2.69
+    ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+    make
+    make install
+ fi
+
+#--------aclocal, aclocal-1.15 (hard linked with aclocal), automake, and automake-1.15 (hard linked with automake)--
+  if [ ! -f $DOWNLOADS/local/bin/automake ]; then
+    echo "automake not found. Installing"
+    if [ ! -f $DOWNLOADS/automake-1.15.tar.gz ]; then
+      cd $DOWNLOADS
+      curl -L "https://ftp.gnu.org/gnu/automake/automake-1.15.tar.gz" -o "automake-1.15.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf automake-1.15.tar.xz
+    cd $DOWNLOADS/automake-1.15
+    ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+    make
+    make install
 fi
 
 export GLIB_CFLAGS="-I$DOWNLOADS/local/include/glib-2.0 -I$DOWNLOADS/local/include/glib-2.0/glib -I$DOWNLOADS/local/lib/glib-2.0/include"
@@ -233,7 +389,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgstreamer-1.0.dylib ]; then
 
     for d in ./*/ ; do
       if [ -f "$d/configure.ac" ]; then
-        (cd "$d" && autoreconf -f -i);
+        (cd "$d" && ./"${DOWNLOADS}"/local/bin/autoreconf -f -i);
       fi
     done
 
@@ -257,7 +413,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgstvideo-1.0.dylib ]; then
 
     for d in ./*/ ; do
       if [ -f "$d/configure.ac" ]; then
-        (cd "$d" && autoreconf -f -i);
+        (cd "$d" && ./"${DOWNLOADS}"/local/bin/autoreconf -f -i);
       fi
     done
 
@@ -280,11 +436,11 @@ if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstavi.la ]; then
 
   for d in ./*/ ; do
     if [ -f "$d/configure.ac" ]; then
-      (cd "$d" && autoreconf -f -i);
+      (cd "$d" && ./"${DOWNLOADS}"/local/bin/autoreconf -f -i);
     fi
   done
 
-  ./configure --prefix=$DOWNLOADS/local --disable-examples --disable-x --disable-gtk-doc -- CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+  ./configure --prefix=$DOWNLOADS/local --disable-examples --disable-x --disable-gtk-doc  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
   make
   make install
 fi
@@ -303,7 +459,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgstbadvideo-1.0.dylib ]; then
 
     for d in ./*/ ; do
       if [ -f "$d/configure.ac" ]; then
-        (cd "$d" && autoreconf -f -i);
+        (cd "$d" && ./"${DOWNLOADS}"/local/bin/autoreconf -f -i);
       fi
     done
 
@@ -327,7 +483,7 @@ if [ ! -f $DOWNLOADS/local/lib/libx264.dylib ]; then
 
     for d in ./*/ ; do
       if [ -f "$d/configure.ac" ]; then
-        (cd "$d" && autoreconf -f -i);
+        (cd "$d" && ./"${DOWNLOADS}"/local/bin/autoreconf -f -i);
       fi
     done
 
@@ -351,32 +507,13 @@ if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstx264.dylib ]; then
 
     for d in ./*/ ; do
       if [ -f "$d/configure.ac" ]; then
-        (cd "$d" && autoreconf -f -i);
+        (cd "$d" && ./"${DOWNLOADS}"/local/bin/autoreconf -f -i);
       fi
     done
 
     ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
-  fi
-fi
-
-echo "Checking googletest at $DOWNLOADS/local/lib/libgtest.a"
-if [ ! -f $DOWNLOADS/local/lib/libgtest.dylib ]; then
-  if [ ! -f $DOWNLOADS/local/lib/libgtest.so ]; then
-    echo "gtest lib not found. Installing"
-    if [ ! -f $DOWNLOADS/google-test-1.8.0.gz ]; then
-      cd $DOWNLOADS
-      curl -L "https://github.com/google/googletest/archive/release-1.8.0.tar.gz" -o "google-test-1.8.0.gz"
-    fi
-    cd $DOWNLOADS
-    tar -xvf google-test-1.8.0.gz
-    cd googletest-release-1.8.0/googletest
-    cmake -DBUILD_SHARED_LIBS=ON .
-    make
-    mkdir -p $DOWNLOADS/local/lib
-    cp -r ./include $DOWNLOADS/local
-    cp ./lib* $DOWNLOADS/local/lib
   fi
 fi
 
@@ -391,3 +528,4 @@ make
 echo "**********************************************************"
 echo Success!!!
 echo "**********************************************************"
+
