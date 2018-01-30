@@ -95,7 +95,7 @@ git version 2.14.1
 
 
 
-* Install cmake: sudo apt-get isnstall cmake
+* Install cmake: sudo apt-get install cmake
 
 $ cmake --version
 cmake version 3.9.1
