@@ -4,12 +4,14 @@
 #include <chrono>
 #include <Logger.h>
 #include "KinesisVideoProducer.h"
+#include <vector>
+#include <stdlib.h>
 
 using namespace std;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -134,12 +136,13 @@ SampleStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STRE
 unique_ptr<Credentials> credentials_;
 
 typedef struct _CustomData {
-    GstElement *pipeline, *source, *source_filter, *encoder, *filter, *appsink, *video_convert;
+    GstElement *pipeline, *source, *source_filter, *encoder, *filter, *appsink, *video_convert, *h264parse;
     GstBus *bus;
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
     bool stream_started;
+    bool h264_stream_supported;
 } CustomData;
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
@@ -161,7 +164,7 @@ bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, 
 static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     GstSample *sample = gst_app_sink_pull_sample(GST_APP_SINK (sink));
     GstCaps* gstcaps  = (GstCaps*) gst_sample_get_caps(sample);
-    GstStructure * gststructforcaps = gst_caps_get_structure(gstcaps, 0); 
+    GstStructure * gststructforcaps = gst_caps_get_structure(gstcaps, 0);
 
     if (!data->stream_started) {
         data->stream_started = true;
@@ -176,7 +179,16 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     gst_buffer_extract(buffer, 0, frame_data, buffer_size);
 
     bool delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
-    FRAME_FLAGS kinesis_video_flags = delta ? FRAME_FLAG_NONE : FRAME_FLAG_KEY_FRAME;
+    FRAME_FLAGS kinesis_video_flags;
+    if(!delta) {
+        // Safeguard stream and playback in case of h264 keyframes comes with different PTS and DTS
+        if (data->h264_stream_supported) {
+            buffer->dts = buffer->pts;
+        }
+        kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+    } else {
+        kinesis_video_flags = FRAME_FLAG_NONE;
+    }
     if (false == put_frame(data->kinesis_video_stream, frame_data, buffer_size, std::chrono::nanoseconds(buffer->pts),
                            std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
         g_printerr("Dropped frame!\n");
@@ -186,6 +198,27 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     gst_sample_unref(sample);
 
     return GST_FLOW_OK;
+}
+
+static bool format_supported_by_source(GstCaps *src_caps, bool h264_stream, int width, int height) {
+    GstCaps *query_caps;
+    query_caps = gst_caps_new_simple(h264_stream ? "video/x-h264" : "video/x-raw",
+                                     "width", G_TYPE_INT, width,
+                                     "height", G_TYPE_INT, height,
+                                     "framerate", GST_TYPE_FRACTION, 30, 1,
+                                     NULL);
+    return gst_caps_can_intersect(query_caps, src_caps);
+}
+
+static bool resolution_supported(GstCaps *src_caps, CustomData &data, int width, int height) {
+    if (format_supported_by_source(src_caps, true, width, height)) {
+        data.h264_stream_supported = true;
+    } else if (format_supported_by_source(src_caps, false, width, height)) {
+        data.h264_stream_supported = false;
+    } else {
+        return false;
+    }
+    return true;
 }
 
 /* This function is called when an error message is posted on the bus */
@@ -264,7 +297,7 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
                                                            milliseconds(1),
                                                            true,
                                                            true,
-                                                           false,
+                                                           true,
                                                            true,
                                                            true,
                                                            true,
@@ -289,13 +322,13 @@ int gstreamer_init(int argc, char* argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name width height");
         return 1;
     }
 
     CustomData data;
     GstStateChangeReturn ret;
-    bool vtenc;
+    bool vtenc, isOnRpi;
 
     /* init data struct */
     memset(&data, 0, sizeof(data));
@@ -307,6 +340,16 @@ int gstreamer_init(int argc, char* argv[]) {
     char stream_name[MAX_STREAM_NAME_LEN];
     SNPRINTF(stream_name, MAX_STREAM_NAME_LEN, argv[1]);
     kinesis_video_init(&data, stream_name);
+    int width = 0, height = 0;
+    char *endptr_w, *endptr_h;
+    if (argc == 4) {
+        width = strtol(argv[2], &endptr_w, 0);
+        height = strtol(argv[3], &endptr_h, 0);
+        if (*endptr_w != '\0' || *endptr_h != '\0') {
+            g_printerr("Invalid resolution value.\n");
+            return 1;
+        }
+    }
 
     /* create the elemnents */
     /*
@@ -315,7 +358,7 @@ int gstreamer_init(int argc, char* argv[]) {
     data.source_filter = gst_element_factory_make("capsfilter", "source_filter");
     data.filter = gst_element_factory_make("capsfilter", "encoder_filter");
     data.appsink = gst_element_factory_make("appsink", "appsink");
-    data.video_convert = gst_element_factory_make("videoconvert", "video_convert");
+    data.h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
 
     // Attempt to create vtenc encoder
     data.encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
@@ -323,8 +366,15 @@ int gstreamer_init(int argc, char* argv[]) {
         data.source = gst_element_factory_make("autovideosrc", "source");
         vtenc = true;
     } else {
-        // Failed creating vtenc - attempt x264
-        data.encoder = gst_element_factory_make("x264enc", "encoder");
+        // Failed creating vtenc - check pi hardware encoder
+        data.encoder = gst_element_factory_make("omxh264enc", "encoder");
+        if (data.encoder) {
+            isOnRpi = true;
+        } else {
+            // - attempt x264enc
+            data.encoder = gst_element_factory_make("x264enc", "encoder");
+            isOnRpi = false;
+        }
         data.source = gst_element_factory_make("v4l2src", "source");
         vtenc = false;
     }
@@ -332,7 +382,7 @@ int gstreamer_init(int argc, char* argv[]) {
     /* create an empty pipeline */
     data.pipeline = gst_pipeline_new("test-pipeline");
 
-    if (!data.pipeline || !data.source || !data.source_filter || !data.encoder || !data.filter || !data.appsink || !data.video_convert) {
+    if (!data.pipeline || !data.source || !data.source_filter || !data.encoder || !data.filter || !data.appsink || !data.h264parse) {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
@@ -342,32 +392,96 @@ int gstreamer_init(int argc, char* argv[]) {
         g_object_set(G_OBJECT (data.source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
     }
 
+    /* Determine whether device supports h264 encoding and select a streaming resolution supported by the device*/
+    if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(data.source, GST_STATE_READY)) {
+        g_printerr("Unable to set the source to ready state.\n");
+        return 1;
+    }
+
+    GstPad *srcpad = gst_element_get_static_pad(data.source, "src");
+    GstCaps *src_caps = gst_pad_query_caps(srcpad, NULL);
+    gst_element_set_state(data.source, GST_STATE_NULL);
+
+    if (width != 0 && height != 0) {
+        if (!resolution_supported(src_caps, data, width, height)) {
+            g_printerr("Resolution %dx%d not supported by video source\n", width, height);
+            return 1;
+        }
+    } else {
+        vector<int> res_width = {1920, 1280, 640};
+        vector<int> res_height = {1080, 720, 480};
+        bool found_resolution = false;
+        for (int i = 0; i < res_width.size(); i++) {
+            width = res_width[i];
+            height = res_height[i];
+            if (resolution_supported(src_caps, data, width, height)) {
+                found_resolution = true;
+                break;
+            }
+        }
+        if (!found_resolution) {
+            g_printerr("Default list of resolutions not supported by video source\n");
+            return 1;
+        }
+    }
+
+    gst_caps_unref(src_caps);
+    gst_object_unref(srcpad);
+
+    /* create the elemnents needed for the corresponding pipeline */
+    if (!data.h264_stream_supported) {
+        data.video_convert = gst_element_factory_make("videoconvert", "video_convert");
+
+        if (!data.video_convert) {
+            g_printerr("Not all elements could be created.\n");
+            return 1;
+        }
+    }
+
     /* source filter */
-    GstCaps *source_caps = gst_caps_new_simple("video/x-raw",
-                                               "width", GST_TYPE_INT_RANGE, 320, 1920,
-                                               "height", GST_TYPE_INT_RANGE, 240, 1080,
-                                               "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, 30, 1,
-                                               NULL);
+    GstCaps *source_caps;
+    if (!data.h264_stream_supported) {
+        source_caps = gst_caps_new_simple("video/x-raw",
+                                          "format", G_TYPE_STRING, "I420",
+                                          "width", G_TYPE_INT, width,
+                                          "height", G_TYPE_INT, height,
+                                          "framerate", GST_TYPE_FRACTION, 30, 1,
+                                          NULL);
+    } else {
+        source_caps = gst_caps_new_simple("video/x-h264",
+                                          "stream-format", G_TYPE_STRING, "byte-stream",
+                                          "alignment", G_TYPE_STRING, "au",
+                                          NULL);
+    }
+
     g_object_set(G_OBJECT (data.source_filter), "caps", source_caps, NULL);
     gst_caps_unref(source_caps);
 
     /* configure encoder */
-    if (vtenc) {
-        g_object_set(G_OBJECT (data.encoder), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval",
-                          45, "bitrate", 512, NULL);
-    } else {
-        g_object_set(G_OBJECT (data.encoder), "bframes", 0, "key-int-max", 45, "bitrate", 512, NULL);
+    if (!data.h264_stream_supported){
+        if (vtenc) {
+            g_object_set(G_OBJECT (data.encoder), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval",
+                              45, "bitrate", 512, NULL);
+        } else if (isOnRpi) {
+            g_object_set(G_OBJECT (data.encoder), "control-rate", 1, "target-bitrate", 5000000, NULL);
+        } else {
+            g_object_set(G_OBJECT (data.encoder), "bframes", 0, "key-int-max", 45, "bitrate", 512, NULL);
+        }
     }
+
 
     /* configure filter */
     GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
-                                             "profile", G_TYPE_STRING, "baseline",
                                              "stream-format", G_TYPE_STRING, "avc",
                                              "alignment", G_TYPE_STRING, "au",
-                                             "width", GST_TYPE_INT_RANGE, 320, 1920,
-                                             "height", GST_TYPE_INT_RANGE, 240, 1080,
-                                             "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, 30, 1,
+                                             "width", G_TYPE_INT, width,
+                                             "height", G_TYPE_INT, height,
+                                             "framerate", GST_TYPE_FRACTION, 30, 1,
                                              NULL);
+    if (!data.h264_stream_supported) {
+        gst_caps_set_simple(h264_caps, "profile", G_TYPE_STRING, "baseline",
+                                        NULL);
+    }
     g_object_set(G_OBJECT (data.filter), "caps", h264_caps, NULL);
     gst_caps_unref(h264_caps);
 
@@ -376,13 +490,23 @@ int gstreamer_init(int argc, char* argv[]) {
     g_signal_connect(data.appsink, "new-sample", G_CALLBACK(on_new_sample), &data);
 
     /* build the pipeline */
-    gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.source_filter, data.video_convert, data.encoder, data.filter,
-        data.appsink, NULL);
-    if (gst_element_link_many(data.source, data.source_filter, data.video_convert, data.encoder, data.filter, data.appsink, NULL) != TRUE) {
-        g_printerr("Elements could not be linked.\n");
-        gst_object_unref(data.pipeline);
-        return 1;
+    if (!data.h264_stream_supported) {
+        gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.video_convert, data.source_filter, data.encoder, data.h264parse, data.filter,
+            data.appsink, NULL);
+        if (gst_element_link_many(data.source, data.video_convert, data.source_filter, data.encoder, data.h264parse, data.filter, data.appsink, NULL) != TRUE) {
+            g_printerr("Elements could not be linked.\n");
+            gst_object_unref(data.pipeline);
+            return 1;
+        }
+    } else {
+        gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.h264parse, data.filter, data.appsink, NULL);
+        if (gst_element_link_many(data.source, data.h264parse, data.filter, data.appsink, NULL) != TRUE) {
+            g_printerr("Elements could not be linked.\n");
+            gst_object_unref(data.pipeline);
+            return 1;
+        }
     }
+
 
     /* Instruct the bus to emit signals for each received message, and connect to the interesting signals */
     data.bus = gst_element_get_bus(data.pipeline);

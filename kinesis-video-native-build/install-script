@@ -1,14 +1,14 @@
 #!/bin/bash
 #
-# Installs the open source dependencies 
+# Installs the open source dependencies
 # for Kinesis Video Sdk demo application
-# and builds the demo application 
+# and builds the demo application
 #
 
 set -e
 
 # Confirm the tools
-echo " Starting to build the Kinesis Video Stream Demo Application 
+echo " Starting to build the Kinesis Video Stream Demo Application
        - will be using the following open source libraries and tools
         openssl
         curl
@@ -122,7 +122,7 @@ if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.dylib ]; then
     cd $DOWNLOADS
     tar -xvf log4cplus-1.2.0.tar.xz
     cd $DOWNLOADS/log4cplus-1.2.0
-    ./configure --prefix=$DOWNLOADS/local/ 
+    ./configure --prefix=$DOWNLOADS/local/
     make
     make install
   fi
@@ -144,7 +144,7 @@ if [ ! -f $DOWNLOADS/local/lib/libgettextlib.dylib ]; then
    make install
  fi
 fi
- 
+
 
 echo "Checking libffi at $DOWNLOADS/local/lib/libffi.a"
 if [ ! -f $DOWNLOADS/local/lib/libffi.dylib ]; then
@@ -244,7 +244,7 @@ fi
           fi
           cd $DOWNLOADS
           tar -xvf flex-2.6.4.tar.xz
-          cd $DOWNLOADS/flex-2.6.4 
+          cd $DOWNLOADS/flex-2.6.4
           ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
           make
           make install
@@ -281,7 +281,7 @@ fi
       make
       make install
     fi
-  fi 
+  fi
 fi
 
 # --------- glib ------------------------------------------
@@ -336,7 +336,7 @@ fi
     fi
     cd $DOWNLOADS
     tar -xvf m4-1.4.10.tar.xz
-    cd $DOWNLOADS/m4-1.4.10 
+    cd $DOWNLOADS/m4-1.4.10
     ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
@@ -517,6 +517,35 @@ if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstx264.dylib ]; then
   fi
 fi
 
+sys_info=`uname -m`
+shopt -s nocasematch
+if [[ $sys_info =~ ^arm ]]; then
+  # we are in a raspberry pi
+  echo "Checking gst-omx "
+  if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/llibgstomx.dylib ]; then
+    if [ ! -f $DOWNLOADS/local/lib/gstreamer-1.0/libgstomx.so ]; then
+      echo "gst-omx not found. Installing"
+      if [ ! -f $DOWNLOADS/gst-omx-1.10.4.tar.xz ]; then
+        cd $DOWNLOADS
+        curl -L "https://gstreamer.freedesktop.org/src/gst-omx/gst-omx-1.10.4.tar.xz" -o "gst-omx-1.10.4.tar.xz"
+      fi
+      cd $DOWNLOADS
+      tar -xvf gst-omx-1.10.4.tar.xz
+      cd $DOWNLOADS/gst-omx-1.10.4
+
+      for d in ./*/ ; do
+        if [ -f "$d/configure.ac" ]; then
+          (cd "$d" && ./"${DOWNLOADS}"/local/bin/autoreconf -f -i);
+        fi
+      done
+
+      ./configure --prefix=$DOWNLOADS/local --disable-gtk-doc --with-omx-header-path=/opt/vc/include/IL --with-omx-target=rpi CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+      make
+      make install
+    fi
+  fi
+fi
+
 export PKG_CONFIG_LIBDIR="$DOWNLOADS/local/lib/pkgconfig"
 export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
 
@@ -528,4 +557,5 @@ make
 echo "**********************************************************"
 echo Success!!!
 echo "**********************************************************"
+
 
