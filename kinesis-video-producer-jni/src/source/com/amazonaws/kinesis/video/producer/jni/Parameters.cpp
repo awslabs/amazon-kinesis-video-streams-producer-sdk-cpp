@@ -372,7 +372,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     if (methodId == NULL) {
         DLOGW("Couldn't find method id isRecoverOnError");
     } else {
-        pStreamInfo->streamCaps.fragmentAcks = env->CallBooleanMethod(streamInfo, methodId);
+        pStreamInfo->streamCaps.recoverOnError = env->CallBooleanMethod(streamInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
