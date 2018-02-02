@@ -183,7 +183,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     if(!delta) {
         // Safeguard stream and playback in case of h264 keyframes comes with different PTS and DTS
         if (data->h264_stream_supported) {
-            buffer->dts = buffer->pts;
+            buffer->pts = buffer->dts;
         }
         kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
     } else {
