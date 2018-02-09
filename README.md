@@ -252,6 +252,9 @@ $ sudo reboot
 
 
 ## Release Notes
+### Release 1.1.3 (February 2018)
+* Added RTSP Demo Sample
+** AWS_ACCESS_KEY_ID=AKIASAMPLEKEYID AWS_SECRET_ACCESS_KEY=MYSECRETACCESSKEY ./kinesis_video_gstreamer_sample_rtsp_app rtspurl  stream-name
 ### Release 1.1.2 (January 2018)
 * Allowed devices to output h.264 streams directly
 * The user can also supply a streaming resolution through command line arguments.
@@ -275,3 +278,7 @@ $ sudo reboot
     * Missing build scripts for Windows-based systems.
     * Missing cross-compile option.
     * Sample application/unit tests can't handle buffer pressures properly - simple print in debug log.
+
+Documentation:
+   https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producer-sdk-cpp.html
+
