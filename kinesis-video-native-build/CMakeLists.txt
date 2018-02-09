@@ -225,6 +225,10 @@ set(PRODUCER_SOURCE_FILES_JNI
 set(GST_DEMO_APP
         ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_app.cpp)
 
+
+set(RTSP_DEMO_APP
+        ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_rtsp_app.cpp)
+
 include_directories(${KINESIS_VIDEO_PIC_SRC})
 include_directories(${KINESIS_VIDEO_PIC_SRC}/src/client/include)
 include_directories(${KINESIS_VIDEO_PIC_SRC}/src/client/include/com/amazonaws/kinesis/video/client)
@@ -264,8 +268,10 @@ add_library(producer SHARED ${PRODUCER_SOURCE_FILES})
 add_library(KinesisVideoProducerJNI SHARED ${PRODUCER_SOURCE_FILES_JNI})
 add_executable(start ${TST_PRODUCER_SOURCE_FILES})
 add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
+add_executable(kinesis_video_gstreamer_sample_rtsp_app ${RTSP_DEMO_APP})
 
 target_include_directories(kinesis_video_gstreamer_sample_app PRIVATE ${GST_INCLUDE_DIRS})
+target_include_directories(kinesis_video_gstreamer_sample_rtsp_app PRIVATE ${GST_INCLUDE_DIRS})
 
 target_link_libraries(KinesisVideoProducerJNI producer)
 
@@ -289,3 +295,13 @@ target_link_libraries(kinesis_video_gstreamer_sample_app
         gstapp-1.0
         gobject-2.0
         glib-2.0)
+
+target_link_libraries(kinesis_video_gstreamer_sample_rtsp_app
+        producer 
+        pthread 
+        dl 
+        gstreamer-1.0 
+        gstapp-1.0 
+        gobject-2.0 
+        glib-2.0)
+
