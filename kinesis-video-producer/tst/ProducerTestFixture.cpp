@@ -36,7 +36,7 @@ STATUS TestStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_da
     return STATUS_SUCCESS;
 }
 
-STATUS TestStreamCallbackProvider::streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle) {
+STATUS TestStreamCallbackProvider::streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 stream_upload_handle) {
     LOG_INFO("Reporting stream stopped.");
     if (nullptr != gProducerApiTest) {
         // This should really be done per-stream - this is a wrong way of doing it!!!

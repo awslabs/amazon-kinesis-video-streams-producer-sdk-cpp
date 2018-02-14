@@ -241,7 +241,26 @@ CleanUp:
 STATUS hashTablePut(PHashTable pHashTable, UINT64 key, UINT64 value)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    BOOL found = FALSE;
+    BOOL contains = FALSE;
+
+    // Check if the item exists and bail out if it does
+    CHK_STATUS(hashTableContains(pHashTable, key, &contains));
+    CHK(!contains, STATUS_HASH_KEY_ALREADY_PRESENT);
+
+    // Perform an upsert
+    CHK_STATUS(hashTableUpsert(pHashTable, key, value));
+
+CleanUp:
+
+    return retStatus;
+}
+
+/**
+ * Upserts an item into the hash table
+ */
+STATUS hashTableUpsert(PHashTable pHashTable, UINT64 key, UINT64 value)
+{
+    STATUS retStatus = STATUS_SUCCESS;
     PHashBucket pHashBucket;
     PHashEntry pNewHashEntry;
     PHashEntry pHashEntry;
@@ -257,12 +276,11 @@ STATUS hashTablePut(PHashTable pHashTable, UINT64 key, UINT64 value)
     // Check if we already have the value
     for (i = 0; i < pHashBucket->count; i++, pHashEntry++) {
         if (pHashEntry->key == key) {
-            found = TRUE;
-            break;
+            // Found the entry - update and early success return
+            pHashEntry->value = value;
+            CHK(FALSE, retStatus);
         }
     }
-
-    CHK(!found, STATUS_HASH_KEY_ALREADY_PRESENT);
 
     // Check if we need to increase the size of the bucket
     if (pHashBucket->count == pHashBucket->length) {

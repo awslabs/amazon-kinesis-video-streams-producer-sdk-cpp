@@ -2,6 +2,7 @@
  * Kinesis Video Content View
  */
 #define LOG_CLASS "ContentView"
+
 #include "Include_i.h"
 
 //////////////////////////////////////////////////////////
@@ -79,7 +80,7 @@ CleanUp:
 /**
  * Checks whether an item with the specified index exists
  */
-STATUS contentViewItemExists(PContentView pContentView, UINT32 itemIndex, PBOOL pExists)
+STATUS contentViewItemExists(PContentView pContentView, UINT64 itemIndex, PBOOL pExists)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -163,7 +164,7 @@ CleanUp:
 /**
  * Gets an item from the given index. Current remains untouched.
  */
-STATUS contentViewGetItemAt(PContentView pContentView, UINT32 itemIndex, PViewItem* ppItem)
+STATUS contentViewGetItemAt(PContentView pContentView, UINT64 itemIndex, PViewItem* ppItem)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -214,7 +215,7 @@ CleanUp:
 /**
  * Gets the current item index
  */
-STATUS contentViewGetCurrentIndex(PContentView pContentView, PUINT32 pIndex)
+STATUS contentViewGetCurrentIndex(PContentView pContentView, PUINT64 pIndex)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -234,7 +235,7 @@ CleanUp:
 /**
  * Sets the current item index
  */
-STATUS contentViewSetCurrentIndex(PContentView pContentView, UINT32 index)
+STATUS contentViewSetCurrentIndex(PContentView pContentView, UINT64 index)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -261,7 +262,7 @@ STATUS contentViewRollbackCurrent(PContentView pContentView, UINT64 duration, BO
     STATUS retStatus = STATUS_SUCCESS;
     PViewItem pCurrent = NULL;
     UINT64 timestamp;
-    UINT32 curIndex, lastIndex;
+    UINT64 curIndex, lastIndex;
     PRollingContentView pRollingView = (PRollingContentView) pContentView;
 
     // Check the input params
@@ -376,7 +377,7 @@ STATUS contentViewGetHead(PContentView pContentView, PViewItem* ppItem)
     // Quick check if any items exist - early return
     CHK(pRollingView->head != pRollingView->tail, STATUS_CONTENT_VIEW_NO_MORE_ITEMS);
 
-    // Get the tail item
+    // Get the head item
     *ppItem = GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->head - 1);
 
 CleanUp:
@@ -458,9 +459,9 @@ STATUS contentViewAddItem(PContentView pContentView, UINT64 timestamp, UINT64 du
     pHead->duration = duration;
     pHead->flags = flags;
     pHead->handle = allocHandle;
-    pHead->offset = offset;
     pHead->length = length;
     pHead->index = pRollingView->head;
+    SET_ITEM_DATA_OFFSET(pHead->flags, offset);
 
     pRollingView->head++;
 
@@ -511,7 +512,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS contentViewTrimTail(PContentView pContentView, UINT32 itemIndex)
+STATUS contentViewTrimTail(PContentView pContentView, UINT64 itemIndex)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -638,7 +639,7 @@ STATUS contentViewGetWindowAllocationSize(PContentView pContentView, PUINT64 pCu
     PRollingContentView pRollingView = (PRollingContentView) pContentView;
     PViewItem pCurrent;
     UINT64 currentAllocationSize = 0, windowAllocationSize = 0;
-    UINT32 curIndex;
+    UINT64 curIndex;
 
     // Check the input params
     CHK(pContentView != NULL && pCurrentAllocationSize != NULL, STATUS_NULL_ARG);

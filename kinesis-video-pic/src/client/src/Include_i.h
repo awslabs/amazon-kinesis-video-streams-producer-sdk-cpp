@@ -137,6 +137,19 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
                                                 (r) == SERVICE_CALL_CLIENT_LIMIT || \
                                                 (r) == SERVICE_CALL_DEVICE_LIMIT || \
                                                 (r) == SERVICE_CALL_STREAM_LIMIT || \
+                                                (r) == SERVICE_CALL_RESULT_STREAM_READ_ERROR || \
+                                                (r) == SERVICE_CALL_RESULT_CONNECTION_DURATION_REACHED || \
+                                                (r) == SERVICE_CALL_RESULT_STREAM_NOT_ACTIVE || \
+                                                (r) == SERVICE_CALL_RESULT_KMS_KEY_ACCESS_DENIED || \
+                                                (r) == SERVICE_CALL_RESULT_KMS_KEY_DISABLED || \
+                                                (r) == SERVICE_CALL_RESULT_KMS_KEY_VALIDATION_ERROR || \
+                                                (r) == SERVICE_CALL_RESULT_KMS_KEY_UNAVAILABLE || \
+                                                (r) == SERVICE_CALL_RESULT_KMS_KEY_INVALID_USAGE || \
+                                                (r) == SERVICE_CALL_RESULT_KMS_KEY_INVALID_STATE || \
+                                                (r) == SERVICE_CALL_RESULT_KMS_KEY_NOT_FOUND || \
+                                                (r) == SERVICE_CALL_RESULT_STREAM_DELETED || \
+                                                (r) == SERVICE_CALL_RESULT_ACK_INTERNAL_ERROR || \
+                                                (r) == SERVICE_CALL_RESULT_FRAGMENT_ARCHIVAL_ERROR || \
                                                 (r) == SERVICE_CALL_NOT_AUTHORIZED)
 
 /**
@@ -256,7 +269,7 @@ VOID defaultUnlockMutex(UINT64, MUTEX);
 VOID defaultTryLockMutex(UINT64, MUTEX);
 VOID defaultFreeMutex(UINT64, MUTEX);
 STATUS defaultStreamReady(UINT64, STREAM_HANDLE);
-STATUS defaultEndOfStream(UINT64, STREAM_HANDLE);
+STATUS defaultEndOfStream(UINT64, STREAM_HANDLE, UINT64);
 STATUS defaultClientReady(UINT64, CLIENT_HANDLE);
 
 ///////////////////////////////////////////////////////////////////////////

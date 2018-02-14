@@ -110,6 +110,35 @@ TEST(NegativeInvalidInput, HashTablePut)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
+TEST(NegativeInvalidInput, HashTableUpsert)
+{
+    PHashTable pHashTable;
+    UINT64 value;
+    BOOL contains;
+    EXPECT_EQ(STATUS_SUCCESS, hashTableCreate(&pHashTable));
+
+    EXPECT_NE(STATUS_SUCCESS, hashTableUpsert(NULL, 1, 2));
+
+    // Put an item twice
+    EXPECT_EQ(STATUS_SUCCESS, hashTableUpsert(pHashTable, 1, 2));
+    EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, 1, &contains));
+    EXPECT_TRUE(contains);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGet(pHashTable, 1, &value));
+    EXPECT_EQ(2, value);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableUpsert(pHashTable, 1, 2));
+    EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, 1, &contains));
+    EXPECT_TRUE(contains);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGet(pHashTable, 1, &value));
+    EXPECT_EQ(2, value);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableUpsert(pHashTable, 1, 3));
+    EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, 1, &contains));
+    EXPECT_TRUE(contains);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGet(pHashTable, 1, &value));
+    EXPECT_EQ(3, value);
+
+    EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
+}
+
 TEST(NegativeInvalidInput, HashTableGet)
 {
     PHashTable pHashTable;

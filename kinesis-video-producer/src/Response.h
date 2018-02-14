@@ -26,7 +26,7 @@ class Response {
 public:
     typedef Request::HeaderMap HeaderMap;
 
-    static std::unique_ptr<Response> create(Request &request);
+    static std::shared_ptr<Response> create(Request &request);
 
     ~Response();
 

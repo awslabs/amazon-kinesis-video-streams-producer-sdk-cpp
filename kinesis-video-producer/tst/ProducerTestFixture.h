@@ -21,11 +21,11 @@ LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
 #define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 
 #define FRAME_DURATION_IN_MICROS                            40000
-#define TEST_EXECUTION_DURATION_IN_SECONDS                  3 * 60
-#define TEST_STREAM_COUNT                                   3
+#define TEST_EXECUTION_DURATION_IN_SECONDS                  2 * 60
+#define TEST_STREAM_COUNT                                   1
 #define TEST_FRAME_SIZE                                     1000
-#define TEST_STREAMING_TOKEN_DURATION_IN_SECONDS            (45 * 60)
-#define TEST_STORAGE_SIZE_IN_BYTES                          128 * 1024 * 1024ull
+#define TEST_STREAMING_TOKEN_DURATION_IN_SECONDS            40
+#define TEST_STORAGE_SIZE_IN_BYTES                          1024 * 1024 * 1024ull
 #define TEST_MAX_STREAM_LATENCY_IN_MILLIS                   60000
 
 class TestClientCallbackProvider : public ClientCallbackProvider {
@@ -64,7 +64,7 @@ private:
     static STATUS streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 last_buffering_ack);
     static STATUS streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 errored_timecode, STATUS status);
     static STATUS droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 dropped_frame_timecode);
-    static STATUS streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle);
+    static STATUS streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 stream_upload_handle);
     static STATUS streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 duration);
 };
 
@@ -105,6 +105,7 @@ public:
                          start_producer_(false),
                          stop_called_(false),
                          stop_producer_(false),
+                         access_key_set_(true),
                          defaultRegion_(DEFAULT_AWS_REGION) {
 
         // Set the global to this object so we won't need to allocate structures in the heap
@@ -122,6 +123,7 @@ public:
         string sessionTokenStr;
         if (nullptr == (accessKey = getenv(ACCESS_KEY_ENV_VAR))) {
             accessKey = "AccessKey";
+            access_key_set_ = false;
         }
 
         if (nullptr == (secretKey = getenv(SECRET_KEY_ENV_VAR))) {
@@ -176,7 +178,7 @@ protected:
         }
     };
 
-    unique_ptr<KinesisVideoStream> CreateTestStream(int index) {
+    shared_ptr<KinesisVideoStream> CreateTestStream(int index) {
         char stream_name[MAX_STREAM_NAME_LEN];
         sprintf(stream_name, "ScaryTestStream_%d", index);
         map<string, string> tags;
@@ -200,7 +202,7 @@ protected:
                                                                milliseconds(1),
                                                                true,
                                                                true,
-                                                               false);
+                                                               true);
         return kinesis_video_producer_->createStreamSync(move(stream_definition));
     };
 
@@ -226,13 +228,15 @@ protected:
 
     string defaultRegion_;
 
+    bool access_key_set_;
+
     pthread_t producer_thread_;
     volatile bool start_producer_;
     volatile bool stop_producer_;
 
     BYTE frameBuffer_[TEST_FRAME_SIZE];
 
-    unique_ptr<KinesisVideoStream> streams_[TEST_STREAM_COUNT];
+    shared_ptr<KinesisVideoStream> streams_[TEST_STREAM_COUNT];
 };
 
 }  // namespace video

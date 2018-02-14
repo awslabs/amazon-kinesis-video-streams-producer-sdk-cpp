@@ -17,7 +17,7 @@ UINT32 gCallCount = 0;
 
 TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
 {
-    UINT32 index, curIndex;
+    UINT64 index, curIndex;
     BOOL isAvailable;
     PViewItem pViewItem;
     UINT64 timestamp = 0, currentDuration = 0, windowDuration = 0;
@@ -119,7 +119,7 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
 
 TEST_F(ViewApiFunctionalityTest, AddGetSetCurrent)
 {
-    UINT32 index, curIndex;
+    UINT64 index, curIndex;
     BOOL isAvailable;
     PViewItem pViewItem;
     UINT64 timestamp = 0;
@@ -178,7 +178,7 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrent)
 
 TEST_F(ViewApiFunctionalityTest, AddGetSetCurrentRemoveAll)
 {
-    UINT32 index, curIndex;
+    UINT64 index, curIndex;
     BOOL isAvailable;
     PViewItem pViewItem;
     UINT64 timestamp = 0;
@@ -256,7 +256,7 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrentRemoveAll)
 
 TEST_F(ViewApiFunctionalityTest, OverflowCheck)
 {
-    UINT32 index, curIndex;
+    UINT64 index, curIndex;
     BOOL isAvailable;
     PViewItem pViewItem;
     UINT64 timestamp = 0, currentDuration = 0, windowDuration = 0, currentAllocationSize = 0, windowAllocationSize = 0;
@@ -328,7 +328,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowCheck)
 TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeCurrent)
 {
     UINT32 index;
-    UINT64 timestamp, duration;
+    UINT64 timestamp;
 
     CreateContentView();
 
@@ -360,8 +360,8 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeCurrent)
 
 TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeTail)
 {
-    UINT32 index;
-    UINT64 timestamp, duration;
+    UINT64 index;
+    UINT64 timestamp;
     PViewItem pViewItem;
 
     CreateContentView();
@@ -428,8 +428,8 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationCurrent)
 
 TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationTail)
 {
-    UINT32 index;
-    UINT64 timestamp, duration;
+    UINT64 index;
+    UINT64 timestamp;
     PViewItem pViewItem;
 
     CreateContentView();
@@ -463,7 +463,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationTail)
 
 TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariations)
 {
-    UINT32 index, curIndex;
+    UINT64 index, curIndex;
     BOOL isAvailable;
     PViewItem pViewItem;
     UINT64 timestamp;
@@ -540,7 +540,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariations)
 
 TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparse)
 {
-    UINT32 index, curIndex;
+    UINT64 index, curIndex;
     BOOL isAvailable;
     PViewItem pViewItem;
     UINT64 timestamp;
@@ -630,7 +630,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparse)
 
 TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrame)
 {
-    UINT32 index, curIndex;
+    UINT64 index, curIndex;
     BOOL isAvailable;
     UINT32 fragmentStart;
     PViewItem pViewItem;
@@ -732,7 +732,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrame)
 
 TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrameReceivedAck)
 {
-    UINT32 index, curIndex;
+    UINT64 index, curIndex;
     BOOL isAvailable;
     UINT32 fragmentStart;
     PViewItem pViewItem;
@@ -951,7 +951,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrameRe
 TEST_F(ViewApiFunctionalityTest, getItemWithTimestamp)
 {
     PViewItem pViewItem, pTail, pHead;
-    UINT32 index;
+    UINT64 index;
     UINT64 timestamp;
 
     CreateContentView();
@@ -984,7 +984,7 @@ TEST_F(ViewApiFunctionalityTest, getItemWithTimestamp)
 TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
 {
     PViewItem pViewItem, pTail, pHead;
-    UINT32 index;
+    UINT64 index;
     UINT64 timestamp;
 
     CreateContentView();
@@ -1039,4 +1039,42 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
 
     EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pTail));
     EXPECT_EQ(pHead->index, pTail->index);
+}
+
+TEST_F(ViewApiFunctionalityTest, DISABLED_IntOverflowRangeCheck)
+{
+    UINT64 index;
+    BOOL isAvailable;
+    PViewItem pViewItem;
+    UINT64 timestamp = 0;
+
+    CreateContentView();
+
+    // Add/check
+    for (timestamp = 0, index = 0; index < (UINT64) MAX_UINT32 + MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
+        if (index % 1000000 == 0) {
+            DLOGI("View item %llu", index);
+        }
+
+        ASSERT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
+
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetHead(mContentView, &pViewItem));
+        ASSERT_TRUE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
+        ASSERT_EQ(timestamp, pViewItem->timestamp);
+        ASSERT_EQ(VIEW_ITEM_DURATION, pViewItem->duration);
+        ASSERT_EQ(INVALID_ALLOCATION_HANDLE_VALUE, pViewItem->handle);
+        ASSERT_EQ(index, pViewItem->index);
+
+        ASSERT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
+        ASSERT_TRUE(isAvailable);
+
+        ASSERT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
+        ASSERT_TRUE(isAvailable);
+
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
+
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+    }
 }

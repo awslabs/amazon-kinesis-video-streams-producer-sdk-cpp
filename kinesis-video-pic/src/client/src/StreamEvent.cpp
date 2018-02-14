@@ -3,6 +3,7 @@
  */
 
 #define LOG_CLASS "StreamEvent"
+
 #include "Include_i.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -423,6 +424,11 @@ STATUS putStreamResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_CALL_RES
     // Store the client stream handle to call back with.
     pKinesisVideoStream->newStreamHandle = streamHandle;
 
+    // If we haven't yet set the stream handle then set it
+    if (!IS_VALID_UPLOAD_HANDLE(pKinesisVideoStream->streamHandle)) {
+        pKinesisVideoStream->streamHandle = pKinesisVideoStream->newStreamHandle;
+    }
+
     // Step the machine
     CHK_STATUS(stepStateMachine(pKinesisVideoStream->base.pStateMachine));
 
@@ -534,13 +540,15 @@ CleanUp:
 /**
  * Stream fragment ACK received notification
  */
-STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, PFragmentAck pFragmentAck)
+STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE uploadHandle, PFragmentAck pFragmentAck)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = NULL;
-    BOOL locked = FALSE, inView = FALSE;
-    UINT64 timestamp = 0;
+    BOOL locked = FALSE, inView = FALSE, sessionPresent = FALSE;
+    UINT64 timestamp = 0, streamStartTimestamp = 0;
+    UINT64 curIndex;
+    PViewItem pViewItem;
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL && pFragmentAck != NULL, STATUS_NULL_ARG);
 
@@ -559,76 +567,82 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, PFragment
     pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
     locked = TRUE;
 
-    // Convert the timestamp
-    CHK_STATUS(mkvgenTimecodeToTimestamp(pKinesisVideoStream->pMkvGenerator, pFragmentAck->timestamp, &timestamp));
+    // First of all, check if the ACK is for a session that's expired/closed already and ignore if it is
+    CHK_STATUS(hashTableContains(pKinesisVideoStream->pSessionMap, uploadHandle, &sessionPresent));
+    if (!sessionPresent) {
+        // No session is present - early return
+        DLOGW("An ACK received for an already expired upload handle %" PRIu64, uploadHandle);
+        CHK(FALSE, retStatus);
+    }
 
-    // In case we have a relative cluster timestamp stream we need to adjust for the stream start.
-    // This will only be triggered when the received timestamp is 0. When it's 0 we will rotate the
-    // stream start timestamp.
-    if (!pKinesisVideoStream->streamInfo.streamCaps.absoluteFragmentTimes) {
-        switch (pFragmentAck->ackType) {
-            case FRAGMENT_ACK_TYPE_BUFFERING:
-                if (0 == timestamp) {
-                    // Rotate the stream start timestamp
-                    pKinesisVideoStream->streamTimestamp.streamTimestampBuffering = pKinesisVideoStream->streamTimestamp.newStreamTimestamp;
-                }
+    // Fix-up the invalid timestamp
+    if (!IS_VALID_TIMESTAMP(pFragmentAck->timestamp)) {
+        // Use the current from the view.
+        // If the current is greater than head which is the case when the networking pulls fast enough
+        // then we will use the head instead.
+        CHK_STATUS(contentViewGetCurrentIndex(pKinesisVideoStream->pView, &curIndex));
+        CHK_STATUS(contentViewGetHead(pKinesisVideoStream->pView, &pViewItem));
 
-                timestamp += pKinesisVideoStream->streamTimestamp.streamTimestampBuffering;
+        if (curIndex > pViewItem->index) {
+            timestamp = pViewItem->timestamp;
+        } else {
+            CHK_STATUS(contentViewGetItemAt(pKinesisVideoStream->pView, curIndex, &pViewItem));
+            timestamp = pViewItem->timestamp;
+        }
+    } else {
+        // Calculate the timestamp based on the ACK.
+        // Convert the timestamp
+        CHK_STATUS(mkvgenTimecodeToTimestamp(pKinesisVideoStream->pMkvGenerator, pFragmentAck->timestamp, &timestamp));
 
-                break;
-            case FRAGMENT_ACK_TYPE_RECEIVED:
-                if (0 == timestamp) {
-                    // Rotate the stream start timestamp
-                    pKinesisVideoStream->streamTimestamp.streamTimestampReceived = pKinesisVideoStream->streamTimestamp.newStreamTimestamp;
-                }
+        // In case we have a relative cluster timestamp stream we need to adjust for the stream start.
+        // The stream start timestamp is extracted from the stream session map.
+        if (!pKinesisVideoStream->streamInfo.streamCaps.absoluteFragmentTimes) {
+            // Get the stream start timestamp for the given upload handle
+            retStatus = hashTableGet(pKinesisVideoStream->pSessionMap, uploadHandle, &streamStartTimestamp);
+            CHK(retStatus == STATUS_SUCCESS || retStatus == STATUS_HASH_KEY_NOT_PRESENT, retStatus);
 
-                timestamp += pKinesisVideoStream->streamTimestamp.streamTimestampReceived;
-
-                break;
-            case FRAGMENT_ACK_TYPE_PERSISTED:
-                if (0 == timestamp) {
-                    // Rotate the stream start timestamp
-                    pKinesisVideoStream->streamTimestamp.streamTimestampPersisted = pKinesisVideoStream->streamTimestamp.newStreamTimestamp;
-                }
-
-                timestamp += pKinesisVideoStream->streamTimestamp.streamTimestampPersisted;
-
-                break;
-            case FRAGMENT_ACK_TYPE_ERROR:
-                if (0 == timestamp) {
-                    // Rotate the stream start timestamp
-                    pKinesisVideoStream->streamTimestamp.streamTimestampError = pKinesisVideoStream->streamTimestamp.newStreamTimestamp;
-                }
-
-                timestamp += pKinesisVideoStream->streamTimestamp.streamTimestampError;
-
-                break;
-            default:
-                // shouldn't ever be the case.
-                CHK(FALSE, STATUS_INVALID_FRAGMENT_ACK_TYPE);
+            if (retStatus == STATUS_HASH_KEY_NOT_PRESENT) {
+                // Fix-up the return status
+                retStatus = STATUS_SUCCESS;
+            } else {
+                // In case we found the entry we will adjust the timestamp to make an absolute
+                timestamp += streamStartTimestamp;
+            }
         }
     }
 
     // Quick check if we have the timestamp in the view window and if not then bail out early
     CHK_STATUS(contentViewTimestampInRange(pKinesisVideoStream->pView, timestamp, &inView));
 
-    // if not in range then bail out
-    CHK(inView, STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW);
-
+    // NOTE: IMPORTANT: For the Error Ack case we will still need to process the ACK. The side-effect of
+    // processing the Error Ack is the connection termination which is needed as the higher-level clients like
+    // CURL might not trigger the termination after the LB sends 'FIN' TCP packet.
     switch (pFragmentAck->ackType) {
         case FRAGMENT_ACK_TYPE_BUFFERING:
-            CHK_STATUS(streamFragmentBufferingAck(pKinesisVideoStream, timestamp));
+            if (inView) {
+                CHK_STATUS(streamFragmentBufferingAck(pKinesisVideoStream, timestamp));
+            }
 
             break;
         case FRAGMENT_ACK_TYPE_RECEIVED:
-            CHK_STATUS(streamFragmentReceivedAck(pKinesisVideoStream, timestamp));
+            if (inView) {
+                CHK_STATUS(streamFragmentReceivedAck(pKinesisVideoStream, timestamp));
+            }
 
             break;
         case FRAGMENT_ACK_TYPE_PERSISTED:
-            CHK_STATUS(streamFragmentPersistedAck(pKinesisVideoStream, timestamp));
+            if (inView) {
+                CHK_STATUS(streamFragmentPersistedAck(pKinesisVideoStream, timestamp));
+            }
 
             break;
         case FRAGMENT_ACK_TYPE_ERROR:
+            if (!inView) {
+                // Apply to the earliest.
+                CHK_STATUS(contentViewGetTail(pKinesisVideoStream->pView, &pViewItem));
+                timestamp = pViewItem->timestamp;
+            }
+
             CHK_STATUS(streamFragmentErrorAck(pKinesisVideoStream, timestamp, pFragmentAck->result));
 
             break;
@@ -637,10 +651,13 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, PFragment
             CHK(FALSE, STATUS_INVALID_FRAGMENT_ACK_TYPE);
     }
 
+    // Still return an error on an out-of-bounds timestamp
+    CHK(inView, STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW);
+
 CleanUp:
 
-    // Notify on success and if we have the callback
-    if (STATUS_SUCCEEDED(retStatus) && pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn != NULL) {
+    // We will notify the fragment ACK received callback even if the processing failed
+    if (pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn != NULL) {
         pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn(pKinesisVideoClient->clientCallbacks.customData,
                                                                    TO_STREAM_HANDLE(pKinesisVideoStream),
                                                                    pFragmentAck);

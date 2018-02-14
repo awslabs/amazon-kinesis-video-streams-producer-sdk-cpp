@@ -100,7 +100,6 @@ TEST_F(HybridHeapTest, hybridCreateHeap)
 TEST_F(HybridHeapTest, hybridCreateHeapMemHeapSmall)
 {
     PHeap pHeap;
-    ALLOCATION_HANDLE handle;
 
     // Initialize should fail as MIN_HEAP_SIZE will be smaller for the mem heap with 20% reduction
     EXPECT_TRUE(STATUS_FAILED(heapInitialize(MIN_HEAP_SIZE,
@@ -112,7 +111,6 @@ TEST_F(HybridHeapTest, hybridCreateHeapMemHeapSmall)
 TEST_F(HybridHeapTest, hybridCreateHeapDlOpenCount)
 {
     PHeap pHeap;
-    ALLOCATION_HANDLE handle;
     UINT32 heapSize = MIN_HEAP_SIZE * 2 + 100000;
 
     // Initialize with one time opening
@@ -137,7 +135,6 @@ TEST_F(HybridHeapTest, hybridCreateHeapDlOpenCount)
 TEST_F(HybridHeapTest, hybridCreateHeapDlOpenError)
 {
     PHeap pHeap;
-    ALLOCATION_HANDLE handle;
     UINT32 heapSize = MIN_HEAP_SIZE * 2 + 100000;
 
     // Set to produce an error
@@ -155,7 +152,6 @@ TEST_F(HybridHeapTest, hybridCreateHeapDlOpenError)
 TEST_F(HybridHeapTest, hybridCreateHeapDlSymError)
 {
     PHeap pHeap;
-    ALLOCATION_HANDLE handle;
     UINT32 heapSize = MIN_HEAP_SIZE * 2 + 100000;
 
     // Set to produce an error
@@ -174,7 +170,6 @@ TEST_F(HybridHeapTest, hybridCreateHeapDlSymError)
 TEST_F(HybridHeapTest, hybridCreateHeapDlCloseError)
 {
     PHeap pHeap;
-    ALLOCATION_HANDLE handle;
     UINT32 heapSize = MIN_HEAP_SIZE * 2 + 100000;
 
     // Set to produce an error
@@ -193,7 +188,6 @@ TEST_F(HybridHeapTest, hybridCreateHeapDlCloseError)
 TEST_F(HybridHeapTest, hybridCreateHeapVRamInitError)
 {
     PHeap pHeap;
-    ALLOCATION_HANDLE handle;
     UINT32 heapSize = MIN_HEAP_SIZE * 2 + 100000;
 
     // Set to produce an error
@@ -209,7 +203,6 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamInitError)
 TEST_F(HybridHeapTest, hybridCreateHeapGetMaxVramSmall)
 {
     PHeap pHeap;
-    ALLOCATION_HANDLE handle;
     UINT32 heapSize = MIN_HEAP_SIZE * 2 + 100000;
 
     // Set to produce an error
@@ -225,7 +218,6 @@ TEST_F(HybridHeapTest, hybridCreateHeapGetMaxVramSmall)
 TEST_F(HybridHeapTest, hybridCreateHeapVRamReleaseError)
 {
     PHeap pHeap;
-    ALLOCATION_HANDLE handle;
     UINT32 heapSize = MIN_HEAP_SIZE * 2 + 100000;
 
     // Set to produce an error

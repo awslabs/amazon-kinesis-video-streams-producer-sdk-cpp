@@ -18,7 +18,7 @@ StateMachineState STREAM_STATE_MACHINE_STATES[] = {
         {STREAM_STATE_READY, STREAM_STATE_STOPPED | STREAM_STATE_GET_TOKEN | STREAM_STATE_READY | STREAM_STATE_PUT_STREAM | STREAM_STATE_STREAMING, fromReadyStreamState, executeReadyStreamState, SERVICE_CALL_MAX_RETRY_COUNT, STATUS_STREAM_READY_CALLBACK_FAILED},
         {STREAM_STATE_PUT_STREAM, STREAM_STATE_STOPPED | STREAM_STATE_READY | STREAM_STATE_PUT_STREAM, fromPutStreamState, executePutStreamState, INFINITE_RETRY_COUNT_SENTINEL, STATUS_PUT_STREAM_CALL_FAILED},
         {STREAM_STATE_STREAMING, STREAM_STATE_STOPPED | STREAM_STATE_PUT_STREAM | STREAM_STATE_STREAMING, fromStreamingStreamState, executeStreamingStreamState, INFINITE_RETRY_COUNT_SENTINEL, STATUS_PUT_STREAM_CALL_FAILED},
-        {STREAM_STATE_STOPPED, STREAM_STATE_STOPPED | STREAM_STATE_CREATE | STREAM_STATE_DESCRIBE | STREAM_STATE_GET_ENDPOINT | STREAM_STATE_GET_TOKEN | STREAM_STATE_READY | STREAM_STATE_PUT_STREAM | STREAM_STATE_STREAMING, fromStoppedStreamState, executeStoppedStreamState, INFINITE_RETRY_COUNT_SENTINEL, STATUS_PUT_STREAM_CALL_FAILED},
+        {STREAM_STATE_STOPPED, STREAM_STATE_STOPPED | STREAM_STATE_CREATE | STREAM_STATE_DESCRIBE | STREAM_STATE_TAG_STREAM | STREAM_STATE_GET_ENDPOINT | STREAM_STATE_GET_TOKEN | STREAM_STATE_READY | STREAM_STATE_PUT_STREAM | STREAM_STATE_STREAMING, fromStoppedStreamState, executeStoppedStreamState, INFINITE_RETRY_COUNT_SENTINEL, STATUS_PUT_STREAM_CALL_FAILED},
 };
 
 UINT32 STREAM_STATE_MACHINE_STATE_COUNT = SIZEOF(STREAM_STATE_MACHINE_STATES) / SIZEOF(StateMachineState);
@@ -252,8 +252,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS fromPutStreamState(UINT64 customData, PUINT64 pState)
-{
+STATUS fromPutStreamState(UINT64 customData, PUINT64 pState) {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
@@ -264,7 +263,8 @@ STATUS fromPutStreamState(UINT64 customData, PUINT64 pState)
     // Transition to states if not stopped
     if (pKinesisVideoStream->streamState == STREAM_STATE_STOPPED) {
         state = STREAM_STATE_STOPPED;
-    } else if (pKinesisVideoStream->base.result == SERVICE_CALL_RESULT_OK && IS_VALID_UPLOAD_HANDLE(pKinesisVideoStream->newStreamHandle)) {
+    } else if (pKinesisVideoStream->base.result == SERVICE_CALL_RESULT_OK &&
+               IS_VALID_UPLOAD_HANDLE(pKinesisVideoStream->newStreamHandle)) {
         state = STREAM_STATE_STREAMING;
     }
 
@@ -336,6 +336,12 @@ STATUS fromStoppedStreamState(UINT64 customData, PUINT64 pState)
         case STATUS_SERVICE_CALL_RESOURCE_IN_USE_ERROR:
         case STATUS_SERVICE_CALL_UNKOWN_ERROR:
             // resource in use, unknown - return to describe
+            state = STREAM_STATE_DESCRIBE;
+            retStatus = STATUS_SUCCESS;
+            break;
+
+        case STATUS_ACK_ERR_ACK_INTERNAL_ERROR:
+            // Service internal error - return to describe
             state = STREAM_STATE_DESCRIBE;
             retStatus = STATUS_SUCCESS;
             break;

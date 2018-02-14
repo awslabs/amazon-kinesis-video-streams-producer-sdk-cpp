@@ -1,7 +1,4 @@
 #include "Request.h"
-#include "CurlCallManager.h"
-
-#include <cassert>
 
 using namespace std;
 
@@ -18,23 +15,14 @@ Request::Request(Verb verb, const string &url)
 
 Request::Request(Request::Verb verb,
                  const std::string &url,
-                 CurlHeaderCallbackFn post_header_callback,
-                 CurlReadCallbackFn post_callback,
-                 void *post_read_callback_custom_data,
-                 CurlWriteCallbackFn post_write_callback,
-                 void *post_write_callback_custom_data)
+                 shared_ptr<OngoingStreamState> stream_state)
         : creation_time_(std::chrono::system_clock::now()),
           verb_(verb),
           url_(url),
           request_completion_timeout_(std::chrono::duration<double, std::milli>::zero()),
           connection_timeout_(std::chrono::duration<double, std::milli>::zero()),
           is_streaming_(true),
-          post_header_callback_(post_header_callback),
-          post_read_callback_(post_callback),
-          post_read_callback_custom_data_(post_read_callback_custom_data),
-          post_write_callback_(post_write_callback),
-          post_write_callback_custom_data_(post_write_callback_custom_data) {
-    assert(post_read_callback_custom_data_);
+          stream_state_(stream_state) {
 }
 
 Request::~Request() {
@@ -161,23 +149,45 @@ bool Request::isStreaming() const {
 }
 
 Request::CurlReadCallbackFn Request::getPostReadCallback() const {
-    return post_read_callback_;
+    return curlReadCallbackFunc;
 }
 
 Request::CurlHeaderCallbackFn Request::getPostHeaderCallback() const {
-    return post_header_callback_;
-}
-
-void *Request::getPostReadCallbackCustomData() const {
-    return post_read_callback_custom_data_;
+    return curlHeaderCallbackFunc;
 }
 
 Request::CurlWriteCallbackFn Request::getPostWriteCallback() const {
-    return post_write_callback_;
+    return curlWriteCallbackFunc;
 }
 
-void *Request::getPostWriteCallbackCustomData() const {
-    return post_write_callback_custom_data_;
+size_t Request::curlHeaderCallbackFunc(char *buffer, size_t item_size, size_t n_items, void *custom_data) {
+    Request* request = static_cast<Request*>(custom_data);
+    if (nullptr == request) {
+        // Something is really wrong. Aborting
+        return CURL_READFUNC_ABORT;
+    }
+
+    return request->stream_state_->postHeaderReadFunc(buffer, item_size, n_items);
+}
+
+size_t Request::curlReadCallbackFunc(char *buffer, size_t item_size, size_t n_items, void *custom_data) {
+    Request* request = static_cast<Request*>(custom_data);
+    if (nullptr == request) {
+        // Something is really wrong. Aborting
+        return CURL_READFUNC_ABORT;
+    }
+
+    return request->stream_state_->postBodyStreamingReadFunc(buffer, item_size, n_items);
+}
+
+size_t Request::curlWriteCallbackFunc(char *buffer, size_t item_size, size_t n_items, void *custom_data) {
+    Request* request = static_cast<Request*>(custom_data);
+    if (nullptr == request) {
+        // Something is really wrong. Aborting
+        return CURL_READFUNC_ABORT;
+    }
+
+    return request->stream_state_->postBodyStreamingWriteFunc(buffer, item_size, n_items);
 }
 
 } // namespace video

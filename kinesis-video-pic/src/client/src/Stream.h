@@ -27,7 +27,6 @@ extern "C" {
 #define STREAM_STATE_PUT_STREAM                         ((UINT64) (1 << 7))
 #define STREAM_STATE_STREAMING                          ((UINT64) (1 << 8))
 #define STREAM_STATE_STOPPED                            ((UINT64) (1 << 9))
-#define STREAM_STATE_ERROR                              ((UINT64) (1 << 10))
 
 /**
  * Stream object internal version
@@ -70,21 +69,10 @@ typedef __FragmentAckParser* PFragmentAckParser;
 #define DEFAULT_MKV_TIMECODE_SCALE      (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 /**
- * Kinesis Video stream timestamp internal structure for streaming token rotation
+ * Definition of the upload handle map bucket count and size
  */
-typedef struct __KinesisVideoStreamTimestamp KinesisVideoStreamTimestamp;
-struct __KinesisVideoStreamTimestamp {
-    // Timestamp of the stream start to be used for timecode correction for ACKs after stream rotation
-    UINT64 streamTimestampBuffering;
-    UINT64 streamTimestampReceived;
-    UINT64 streamTimestampPersisted;
-    UINT64 streamTimestampError;
-
-    // New stream timestamp which will be used as current after the rotation. Assuming the rotation will
-    // happen after all the acks have been received
-    UINT64 newStreamTimestamp;
-};
-typedef __KinesisVideoStreamTimestamp* PKinesisVideoStreamTimestamp;
+#define UPLOAD_HANDLE_MAP_BUCKET_COUNT      32
+#define UPLOAD_HANDLE_MAP_BUCKET_SIZE       2
 
 /**
  * Kinesis Video stream diagnostics information accumulator
@@ -109,6 +97,19 @@ struct __KinesisVideoStreamDiagnostics {
 typedef __KinesisVideoStreamDiagnostics* PKinesisVideoStreamDiagnostics;
 
 /**
+ * Wrapper around ViewItem that has the consumed data offset information.
+ */
+typedef struct __CurrentViewItem CurrentViewItem;
+struct __CurrentViewItem {
+    // The wrapped ViewItem
+    ViewItem viewItem;
+
+    // Consumed data offset
+    UINT32 offset;
+};
+typedef __CurrentViewItem* PCurrentViewItem;
+
+/**
  * Kinesis Video stream internal structure
  */
 typedef struct __KinesisVideoStream KinesisVideoStream;
@@ -128,6 +129,12 @@ struct __KinesisVideoStream {
     // MKV stream generator
     PMkvGenerator pMkvGenerator;
 
+    // Hash table for storing upload handles to timestamp mapping.
+    PHashTable pSessionMap;
+
+    // Hash table for storing the stream start index to upload handle mapping.
+    PHashTable pStartIndexMap;
+
     // Stream Info structure
     StreamInfo streamInfo;
 
@@ -143,20 +150,26 @@ struct __KinesisVideoStream {
     // Storing the new stream handle to switch to after the connection is established.
     UINT64 newStreamHandle;
 
+    // New stream timestamp which will be used as current after the rotation in relative timestamp streams.
+    UINT64 newSessionTimestamp;
+
+    // New stream item index which will be used to determine when to purge the upload stream/
+    UINT64 newSessionIndex;
+
+    // The current session index which will be used to get the upload handle map.
+    UINT64 curSessionIndex;
+
     // Describe stream returned status
     STREAM_STATUS streamStatus;
 
     // Stream state for running/stopping
     UINT64 streamState;
 
-    // Timestamp information for the token rotation
-    KinesisVideoStreamTimestamp streamTimestamp;
-
     // Fragment ACK parser for streaming ACKs
     FragmentAckParser fragmentAckParser;
 
     // Current view item
-    ViewItem curViewItem;
+    CurrentViewItem curViewItem;
 
     // Indicates whether the connection has been dropped
     BOOL connectionDropped;
@@ -170,9 +183,7 @@ struct __KinesisVideoStream {
     // Whether to reset the generator with the next key frame
     BOOL resetGeneratorOnKeyFrame;
 
-    // View item index when the last stream reset happened.
-    UINT32 resetViewItemIndex;
-
+    // Diagnostics information to be used with metrics
     KinesisVideoStreamDiagnostics diagnostics;
 
     // Connection result when the stream was dropped
@@ -306,7 +317,12 @@ STATUS putStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT, UINT64);
 STATUS tagStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT);
 STATUS streamTerminatedEvent(PKinesisVideoStream, SERVICE_CALL_RESULT);
 STATUS serviceCallResultCheck(SERVICE_CALL_RESULT);
-STATUS streamFragmentAckEvent(PKinesisVideoStream, PFragmentAck);
+
+
+///////////////////////////////////////////////////////////////////////////
+// ACK related functions
+///////////////////////////////////////////////////////////////////////////
+STATUS streamFragmentAckEvent(PKinesisVideoStream, UPLOAD_HANDLE, PFragmentAck);
 STATUS streamFragmentBufferingAck(PKinesisVideoStream, UINT64);
 STATUS streamFragmentReceivedAck(PKinesisVideoStream, UINT64);
 STATUS streamFragmentPersistedAck(PKinesisVideoStream, UINT64);

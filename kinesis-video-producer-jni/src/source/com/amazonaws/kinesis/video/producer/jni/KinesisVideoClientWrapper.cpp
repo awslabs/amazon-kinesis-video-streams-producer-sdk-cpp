@@ -111,7 +111,7 @@ void KinesisVideoClientWrapper::stopKinesisVideoStream(jlong streamHandle)
 
     if (!IS_VALID_STREAM_HANDLE(streamHandle))
     {
-        DLOGE("Invalid stream handle 0x%016lx", streamHandle);
+        DLOGE("Invalid stream handle 0x%016" PRIx64, (UINT64) streamHandle);
         throwNativeException(env, EXCEPTION_NAME, "Invalid stream handle.", STATUS_INVALID_OPERATION);
         return;
     }
@@ -197,7 +197,7 @@ void KinesisVideoClientWrapper::getKinesisVideoStreamMetrics(jlong streamHandle,
 
     if (!IS_VALID_STREAM_HANDLE(streamHandle))
     {
-        DLOGE("Invalid stream handle 0x%016lx", streamHandle);
+        DLOGE("Invalid stream handle 0x%016" PRIx64 , (UINT64) streamHandle);
         throwNativeException(env, EXCEPTION_NAME, "Invalid stream handle.", STATUS_INVALID_OPERATION);
         return;
     }
@@ -305,7 +305,7 @@ void KinesisVideoClientWrapper::putKinesisVideoFrame(jlong streamHandle, jobject
 
     if (!IS_VALID_STREAM_HANDLE(streamHandle))
     {
-        DLOGE("Invalid stream handle 0x%016lx", streamHandle);
+        DLOGE("Invalid stream handle 0x%016" PRIx64, (UINT64) streamHandle);
         throwNativeException(env, EXCEPTION_NAME, "Invalid stream handle.", STATUS_INVALID_OPERATION);
         return;
     }
@@ -352,7 +352,7 @@ UINT32 KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, 
 
     if (!IS_VALID_STREAM_HANDLE(streamHandle))
     {
-        DLOGE("Invalid stream handle 0x%016lx", streamHandle);
+        DLOGE("Invalid stream handle 0x%016" PRIx64, (UINT64) streamHandle);
         throwNativeException(env, EXCEPTION_NAME, "Invalid stream handle.", STATUS_INVALID_OPERATION);
         goto CleanUp;
     }
@@ -397,7 +397,7 @@ CleanUp:
     return filledSize;
 }
 
-void KinesisVideoClientWrapper::kinesisVideoStreamFragmentAck(jlong streamHandle, jobject fragmentAck)
+void KinesisVideoClientWrapper::kinesisVideoStreamFragmentAck(jlong streamHandle, jlong uploadHandle, jobject fragmentAck)
 {
     STATUS retStatus = STATUS_SUCCESS;
     JNIEnv *env;
@@ -413,7 +413,7 @@ void KinesisVideoClientWrapper::kinesisVideoStreamFragmentAck(jlong streamHandle
 
     if (!IS_VALID_STREAM_HANDLE(streamHandle))
     {
-        DLOGE("Invalid stream handle 0x%016lx", streamHandle);
+        DLOGE("Invalid stream handle 0x%016" PRIx64, (UINT64) streamHandle);
         throwNativeException(env, EXCEPTION_NAME, "Invalid stream handle.", STATUS_INVALID_OPERATION);
         return;
     }
@@ -433,7 +433,7 @@ void KinesisVideoClientWrapper::kinesisVideoStreamFragmentAck(jlong streamHandle
         return;
     }
 
-    if (STATUS_FAILED(retStatus = ::kinesisVideoStreamFragmentAck(streamHandle, &ack)))
+    if (STATUS_FAILED(retStatus = ::kinesisVideoStreamFragmentAck(streamHandle, uploadHandle, &ack)))
     {
         DLOGE("Failed to report a fragment ack with status code 0x%08x", retStatus);
         throwNativeException(env, EXCEPTION_NAME, "Failed to report a fragment ack.", retStatus);
@@ -441,7 +441,7 @@ void KinesisVideoClientWrapper::kinesisVideoStreamFragmentAck(jlong streamHandle
     }
 }
 
-void KinesisVideoClientWrapper::kinesisVideoStreamParseFragmentAck(jlong streamHandle, jstring ack)
+void KinesisVideoClientWrapper::kinesisVideoStreamParseFragmentAck(jlong streamHandle, jlong uploadHandle, jstring ack)
 {
     STATUS retStatus = STATUS_SUCCESS;
     JNIEnv *env;
@@ -456,7 +456,7 @@ void KinesisVideoClientWrapper::kinesisVideoStreamParseFragmentAck(jlong streamH
 
     if (!IS_VALID_STREAM_HANDLE(streamHandle))
     {
-        DLOGE("Invalid stream handle 0x%016lx", streamHandle);
+        DLOGE("Invalid stream handle 0x%016" PRIx64, (UINT64) streamHandle);
         throwNativeException(env, EXCEPTION_NAME, "Invalid stream handle.", STATUS_INVALID_OPERATION);
         return;
     }
@@ -472,7 +472,7 @@ void KinesisVideoClientWrapper::kinesisVideoStreamParseFragmentAck(jlong streamH
     PCHAR pAckStr = (PCHAR) env->GetStringUTFChars(ack, NULL);
 
     // Call the API
-    retStatus = ::kinesisVideoStreamParseFragmentAck(streamHandle, pAckStr, 0);
+    retStatus = ::kinesisVideoStreamParseFragmentAck(streamHandle, uploadHandle, pAckStr, 0);
 
     // Release the string
     env->ReleaseStringUTFChars(ack, pAckStr);
@@ -503,7 +503,7 @@ void KinesisVideoClientWrapper::streamFormatChanged(jlong streamHandle, jobject 
 
     if (!IS_VALID_STREAM_HANDLE(streamHandle))
     {
-        DLOGE("Invalid stream handle 0x%016lx", streamHandle);
+        DLOGE("Invalid stream handle 0x%016" PRIx64, (UINT64) streamHandle);
         throwNativeException(env, EXCEPTION_NAME, "Invalid stream handle.", STATUS_INVALID_OPERATION);
         goto CleanUp;
     }
@@ -575,7 +575,7 @@ void KinesisVideoClientWrapper::describeStreamResult(jlong streamHandle, jint ht
     }
 }
 
-void KinesisVideoClientWrapper::kinesisVideoStreamTerminated(jlong streamHandle, jint httpStatusCode)
+void KinesisVideoClientWrapper::kinesisVideoStreamTerminated(jlong streamHandle, jlong uploadHandle, jint httpStatusCode)
 {
     STATUS retStatus = STATUS_SUCCESS;
     JNIEnv *env;
@@ -588,7 +588,7 @@ void KinesisVideoClientWrapper::kinesisVideoStreamTerminated(jlong streamHandle,
         return;
     }
 
-    if (STATUS_FAILED(retStatus = ::kinesisVideoStreamTerminated(streamHandle, (SERVICE_CALL_RESULT) httpStatusCode)))
+    if (STATUS_FAILED(retStatus = ::kinesisVideoStreamTerminated(streamHandle, uploadHandle, (SERVICE_CALL_RESULT) httpStatusCode)))
     {
         DLOGE("Failed to submit stream terminated event with status code 0x%08x", retStatus);
         throwNativeException(env, EXCEPTION_NAME, "Failed to submit stream terminated event.", retStatus);
@@ -923,7 +923,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
         return FALSE;
     }
 
-    mStreamDataAvailableMethodId = env->GetMethodID(thizCls, "streamDataAvailable", "(JLjava/lang/String;JJ)V");
+    mStreamDataAvailableMethodId = env->GetMethodID(thizCls, "streamDataAvailable", "(JLjava/lang/String;JJJ)V");
     if (mStreamDataAvailableMethodId == NULL) {
         DLOGE("Couldn't find method id streamDataAvailable");
         return FALSE;
@@ -935,7 +935,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
         return FALSE;
     }
 
-    mStreamClosedMethodId = env->GetMethodID(thizCls, "streamClosed", "(J)V");
+    mStreamClosedMethodId = env->GetMethodID(thizCls, "streamClosed", "(JJ)V");
     if (mStreamClosedMethodId == NULL) {
         DLOGE("Couldn't find method id streamClosed");
         return FALSE;
@@ -1003,7 +1003,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
 //////////////////////////////////////////////////////////////////////////////////////
 UINT64 KinesisVideoClientWrapper::getCurrentTimeFunc(UINT64 customData)
 {
-    DLOGS("TID 0x%016lx getCurrentTimeFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " getCurrentTimeFunc called.", GETTID());
     UNUSED_PARAM(customData);
 
     // We use System.currentTimeMillis() in Java land so need to enforce the UNIX time here.
@@ -1017,42 +1017,42 @@ UINT64 KinesisVideoClientWrapper::getCurrentTimeFunc(UINT64 customData)
 
 UINT32 KinesisVideoClientWrapper::getRandomNumberFunc(UINT64 customData)
 {
-    DLOGS("TID 0x%016lx getRandomNumberFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " getRandomNumberFunc called.", GETTID());
     UNUSED_PARAM(customData);
     return RAND();
 }
 
 MUTEX KinesisVideoClientWrapper::createMutexFunc(UINT64 customData, BOOL reentant)
 {
-    DLOGS("TID 0x%016lx createMutexFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " createMutexFunc called.", GETTID());
     UNUSED_PARAM(customData);
     return MUTEX_CREATE(reentant);
 }
 
 VOID KinesisVideoClientWrapper::lockMutexFunc(UINT64 customData, MUTEX mutex)
 {
-    DLOGS("TID 0x%016lx lockMutexFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " lockMutexFunc called.", GETTID());
     UNUSED_PARAM(customData);
     return MUTEX_LOCK(mutex);
 }
 
 VOID KinesisVideoClientWrapper::unlockMutexFunc(UINT64 customData, MUTEX mutex)
 {
-    DLOGS("TID 0x%016lx unlockMutexFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " unlockMutexFunc called.", GETTID());
     UNUSED_PARAM(customData);
     return MUTEX_UNLOCK(mutex);
 }
 
 VOID KinesisVideoClientWrapper::tryLockMutexFunc(UINT64 customData, MUTEX mutex)
 {
-    DLOGS("TID 0x%016lx tryLockMutexFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " tryLockMutexFunc called.", GETTID());
     UNUSED_PARAM(customData);
     return MUTEX_TRYLOCK(mutex);
 }
 
 VOID KinesisVideoClientWrapper::freeMutexFunc(UINT64 customData, MUTEX mutex)
 {
-    DLOGS("TID 0x%016lx freeMutexFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " freeMutexFunc called.", GETTID());
     UNUSED_PARAM(customData);
     return MUTEX_FREE(mutex);
 }
@@ -1062,7 +1062,7 @@ VOID KinesisVideoClientWrapper::freeMutexFunc(UINT64 customData, MUTEX mutex)
 //////////////////////////////////////////////////////////////////////////////////////
 STATUS KinesisVideoClientWrapper::getDeviceCertificateFunc(UINT64 customData, PBYTE* ppCert, PUINT32 pSize, PUINT64 pExpiration)
 {
-    DLOGS("TID 0x%016lx getDeviceCertificateFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " getDeviceCertificateFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL && ppCert != NULL && pSize != NULL && pExpiration != NULL);
@@ -1072,7 +1072,7 @@ STATUS KinesisVideoClientWrapper::getDeviceCertificateFunc(UINT64 customData, PB
 
 STATUS KinesisVideoClientWrapper::getSecurityTokenFunc(UINT64 customData, PBYTE* ppToken, PUINT32 pSize, PUINT64 pExpiration)
 {
-    DLOGS("TID 0x%016lx getSecurityTokenFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " getSecurityTokenFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL && ppToken != NULL && pSize != NULL && pExpiration != NULL);
@@ -1082,7 +1082,7 @@ STATUS KinesisVideoClientWrapper::getSecurityTokenFunc(UINT64 customData, PBYTE*
 
 STATUS KinesisVideoClientWrapper::getDeviceFingerprintFunc(UINT64 customData, PCHAR* ppFingerprint)
 {
-    DLOGS("TID 0x%016lx getDeviceFingerprintFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " getDeviceFingerprintFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL && ppFingerprint != NULL);
@@ -1147,7 +1147,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::streamUnderflowReportFunc(UINT64 customData, STREAM_HANDLE streamHandle)
 {
-    DLOGS("TID 0x%016lx streamUnderflowReportFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " streamUnderflowReportFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1181,7 +1181,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::storageOverflowPressureFunc(UINT64 customData, UINT64 remainingSize)
 {
-    DLOGS("TID 0x%016lx storageOverflowPressureFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " storageOverflowPressureFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1215,7 +1215,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::streamLatencyPressureFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 duration)
 {
-    DLOGS("TID 0x%016lx streamLatencyPressureFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " streamLatencyPressureFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1249,7 +1249,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::streamConnectionStaleFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 duration)
 {
-    DLOGS("TID 0x%016lx streamConnectionStaleFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " streamConnectionStaleFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1283,7 +1283,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::fragmentAckReceivedFunc(UINT64 customData, STREAM_HANDLE streamHandle, PFragmentAck pFragmentAck)
 {
-    DLOGS("TID 0x%016lx fragmentAckReceivedFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " fragmentAckReceivedFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1341,7 +1341,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::droppedFrameReportFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 frameTimecode)
 {
-    DLOGS("TID 0x%016lx droppedFrameReportFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " droppedFrameReportFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1375,7 +1375,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::droppedFragmentReportFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 fragmentTimecode)
 {
-    DLOGS("TID 0x%016lx droppedFragmentReportFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " droppedFragmentReportFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1409,7 +1409,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::streamErrorReportFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 fragmentTimecode, STATUS statusCode)
 {
-    DLOGS("TID 0x%016lx streamErrorReportFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " streamErrorReportFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1443,7 +1443,7 @@ STATUS KinesisVideoClientWrapper::streamErrorReportFunc(UINT64 customData, STREA
 
 STATUS KinesisVideoClientWrapper::streamReadyFunc(UINT64 customData, STREAM_HANDLE streamHandle)
 {
-    DLOGS("TID 0x%016lx streamReadyFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " streamReadyFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1475,9 +1475,9 @@ CleanUp:
     return retStatus;
 }
 
-STATUS KinesisVideoClientWrapper::streamClosedFunc(UINT64 customData, STREAM_HANDLE streamHandle)
+STATUS KinesisVideoClientWrapper::streamClosedFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 uploadHandle)
 {
-    DLOGS("TID 0x%016lx streamClosedFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " streamClosedFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1496,7 +1496,7 @@ STATUS KinesisVideoClientWrapper::streamClosedFunc(UINT64 customData, STREAM_HAN
     }
 
     // Call the Java func
-    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamClosedMethodId, streamHandle);
+    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamClosedMethodId, streamHandle, uploadHandle);
     CHK_JVM_EXCEPTION(env);
 
     CleanUp:
@@ -1509,9 +1509,9 @@ STATUS KinesisVideoClientWrapper::streamClosedFunc(UINT64 customData, STREAM_HAN
     return retStatus;
 }
 
-STATUS KinesisVideoClientWrapper::streamDataAvailableFunc(UINT64 customData, STREAM_HANDLE streamHandle, PCHAR streamName, UINT64 duration, UINT64 availableSize)
+STATUS KinesisVideoClientWrapper::streamDataAvailableFunc(UINT64 customData, STREAM_HANDLE streamHandle, PCHAR streamName, UINT64 uploadHandle, UINT64 duration, UINT64 availableSize)
 {
-    DLOGS("TID 0x%016lx streamDataAvailableFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " streamDataAvailableFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1537,7 +1537,7 @@ STATUS KinesisVideoClientWrapper::streamDataAvailableFunc(UINT64 customData, STR
         goto CleanUp;
     }
 
-    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamDataAvailableMethodId, streamHandle, jstrStreamName, duration, availableSize);
+    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamDataAvailableMethodId, streamHandle, jstrStreamName, uploadHandle, duration, availableSize);
     CHK_JVM_EXCEPTION(env);
 
 CleanUp:
@@ -1562,7 +1562,7 @@ STATUS KinesisVideoClientWrapper::createStreamFunc(UINT64 customData,
                                              UINT64 retention,
                                              PServiceCallContext pCallbackContext)
 {
-    DLOGS("TID 0x%016lx createStreamFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " createStreamFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1656,7 +1656,7 @@ STATUS KinesisVideoClientWrapper::describeStreamFunc(UINT64 customData,
                                                PCHAR streamName,
                                                PServiceCallContext pCallbackContext)
 {
-    DLOGS("TID 0x%016lx describeStreamFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " describeStreamFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1727,7 +1727,7 @@ STATUS KinesisVideoClientWrapper::getStreamingEndpointFunc(UINT64 customData,
                                                      PCHAR apiName,
                                                      PServiceCallContext pCallbackContext)
 {
-    DLOGS("TID 0x%016lx getStreamingEndpointFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " getStreamingEndpointFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1802,7 +1802,7 @@ STATUS KinesisVideoClientWrapper::getStreamingTokenFunc(UINT64 customData,
                                                   STREAM_ACCESS_MODE accessMode,
                                                   PServiceCallContext pCallbackContext)
 {
-    DLOGS("TID 0x%016lx getStreamingTokenFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " getStreamingTokenFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1877,7 +1877,7 @@ STATUS KinesisVideoClientWrapper::putStreamFunc(UINT64 customData,
                                           PCHAR streamingEndpoint,
                                           PServiceCallContext pCallbackContext)
 {
-    DLOGS("TID 0x%016lx putStreamFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " putStreamFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -1974,7 +1974,7 @@ STATUS KinesisVideoClientWrapper::tagResourceFunc(UINT64 customData,
     INT32 envState;
     UINT32 i;
 
-    DLOGS("TID 0x%016lx tagResourceFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " tagResourceFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -2184,7 +2184,7 @@ CleanUp:
 
 STATUS KinesisVideoClientWrapper::clientReadyFunc(UINT64 customData, CLIENT_HANDLE clientHandle)
 {
-    DLOGS("TID 0x%016lx clientReadyFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " clientReadyFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -2225,7 +2225,7 @@ STATUS KinesisVideoClientWrapper::createDeviceFunc(UINT64 customData, PCHAR devi
     jbyteArray authByteArray = NULL;
     INT32 envState;
 
-    DLOGS("TID 0x%016lx createDeviceFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " createDeviceFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);
@@ -2295,7 +2295,7 @@ STATUS KinesisVideoClientWrapper::deviceCertToTokenFunc(UINT64 customData, PCHAR
     jbyteArray authByteArray = NULL;
     INT32 envState;
 
-    DLOGS("TID 0x%016lx deviceCertToTokenFunc called.", GETTID());
+    DLOGS("TID 0x%016" PRIx64 " deviceCertToTokenFunc called.", GETTID());
 
     KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
     CHECK(pWrapper != NULL);

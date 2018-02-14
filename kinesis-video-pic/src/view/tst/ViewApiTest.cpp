@@ -109,7 +109,7 @@ TEST_F(ViewApiTest, contentViewGetNext_NullPointer)
 
 TEST_F(ViewApiTest, contentViewGetCurrent_NullPointer)
 {
-    UINT32 index;
+    UINT64 index;
 
     EXPECT_TRUE(STATUS_FAILED(contentViewGetCurrentIndex(NULL, &index)));
     EXPECT_TRUE(STATUS_FAILED(contentViewGetCurrentIndex(NULL, NULL)));

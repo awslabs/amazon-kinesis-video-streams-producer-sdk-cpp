@@ -498,6 +498,11 @@ PUBLIC_API STATUS hashTableIsEmpty(PHashTable, PBOOL);
 PUBLIC_API STATUS hashTablePut(PHashTable, UINT64, UINT64);
 
 /**
+ * Upserts an item into the hash table
+ */
+PUBLIC_API STATUS hashTableUpsert(PHashTable, UINT64, UINT64);
+
+/**
  * Gets an item from the hash table
  */
 PUBLIC_API STATUS hashTableGet(PHashTable, UINT64, PUINT64);

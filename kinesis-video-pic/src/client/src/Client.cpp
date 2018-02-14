@@ -254,7 +254,7 @@ STATUS getKinesisVideoStreamMetrics(STREAM_HANDLE streamHandle, PStreamMetrics p
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
 
-    DLOGI("Get stream metrics for Stream %016llx.", streamHandle);
+    DLOGI("Get stream metrics for Stream %016" PRIx64 ".", streamHandle);
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL && pStreamMetrics != NULL, STATUS_NULL_ARG);
 
@@ -284,7 +284,7 @@ STATUS stopKinesisVideoStreams(CLIENT_HANDLE clientHandle)
     for (i = 0; i < pKinesisVideoClient->deviceInfo.streamCount; i++) {
         if (NULL != pKinesisVideoClient->streams[i]) {
             // We will bail out if the stream stopping fails
-            CHK_STATUS(stopKinesisVideoStream(TO_CLIENT_HANDLE(pKinesisVideoClient->streams[i])));
+            CHK_STATUS(stopKinesisVideoStream(TO_STREAM_HANDLE(pKinesisVideoClient->streams[i])));
         }
     }
 
@@ -303,7 +303,7 @@ STATUS stopKinesisVideoStream(STREAM_HANDLE streamHandle)
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
 
-    DLOGI("Stopping Kinesis Video Stream %016llx.", streamHandle);
+    DLOGI("Stopping Kinesis Video Stream %016" PRIx64 ".", streamHandle);
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
 
@@ -392,7 +392,7 @@ CleanUp:
  *
  * NOTE: Currently, the format change should happen while it's not streaming.
  */
-PUBLIC_API STATUS kinesisVideoStreamFormatChanged(STREAM_HANDLE streamHandle, UINT32 codecPrivateDataSize,
+STATUS kinesisVideoStreamFormatChanged(STREAM_HANDLE streamHandle, UINT32 codecPrivateDataSize,
                                                   PBYTE codecPrivateData)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -619,7 +619,7 @@ CleanUp:
 /**
  * Kinesis Video stream terminated notification
  */
-STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, SERVICE_CALL_RESULT callResult)
+STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, UINT64 streamUploadHandle, SERVICE_CALL_RESULT callResult)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -629,7 +629,21 @@ STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, SERVICE_CALL_RES
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
 
-    CHK_STATUS(streamTerminatedEvent(pKinesisVideoStream, callResult));
+    // Check if the error happened on a connection that has not yet been put into the rotation.
+    // This happens only after the token rotation when the new stream failed to establish a connection.
+    if (streamUploadHandle == pKinesisVideoStream->newStreamHandle &&
+            streamUploadHandle != pKinesisVideoStream->streamHandle) {
+        // Invalidate the new stream handle and force into a grace period
+        pKinesisVideoStream->newStreamHandle = INVALID_UPLOAD_HANDLE_VALUE;
+        pKinesisVideoStream->gracePeriod = TRUE;
+        CHK_STATUS(streamTerminatedEvent(pKinesisVideoStream, SERVICE_CALL_STREAM_AUTH_IN_GRACE_PERIOD));
+    } else {
+        // Set the stream upload handle to invalid as the client stream has existed unexpectedly
+        pKinesisVideoStream->streamHandle = INVALID_UPLOAD_HANDLE_VALUE;
+
+        // Notify of termination
+        CHK_STATUS(streamTerminatedEvent(pKinesisVideoStream, callResult));
+    }
 
 CleanUp:
     LEAVES();
@@ -639,7 +653,7 @@ CleanUp:
 /**
  * Kinesis Video stream fragment ACK received event
  */
-STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE streamHandle, PFragmentAck pFragmentAck)
+STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE streamHandle, UPLOAD_HANDLE uploadHandle, PFragmentAck pFragmentAck)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -649,7 +663,7 @@ STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE streamHandle, PFragmentAck pF
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL && pFragmentAck != NULL, STATUS_NULL_ARG);
 
-    CHK_STATUS(streamFragmentAckEvent(pKinesisVideoStream, pFragmentAck));
+    CHK_STATUS(streamFragmentAckEvent(pKinesisVideoStream, uploadHandle, pFragmentAck));
 
 CleanUp:
     LEAVES();
@@ -659,7 +673,7 @@ CleanUp:
 /**
  * Kinesis Video stream fragment ACK parsing
  */
-STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE streamHandle, PCHAR ackSegment, UINT32 ackSegmentSize)
+STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE streamHandle, UPLOAD_HANDLE uploadHandle, PCHAR ackSegment, UINT32 ackSegmentSize)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -669,7 +683,7 @@ STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE streamHandle, PCHAR ackS
 
     CHK(pKinesisVideoStream != NULL && ackSegment != NULL, STATUS_NULL_ARG);
 
-    CHK_STATUS(parseFragmentAck(pKinesisVideoStream, ackSegment, ackSegmentSize));
+    CHK_STATUS(parseFragmentAck(pKinesisVideoStream, uploadHandle, ackSegment, ackSegmentSize));
 
 CleanUp:
     LEAVES();
@@ -689,7 +703,8 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
     PKinesisVideoClient pKinesisVideoClient = NULL;
-    BOOL streamLocked = FALSE;
+    BOOL streamLocked = FALSE, contains = FALSE;
+    UPLOAD_HANDLE uploadHandle = INVALID_UPLOAD_HANDLE_VALUE;
 
     // Validate the input just in case
     CHK(pContentView != NULL && pViewItem != NULL && pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
@@ -699,16 +714,36 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
     pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
     streamLocked = TRUE;
 
+    // Check whether we need to purge the data from the hash tables
+    if (pViewItem->index != 0) {
+        // Check if it's a session start
+        CHK_STATUS(hashTableContains(pKinesisVideoStream->pStartIndexMap, pViewItem->index, &contains));
+
+        if (contains) {
+            // Get the current session handle
+            CHK_STATUS(hashTableGet(pKinesisVideoStream->pStartIndexMap, pKinesisVideoStream->curSessionIndex, &uploadHandle));
+
+            // Remove from the maps
+            CHK_STATUS(hashTableRemove(pKinesisVideoStream->pStartIndexMap, pKinesisVideoStream->curSessionIndex));
+
+            // The session map handle could have been already removed after an error ACK processing
+            hashTableRemove(pKinesisVideoStream->pSessionMap, uploadHandle);
+
+            // Rotate the index
+            pKinesisVideoStream->curSessionIndex = pViewItem->index;
+        }
+    }
+
     // Notify the client about the dropped frame - only if we are removing the current view item
     // or the item that's been partially sent is being removed which was the one before the current.
     if (currentRemoved ||
-            (pViewItem->handle == pKinesisVideoStream->curViewItem.handle &&
-                    pKinesisVideoStream->curViewItem.offset != pKinesisVideoStream->curViewItem.length)) {
+            (pViewItem->handle == pKinesisVideoStream->curViewItem.viewItem.handle &&
+                    pKinesisVideoStream->curViewItem.offset != pKinesisVideoStream->curViewItem.viewItem.length)) {
         DLOGW("Reporting a dropped frame/fragment.");
 
         // Invalidate the streams current view item
         MEMSET(&pKinesisVideoStream->curViewItem, 0x00, SIZEOF(ViewItem));
-        pKinesisVideoStream->curViewItem.handle = INVALID_ALLOCATION_HANDLE_VALUE;
+        pKinesisVideoStream->curViewItem.viewItem.handle = INVALID_ALLOCATION_HANDLE_VALUE;
 
         switch (pKinesisVideoStream->streamInfo.streamCaps.streamingType) {
             case STREAMING_TYPE_REALTIME:

@@ -111,6 +111,7 @@ typedef enum {
 typedef struct __FragmentAckParser FragmentAckParser;
 struct __FragmentAckParser {
     FRAGMENT_ACK_PARSER_STATE state;
+    UPLOAD_HANDLE uploadHandle;
     FragmentAck fragmentAck;
     FRAGMENT_ACK_KEY_NAME curKeyName;
     UINT32 curPos;
@@ -136,12 +137,13 @@ STATUS resetAckParserState(PKinesisVideoStream);
  * Parses the consecutive ACK fragment, assembles the ACK and calls the ACK consumption on success.
  *
  * @param 1 PKinesisVideoStream - Kinesis Video stream to use
- * @param 2 PCHAR - current chunk to parse
- * @param 3 UINT32 - chunk size. If 0 is specified then the size will be till the NULL terminator.
+ * @param 2 UPLOAD_HANDLE - Stream upload handle.
+ * @param 3 PCHAR - current chunk to parse
+ * @param 4 UINT32 - chunk size. If 0 is specified then the size will be till the NULL terminator.
  *
  * @return STATUS of the operation
  */
-STATUS parseFragmentAck(PKinesisVideoStream, PCHAR, UINT32);
+STATUS parseFragmentAck(PKinesisVideoStream, UPLOAD_HANDLE, PCHAR, UINT32);
 
 /**
  * Tries to match a string to an ACK type. Returns Unknown if can't extract the type.

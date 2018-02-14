@@ -209,7 +209,7 @@ STATUS ClientTestBase::streamReadyFunc(UINT64 customData, STREAM_HANDLE streamHa
     return STATUS_SUCCESS;
 }
 
-STATUS ClientTestBase::streamClosedFunc(UINT64 customData, STREAM_HANDLE streamHandle)
+STATUS ClientTestBase::streamClosedFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 streamUploadHandle)
 {
     DLOGV("TID 0x%016llx streamClosedFunc called.", GETTID());
 
@@ -220,6 +220,7 @@ STATUS ClientTestBase::streamClosedFunc(UINT64 customData, STREAM_HANDLE streamH
 
     pClient->mStreamHandle = streamHandle;
     pClient->mStreamClosed = TRUE;
+    pClient->mStreamUploadHandle = streamUploadHandle;
 
     return STATUS_SUCCESS;
 }
@@ -227,6 +228,7 @@ STATUS ClientTestBase::streamClosedFunc(UINT64 customData, STREAM_HANDLE streamH
 STATUS ClientTestBase::streamDataAvailableFunc(UINT64 customData,
                                                STREAM_HANDLE streamHandle,
                                                PCHAR streamName,
+                                               UINT64 streamUploadHandle,
                                                UINT64 duration,
                                                UINT64 size)
 {
@@ -240,6 +242,7 @@ STATUS ClientTestBase::streamDataAvailableFunc(UINT64 customData,
     pClient->mStreamHandle = streamHandle;
     pClient->mDataReadyDuration = duration;
     pClient->mDataReadySize = size;
+    pClient->mStreamUploadHandle = streamUploadHandle;
     STRCPY(pClient->mStreamName, streamName);
 
     return STATUS_SUCCESS;

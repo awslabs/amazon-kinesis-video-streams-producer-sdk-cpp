@@ -12,7 +12,7 @@
 // IMPORTANT: This version number *must* be incremented every time a new library build is checked in.
 // We are seeing a very high incidence of runtime failures due to APKs being deployed with the wrong native libraries,
 // and they are much easier to diagnose when the numeric version check fails.
-#define NATIVE_LIBRARY_VERSION "1.2"
+#define NATIVE_LIBRARY_VERSION "1.4"
 
 // Used for serializing the access to functions
 static SyncMutex ACCESS_LOCK;
@@ -204,7 +204,7 @@ CleanUp:
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGS("Putting Kinesis Video frame for stream 0x%016lx.", streamHandle);
+        DLOGS("Putting Kinesis Video frame for stream 0x%016" PRIx64 ".", streamHandle);
         CHECK(env != NULL && thiz != NULL && kinesisVideoFrame != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -215,33 +215,33 @@ CleanUp:
         LEAVES();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFragmentAck(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject fragmentAck)
+    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFragmentAck(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jobject fragmentAck)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGS("Reporting Kinesis Video fragment ack for stream 0x%016lx.", streamHandle);
+        DLOGS("Reporting Kinesis Video fragment ack for stream 0x%016" PRIx64 ".", streamHandle);
         CHECK(env != NULL && thiz != NULL && fragmentAck != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
         if (pWrapper != NULL) {
-            pWrapper->kinesisVideoStreamFragmentAck(streamHandle, fragmentAck);
+            pWrapper->kinesisVideoStreamFragmentAck(streamHandle, uploadHandle, fragmentAck);
         }
 
         LEAVES();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamParseFragmentAck(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jstring ack)
+    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamParseFragmentAck(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jstring ack)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGS("Parsing Kinesis Video fragment ack for stream 0x%016lx.", streamHandle);
+        DLOGS("Parsing Kinesis Video fragment ack for stream 0x%016" PRIx64 ".", streamHandle);
         CHECK(env != NULL && thiz != NULL && ack != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
         if (pWrapper != NULL) {
-            pWrapper->kinesisVideoStreamParseFragmentAck(streamHandle, ack);
+            pWrapper->kinesisVideoStreamParseFragmentAck(streamHandle, uploadHandle, ack);
         }
 
         LEAVES();
@@ -252,7 +252,7 @@ CleanUp:
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("Describe stream event for handle 0x%016lx.", handle);
+        DLOGI("Describe stream event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -268,7 +268,7 @@ CleanUp:
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("get streaming endpoint event for handle 0x%016lx.", handle);
+        DLOGI("get streaming endpoint event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -284,7 +284,7 @@ CleanUp:
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("get streaming token event for handle 0x%016lx.", handle);
+        DLOGI("get streaming token event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -300,7 +300,7 @@ CleanUp:
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("create stream event for handle 0x%016lx.", handle);
+        DLOGI("create stream event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -316,7 +316,7 @@ CleanUp:
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("put stream event for handle 0x%016lx.", handle);
+        DLOGI("put stream event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -332,7 +332,7 @@ CleanUp:
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("tag resource event for handle 0x%016lx.", handle);
+        DLOGI("tag resource event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -350,7 +350,7 @@ CleanUp:
         jint retStatus = STATUS_SUCCESS;
         jint byteSize;
 
-        DLOGS("get kinesis video stream data event for handle 0x%016lx.", handle);
+        DLOGS("get kinesis video stream data event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -368,7 +368,7 @@ CleanUp:
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("stream format changed event for handle 0x%016lx.", handle);
+        DLOGI("stream format changed event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -384,7 +384,7 @@ CleanUp:
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("create device event for handle 0x%016lx.", handle);
+        DLOGI("create device event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -400,7 +400,7 @@ CleanUp:
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("device cert to token event for handle 0x%016lx.", handle);
+        DLOGI("device cert to token event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
@@ -411,17 +411,17 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamTerminated(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode)
+    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamTerminated(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jint httpStatusCode)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
 
-        DLOGI("Stream terminated event for handle 0x%016lx.", handle);
+        DLOGI("Stream terminated event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
         if (pWrapper != NULL) {
-            pWrapper->kinesisVideoStreamTerminated(streamHandle, httpStatusCode);
+            pWrapper->kinesisVideoStreamTerminated(streamHandle, uploadHandle, httpStatusCode);
         }
 
         LEAVE();
