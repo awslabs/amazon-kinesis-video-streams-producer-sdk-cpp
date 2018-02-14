@@ -192,8 +192,8 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/StreamCallbackProvider.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/CurlCallManager.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/DefaultCallbackProvider.cpp
-        ${KINESIS_VIDEO_PRODUCER_SRC}/src/OngoingPutFrameState.cpp
-        ${KINESIS_VIDEO_PRODUCER_SRC}/src/OngoingPutFrameState.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/OngoingStreamState.cpp
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/OngoingStreamState.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/DefaultCallbackProvider.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/DefaultDeviceInfoProvider.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/DefaultDeviceInfoProvider.h

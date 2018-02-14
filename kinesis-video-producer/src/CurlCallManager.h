@@ -3,10 +3,11 @@
 #include "Request.h"
 #include "Response.h"
 #include "Auth.h"
-#include "OngoingPutFrameState.h"
+#include "OngoingStreamState.h"
 #include "Logger.h"
 
 #include <memory>
+#include <signal.h>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -16,12 +17,12 @@ public:
 
     static CurlCallManager &getInstance();
 
-    std::unique_ptr<Response> call(std::unique_ptr<Request> request,
-                                   const RequestSigner* request_signer) const;
+    std::shared_ptr<Response> call(std::unique_ptr<Request> request,
+                                   std::unique_ptr<const RequestSigner> request_signer) const;
 
-    std::unique_ptr<Response> call(std::unique_ptr<Request> request,
-                                   const RequestSigner* request_signer,
-                                   std::shared_ptr<OngoingPutFrameState> ongoing_state) const;
+    std::shared_ptr<Response> call(std::unique_ptr<Request> request,
+                                   std::unique_ptr<const RequestSigner> request_signer,
+                                   std::shared_ptr<OngoingStreamState> ongoing_state) const;
 
 private:
     // RAII initializer for curl.

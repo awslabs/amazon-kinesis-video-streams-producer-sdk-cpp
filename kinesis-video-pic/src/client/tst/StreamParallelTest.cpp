@@ -86,7 +86,8 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
         clientStreamHandle = 0;
         retStatus = getKinesisVideoStreamData(streamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
                                               &filledSize);
-        EXPECT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
+        EXPECT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE ||
+                    retStatus == STATUS_END_OF_STREAM);
 
         if (retStatus == STATUS_SUCCESS) {
             EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);

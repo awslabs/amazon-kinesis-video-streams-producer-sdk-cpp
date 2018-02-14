@@ -5,6 +5,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video");
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 using std::unique_ptr;
+using std::shared_ptr;
 using std::move;
 
 CurlCallManager &CurlCallManager::getInstance() {
@@ -14,6 +15,7 @@ CurlCallManager &CurlCallManager::getInstance() {
 
 CurlCallManager::CurlGlobalInitializer::CurlGlobalInitializer() {
     LOG_INFO("Initializing curl.");
+    signal(SIGPIPE, SIG_IGN);
     curl_global_init(CURL_GLOBAL_ALL);
 }
 
@@ -28,26 +30,26 @@ CurlCallManager::CurlCallManager() {
 CurlCallManager::~CurlCallManager() {
 }
 
-unique_ptr<Response> CurlCallManager::call(unique_ptr<Request> request,
-                                             const RequestSigner* request_signer) const {
-    return call(move(request), request_signer, nullptr);
+shared_ptr<Response> CurlCallManager::call(unique_ptr<Request> request,
+                                           unique_ptr<const RequestSigner> request_signer) const {
+    return call(move(request), move(request_signer), nullptr);
 }
 
-unique_ptr<Response> CurlCallManager::call(unique_ptr<Request> request,
-                                           const RequestSigner* request_signer,
-                                           std::shared_ptr<OngoingPutFrameState> ongoing_state) const {
+shared_ptr<Response> CurlCallManager::call(unique_ptr<Request> request,
+                                           unique_ptr<const RequestSigner> request_signer,
+                                           std::shared_ptr<OngoingStreamState> ongoing_state) const {
     move(request_signer)->signRequest(*request);
-    unique_ptr<Response> response = Response::create(*request);
+    shared_ptr<Response> response = Response::create(*request);
 
     // Set the response object on state
     if (nullptr != ongoing_state) {
-        ongoing_state->setResponse(response.get());
+        ongoing_state->setResponse(response);
     }
 
     // Perform sync call
     response->completeSync();
 
-    return move(response);
+    return response;
 }
 
 void CurlCallManager::dumpCurlEasyInfo(CURL *curl_easy) {

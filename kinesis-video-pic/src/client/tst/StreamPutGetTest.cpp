@@ -104,12 +104,14 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
 
 TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
 {
-    UINT32 i, j, filledSize, offset, bufferSize;
+    UINT32 i, j, k, filledSize, offset, bufferSize;
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
     UINT64 timestamp, clientStreamHandle;
     Frame frame;
+    STATUS retStatus;
+    UINT32 putStreamResultCount = 20;
 
     // Ensure we have fragmentation based on the key frames
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
@@ -121,6 +123,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    k = 0;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -146,16 +149,19 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
         EXPECT_EQ(0, mFrameTime);
 
         // Return a put stream result on 20th
-        if (i == 20) {
+        if (i == putStreamResultCount) {
             EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
         }
+
+        // We will be reading from the beginning only after we have the upload handle
+        k = i - putStreamResultCount;
 
         clientStreamHandle = 0;
 
         // The first frame will have the cluster and MKV overhead
-        if (i == 0) {
+        if (k == 0) {
             offset = MKV_HEADER_OVERHEAD;
-        } else if (i % 10 == 0) {
+        } else if (k % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
         } else {
@@ -166,37 +172,44 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
         // Set the buffer size to be the offset + frame bits size
         bufferSize = SIZEOF(tempBuffer) + offset;
 
-        EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
-        EXPECT_EQ(bufferSize, filledSize);
-        if (i >= 20) {
+        retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize);
+
+        if (i >= putStreamResultCount) {
+            EXPECT_EQ(STATUS_SUCCESS, retStatus);
             EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
+            EXPECT_EQ(bufferSize, filledSize);
         } else {
             // PutStreamResult hasn't been called yet
+            EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
             EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
+            EXPECT_EQ(0, filledSize);
         }
 
-        // Validate the fill pattern
-        validPattern = TRUE;
-        for (j = 0; j < SIZEOF(tempBuffer); j++) {
-            if (getDataBuffer[offset + j] != i) {
-                validPattern = FALSE;
-                break;
+        if (STATUS_SUCCEEDED(retStatus)) {
+            // Validate the fill pattern
+            validPattern = TRUE;
+            for (j = 0; j < SIZEOF(tempBuffer); j++) {
+                if (getDataBuffer[offset + j] != k) {
+                    validPattern = FALSE;
+                    break;
+                }
             }
-        }
 
-        EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+            EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << k;
+        }
     }
 }
 
 TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
 {
-    UINT32 i, j, filledSize, offset, bufferSize;
+    UINT32 i, j, k, filledSize, offset, bufferSize;
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
     UINT64 timestamp, clientStreamHandle;
     Frame frame;
+    STATUS retStatus;
+    UINT32 putStreamResultCount = 20;
 
     // Ensure we have fragmentation based on the key frames
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
@@ -208,6 +221,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    k = 0;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -233,7 +247,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
         EXPECT_EQ(0, mFrameTime);
 
         // Return a put stream result on 20th
-        if (i == 20) {
+        if (i == putStreamResultCount) {
             EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
         }
 
@@ -253,41 +267,60 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
         // Set the buffer size to be the offset + frame bits size
         bufferSize = SIZEOF(tempBuffer) + offset;
 
-        EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
-        EXPECT_EQ(bufferSize, filledSize);
-        if (i >= 20) {
-            EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
+        if (i == putStreamResultCount) {
+            // Catch-up with the head and continue
+            for (k = 0; k < i; k++) {
+                getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
+                                          SIZEOF(tempBuffer) + MKV_HEADER_OVERHEAD, &filledSize);
+            }
         } else {
-            // PutStreamResult hasn't been called yet
-            EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
-        }
+            retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+                                                  &filledSize);
 
-        // Validate the fill pattern
-        validPattern = TRUE;
-        for (j = 0; j < SIZEOF(tempBuffer); j++) {
-            if (getDataBuffer[offset + j] != i) {
-                validPattern = FALSE;
-                break;
+            if (i > putStreamResultCount) {
+                EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
+                EXPECT_EQ(STATUS_SUCCESS, retStatus);
+                EXPECT_EQ(bufferSize, filledSize);
+            } else {
+                // PutStreamResult hasn't been called yet
+                EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
+                EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
+                EXPECT_EQ(0, filledSize);
+            }
+
+            if (STATUS_SUCCEEDED(retStatus)) {
+                // Validate the fill pattern
+                validPattern = TRUE;
+                for (j = 0; j < SIZEOF(tempBuffer); j++) {
+                    if (getDataBuffer[offset + j] != i) {
+                        validPattern = FALSE;
+                        break;
+                    }
+                }
+
+                EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+
+                if (k >= putStreamResultCount) {
+                    // No more data should be available
+                    EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
+                              getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+                                                        &filledSize));
+                }
             }
         }
-
-        EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
-
-        // No more data should be available
-        EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
     }
 }
 
 TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
 {
-    UINT32 i, j, filledSize, offset, bufferSize;
+    UINT32 i, j, k, filledSize, offset, bufferSize;
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
     UINT64 timestamp, clientStreamHandle;
     Frame frame;
+    STATUS retStatus;
+    UINT32 putStreamResultCount = 20;
 
     // Ensure we have fragmentation based on the key frames
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
@@ -324,8 +357,9 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
         EXPECT_EQ(0, mFrameTime);
 
         // Return a put stream result on 20th
-        if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+        if (i == putStreamResultCount) {
+            EXPECT_EQ(STATUS_SUCCESS,
+                      putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
         }
 
         clientStreamHandle = 0;
@@ -344,26 +378,38 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
         // Set the buffer size to be the offset + frame bits size
         bufferSize = SIZEOF(getDataBuffer);
 
-        EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
-        EXPECT_EQ(SIZEOF(tempBuffer) + offset, filledSize);
-        if (i >= 20) {
-            EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
+        if (i == putStreamResultCount) {
+            // Catch-up with the head and continue
+            for (k = 0; k < i; k++) {
+                getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
+                                          SIZEOF(tempBuffer) + MKV_HEADER_OVERHEAD, &filledSize);
+            }
         } else {
-            // PutStreamResult hasn't been called yet
-            EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
-        }
+            retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+                                                  &filledSize);
 
-        // Validate the fill pattern
-        validPattern = TRUE;
-        for (j = 0; j < SIZEOF(tempBuffer); j++) {
-            if (getDataBuffer[offset + j] != i) {
-                validPattern = FALSE;
-                break;
+            if (i > putStreamResultCount) {
+                EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE, retStatus);
+                EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
+                EXPECT_EQ(SIZEOF(tempBuffer) + offset, filledSize);
+
+                // Validate the fill pattern
+                validPattern = TRUE;
+                for (j = 0; j < SIZEOF(tempBuffer); j++) {
+                    if (getDataBuffer[offset + j] != i) {
+                        validPattern = FALSE;
+                        break;
+                    }
+                }
+
+                EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+            } else {
+                // PutStreamResult hasn't been called yet
+                EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
+                EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
+                EXPECT_EQ(0, filledSize);
             }
         }
-
-        EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
     }
 }
 
@@ -463,14 +509,15 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBuffer)
     }
 }
 
-TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved)
-{
-    UINT32 i, j, iterations, filledSize, offset, bufferSize;
+TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
+    UINT32 i, j, k, filledSize, offset, bufferSize;
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
     UINT64 timestamp, clientStreamHandle;
     Frame frame;
+    STATUS retStatus;
+    UINT32 putStreamResultCount = 20;
 
     // Ensure we have fragmentation based on the key frames
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
@@ -507,8 +554,9 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved)
         EXPECT_EQ(0, mFrameTime);
 
         // Return a put stream result on 20th
-        if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+        if (i == putStreamResultCount) {
+            EXPECT_EQ(STATUS_SUCCESS,
+                      putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
         }
 
         // Consume frames
@@ -529,44 +577,60 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved)
         bufferSize = SIZEOF(tempBuffer) / 2 + offset;
 
         // Read the first half
-        EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
-        EXPECT_EQ(bufferSize, filledSize);
-        if (i >= 20) {
-            EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
-        } else {
-            // PutStreamResult hasn't been called yet
-            EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
-        }
+        retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+                                              &filledSize);
 
-        // Read the second half
-        filledSize = bufferSize;
-        bufferSize = SIZEOF(tempBuffer) / 2;
-        EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer + filledSize, bufferSize,
-                                            &filledSize));
-        EXPECT_EQ(bufferSize, filledSize);
-        if (i >= 20) {
-            EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
-        } else {
-            // PutStreamResult hasn't been called yet
-            EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
-        }
+        if (i == putStreamResultCount) {
+            EXPECT_EQ(STATUS_SUCCESS, retStatus);
 
-        // Validate the fill pattern
-        validPattern = TRUE;
-        for (j = 0; j < SIZEOF(tempBuffer); j++) {
-            if (getDataBuffer[offset + j] != i) {
-                validPattern = FALSE;
-                break;
+            // Catch-up with the head and continue
+            for (k = 0; k < i; k++) {
+                getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
+                                          SIZEOF(tempBuffer) + MKV_HEADER_OVERHEAD, &filledSize);
+            }
+        } else {
+            if (i > putStreamResultCount) {
+                EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
+                EXPECT_EQ(STATUS_SUCCESS, retStatus);
+                EXPECT_EQ(bufferSize, filledSize);
+            } else {
+                // PutStreamResult hasn't been called yet
+                EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
+                EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
+            }
+
+            // Read the second half
+            filledSize = bufferSize;
+            bufferSize = SIZEOF(tempBuffer) / 2;
+            retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer + filledSize,
+                                                  bufferSize, &filledSize);
+
+            if (i > putStreamResultCount) {
+                EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
+                EXPECT_EQ(STATUS_SUCCESS, retStatus);
+                EXPECT_EQ(bufferSize, filledSize);
+
+                // Validate the fill pattern
+                validPattern = TRUE;
+                for (j = 0; j < SIZEOF(tempBuffer); j++) {
+                    if (getDataBuffer[offset + j] != i) {
+                        validPattern = FALSE;
+                        break;
+                    }
+                }
+
+                EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+
+                // No more data should be available
+                EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
+                          getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+                                                    &filledSize));
+            } else {
+                // PutStreamResult hasn't been called yet
+                EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
+                EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
             }
         }
-
-        EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
-
-        // No more data should be available
-        EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
     }
 }
 

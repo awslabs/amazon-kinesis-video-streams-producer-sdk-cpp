@@ -62,7 +62,6 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_LargeFrameTimecode)
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     BYTE frameBuf[10000];
     Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
-    UINT32 i;
     EncodedFrameInfo encodedFrameInfo;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MIN_TIMECODE_SCALE,
@@ -393,7 +392,6 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGenerator_Variations)
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     BYTE frameBuf[10000];
     Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
-    UINT32 i;
     EncodedFrameInfo encodedFrameInfo;
 
     EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE,

@@ -251,7 +251,7 @@ extern "C" {
 /**
  * The max streaming token expiration duration after which the ingestion host will force terminate the connection.
  */
-#define MAX_ENFORCED_TOKEN_EXPIRATION_DURATION      (40 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
+#define MAX_ENFORCED_TOKEN_EXPIRATION_DURATION      (40 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
 
 /**
  * Grace period for the streaming token expiration - 3 seconds
@@ -414,6 +414,20 @@ typedef UPLOAD_HANDLE* PUPLOAD_HANDLE;
  */
 #ifndef IS_VALID_UPLOAD_HANDLE
 #define IS_VALID_UPLOAD_HANDLE(h) ((h) != INVALID_UPLOAD_HANDLE_VALUE)
+#endif
+
+/**
+ * This is a sentinel indicating an invalid timestamp value
+ */
+#ifndef INVALID_TIMESTAMP_VALUE
+#define INVALID_TIMESTAMP_VALUE ((UINT64) 0xFFFFFFFFFFFFFFFFULL)
+#endif
+
+/**
+ * Checks for the handle validity
+ */
+#ifndef IS_VALID_TIMESTAMP
+#define IS_VALID_TIMESTAMP(h) ((h) != INVALID_TIMESTAMP_VALUE)
 #endif
 
 ////////////////////////////////////////////////////
@@ -1243,11 +1257,13 @@ typedef STATUS (*StreamReadyFunc)(UINT64,
  *
  * @param 1 UINT64 - Custom handle passed by the caller.
  * @param 2 STREAM_HANDLE - The stream to report for.
+ * @param 3 UINT64 - Client upload handle.
  *
  * @return Status of the callback
  */
 typedef STATUS (*StreamClosedFunc)(UINT64,
-                                  STREAM_HANDLE);
+                                   STREAM_HANDLE,
+                                   UINT64);
 
 /**
  * Notifies that a given stream has data available.
@@ -1255,14 +1271,16 @@ typedef STATUS (*StreamClosedFunc)(UINT64,
  * @param 1 UINT64 - Custom handle passed by the caller.
  * @param 2 STREAM_HANDLE - The stream to report for.
  * @param 3 PCHAR - Stream name.
- * @param 4 UINT64 - The duration of content currently available in 100ns.
- * @param 5 UINT64 - The size of content in bytes currently available.
+ * @param 4 UINT64 - Current client stream handle passed by the caller.
+ * @param 5 UINT64 - The duration of content currently available in 100ns.
+ * @param 6 UINT64 - The size of content in bytes currently available.
  *
  * @return Status of the callback
  */
 typedef STATUS (*StreamDataAvailableFunc)(UINT64,
                                           STREAM_HANDLE,
                                           PCHAR,
+                                          UINT64,
                                           UINT64,
                                           UINT64);
 
@@ -1745,11 +1763,12 @@ PUBLIC_API STATUS getKinesisVideoStreamData(STREAM_HANDLE, PUINT64, PBYTE, UINT3
  * Streaming has been terminated unexpectedly
  *
  * @param 1 STREAM_HANDLE - the stream handle.
- * @param 2 SERVICE_CALL_RESULT - Result returned.
+ * @param 2 UINT64 - Stream upload handle returned by the client.
+ * @param 3 SERVICE_CALL_RESULT - Result returned.
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS kinesisVideoStreamTerminated(STREAM_HANDLE, SERVICE_CALL_RESULT);
+PUBLIC_API STATUS kinesisVideoStreamTerminated(STREAM_HANDLE, UINT64, SERVICE_CALL_RESULT);
 
 /**
  * Stream fragment ACK received.
@@ -1762,11 +1781,13 @@ PUBLIC_API STATUS kinesisVideoStreamTerminated(STREAM_HANDLE, SERVICE_CALL_RESUL
  * 4) In case of an error we re-set the current to the fragment start frame timestamp.
  *
  * @param 1 STREAM_HANDLE - The stream handle to report ACKs for
- * @param 2 PFragmentAck - Reported ack.
+ * @param 2 UPLOAD_HANDLE - Stream upload handle.
+ * @param 3 PFragmentAck - Reported ack.
  *
  * @return Status of the function call.
  */
 PUBLIC_API STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE,
+                                                UPLOAD_HANDLE,
                                                 PFragmentAck);
 
 /**
@@ -1777,12 +1798,14 @@ PUBLIC_API STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE,
  * NOTE: See kinesisVideoStreamFragmentAck for more information about the successfully received ACK processing
  *
  * @param 1 STREAM_HANDLE - The stream handle to parse the ACKs for
- * @param 2 PCHAR - Reported ack segment - can be non-NULL terminated.
- * @param 3 UINT32 - Reported ack segment size in chars.
+ * @param 2 UPLOAD_HANDLE - Stream upload handle.
+ * @param 3 PCHAR - Reported ack segment - can be non-NULL terminated.
+ * @param 4 UINT32 - Reported ack segment size in chars.
  *
  * @return Status of the function call.
  */
 PUBLIC_API STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE,
+                                                     UPLOAD_HANDLE,
                                                      PCHAR,
                                                      UINT32);
 

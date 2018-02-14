@@ -140,7 +140,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
-        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get());
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
 
         SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
 
@@ -226,7 +226,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
-        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get());
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
 
         if (HTTP_OK != response->getStatusCode()) {
             LOG_ERROR("Failed to set tags on Kinesis Video stream: " << string(stream_arn_str)
@@ -289,7 +289,7 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
-        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get());
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
 
         LOG_DEBUG("describeStream response: " << response->getData());
         StreamDescription stream_description;
@@ -415,7 +415,7 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
-        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get());
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
 
         LOG_DEBUG("getStreamingEndpoint response: " << response->getData());
 
@@ -506,16 +506,21 @@ STATUS DefaultCallbackProvider::putStreamHandler(
 
     string stream_name_str(stream_name);
 
+    UINT64 upload_handle = this_obj->getUploadHandle();
+
     // Create a new state
-    auto state = make_shared<OngoingPutFrameState>(this_obj,
-                                                   service_call_ctx->customData,
-                                                   stream_name_str);
+    auto state = make_shared<OngoingStreamState>(this_obj,
+                                                 upload_handle,
+                                                 service_call_ctx->customData,
+                                                 stream_name_str);
 
     // Upsert into the active state map
-    this_obj->insertActiveState(state.get());
-
-    // The state object interpreted as a client stream handle to be passed to PIC.
-    UINT64 clientStreamHandle = reinterpret_cast<UINT64>(state.get());
+    {
+        // Need to lock the operation as other operations working with the map
+        // are not atomic and hence the insertion of the item will break them
+        std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
+        this_obj->active_streams_.put(upload_handle, state);
+    }
 
     // Need to extract the URI fully qualified host path to set the "host" header
     auto put_media_endpoint = string(streaming_endpoint) + "/putMedia";
@@ -524,13 +529,12 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     // a reference to state saved in the active_streams_ map that is only removed with the future attached to
     // the return of this async_call exits.
     unique_ptr<Request> request = make_unique<Request>(Request::POST,
-                    put_media_endpoint,
-                    DefaultCallbackProvider::postHeaderReadFunc,
-                    DefaultCallbackProvider::postBodyStreamingReadFunc,
-                    reinterpret_cast<void *>(state.get()),
-                    DefaultCallbackProvider::postBodyStreamingWriteFunc,
-                    reinterpret_cast<void *>(state.get()));
-    request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
+                                                       put_media_endpoint,
+                                                       state);
+    LOG_DEBUG("Created a new PutMedia request with stream upload handle: " << upload_handle);
+
+    request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout
+                                                            / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", streaming_endpoint);
     request->setHeader("x-amzn-stream-name", stream_name);
     // Producer start time in putMedia call takes a format of "seconds_from_epoch.milliseconds"
@@ -543,7 +547,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     request->setHeader("connection", "keep-alive");
 
     auto async_call = [](DefaultCallbackProvider* this_obj,
-                         shared_ptr<OngoingPutFrameState> state,
+                         shared_ptr<OngoingStreamState> state,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_name_str,
@@ -558,29 +562,38 @@ STATUS DefaultCallbackProvider::putStreamHandler(
         LOG_INFO("Creating new connection for Kinesis Video stream: " << stream_name_str);
 
         // Perform a sync call
-        unique_ptr<Response> response = this_obj->ccm_.call(std::move(request), request_signer.get(), state);
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer), state);
 
         LOG_DEBUG("Connection for Kinesis Video stream: " << stream_name_str << " closed.");
 
+        auto upload_handle = state->getUploadHandle();
+
         // does not return until the stream ends.
         // this behavior is important because it keeps the cb_data variable valid for the lifetime of the stream.
-        LOG_INFO("Network thread for Kinesis Video stream: " << stream_name_str << " exited. http status: "
+        LOG_INFO("Network thread for Kinesis Video stream: " << stream_name_str
+                                                             << " with upload handle: "
+                                                             << upload_handle
+                                                             << " exited. http status: "
                                                              << response->getStatusCode());
 
         if (state->isShutdown()) {
             LOG_INFO("Stream terminated");
         } else {
             // Remove the state from the active list
-            this_obj->removeActiveState(state.get());
+            {
+                // Interlock the operation
+                std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
+                this_obj->active_streams_.remove(upload_handle);
+            }
 
             // If we terminated abnormally then terminate the stream
             if (!state->isEndOfStream()) {
                 LOG_WARN("Stream for "
                                  << stream_name_str
-                                 << " has exited without triggering end-of-zstream. Service call result: "
+                                 << " has exited without triggering end-of-stream. Service call result: "
                                  << response->getServiceCallResult());
 
-                kinesisVideoStreamTerminated(custom_data, response->getServiceCallResult());
+                kinesisVideoStreamTerminated(custom_data, upload_handle, response->getServiceCallResult());
             }
         }
     };
@@ -589,314 +602,96 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     worker.detach();
 
     // Return 200 to Kinesis Video SDK on successful connection establishment as the POST is theoretically infinite.
-    STATUS status = putStreamResultEvent(service_call_ctx->customData, SERVICE_CALL_RESULT_OK, clientStreamHandle);
+    STATUS status = putStreamResultEvent(service_call_ctx->customData, SERVICE_CALL_RESULT_OK, upload_handle);
 
     this_obj->notifyResult(status, custom_data);
 
     return status;
 }
 
-size_t DefaultCallbackProvider::postHeaderReadFunc(
-        char *buffer, size_t item_size, size_t n_items, void *custom_data) {
-    LOG_DEBUG("postHeaderReadFunc (curl callback) invoked");
-
-    size_t data_size = item_size * n_items;
-
-    LOG_DEBUG("Curl post header write function returned:" << string(buffer, data_size));
-
-    return data_size;
-}
-
-size_t DefaultCallbackProvider::postBodyStreamingReadFunc(
-        char *buffer, size_t item_size, size_t n_items, void *custom_data) {
-    LOG_DEBUG("postBodyStreamingReadFunc (curl callback) invoked");
-    OngoingPutFrameState *state = reinterpret_cast<OngoingPutFrameState *>(custom_data);
-    if (nullptr == state) {
-        // Something is really wrong. Aborting
-        return CURL_READFUNC_ABORT;
-    }
-
-    DefaultCallbackProvider* this_obj = (DefaultCallbackProvider*) state->getCallbackProvider();
-
-    // Block until the stream is current
-    state->awaitCurrent();
-
-    // Check for end-of-stream
-    if (state->isEndOfStream()) {
-        // Activate the next state so we won't wait till the end of stream termination
-        this_obj->activateNextState(state);
-
-        // Returning 0 will close the connection
-        return 0;
-    }
-
-    size_t buffer_size = item_size * n_items;
-
-    // Block until data is available.
-    size_t bytes_written = 0;
-    while (bytes_written == 0 && !state->isEndOfStream()) {
-        size_t available_bytes = state->awaitData(buffer_size);
-
-        if (state->isShutdown()) {
-            return CURL_READFUNC_ABORT;
-        }
-
-        UINT64 client_stream_handle = 0;
-        bytes_written = 0;
-        STATUS retStatus = getKinesisVideoStreamData(
-                state->getStreamHandle(),
-                &client_stream_handle,
-                reinterpret_cast<PBYTE>(buffer),
-                buffer_size,
-                reinterpret_cast<PUINT32>(&bytes_written));
-
-        LOG_TRACE("Available bytes to read: " << available_bytes
-                                              << " buffer size: "
-                                              << buffer_size
-                                              << " written bytes: "
-                                              << bytes_written
-                                              << " for client stream handle: "
-                                              << client_stream_handle);
-
-        // The return should be OK, no more data or an end of stream
-        switch (retStatus) {
-            case STATUS_SUCCESS:
-            case STATUS_NO_MORE_DATA_AVAILABLE:
-
-                // This is an OK case - ensure that we reset the available bytes in the state if we got 0 returned
-                if (0 == bytes_written) {
-                    LOG_DEBUG("Resetting the available data for the streaming state object.");
-                    state->setDataAvailable(0, 0);
-                }
-
-                break;
-
-            case STATUS_END_OF_STREAM:
-                LOG_INFO("Reported end-of-stream.");
-
-                // Output the remaining bytes and signal the EOS
-                state->endOfStream();
-                break;
-
-            default:
-                LOG_ERROR("Failed to get data from the stream with an error: " << retStatus);
-
-                // Terminate and close the connection
-                bytes_written = CURL_READFUNC_ABORT;
-        }
-    }
-
-    LOG_DEBUG("Wrote " << bytes_written << " bytes to Kinesis Video");
-    if (0 == bytes_written || CURL_READFUNC_ABORT == bytes_written) {
-        // Activate the next state
-        this_obj->activateNextState(state);
-    }
-
-    return bytes_written;
-}
-
-void DefaultCallbackProvider::insertActiveState(OngoingPutFrameState* state) {
-    std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
-
-    // Check if we already have an entry - this could be during token rotation
-    auto stream_handle = state->getStreamHandle();
-    auto current_state = active_streams_.get(stream_handle);
-    if (nullptr != current_state) {
-        // set the next for the current state
-        while (nullptr != current_state->getNextState()) {
-            current_state = current_state->getNextState();
-        }
-
-        current_state->setNextState(state);
-        LOG_DEBUG("Already have an active stream state.");
-    } else {
-        // This is the current stream state so insert it into the map first and make it active
-        active_streams_.put(stream_handle, state);
-        state->notifyStateCurrent();
-        LOG_DEBUG("No active streams states for " << state->getStreamName());
-    }
-}
-
-void DefaultCallbackProvider::removeActiveState(OngoingPutFrameState* state) {
-    std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
-
-    auto stream_handle = state->getStreamHandle();
-    auto existing_state = active_streams_.get(stream_handle);
-    CHECK_EXT(existing_state != nullptr, "Existing state can not be null");
-
-    if (existing_state == state) {
-        // Remove from the active states and promote the next state
-        active_streams_.remove(stream_handle);
-
-        // Promote the next if any
-        auto next_state = existing_state->getNextState();
-        if (nullptr != next_state) {
-            // Insert into the map and activate the state
-            LOG_DEBUG("Inserting a new active stream state");
-            active_streams_.put(stream_handle, next_state);
-            next_state->notifyStateCurrent();
-        }
-    } else {
-        // Find it in the list
-        auto cur_state = existing_state;
-        while (nullptr != cur_state) {
-            auto next_state = existing_state->getNextState();
-            if (next_state == state) {
-                cur_state->setNextState(next_state->getNextState());
-                LOG_DEBUG("Making a new active stream state");
-                cur_state->notifyStateCurrent();
-                break;
-            }
-
-            cur_state = next_state;
-        }
-    }
-}
-
-void DefaultCallbackProvider::activateNextState(OngoingPutFrameState* state) {
-    std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
-
-    auto stream_handle = state->getStreamHandle();
-    auto existing_state = active_streams_.get(stream_handle);
-    CHECK_EXT(existing_state != nullptr, "Existing state can not be null");
-
-    if (existing_state == state) {
-        // Activate the next if any
-        auto next_state = existing_state->getNextState();
-        if (nullptr != next_state) {
-            // Insert into the map and activate the state
-            LOG_DEBUG("Activating the next state of the existing");
-            next_state->notifyStateCurrent();
-        }
-    } else {
-        // Find it in the list
-        auto cur_state = existing_state;
-        while (nullptr != cur_state) {
-            auto next_state = cur_state->getNextState();
-            if (next_state == state) {
-                cur_state = next_state->getNextState();
-                if (nullptr != cur_state) {
-                    LOG_DEBUG("Activating the next stream state");
-                    cur_state->notifyStateCurrent();
-                    break;
-                }
-            }
-
-            cur_state = next_state;
-        }
-    }
-}
-
 void DefaultCallbackProvider::shutdownStream(STREAM_HANDLE stream_handle) {
     std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
 
-    auto state = active_streams_.get(stream_handle);
-    active_streams_.remove(stream_handle);
+    // Iterate over the map and make sure to shutdown all the ongoing states
+    auto map = active_streams_.getMap();
+    for (std::map<UINT64, std::shared_ptr<OngoingStreamState>>::iterator iter = map.begin();
+         iter != map.end();
+         iter++) {
+        auto state = iter->second;
+        LOG_DEBUG("Shutting down stream: "
+                          << state->getStreamName()
+                          << ", upload handle: "
+                          << state->getUploadHandle()
+                          << ", is EOS: "
+                          << state->isEndOfStream()
+                          << ", is in Shutdown: "
+                          << state->isShutdown());
+        if (nullptr != state && stream_handle == state->getStreamHandle()) {
+            state->shutdown();
 
-    while (nullptr != state) {
-        state->shutdown();
-        auto response = state->getResponse();
-        if (nullptr != response) {
-            response->terminate();
-        }
-
-        state = state->getNextState();
-    }
-}
-
-size_t DefaultCallbackProvider::postBodyStreamingWriteFunc(
-        char *buffer, size_t item_size, size_t n_items, void *custom_data) {
-    LOG_DEBUG("postBodyStreamingWriteFunc (curl callback) invoked");
-
-    STATUS status = STATUS_SUCCESS;
-    size_t data_size = item_size * n_items;
-    string data_as_string(buffer, data_size);
-
-    LOG_INFO("Curl post body write function returned:" << data_as_string);
-
-    // The data can be passed in an arbitrary size so we can't make any assumptions.
-    // What we do is the following. We start with the initial state of expecting to have an open curly brace.
-    // We will accumulate bits until the closing curly brace. All of our ACKs have a form of
-    // {"ackEventType":"PERSISTED","fragmentTimecode":3400,"fragmentNumber":"91343852344490898070324846249945695249403494059"}
-    // and do not contain curlies inside as they are simple jsons. This assumption is valid for now but if it changes
-    // we will need to re-implement this parsing logic. We will be stream parsing the data as it comes.
-
-    OngoingPutFrameState *state = reinterpret_cast<OngoingPutFrameState *>(custom_data);
-    if (nullptr == state) {
-        // Something is really wrong. Returning 0 will abort
-        return 0;
-    }
-
-    if (!state->isShutdown()) {
-        status = kinesisVideoStreamParseFragmentAck(state->getStreamHandle(), buffer, data_size);
-        if (STATUS_FAILED(status)) {
-            LOG_ERROR("Failed to submit ACK: "
-                              << data_as_string
-                              << " with status code: "
-                              << status);
-        } else {
-            LOG_DEBUG("Processed ACK OK.");
+            auto response = state->getResponse();
+            if (nullptr != response) {
+                response->terminate();
+            }
         }
     }
-
-    return data_size;
 }
 
 STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
-                                                          STREAM_HANDLE stream_handle,
-                                                          PCHAR stream_name,
-                                                          UINT64 duration_available,
-                                                          UINT64 size_available) {
-    LOG_DEBUG("streamDataAvailableHandler invoked");
+                                                           STREAM_HANDLE stream_handle,
+                                                           PCHAR stream_name,
+                                                           UINT64 stream_upload_handle,
+                                                           UINT64 duration_available,
+                                                           UINT64 size_available) {
+    LOG_DEBUG("streamDataAvailableHandler invoked for stream: "
+              << stream_name
+              << " and stream upload handle: "
+              << stream_upload_handle);
 
     auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
-
-    {
+    if (IS_VALID_UPLOAD_HANDLE(stream_upload_handle)) {
         std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
-
-        auto state = this_obj->getActiveStreams().get(stream_handle);
-        while (nullptr != state) {
-            if (!state->isEndOfStream()) {
-                state->noteDataAvailable(duration_available, size_available);
-                break;
-            }
-
-            state = state->getNextState();
+        auto state = this_obj->active_streams_.get(stream_upload_handle);
+        if (nullptr != state && !state->isEndOfStream()) {
+            state->noteDataAvailable(duration_available, size_available);
         }
     }
 
     auto client_stream_report_callback = this_obj->stream_callback_provider_->getStreamDataAvailableCallback();
     if (nullptr != client_stream_report_callback) {
-        return client_stream_report_callback(custom_data, stream_handle, stream_name, duration_available, size_available);
+        return client_stream_report_callback(custom_data, stream_handle, stream_name, stream_upload_handle, duration_available, size_available);
     } else {
         return STATUS_SUCCESS;
     }
 }
 
 STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
-                                                    STREAM_HANDLE stream_handle) {
+                                                    STREAM_HANDLE stream_handle,
+                                                    UINT64 stream_upload_handle) {
     LOG_DEBUG("streamClosedHandler invoked");
 
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
-
-    {
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider *>(custom_data);
+    if (IS_VALID_UPLOAD_HANDLE(stream_upload_handle)) {
         std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
 
-        auto state = this_obj->getActiveStreams().get(stream_handle);
-        while (nullptr != state) {
-            if (state->isActive() && !state->isEndOfStream()) {
+        auto state = this_obj->active_streams_.get(stream_upload_handle);
+        if (nullptr != state) {
+            // Remove from the map
+            this_obj->active_streams_.remove(stream_upload_handle);
+
+            // Set EOS and terminate
+            if (!state->isEndOfStream()) {
                 state->endOfStream();
+
+                // Pulse the awaiting threads
                 state->noteDataAvailable(0, 0);
-                break;
             }
 
-            Response* curl_response = state->getResponse();
+            auto curl_response = state->getResponse();
             // Close the connection
             if (nullptr != curl_response) {
                 curl_response->terminate();
             }
-
-            state = state->getNextState();
         }
     }
 
@@ -907,19 +702,20 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
         // pool which we can't block.
         auto async_call = [](const StreamClosedFunc client_eos_callback,
                              UINT64 custom_data,
-                             STREAM_HANDLE stream_handle) -> auto {
+                             STREAM_HANDLE stream_handle,
+                             UINT64 stream_upload_handle) -> auto {
             // Wait for the specified amount of time before calling the provided callback
             // NOTE: We will add an extra time for curl handle to settle and close the stream.
             std::this_thread::sleep_for(std::chrono::milliseconds(TIMEOUT_AFTER_STREAM_STOPPED +
                                                                   CURL_CLOSE_HANDLE_DELAY_IN_MILLIS));
 
-            STATUS status = client_eos_callback(custom_data, stream_handle);
+            STATUS status = client_eos_callback(custom_data, stream_handle, stream_upload_handle);
             if (STATUS_FAILED(status)) {
                 LOG_ERROR("streamClosedHandler failed with: " << status);
             }
         };
 
-        thread worker(async_call, client_eos_callback, custom_data, stream_handle);
+        thread worker(async_call, client_eos_callback, custom_data, stream_handle, stream_upload_handle);
         worker.detach();
     }
 
@@ -943,9 +739,12 @@ STATUS DefaultCallbackProvider::streamErrorHandler(UINT64 custom_data,
     auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
 
     // Terminate the existing stream if any
-    auto existingState = this_obj->active_streams_.get(stream_handle);
-    if (existingState != nullptr) {
-        existingState->endOfStream();
+    {
+        std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
+        auto existingState = this_obj->active_streams_.get(stream_handle);
+        if (existingState != nullptr) {
+            existingState->endOfStream();
+        }
     }
 
     // Call the client callback if any specified
@@ -976,6 +775,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const string& control_plane_uri)
         : ccm_(CurlCallManager::getInstance()),
           region_(region),
+          current_upload_handle_(0),
           service_(KINESIS_VIDEO_SERVICE_NAME),
           control_plane_uri_(control_plane_uri),
           security_token_(nullptr) {
@@ -1109,11 +909,6 @@ StreamDataAvailableFunc DefaultCallbackProvider::getStreamDataAvailableCallback(
 
 StreamConnectionStaleFunc DefaultCallbackProvider::getStreamConnectionStaleCallback() {
     return stream_callback_provider_->getStreamConnectionStaleCallback();
-}
-
-ThreadSafeMap<STREAM_HANDLE, OngoingPutFrameState*>&
-DefaultCallbackProvider::getActiveStreams() {
-    return active_streams_;
 }
 
 } // namespace video

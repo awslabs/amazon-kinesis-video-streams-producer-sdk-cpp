@@ -10,7 +10,7 @@
 #include "ClientCallbackProvider.h"
 #include "StreamCallbackProvider.h"
 #include "ThreadSafeMap.h"
-#include "OngoingPutFrameState.h"
+#include "OngoingStreamState.h"
 
 #include <algorithm>
 #include <memory>
@@ -170,11 +170,6 @@ public:
      * @copydoc com::amazonaws::kinesis::video::CallbackProvider::getStreamConnectionStaleCallback()
      */
     StreamConnectionStaleFunc getStreamConnectionStaleCallback() override;
-
-    /**
-     * @return A mutable reference map from stream name to the OngoingPutFrameState associated with that stream name.
-     */
-    ThreadSafeMap<STREAM_HANDLE, OngoingPutFrameState*> &getActiveStreams();
 
     /**
      * Gets the current time in 100ns from some timestamp.
@@ -342,6 +337,7 @@ public:
      * @param custom_data Must be a handle to the implementation of the CallbackProvider class.
      * @param stream_handle opaque handle to the stream
      * @param stream_name - the name of the stream that has data available.
+     * @param stream_upload_handle - the current stream upload handle.
      * @param duration_available_in_hundred_nanos
      * @param size_available_in_bytes
      * @return
@@ -350,6 +346,7 @@ public:
             UINT64 custom_data,
             STREAM_HANDLE stream_handle,
             PCHAR stream_name,
+            UINT64 stream_upload_handle,
             UINT64 duration_available,
             UINT64 size_available);
 
@@ -358,74 +355,13 @@ public:
      *
      * @param custom_data Must be a handle to the implementation of the CallbackProvider class.
      * @param stream_handle opaque handle to the stream
+     * @param stream_upload_handle opaque handle to the current stream upload from the client.
      * @return
      */
     static STATUS streamClosedHandler(
             UINT64 custom_data,
-            STREAM_HANDLE stream_handle);
-
-    /**
-     * An implementation of the CURLOPT_READFUNCTION callback: https://curl.haxx.se/libcurl/c/CURLOPT_READFUNCTION.html.
-     *
-     * From the documentation:
-     * This callback function gets called by libcurl as soon as it needs to read data in order to send it to the peer -
-     * like if you ask it to upload or post data to the server.
-     * The data area pointed at by the pointer buffer should be filled up with at most item_size multiplied with n_items
-     * number
-     * of bytes by your function.
-     * This function must then return the actual number of bytes that it stored in that memory area. Returning 0 will
-     * signal end-of-file to the library and cause it to stop the current transfer.
-     *
-     * @param buffer Curl buffer to be filled
-     * @param item_size size of each item in the buffer in bytes
-     * @param n_items Max number of items of size item_size that can fit in the buffer
-     * @param custom_data Custom handle passed by the caller (an instance of OngoingPutFrameState*)
-     * @return The number of bytes written to the buffer
-     */
-    static size_t postBodyStreamingReadFunc(char *buffer, size_t item_size, size_t n_items, void *custom_data);
-
-    /**
-     * An implementation of the CURLOPT_HEADERFUNCTION callback:
-     * https://curl.haxx.se/libcurl/c/CURLOPT_HEADERFUNCTION.html.
-     *
-     * From the documentation:
-     * This function gets called by libcurl as soon as it has received header data. The header callback will be called
-     * once for each header and only complete header lines are passed on to the callback. Parsing headers is very easy
-     * using this. The size of the data pointed to by buffer is size multiplied with nmemb. Do not assume that the
-     * header line is zero terminated! The pointer named userdata is the one you set with the CURLOPT_HEADERDATA
-     * option. This callback function must return the number of bytes actually taken care of. If that amount differs
-     * from the amount passed in to your function, it'll signal an error to the library. This will cause the transfer
-     * to get aborted and the libcurl function in progress will return CURLE_WRITE_ERROR.
-     *
-     * @param buffer Curl buffer to be filled
-     * @param item_size size of each item in the buffer in bytes
-     * @param n_items Max number of items of size item_size that can fit in the buffer
-     * @param custom_data Custom handle passed by the caller (an instance of OngoingPutFrameState*)
-     * @return The number of bytes written to the buffer
-     */
-    static size_t postHeaderReadFunc(char *buffer, size_t item_size, size_t n_items, void *custom_data);
-
-    /**
-     * An implementation of the CURLOPT_READFUNCTION callback: https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html.
-     *
-     * From the documentation:
-     * This callback function gets called by libcurl as soon as there is data received that needs to be saved. ptr
-     * points to the delivered data, and the size of that data is size multiplied with nmemb.
-     *
-     * The callback function will be passed as much data as possible in all invokes, but you must not make any assumptions.
-     * It may be one byte, it may be thousands. The maximum amount of body data that will be passed to the write
-     * callback is defined in the curl.h header file: CURL_MAX_WRITE_SIZE (the usual default is 16K).
-     *
-     * If CURLOPT_HEADER is enabled, which makes header data get passed to the write callback, you can get up to
-     * CURL_MAX_HTTP_HEADER bytes of header data passed into it. This usually means 100K.
-     *
-     * @param buffer Curl buffer to read from
-     * @param item_size size of each item in the buffer in bytes
-     * @param n_items Max number of items of size item_size available in the buffer
-     * @param custom_data Custom handle passed by the caller
-     * @return The number of bytes read from the buffer
-     */
-    static size_t postBodyStreamingWriteFunc(char *buffer, size_t item_size, size_t n_items, void *custom_data);
+            STREAM_HANDLE stream_handle,
+            UINT64 stream_upload_handle);
 
 protected:
 
@@ -445,26 +381,18 @@ protected:
     static void safeFreeBuffer(uint8_t** ppBuffer);
 
     /**
+     * Returns a new upload handle and increments the current value
+     */
+    UINT64 getUploadHandle() {
+        return current_upload_handle_++;
+    }
+
+    /**
      * Returns the fully combined service URI
      */
     std::string& getControlPlaneUri() {
         return control_plane_uri_;
     }
-
-    /**
-     * Removes the current state and sets the next one in the active states
-     */
-    void removeActiveState(OngoingPutFrameState* state);
-
-    /**
-     * Finds the next state and makes it active
-     */
-    void activateNextState(OngoingPutFrameState* state);
-
-    /**
-     * Upserts the new stream state object
-     */
-    void insertActiveState(OngoingPutFrameState* state);
 
     /**
      * Notifies the client callback on an error status
@@ -490,6 +418,11 @@ protected:
      * Stores the service name
      */
     std::string service_;
+
+    /**
+     * Upload handle value
+     */
+    UINT64 current_upload_handle_;
 
     /**
      * Stores the credentials provider
@@ -525,7 +458,7 @@ protected:
      * returned by the pending_tasks_ future. At that point the OngoingPutFrameState shared pointer falls out of scope.
      *
      */
-    ThreadSafeMap<STREAM_HANDLE, OngoingPutFrameState*> active_streams_;
+    ThreadSafeMap<UINT64, std::shared_ptr<OngoingStreamState>> active_streams_;
 };
 
 } // namespace video

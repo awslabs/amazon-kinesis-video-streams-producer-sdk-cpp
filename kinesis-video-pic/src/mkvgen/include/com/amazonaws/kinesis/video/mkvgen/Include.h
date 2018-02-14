@@ -213,8 +213,11 @@ typedef struct {
     // Frame presentation timestamp adjusted with the timecode scale.
     UINT64 framePts;
 
-    // Frame decpdomg timestamp adjusted with the timecode scale.
+    // Frame decoding timestamp adjusted with the timecode scale.
     UINT64 frameDts;
+
+    // The offset where the original/adapted frame data begins
+    UINT16 dataOffset;
 
     // The state of the MKV stream generator.
     MKV_STREAM_STATE streamState;
@@ -293,10 +296,11 @@ PUBLIC_API STATUS mkvgenResetGenerator(PMkvGenerator);
  * @PMkvGenerator - The generator object
  * @PBYTE - Buffer to hold the packaged bits
  * @PUINT32 - IN/OUT - Size of the produced packaged bits
+ * @PUINT64 - OUT - Stream start timestamp
  *
  * @return - STATUS code of the execution
  */
-PUBLIC_API STATUS mkvgenGenerateHeader(PMkvGenerator, PBYTE, PUINT32);
+PUBLIC_API STATUS mkvgenGenerateHeader(PMkvGenerator, PBYTE, PUINT32, PUINT64);
 
 /**
  * Packages a frame into an MKV fragment

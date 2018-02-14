@@ -5,11 +5,11 @@
 #include <memory>
 #include <chrono>
 #include <strings.h>
+#include <curl/curl.h>
 #include "com/amazonaws/kinesis/video/common/CommonDefs.h"
+#include "OngoingStreamState.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
-
-class Response;
 
 /// Provides an interface for setting HTTP request parameters.
 ///
@@ -35,12 +35,7 @@ public:
 
     Request(Verb verb, const std::string &url);
 
-    Request(Verb verb, const std::string &url,
-            CurlHeaderCallbackFn post_header_callback,
-            CurlReadCallbackFn post_read_callback,
-            void *post_read_callback_custom_data,
-            CurlWriteCallbackFn post_write_callback = nullptr,
-            void *post_write_callback_custom_data = nullptr);
+    Request(Verb verb, const std::string &url, std::shared_ptr<OngoingStreamState> state);
 
     virtual ~Request();
 
@@ -81,21 +76,9 @@ public:
     CurlReadCallbackFn getPostHeaderCallback() const;
 
     /**
-     * @return A custom data pointer which will be passed as the 4th argument to the function returned by
-     *         getPostReadCallback().
-     */
-    void *getPostReadCallbackCustomData() const;
-
-    /**
      * @return A function pointer conforming to: https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
      */
     CurlWriteCallbackFn getPostWriteCallback() const;
-
-    /**
-     * @return A custom data pointer which will be passed as the 4th argument to the function returned by
-     *         getPostWriteCallback().
-     */
-    void *getPostWriteCallbackCustomData() const;
 
 private:
     Request();
@@ -113,11 +96,12 @@ private:
     std::chrono::duration<double, std::milli> connection_timeout_;
 
     bool is_streaming_;
-    CurlReadCallbackFn post_read_callback_;
-    CurlHeaderCallbackFn post_header_callback_;
-    void *post_read_callback_custom_data_;
-    CurlWriteCallbackFn post_write_callback_;
-    void *post_write_callback_custom_data_;
+
+    std::shared_ptr<OngoingStreamState> stream_state_;
+
+    static size_t curlHeaderCallbackFunc(char *, size_t, size_t, void *);
+    static size_t curlReadCallbackFunc(char *, size_t, size_t, void *);
+    static size_t curlWriteCallbackFunc(char *, size_t, size_t, void *);
 };
 
 } // namespace video

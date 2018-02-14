@@ -86,7 +86,7 @@ public:
      *                          stream to be created.
      * @return An KinesisVideoStream instance which is ready to start streaming.
      */
-    unique_ptr<KinesisVideoStream> createStream(std::unique_ptr<StreamDefinition> stream_definition);
+    std::shared_ptr<KinesisVideoStream> createStream(std::unique_ptr<StreamDefinition> stream_definition);
 
     /**
      * Synchronous version of the createStream
@@ -94,7 +94,7 @@ public:
      *                          stream to be created.
      * @return An KinesisVideoStream instance which is ready to start streaming.
      */
-    unique_ptr<KinesisVideoStream> createStreamSync(std::unique_ptr<StreamDefinition> stream_definition);
+    std::shared_ptr<KinesisVideoStream> createStreamSync(std::unique_ptr<StreamDefinition> stream_definition);
 
     /**
      * Frees the stream and removes it from the producer stream list.
@@ -104,7 +104,7 @@ public:
      *
      * @param KinesisVideo_stream A unique pointer to the KinesisVideoStream to free and remove.
      */
-    void freeStream(std::unique_ptr<KinesisVideoStream> kinesis_video_stream);
+    void freeStream(std::shared_ptr<KinesisVideoStream> kinesis_video_stream);
 
     /**
      * Gets the available storage size
@@ -179,7 +179,7 @@ protected:
     /**
      * Map of the handle to stream object
      */
-    ThreadSafeMap<STREAM_HANDLE, KinesisVideoStream*> active_streams_;
+    ThreadSafeMap<STREAM_HANDLE, shared_ptr<KinesisVideoStream>> active_streams_;
 
     /**
      * Callback overrides
@@ -226,7 +226,8 @@ protected:
     static STATUS streamReadyFunc(UINT64,
                                   STREAM_HANDLE);
     static STATUS streamClosedFunc(UINT64,
-                                   STREAM_HANDLE);
+                                   STREAM_HANDLE,
+                                   UINT64);
     static STATUS createStreamFunc(UINT64,
                                    PCHAR,
                                    PCHAR,
@@ -269,6 +270,7 @@ protected:
     static STATUS streamDataAvailableFunc(UINT64,
                                           STREAM_HANDLE,
                                           PCHAR,
+                                          UINT64,
                                           UINT64,
                                           UINT64);
     static STATUS streamConnectionStaleFunc(UINT64,

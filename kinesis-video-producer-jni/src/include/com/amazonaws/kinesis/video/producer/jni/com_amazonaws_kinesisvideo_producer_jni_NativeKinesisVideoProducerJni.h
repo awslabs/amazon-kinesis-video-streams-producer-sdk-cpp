@@ -93,18 +93,18 @@ JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesi
 /*
  * Class:     com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni
  * Method:    kinesisVideoStreamFragmentAck
- * Signature: (JJLcom/amazonaws/kinesisvideo/producer/KinesisVideoFragmentAck;)V
+ * Signature: (JJJLcom/amazonaws/kinesisvideo/producer/KinesisVideoFragmentAck;)V
  */
 JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFragmentAck
-  (JNIEnv *, jobject, jlong, jlong, jobject);
+  (JNIEnv *, jobject, jlong, jlong, jlong, jobject);
 
 /*
  * Class:     com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni
  * Method:    kinesisVideoStreamParseFragmentAck
- * Signature: (JJLjava/lang/String;)V
+ * Signature: (JJJLjava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamParseFragmentAck
-(JNIEnv *, jobject, jlong, jlong, jstring);
+(JNIEnv *, jobject, jlong, jlong, jlong, jstring);
 
 /*
  * Class:     com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni
@@ -189,10 +189,10 @@ JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesi
 /*
  * Class:     com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni
  * Method:    kinesisVideoStreamTerminated
- * Signature: (JJI)V
+ * Signature: (JJJI)V
  */
 JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamTerminated
-(JNIEnv *, jobject, jlong, jlong, jint);
+(JNIEnv *, jobject, jlong, jlong, jlong, jint);
 
 #ifdef __cplusplus
 }

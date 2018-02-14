@@ -74,17 +74,17 @@ size_t write_response_callback(void *ptr, size_t size, size_t nmemb, void *userp
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-using std::unique_ptr;
+using std::shared_ptr;
 using std::move;
 
-unique_ptr<Response> Response::create(Request &request) {
+shared_ptr<Response> Response::create(Request &request) {
 
     // create curl handle
-    unique_ptr<Response> response(new Response());
+    shared_ptr<Response> response(new Response());
     response->curl_ = curl_easy_init();
 
     // set up the friendly error message buffer
-    response->error_buffer_[0] = 0;
+    response->error_buffer_[0] = '\0';
     curl_easy_setopt(response->curl_, CURLOPT_ERRORBUFFER, response->error_buffer_);
 
     curl_easy_setopt(response->curl_, CURLOPT_URL, request.get_url().c_str());
@@ -138,12 +138,15 @@ unique_ptr<Response> Response::create(Request &request) {
         if (request.isStreaming()) {
             // Set the read callback from the request
             curl_easy_setopt(response->curl_, CURLOPT_HEADERFUNCTION, request.getPostHeaderCallback());
+            curl_easy_setopt(response->curl_, CURLOPT_HEADERDATA, &request);
+
+            // Set the read callback from the request
             curl_easy_setopt(response->curl_, CURLOPT_READFUNCTION, request.getPostReadCallback());
-            curl_easy_setopt(response->curl_, CURLOPT_READDATA, request.getPostReadCallbackCustomData());
+            curl_easy_setopt(response->curl_, CURLOPT_READDATA, &request);
 
             // Set the write callback from the request
             curl_easy_setopt(response->curl_, CURLOPT_WRITEFUNCTION, request.getPostWriteCallback());
-            curl_easy_setopt(response->curl_, CURLOPT_WRITEDATA, request.getPostWriteCallbackCustomData());
+            curl_easy_setopt(response->curl_, CURLOPT_WRITEDATA, &request);
         } else {
             // Set the read callback
             curl_easy_setopt(response->curl_, CURLOPT_POSTFIELDSIZE, request.getBody().size());

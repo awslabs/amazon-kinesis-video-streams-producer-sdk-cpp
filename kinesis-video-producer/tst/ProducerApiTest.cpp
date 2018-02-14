@@ -56,10 +56,13 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
     kinesis_video_stream->stop();
 
     // The awaiting should really be handled properly with signalling per stream.
+    // We will wait for 10 seconds only
     // This is for a demo purpose only!!!
-    while (!gProducerApiTest->stop_called_) {
+    index = 0;
+    while (!gProducerApiTest->stop_called_ && index < 1000) {
         LOG_DEBUG("Awaiting for the stopped notification... Status of stopped state " << gProducerApiTest->stop_called_);
         usleep(10000L);
+        index++;
     }
 
     return NULL;
@@ -67,6 +70,11 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
 
 TEST_F(ProducerApiTest, create_produce_stream)
 {
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
     for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
         // Create the stream
         streams_[i] = CreateTestStream(i);

@@ -39,7 +39,7 @@ public:
             duration<uint64_t, milli> timecode_scale = milliseconds(1),
             bool key_frame_fragmentation = true,
             bool frame_timecodes = true,
-            bool absolute_fragment_times = false,
+            bool absolute_fragment_times = true,
             bool fragment_acks = true,
             bool restart_on_error = true,
             bool recalculate_metrics = true,

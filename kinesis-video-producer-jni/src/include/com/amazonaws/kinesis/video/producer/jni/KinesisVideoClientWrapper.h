@@ -114,9 +114,9 @@ class KinesisVideoClientWrapper
     static STATUS droppedFrameReportFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS droppedFragmentReportFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS streamErrorReportFunc(UINT64, STREAM_HANDLE, UINT64, STATUS);
-    static STATUS streamDataAvailableFunc(UINT64, STREAM_HANDLE, PCHAR, UINT64, UINT64);
+    static STATUS streamDataAvailableFunc(UINT64, STREAM_HANDLE, PCHAR, UINT64, UINT64, UINT64);
     static STATUS streamReadyFunc(UINT64, STREAM_HANDLE);
-    static STATUS streamClosedFunc(UINT64, STREAM_HANDLE);
+    static STATUS streamClosedFunc(UINT64, STREAM_HANDLE, UINT64);
     static MUTEX createMutexFunc(UINT64, BOOL);
     static VOID lockMutexFunc(UINT64, MUTEX);
     static VOID unlockMutexFunc(UINT64, MUTEX);
@@ -181,7 +181,7 @@ public:
     void stopKinesisVideoStream(jlong streamHandle);
     void putKinesisVideoFrame(jlong streamHandle, jobject kinesisVideoFrame);
     void describeStreamResult(jlong streamHandle, jint httpStatusCode, jobject streamDescription);
-    void kinesisVideoStreamTerminated(jlong streamHandle, jint httpStatusCode);
+    void kinesisVideoStreamTerminated(jlong streamHandle, jlong uploadHandle, jint httpStatusCode);
     void getStreamingEndpointResult(jlong streamHandle, jint httpStatusCode, jstring streamingEndpoint);
     void getStreamingTokenResult(jlong streamHandle, jint httpStatusCode, jbyteArray token, jint tokenSize, jlong expiration);
     void createStreamResult(jlong streamHandle, jint httpStatusCode, jstring streamArn);
@@ -191,8 +191,8 @@ public:
     void streamFormatChanged(jlong streamHandle, jobject codecPrivateData);
     void createDeviceResult(jlong clientHandle, jint httpStatusCode, jstring deviceArn);
     void deviceCertToTokenResult(jlong clientHandle, jint httpStatusCode, jbyteArray token, jint tokenSize, jlong expiration);
-    void kinesisVideoStreamFragmentAck(jlong streamHandle, jobject fragmentAck);
-    void kinesisVideoStreamParseFragmentAck(jlong streamHandle, jstring ack);
+    void kinesisVideoStreamFragmentAck(jlong streamHandle, jlong uploadHandle, jobject fragmentAck);
+    void kinesisVideoStreamParseFragmentAck(jlong streamHandle, jlong uploadHandle, jstring ack);
 private:
     BOOL setCallbacks(JNIEnv* env, jobject thiz);
 };

@@ -126,6 +126,7 @@ public:
                       mStartThreads(FALSE),
                       mDataReadyDuration(0),
                       mDataReadySize(0),
+                      mStreamUploadHandle(INVALID_UPLOAD_HANDLE_VALUE),
                       mGetCurrentTimeFuncCount(0),
                       mGetRandomNumberFuncCount(0),
                       mGetDeviceCertificateFuncCount(0),
@@ -301,6 +302,7 @@ protected:
     UINT64 mCustomDatas[MAX_TEST_STREAM_COUNT];
     UINT32 mTagCount;
     CHAR mResourceArn[MAX_ARN_LEN];
+    UINT64 mStreamUploadHandle;
 
     // Callback function count
     volatile UINT32 mGetCurrentTimeFuncCount;
@@ -519,7 +521,7 @@ protected:
     static STATUS droppedFrameReportFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS droppedFragmentReportFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS streamReadyFunc(UINT64, STREAM_HANDLE);
-    static STATUS streamClosedFunc(UINT64, STREAM_HANDLE);
+    static STATUS streamClosedFunc(UINT64, STREAM_HANDLE, UINT64);
     static MUTEX createMutexFunc(UINT64, BOOL);
     static VOID lockMutexFunc(UINT64, MUTEX);
     static VOID unlockMutexFunc(UINT64, MUTEX);
@@ -572,6 +574,7 @@ protected:
     static STATUS streamDataAvailableFunc(UINT64,
                                           STREAM_HANDLE,
                                           PCHAR,
+                                          UINT64,
                                           UINT64,
                                           UINT64);
 

@@ -140,12 +140,12 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
     return kinesis_video_producer;
 }
 
-unique_ptr<KinesisVideoStream> KinesisVideoProducer::createStream(unique_ptr<StreamDefinition> stream_definition) {
+shared_ptr<KinesisVideoStream> KinesisVideoProducer::createStream(unique_ptr<StreamDefinition> stream_definition) {
     assert(stream_definition.get());
 
     StreamInfo stream_info = stream_definition->getStreamInfo();
-    std::unique_ptr<KinesisVideoStream> kinesis_video_stream(new KinesisVideoStream(*this, stream_definition->getStreamName()));
-    STATUS status = createKinesisVideoStream(client_handle_, &stream_info, kinesis_video_stream.get()->getStreamHandle());
+    std::shared_ptr<KinesisVideoStream> kinesis_video_stream(new KinesisVideoStream(*this, stream_definition->getStreamName()));
+    STATUS status = createKinesisVideoStream(client_handle_, &stream_info, kinesis_video_stream->getStreamHandle());
 
     if (STATUS_FAILED(status)) {
         stringstream status_strstrm;
@@ -156,12 +156,12 @@ unique_ptr<KinesisVideoStream> KinesisVideoProducer::createStream(unique_ptr<Str
     }
 
     // Add to the map
-    active_streams_.put(*kinesis_video_stream->getStreamHandle(), kinesis_video_stream.get());
+    active_streams_.put(*kinesis_video_stream->getStreamHandle(), kinesis_video_stream);
 
     return kinesis_video_stream;
 }
 
-unique_ptr<KinesisVideoStream> KinesisVideoProducer::createStreamSync(unique_ptr<StreamDefinition> stream_definition) {
+shared_ptr<KinesisVideoStream> KinesisVideoProducer::createStreamSync(unique_ptr<StreamDefinition> stream_definition) {
 
     auto kinesis_video_stream = move(KinesisVideoProducer::createStream(move(stream_definition)));
 
@@ -196,7 +196,7 @@ unique_ptr<KinesisVideoStream> KinesisVideoProducer::createStreamSync(unique_ptr
     return kinesis_video_stream;
 }
 
-void KinesisVideoProducer::freeStream(std::unique_ptr<KinesisVideoStream> kinesis_video_stream) {
+void KinesisVideoProducer::freeStream(std::shared_ptr<KinesisVideoStream> kinesis_video_stream) {
     if (nullptr == kinesis_video_stream) {
         LOG_AND_THROW("Kinesis Video stream can't be null");
     }
@@ -385,10 +385,12 @@ STATUS KinesisVideoProducer::droppedFragmentReportFunc(UINT64 custom_data,
 }
 
 STATUS KinesisVideoProducer::streamClosedFunc(UINT64 custom_data,
-                                              STREAM_HANDLE stream_handle) {
+                                              STREAM_HANDLE stream_handle,
+                                              UINT64 stream_upload_handle) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     return this_obj->stored_callbacks_.streamClosedFn(this_obj->stored_callbacks_.customData,
-                                                     stream_handle);
+                                                      stream_handle,
+                                                      stream_upload_handle);
 }
 
 STATUS KinesisVideoProducer::streamErrorReportFunc(UINT64 custom_data,
@@ -503,12 +505,14 @@ STATUS KinesisVideoProducer::deviceCertToTokenFunc(UINT64 custom_data,
 STATUS KinesisVideoProducer::streamDataAvailableFunc(UINT64 custom_data,
                                                      STREAM_HANDLE stream_handle,
                                                      PCHAR stream_name,
+                                                     UINT64 stream_upload_handle,
                                                      UINT64 duration_available,
                                                      UINT64 size_available) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     return this_obj->stored_callbacks_.streamDataAvailableFn(this_obj->stored_callbacks_.customData,
                                                              stream_handle,
                                                              stream_name,
+                                                             stream_upload_handle,
                                                              duration_available,
                                                              size_available);
 }

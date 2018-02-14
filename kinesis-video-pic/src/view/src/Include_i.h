@@ -38,11 +38,11 @@ typedef struct {
     UINT32 allocationSize;
 
     // The location of the head and the tail
-    UINT32 head;
-    UINT32 tail;
+    UINT64 head;
+    UINT64 tail;
 
     // The current location
-    UINT32 current;
+    UINT64 current;
 
     // The custom data for the callback
     UINT64 customData;
@@ -54,7 +54,7 @@ typedef struct {
     UINT64 bufferDuration;
 
     // The size of the buffer
-    UINT32 itemBufferCount;
+    UINT64 itemBufferCount;
 
     // The actual buffer which follows immediately after the structure
     PViewItem itemBuffer;

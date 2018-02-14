@@ -563,7 +563,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartOkResult)
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, SERVICE_CALL_RESULT_OK));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_RESULT_OK));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -643,7 +643,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartStreamLimitResult)
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, SERVICE_CALL_STREAM_LIMIT));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_STREAM_LIMIT));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -723,7 +723,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartUnauthorizedResult)
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, SERVICE_CALL_NOT_AUTHORIZED));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_NOT_AUTHORIZED));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -803,7 +803,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartOtherResult)
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, SERVICE_CALL_UNKNOWN));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_UNKNOWN));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -885,7 +885,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartNotFoundResult)
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, SERVICE_CALL_RESOURCE_NOT_FOUND));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_RESOURCE_NOT_FOUND));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -967,7 +967,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResult)
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, SERVICE_CALL_INVALID_ARG));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_INVALID_ARG));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -1031,7 +1031,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResultRestart)
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, SERVICE_CALL_INVALID_ARG));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_INVALID_ARG));
 
     // Try streaming again - should succeed
     frame.index++;
@@ -1050,7 +1050,6 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResultRestart)
 
 TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
 {
-    UINT32 i, maxIteration;
     BYTE tempBuffer[10000];
     UINT64 timestamp = 100;
     Frame frame;
@@ -1080,13 +1079,13 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
     EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
 
-    // Validate the function has been called
-    EXPECT_EQ(1, mStreamDataAvailableFuncCount);
-    EXPECT_EQ(TEST_FRAME_DURATION, mDataReadyDuration);
-    EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
+    // Validate the function has NOT been called as we haven't yet executed putStreamResultEvent
+    EXPECT_EQ(0, mStreamDataAvailableFuncCount);
+    EXPECT_EQ(0, mDataReadyDuration);
+    EXPECT_EQ(0, mDataReadySize);
 
-    // Should be encoded size
-    EXPECT_EQ(SIZEOF(tempBuffer) + MKV_HEADER_OVERHEAD, mDataReadySize);
+    // Set the result
+    EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
 
     // Call again with cleared data
     mStreamName[0] = '\0';
@@ -1106,7 +1105,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     EXPECT_EQ(FALSE, mAckRequired);
 
     // Validate the function has been called
-    EXPECT_EQ(2, mStreamDataAvailableFuncCount);
+    EXPECT_EQ(1, mStreamDataAvailableFuncCount);
     EXPECT_EQ(TEST_FRAME_DURATION * 2, mDataReadyDuration);
 
     // Should be encoded size

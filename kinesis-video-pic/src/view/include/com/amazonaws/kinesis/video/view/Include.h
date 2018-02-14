@@ -55,12 +55,14 @@ extern "C" {
 
 /**
  * Flags definitions
+ *
+ * NOTE: The high order 16 bits will be used to store the data offset
  */
 #define ITEM_FLAG_NONE                               0
-#define ITEM_FLAG_FRAGMENT_START                     (0x1 << 0)
-#define ITEM_FLAG_BUFFERING_ACK                      (0x1 << 1)
-#define ITEM_FLAG_RECEIVED_ACK                       (0x1 << 2)
-#define ITEM_FLAG_STREAM_START                       (0x1 << 31)
+#define ITEM_FLAG_STREAM_START                       (0x1 << 0)
+#define ITEM_FLAG_FRAGMENT_START                     (0x1 << 1)
+#define ITEM_FLAG_BUFFERING_ACK                      (0x1 << 2)
+#define ITEM_FLAG_RECEIVED_ACK                       (0x1 << 3)
 
 /**
  * Macros for checking/setting/clearing for various flags
@@ -80,15 +82,25 @@ extern "C" {
 #define CLEAR_ITEM_RECEIVED_ACK(f)                  ((f) &= ~ITEM_FLAG_RECEIVED_ACK)
 #define CLEAR_ITEM_STREAM_START(f)                  ((f) &= ~ITEM_FLAG_STREAM_START)
 
+#define GET_ITEM_DATA_OFFSET(f)                     ((UINT16) ((f) >> 16))
+#define SET_ITEM_DATA_OFFSET(f, o)                  (((f) &= 0x0000ffff) |= (((UINT16) (o)) << 16))
+
+/**
+ * This is a sentinel indicating an invalid index value
+ */
+#define INVALID_VIEW_INDEX_VALUE (0xFFFFFFFFFFFFFFFFULL)
+
+/**
+ * Checks for the index validity
+ */
+#define IS_VALID_VIEW_INDEX(h) ((h) != INVALID_VIEW_INDEX_VALUE )
+
 /**
  * The representation of the item in the cache.
  */
 typedef struct {
     // Id of the item
-    UINT32 index;
-
-    // Whether this item depends on others (ex. IFrame for frames)
-    UINT32 flags;
+    UINT64 index;
 
     // The timestamp of the item
     UINT64 timestamp;
@@ -96,11 +108,11 @@ typedef struct {
     // The duration of the item
     UINT64 duration;
 
-    // Offset of the data from the beginning of the allocation
-    UINT32 offset;
-
     // Length of the data in bytes
     UINT32 length;
+
+    // Whether this item depends on others (ex. IFrame for frames)
+    UINT32 flags;
 
     // The data allocation handle
     ALLOCATION_HANDLE handle;
@@ -163,11 +175,11 @@ PUBLIC_API STATUS freeContentView(PContentView);
  * Checks whether an item with a given index exists
  *
  * PContentView - Content view
- * UINT32 - item index
+ * UINT64 - item index
  * PBOOL - whether the item exists
  *
  */
-PUBLIC_API STATUS contentViewItemExists(PContentView, UINT32, PBOOL);
+PUBLIC_API STATUS contentViewItemExists(PContentView, UINT64, PBOOL);
 
 /**
  * Checks whether an item with a given timestamp is in the range
@@ -192,11 +204,11 @@ PUBLIC_API STATUS contentViewGetNext(PContentView, PViewItem*);
  * Gets an item from the given index. Current remains untouched.
  *
  * PContentView - Content view
- * UINT32 - the index of the item
+ * UINT64 - the index of the item
  * PViewItem* - The current item pointer
  *
  */
-PUBLIC_API STATUS contentViewGetItemAt(PContentView, UINT32, PViewItem*);
+PUBLIC_API STATUS contentViewGetItemAt(PContentView, UINT64, PViewItem*);
 
 /**
  * Finds an item corresponding to the timestamp. Current remains untouched.
@@ -212,19 +224,19 @@ PUBLIC_API STATUS contentViewGetItemWithTimestamp(PContentView, UINT64, PViewIte
  * Gets the current index
  *
  * PContentView - Content view
- * PUINT32 - current item index
+ * PUINT64 - current item index
  *
  */
-PUBLIC_API STATUS contentViewGetCurrentIndex(PContentView, PUINT32);
+PUBLIC_API STATUS contentViewGetCurrentIndex(PContentView, PUINT64);
 
 /**
  * Sets the current item at a given index
  *
  * PContentView - Content view
- * UINT32 - new current item index
+ * UINT64 - new current item index
  *
  */
-PUBLIC_API STATUS contentViewSetCurrentIndex(PContentView, UINT32);
+PUBLIC_API STATUS contentViewSetCurrentIndex(PContentView, UINT64);
 
 /**
  * Rolls back the current item by a specified duration or as far as the tail.
@@ -311,8 +323,8 @@ PUBLIC_API STATUS contentViewGetWindowItemCount(PContentView, PUINT32, PUINT32);
  * Gets the view's window allocation size and entire window allocation size (optionally)
  *
  * PContentView - Content view
- * PUINT32 - current window allocation size - the size of all allocations from the current to the head
- * PUINT32 - Optional - entire window size - the size of all allocations in the entire window
+ * PUINT64 - current window allocation size - the size of all allocations from the current to the head
+ * PUINT64 - Optional - entire window size - the size of all allocations in the entire window
  *
  */
 PUBLIC_API STATUS contentViewGetWindowAllocationSize(PContentView, PUINT64, PUINT64);
@@ -321,10 +333,10 @@ PUBLIC_API STATUS contentViewGetWindowAllocationSize(PContentView, PUINT64, PUIN
  * Trims the tail till the given item. The remove callbacks will be fired and the current shifted if needed.
  *
  * PContentView - Content view
- * UINT32 - Trim the tail to this item
+ * UINT64 - Trim the tail to this item
  *
  */
-PUBLIC_API STATUS contentViewTrimTail(PContentView, UINT32);
+PUBLIC_API STATUS contentViewTrimTail(PContentView, UINT64);
 
 /**
  * Removes all items in the content view. Calls the remove callback if specified.

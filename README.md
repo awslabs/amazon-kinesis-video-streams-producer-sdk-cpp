@@ -252,6 +252,12 @@ $ sudo reboot
 
 
 ## Release Notes
+### Release 1.2.0 (February 2018)
+* Bug fixes and performance enhancement
+* Streaming error recovery improvements
+* Minor API changes:
+  * create stream APIs return shared pointers instead of unique pointers
+  * Addition of StreamClosed callback to notify the caller application when the stream is finished draining the existing buffered frames before closing in the graceful termination case.
 ### Release 1.1.3 (February 2018)
 * Added RTSP Demo Sample
 ** AWS_ACCESS_KEY_ID=AKIASAMPLEKEYID AWS_SECRET_ACCESS_KEY=MYSECRETACCESSKEY ./kinesis_video_gstreamer_sample_rtsp_app rtspurl  stream-name

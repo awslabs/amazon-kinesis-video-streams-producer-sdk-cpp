@@ -209,7 +209,7 @@ STATUS mkvgenPackageFrame(PMkvGenerator pMkvGenerator, PFrame pFrame, PBYTE pBuf
     STATUS retStatus = STATUS_SUCCESS;
     PStreamMkvGenerator pStreamMkvGenerator;
     MKV_STREAM_STATE streamState = MKV_STATE_START_STREAM;
-    UINT32 bufferSize, encodedLen, packagedSize, adaptedFrameSize;
+    UINT32 bufferSize, encodedLen, packagedSize, adaptedFrameSize, overheadSize;
     // Evaluated presentation and decode timestamps
     UINT64 pts = 0, dts = 0;
     BOOL clusterStart = FALSE;
@@ -226,11 +226,11 @@ STATUS mkvgenPackageFrame(PMkvGenerator pMkvGenerator, PFrame pFrame, PBYTE pBuf
     // Calculate the necessary size
 
     // Get the overhead when packaging MKV
-    packagedSize = mkvgenGetFrameOverhead(pStreamMkvGenerator, streamState);
+    overheadSize = mkvgenGetFrameOverhead(pStreamMkvGenerator, streamState);
 
     // Get the adapted size of the frame and add to the overall size
     CHK_STATUS(getAdaptedFrameSize(pFrame, pStreamMkvGenerator->nalsAdaptation, &adaptedFrameSize));
-    packagedSize += adaptedFrameSize;
+    packagedSize = overheadSize + adaptedFrameSize;
 
     // Check if we are asked for size only and early return if so
     CHK(pBuffer != NULL, STATUS_SUCCESS);
@@ -327,6 +327,7 @@ CleanUp:
             pEncodedFrameInfo->clusterTs = MKV_TIMECODE_TO_TIMESTAMP(pStreamMkvGenerator->lastClusterTimestamp, pStreamMkvGenerator->timecodeScale);
             pEncodedFrameInfo->framePts = MKV_TIMECODE_TO_TIMESTAMP(pts, pStreamMkvGenerator->timecodeScale);
             pEncodedFrameInfo->frameDts = MKV_TIMECODE_TO_TIMESTAMP(dts, pStreamMkvGenerator->timecodeScale);
+            pEncodedFrameInfo->dataOffset = overheadSize;
             pEncodedFrameInfo->streamState = streamState;
         }
     }
@@ -338,7 +339,7 @@ CleanUp:
 /**
  * Packages MKV header
  */
-STATUS mkvgenGenerateHeader(PMkvGenerator pMkvGenerator, PBYTE pBuffer, PUINT32 pSize)
+STATUS mkvgenGenerateHeader(PMkvGenerator pMkvGenerator, PBYTE pBuffer, PUINT32 pSize, PUINT64 pStreamStartTs)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -393,6 +394,10 @@ CleanUp:
     if (STATUS_SUCCEEDED(retStatus)) {
         // Set the size and the state before return
         *pSize = packagedSize;
+
+        if (pStreamStartTs != NULL) {
+            *pStreamStartTs = MKV_TIMECODE_TO_TIMESTAMP(pStreamMkvGenerator->streamStartTimestamp, pStreamMkvGenerator->timecodeScale);
+        }
     }
 
     LEAVES();

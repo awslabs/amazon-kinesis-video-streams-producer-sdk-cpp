@@ -81,10 +81,11 @@ STATUS defaultStreamReady(UINT64 customData, STREAM_HANDLE streamHandle)
 /**
  * Default end of stream callback functionality - NOOP
  */
-STATUS defaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle)
+STATUS defaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 streamUploadHandle)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(streamHandle);
+    UNUSED_PARAM(streamUploadHandle);
     return STATUS_SUCCESS;
 }
 
