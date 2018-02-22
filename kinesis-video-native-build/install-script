@@ -26,14 +26,21 @@ echo " Starting to build the Kinesis Video Stream Demo Application
         automake
         m4
         also the gstreamer, gstreamer plugins, yasm, gst-libav and x264.
+        Note - for MacOS High Sierra: Use 
+            brew install autoconf  
+            brew install bison
  "
+# Make confirmation optional for Docker builds
+confirm='Y'
 
-echo "
-    Y - Confirm to proceed with build install
-    N - Exit build install "
-echo -n "Enter selection: "
-read confirm
-echo ""
+if [[ "$#" < 1 || "$1" != "a" ]]; then
+  echo "
+      Y - Confirm to proceed with build install
+      N - Exit build install "
+  echo -n "Enter selection: "
+  read confirm
+  echo ""
+fi
 
 if [[ "$confirm" = "N" || "$confirm" = "n" ]]; then
      exit
@@ -78,6 +85,7 @@ elif [[ "$unamestr" == 'FreeBSD' ]]; then
 elif [[ "$unamestr" == 'Darwin' ]]; then
    PLATFORM='mac'
 fi
+KERNEL_VERSION=`uname -r|cut -f1 -d"."`
 
 
 #--------- build + install libs ---------
@@ -253,13 +261,13 @@ fi
     if [ ! -f $DOWNLOADS/local/lib/libfl.2.so ]; then
         if [ ! -f $DOWNLOADS/local/lib/libfl.so ]; then
           echo "flex not found. Installing"
-          if [ ! -f $DOWNLOADS/flex-2.6.4.tar.gz ]; then
+          if [ ! -f $DOWNLOADS/flex-2.6.3.tar.gz ]; then
             cd $DOWNLOADS
-            curl -L "https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz" -o "flex-2.6.4.tar.xz"
+            curl -L "https://github.com/westes/flex/releases/download/v2.6.3/flex-2.6.3.tar.gz" -o "flex-2.6.3.tar.xz"
           fi
           cd $DOWNLOADS
-          tar -xvf flex-2.6.4.tar.xz
-          cd $DOWNLOADS/flex-2.6.4
+          tar -xvf flex-2.6.3.tar.xz
+          cd $DOWNLOADS/flex-2.6.3
           ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
           make
           make install
@@ -267,6 +275,7 @@ fi
   fi
 fi
 #-----------------------liby.a----------------------------
+if [[ $PLATFORM != 'mac' || $KERNEL_VERSION < 17 ]]; then
  if [ ! -f $DOWNLOADS/local/lib/liby.a ]; then
     echo "bison not found. Installing"
     if [ ! -f $DOWNLOADS/bison-2.3.tar.gz ]; then
@@ -279,6 +288,7 @@ fi
     ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
+ fi
 fi
 # --------- libltdl------------------------------------------
  if [ ! -f $DOWNLOADS/local/lib/libltdl.7.dylib ]; then
@@ -343,6 +353,8 @@ if [ ! -f $DOWNLOADS/local/lib/libgtest.dylib ]; then
 fi
 
 #-------------------autoconf, autoheader, autom4te, autoreconf, autoscan, autoupdate, and ifnames------------------
+
+if [[ $PLATFORM != 'mac' || $KERNEL_VERSION < 17 ]]; then
  if [ ! -f $DOWNLOADS/local/bin/autoconf ]; then
     echo "autoconf not found. Installing"
     if [ ! -f $DOWNLOADS/autoconf-2.69.tar.gz ]; then
@@ -356,17 +368,17 @@ fi
     make
     make install
  fi
-
+fi
 #--------aclocal, aclocal-1.15 (hard linked with aclocal), automake, and automake-1.15 (hard linked with automake)--
   if [ ! -f $DOWNLOADS/local/bin/automake ]; then
     echo "automake not found. Installing"
-    if [ ! -f $DOWNLOADS/automake-1.15.tar.gz ]; then
+    if [ ! -f $DOWNLOADS/automake-1.15.1.tar.gz ]; then
       cd $DOWNLOADS
-      curl -L "https://ftp.gnu.org/gnu/automake/automake-1.15.tar.gz" -o "automake-1.15.tar.xz"
+      curl -L "https://ftp.gnu.org/gnu/automake/automake-1.15.1.tar.gz" -o "automake-1.15.1.tar.xz"
     fi
     cd $DOWNLOADS
-    tar -xvf automake-1.15.tar.xz
-    cd $DOWNLOADS/automake-1.15
+    tar -xvf automake-1.15.1.tar.xz
+    cd $DOWNLOADS/automake-1.15.1
     ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
     make
     make install
