@@ -62,7 +62,7 @@ STATUS DefaultCallbackProvider::getSecurityTokenHandler(UINT64 custom_data, PBYT
 
 UINT64 DefaultCallbackProvider::getCurrentTimeHandler(UINT64 custom_data) {
     UNUSED_PARAM(custom_data);
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch())
             .count() / DEFAULT_TIME_UNIT_IN_NANOS;
 }
 
@@ -136,7 +136,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
 
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
-        auto time_point = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds> (call_after_time);
+        auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> (call_after_time);
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
@@ -222,7 +222,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
 
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
-        auto time_point = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds> (call_after_time);
+        auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> (call_after_time);
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
@@ -285,7 +285,7 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
 
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
-        auto time_point = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds> (call_after_time);
+        auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> (call_after_time);
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
@@ -411,7 +411,7 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
 
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
-        auto time_point = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds> (call_after_time);
+        auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> (call_after_time);
         std::this_thread::sleep_until(time_point);
 
         // Perform a sync call
@@ -556,7 +556,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
 
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
-        auto time_point = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>(call_after_time);
+        auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(call_after_time);
         std::this_thread::sleep_until(time_point);
 
         LOG_INFO("Creating new connection for Kinesis Video stream: " << stream_name_str);
