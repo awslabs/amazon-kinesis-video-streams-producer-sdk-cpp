@@ -26,7 +26,7 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
     while (!stop_producer_) {
         // Produce frames
         timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::steady_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+                std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
         frame.index = index++;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;

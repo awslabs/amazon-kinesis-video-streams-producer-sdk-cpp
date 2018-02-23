@@ -69,7 +69,6 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     override_callbacks.clientReadyFn = KinesisVideoProducer::clientReadyFunc;
     override_callbacks.streamReadyFn = KinesisVideoProducer::streamReadyFunc;
 
-
     STATUS status = createKinesisVideoClient(&device_info, &override_callbacks, &client_handle);
     if (STATUS_FAILED(status)) {
         // Delete the producer on error

@@ -252,6 +252,10 @@ $ sudo reboot
 
 
 ## Release Notes
+### Release 1.2.1 (February 2018)
+* Bug fix for producer timestamp *video playback* in the console should be fixed if proper timestamp is provided to SDK. Current setting in sample app uses Gstreamer frame timecode and relative timestamp (used by SDK).
+* install-script is updated to automatically detect OS version and avoid dependency issue on Mac High Sierra and Ubuntu 17.10.
+* Known issue: Producer timestamp mode *video playback in console* will not work if GStreamer demoapp is configured to use frame timecode and absolute timestamp (used by SDK).
 ### Release 1.2.0 (February 2018)
 * Bug fixes and performance enhancement
 * Streaming error recovery improvements

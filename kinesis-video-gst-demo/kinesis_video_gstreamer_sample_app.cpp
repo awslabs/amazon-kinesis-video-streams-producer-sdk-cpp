@@ -82,7 +82,7 @@ public:
 
         // Update only the expiration
         auto now_time = std::chrono::duration_cast<std::chrono::seconds>(
-                std::chrono::steady_clock::now().time_since_epoch());
+                std::chrono::system_clock::now().time_since_epoch());
         auto expiration_seconds = now_time + ROTATION_PERIOD;
         credentials.setExpiration(std::chrono::seconds(expiration_seconds.count()));
         LOG_INFO("New credentials expiration is " << credentials.getExpiration().count());
@@ -150,7 +150,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
     frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-    frame->duration = 20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame->duration = 10 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(data);
 }
@@ -296,12 +296,12 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
                                                            milliseconds::zero(),
                                                            seconds(2),
                                                            milliseconds(1),
-                                                           true,
-                                                           true,
-                                                           true,
-                                                           true,
-                                                           true,
-                                                           true,
+                                                           true,//Construct a fragment at each key frame
+                                                           true,//Use provided frame timecode
+                                                           false,//Relative timecode
+                                                           true,//Ack on fragment is enabled
+                                                           true,//SDK will restart when error happens
+                                                           true,//recalculate_metrics
                                                            0,
                                                            30,
                                                            4 * 1024 * 1024,
