@@ -188,8 +188,15 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
     bool delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
     FRAME_FLAGS kinesis_video_flags;
+   
+    if (GST_BUFFER_PTS_IS_VALID(buffer)) {
+         buffer->dts = buffer->pts;
+    }
+    else {
+         buffer->pts = buffer->dts;
+    }
+
     if (!delta) {
-        buffer->pts = buffer->dts;
         kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
     } else {
         kinesis_video_flags = FRAME_FLAG_NONE;
