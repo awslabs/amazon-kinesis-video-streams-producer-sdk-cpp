@@ -35,7 +35,7 @@ Please install the following additional build tools before proceeding with `./in
 
 After you've downloaded the code from GitHub, you can build it on Mac OS or Ubuntu using `./install-script`  (which is inside the `kinesis-video-native-build` directory).
 
-**Important** Change to the directory `kinesis-video-native-build` first. Then run the `./install-script` from that directory.
+**Important** Change *current working directory* to the `kinesis-video-native-build` directory first. Then run the `./install-script` from that directory.
   
 This will produce the core library, the JNI library, unit tests executable and the sample GStreamer application. The script will download and build the dependent open source components in the 'downloads' directory (within `kinesis-video-native-build` directory)and link against it.
  
@@ -48,7 +48,8 @@ Running
 $ cmake . 
 $ make
 ```
-from the `kinesis-video-native-build` directory will build and link the SDK.
+from the `kinesis-video-native-build` directory will build and link the SDK. 
+The `./min-install-script` inside the `kinesis-video-native-build` captures these steps for installing the Kinesis Video Streams Producer SDK with the system versions for linking.
 
 #### Build the binaries using the dependent libraries from source
 
@@ -89,33 +90,6 @@ Many platforms come with a cert file with a lot of the well-known public certs i
 
 ----
 
-### Running the application
-
-#### Launching the sample application / unit test
-Define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables with the AWS access key id and secret key:
-
-```
-$ export AWS_ACCESS_KEY_ID={AccessKeyId}
-$ export AWS_SECRET_ACCESS_KEY={SecretAccessKey}
-```
-optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS_DEFAULT_REGION` for the region other than `us-west-2`
-
-#### C++ Unit tests
-
-The executable for **unit tests** will be built in `./start` inside the `kinesis-video-native-build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
-
-#### GStreamer demo application
-
-The GStreamer demo app will be built in `kinesis_video_gstreamer_sample_app` in the `kinesis-video-native-build` directory. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution through command line arguments.
-
-* **A.** If resolution is provided then the sample will try to check if the camera supports that resolution. If it does detect that the camera can supprt the resolution supplied in command line, then streaming starts; else, it will fail with an error msg `Resolution not supported`
-  
-* **B.** If no resolution is specified, the demo will try to use these three resolutions **1920x1080, 1280x720 and 640x480** in that order (highest resolution first) and will **start streaming** once the camera supported resolution is detected.
-
-#### Enabling verbose logs
-Define `HEAP_DEBUG` and `LOG_STREAMING` C-defines by uncommenting the appropriate lines in CMakeList.txt in the kinesis-video-native-build directory.
-
-----
 
 ## Install Steps for Ubuntu 17.x using apt-get
 The following are the steps to install the build-time prerequisites for Ubuntu 17.x
@@ -217,6 +191,58 @@ Run the build script: (within `kinesis-video-native-build` folder)
 ```
 ./install-script
 ```
+----
+## Examples
+
+### Running the sample demo applications
+
+#### Setting credentials in environment variables
+Define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables with the AWS access key id and secret key:
+
+```
+$ export AWS_ACCESS_KEY_ID={AccessKeyId}
+$ export AWS_SECRET_ACCESS_KEY={SecretAccessKey}
+```
+optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS_DEFAULT_REGION` for the region other than `us-west-2`
+
+#### GStreamer webcam demo application
+
+The GStreamer demo app will be built in `kinesis_video_gstreamer_sample_app` in the `kinesis-video-native-build` directory. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution (width and height) through command line arguments.
+
+```
+Usage: AWS_ACCESS_KEY_ID=<SAMPLEKEY> AWS_SECRET_ACCESS_KEY=<SAMPLESECRET> ./kinesis_video_gstreamer_sample_app <my-stream-name> -w <width> -h <height> -f <framerate> -b <bitrateInKBPS>
+```
+* **A.** If resolution is provided then the sample will try to check if the camera supports that resolution. If it does detect that the camera can supprt the resolution supplied in command line, then streaming starts; else, it will fail with an error msg `Resolution not supported`
+  
+* **B.** If no resolution is specified, the demo will try to use these three resolutions **1920x1080, 1280x720 and 640x480** in that order (highest resolution first) and will **start streaming** once the camera supported resolution is detected.
+
+#### GStreamer RTSP demo application
+
+The GStreamer RTSP demo app will be built in `kinesis_video_gstreamer_sample_rtsp_app` in the `kinesis-video-native-build` directory. Launch it with a stream name and `rtsp_url`  and it will start streaming.
+
+```
+AWS_ACCESS_KEY_ID=<ACCESS_KEY> AWS_SECRET_ACCESS_KEY=<SECRET_KEY> ./kinesis_video_gstreamer_sample_rtsp_app <my_rtsp_url> my-rtsp-stream
+
+```
+
+#### Running C++ Unit tests
+
+The executable for **unit tests** will be built in `./start` inside the `kinesis-video-native-build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
+
+
+
+#### Enabling verbose logs
+Define `HEAP_DEBUG` and `LOG_STREAMING` C-defines by uncommenting the appropriate lines in CMakeList.txt in the kinesis-video-native-build directory.
+
+#### Additional Examples
+
+For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Video Streams Parsing Library refer: 
+
+##### [Kinesis Video Streams Producer Java SDK](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-java/blob/master/README.md)
+##### [Kinesis Video Streams Parser Library](https://github.com/aws/amazon-kinesis-video-streams-parser-library/blob/master/README.md)
+##### [Kinesis Video Streams Android SDK](https://github.com/awslabs/aws-sdk-android-samples/tree/master/AmazonKinesisVideoDemoApp)
+----
+
 
 ----
 
@@ -293,8 +319,8 @@ Rebuilding the `libx264.so` library and **re-linking the demo application** fixe
 * Added **RTSP Demo Sample**
 * Run the demo using:
 ```
-AWS_ACCESS_KEY_ID=AKIASAMPLEKEYID AWS_SECRET_ACCESS_KEY=MYSECRETACCESSKEY ./kinesis_video_gstreamer_sample_rtsp_app rtspurl  stream-name
-```
+AWS_ACCESS_KEY_ID=<MYACCESSKEYID> AWS_SECRET_ACCESS_KEY=<MYSECRETKEY> ./kinesis_video_gstreamer_sample_rtsp_app <rtspurl> <stream-name
+>```
 #### Release 1.1.2 (January 2018)
 * Allowed devices to output h.264 streams directly
 * The user can also supply a streaming resolution through command line arguments.
