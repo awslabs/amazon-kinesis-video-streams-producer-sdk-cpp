@@ -56,6 +56,10 @@ The `./min-install-script` inside the `kinesis-video-native-build` captures thes
 
 The `install-script` will take some time to bring down and compile the open source components. If anything fails or the script is interrupted, re-running it will pick up from the place where it last left off. The sub-sequent run will be building just the modified SDK components or applications which is much faster.
 
+#### Build the native library (KinesisVideoProducerJNI) to run Java Demo App
+The `./java-install-script` inside `kinesis-video-native-build` will build the KinesisVideoProducerJNI native library to be used by [Java Producer SDK](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-java/blob/master/README.md).
+
+
 ----
 
 ### Open Source Dependencies
@@ -305,6 +309,9 @@ Rebuilding the `libx264.so` library and **re-linking the demo application** fixe
 
 
 ## Release Notes
+#### Release 1.2.2 (March 2018)
+* Remove open-source dependencies from KinesisVideoProducerJNI native library. java-install-script can be used to build KinesisVideoProducerJNI native library fast.
+* README note improved.
 #### Release 1.2.1 (February 2018)
 * Bug fix for producer timestamp *video playback* in the console should be fixed if proper timestamp is provided to SDK. Current setting in sample app uses Gstreamer frame timecode and relative timestamp (used by SDK).
 * `install-script` is updated to automatically detect OS version and avoid dependency issue on Mac High Sierra and Ubuntu 17.10.

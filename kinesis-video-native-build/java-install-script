@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+# --------- create require directories ---------
+KINESIS_VIDEO_ROOT=`pwd`
+
+if [[ "$KINESIS_VIDEO_ROOT" == *\ * ]]; then
+    echo "Current working path cannot have space in it !"
+    exit
+fi
+
+CMAKE_VERSION_STRING=`cmake --version`
+echo $CMAKE_VERSION_STRING
+CMAKE_EXPECTED_MAJOR_VERSION=3
+VERSION_ARRAY=( $CMAKE_VERSION_STRING )
+CMAKE_VERSION=${VERSION_ARRAY[2]}
+CMAKE_MAJOR_VERSION=${CMAKE_VERSION:0:1}
+
+if [ "$CMAKE_MAJOR_VERSION" \< "$CMAKE_EXPECTED_MAJOR_VERSION" ]; then
+  echo "CMake 3.x or higher is required.  You are running $CMAKE_VERSION"
+  exit
+fi
+
+## --------- build kinesis video ---------
+cd $KINESIS_VIDEO_ROOT
+cmake CMakeLists.txt 
+make KinesisVideoProducerJNI
+
+echo "**********************************************************"
+echo Success!!!
+echo "**********************************************************"
