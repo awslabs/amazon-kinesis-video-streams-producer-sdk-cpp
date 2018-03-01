@@ -62,12 +62,7 @@ if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ldl -lrt -lpthread")
 endif()
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GST REQUIRED gstreamer-1.0>=1.2
-                               gstreamer-video-1.0>=1.2
-                               gstreamer-app-1.0>=1.2)
-
-set(PRODUCER_SOURCE_FILES
+set(PIC_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/client/include/com/amazonaws/kinesis/video/client/Include.h
         ${KINESIS_VIDEO_PIC_SRC}/src/client/src/AuthIntegration.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/client/src/Callbacks.cpp
@@ -84,19 +79,7 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/client/src/Stream.h
         ${KINESIS_VIDEO_PIC_SRC}/src/client/src/StreamEvent.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/client/src/StreamState.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/ClientApiFunctionalityTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/ClientApiTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamPutGetTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/ClientTestFixture.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/ClientTestFixture.h
-        #${KINESIS_VIDEO_PIC_SRC}/src/client/tst/main.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamApiFunctionalityTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamApiServiceCallsTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamApiTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamDeviceTagsTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamParallelTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamStateTransitionsTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamTokenRotationTest.cpp
+
         ${KINESIS_VIDEO_PIC_SRC}/src/common/include/com/amazonaws/kinesis/video/common/CommonDefs.h
         ${KINESIS_VIDEO_PIC_SRC}/src/common/include/com/amazonaws/kinesis/video/common/PlatformUtils.h
         ${KINESIS_VIDEO_PIC_SRC}/src/heap/include/com/amazonaws/kinesis/video/heap/Include.h
@@ -110,35 +93,18 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/heap/src/Include_i.h
         ${KINESIS_VIDEO_PIC_SRC}/src/heap/src/SystemHeap.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/heap/src/SystemHeap.h
-        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HeapApiFunctionalityTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HeapApiTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HeapTestFixture.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HeapTestFixture.h
-        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HybridHeapTest.cpp
-        #${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/main.cpp
+
         ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/include/com/amazonaws/kinesis/video/mkvgen/Include.h
         ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/src/Include_i.h
         ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/src/MkvGenerator.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/src/MkvStatics.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/src/NalAdapter.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/src/SpsParser.cpp
-        #${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/main.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/MkvgenApiFunctionalityTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/MkvgenApiTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/MkvgenTestFixture.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/MkvgenTestFixture.h
-        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/AnnexBNalAdapterTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/AnnexBCpdNalAdapterTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/AvccNalAdapterTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/SpsParserTest.cpp
+
         ${KINESIS_VIDEO_PIC_SRC}/src/trace/include/com/amazonaws/kinesis/video/trace/Include.h
         ${KINESIS_VIDEO_PIC_SRC}/src/trace/src/Include_i.h
         ${KINESIS_VIDEO_PIC_SRC}/src/trace/src/TraceProfiler.cpp
-        #${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/main.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/TraceApiFunctionalityTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/TraceApiTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/TraceTestFixture.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/TraceTestFixture.h
+
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/include/com/amazonaws/kinesis/video/utils/Include.h
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/Allocators.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/Base64.cpp
@@ -159,24 +125,13 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/String.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/Threads.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/Time.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/BitField.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/BitReader.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/Directory.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/DoubleLinkedList.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/HashTable.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/IntegerToString.cpp
-        #${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/main.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/SingleLinkedList.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/StackQueue.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/StringToInteger.cpp
+
         ${KINESIS_VIDEO_PIC_SRC}/src/view/include/com/amazonaws/kinesis/video/view/Include.h
         ${KINESIS_VIDEO_PIC_SRC}/src/view/src/ContentView.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/view/src/Include_i.h
-        #${KINESIS_VIDEO_PIC_SRC}/src/view/tst/main.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewApiFunctionalityTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewApiTest.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewTestFixture.cpp
-        ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewTestFixture.h
+        ${KINESIS_VIDEO_PIC_SRC}/src/view/src/Include_i.h)
+
+set(PRODUCER_SOURCE_FILES
+        ${PIC_SOURCE_FILES}
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/KinesisVideoProducer.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/KinesisVideoProducer.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/KinesisVideoStream.h
@@ -212,6 +167,55 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/opensource/jsoncpp/jsoncpp.cpp)
 
 set(TST_PRODUCER_SOURCE_FILES
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/ClientApiFunctionalityTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/ClientApiTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamPutGetTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/ClientTestFixture.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/ClientTestFixture.h
+        #${KINESIS_VIDEO_PIC_SRC}/src/client/tst/main.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamApiFunctionalityTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamApiServiceCallsTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamApiTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamDeviceTagsTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamParallelTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamStateTransitionsTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/client/tst/StreamTokenRotationTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HeapApiFunctionalityTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HeapApiTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HeapTestFixture.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HeapTestFixture.h
+        ${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/HybridHeapTest.cpp
+        #${KINESIS_VIDEO_PIC_SRC}/src/heap/tst/main.cpp
+        #${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/main.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/MkvgenApiFunctionalityTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/MkvgenApiTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/MkvgenTestFixture.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/MkvgenTestFixture.h
+        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/AnnexBNalAdapterTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/AnnexBCpdNalAdapterTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/AvccNalAdapterTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/tst/SpsParserTest.cpp
+        #${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/main.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/TraceApiFunctionalityTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/TraceApiTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/TraceTestFixture.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/trace/tst/TraceTestFixture.h
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/BitField.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/BitReader.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/Directory.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/DoubleLinkedList.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/HashTable.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/IntegerToString.cpp
+        #${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/main.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/SingleLinkedList.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/StackQueue.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/StringToInteger.cpp
+        #${KINESIS_VIDEO_PIC_SRC}/src/view/tst/main.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewApiFunctionalityTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewApiTest.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewTestFixture.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewTestFixture.h
+
         ${KINESIS_VIDEO_PRODUCER_SRC}/tst/ProducerTestFixture.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/tst/ProducerTestFixture.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/tst/main.cpp
@@ -265,7 +269,7 @@ include_directories(${JAVA_HOME}/include/${CMAKE_SYSTEM_NAME_LOWER_CASE})
 
 link_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/lib)
 add_library(producer SHARED ${PRODUCER_SOURCE_FILES})
-add_library(KinesisVideoProducerJNI SHARED ${PRODUCER_SOURCE_FILES_JNI})
+add_library(KinesisVideoProducerJNI SHARED ${PRODUCER_SOURCE_FILES_JNI} ${PIC_SOURCE_FILES})
 add_executable(start ${TST_PRODUCER_SOURCE_FILES})
 add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
 add_executable(kinesis_video_gstreamer_sample_rtsp_app ${RTSP_DEMO_APP})
@@ -273,7 +277,7 @@ add_executable(kinesis_video_gstreamer_sample_rtsp_app ${RTSP_DEMO_APP})
 target_include_directories(kinesis_video_gstreamer_sample_app PRIVATE ${GST_INCLUDE_DIRS})
 target_include_directories(kinesis_video_gstreamer_sample_rtsp_app PRIVATE ${GST_INCLUDE_DIRS})
 
-target_link_libraries(KinesisVideoProducerJNI producer)
+target_link_libraries(KinesisVideoProducerJNI)
 
 target_link_libraries(producer
         log4cplus
