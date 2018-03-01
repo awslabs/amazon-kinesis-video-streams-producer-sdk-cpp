@@ -319,8 +319,8 @@ Rebuilding the `libx264.so` library and **re-linking the demo application** fixe
 * Added **RTSP Demo Sample**
 * Run the demo using:
 ```
-AWS_ACCESS_KEY_ID=<MYACCESSKEYID> AWS_SECRET_ACCESS_KEY=<MYSECRETKEY> ./kinesis_video_gstreamer_sample_rtsp_app <rtspurl> <stream-name
->```
+AWS_ACCESS_KEY_ID=<MYACCESSKEYID> AWS_SECRET_ACCESS_KEY=<MYSECRETKEY> ./kinesis_video_gstreamer_sample_rtsp_app <rtspurl> <stream-name>
+```
 #### Release 1.1.2 (January 2018)
 * Allowed devices to output h.264 streams directly
 * The user can also supply a streaming resolution through command line arguments.
