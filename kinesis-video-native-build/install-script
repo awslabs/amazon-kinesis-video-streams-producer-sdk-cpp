@@ -114,7 +114,7 @@ if [ ! -f $DOWNLOADS/local/lib/libcurl.a ]; then
   cd $DOWNLOADS
   tar -xvf curl-7.57.0.tar.xz
   cd $DOWNLOADS/curl-7.57.0
-  ./configure --prefix=$DOWNLOADS/local/ --enable-dynamic --disable-rtsp --disable-ldap --without-zlib --with-ssl=$DOWNLOADS/local/
+  ./configure --prefix=$DOWNLOADS/local/ --enable-dynamic --disable-rtsp --disable-ldap --without-zlib --with-ssl=$DOWNLOADS/local/ --with-ca-bundle=/etc/ssl/cert.pem
   make
   make install
 fi
