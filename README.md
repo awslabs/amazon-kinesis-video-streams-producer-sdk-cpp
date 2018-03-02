@@ -304,11 +304,27 @@ $ sudo reboot
 ##### Raspberry PI seg fauls after some time running on `libx264.so`. 
 Rebuilding the `libx264.so` library and **re-linking the demo application** fixes the issue.
 
+##### Curl SSL issue - "unable to get local issuer certificate"
+If curl throws *"Peer certificate cannot be authenticated with given CA certificates: SSL certificate problem: unable to get local issuer certificate"* error while sending data to KVS, then the local `curl`
+was not built properly with `--with-ca-bundle` path. So please remove the curl binaries and libraries and rebuilt it again by following below steps.
+```
+rm <producer_sdk_path/kinesis-video-native-build/downloads/local/lib/libcurl*
+rm <producer_sdk_path/kinesis-video-native-build/downloads/local/bin/curl*
+cd <producer_sdk_path/kinesis-video-native-build/downloads/curl-7.57.0
+export DOWNLOADS=<producer_sdk_path>/kinesis-video-native-build/downloads
+make clean
+./configure --prefix=$DOWNLOADS/local/ --enable-dynamic --disable-rtsp --disable-ldap --without-zlib --with-ssl=$DOWNLOADS/local/ --with-ca-bundle=/etc/ssl/cert.pem
+make
+make install
+```
 
 ----
 
 
 ## Release Notes
+#### Release 1.2.3 (1st March 2018)
+* Updated install-script to fix the local certificate trust issue for curl.
+* Added steps in README troubleshooting section for curl trust issues.
 #### Release 1.2.2 (March 2018)
 * Remove open-source dependencies from KinesisVideoProducerJNI native library. java-install-script can be used to build KinesisVideoProducerJNI native library fast.
 * README note improved.
