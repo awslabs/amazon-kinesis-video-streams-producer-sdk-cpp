@@ -36,19 +36,19 @@ Please install the following additional build tools before proceeding with `./in
 After you've downloaded the code from GitHub, you can build it on Mac OS or Ubuntu using `./install-script`  (which is inside the `kinesis-video-native-build` directory).
 
 **Important** Change *current working directory* to the `kinesis-video-native-build` directory first. Then run the `./install-script` from that directory.
-  
-This will produce the core library, the JNI library, unit tests executable and the sample GStreamer application. The script will download and build the dependent open source components in the 'downloads' directory (within `kinesis-video-native-build` directory)and link against it.
- 
-#### Build the binaries using system versions
-The bulk of the install script is building the open source dependencies. The project is based on **CMake**. So the open source components building can be skipped if the system versions can be used for linking. 
 
-Running 
+This will produce the core library, the JNI library, unit tests executable and the sample GStreamer application. The script will download and build the dependent open source components in the 'downloads' directory (within `kinesis-video-native-build` directory)and link against it.
+
+#### Build the binaries using system versions
+The bulk of the install script is building the open source dependencies. The project is based on **CMake**. So the open source components building can be skipped if the system versions can be used for linking.
+
+Running
 
 ```
-$ cmake . 
+$ cmake .
 $ make
 ```
-from the `kinesis-video-native-build` directory will build and link the SDK. 
+from the `kinesis-video-native-build` directory will build and link the SDK.
 The `./min-install-script` inside the `kinesis-video-native-build` captures these steps for installing the Kinesis Video Streams Producer SDK with the system versions for linking.
 
 #### Build the binaries using the dependent libraries from source
@@ -98,14 +98,14 @@ Many platforms come with a cert file with a lot of the well-known public certs i
 ## Install Steps for Ubuntu 17.x using apt-get
 The following are the steps to install the build-time prerequisites for Ubuntu 17.x
 
-Install **git**: 
+Install **git**:
 
-``` 
+```
 $ sudo apt-get install git
 $ git --version
 git version 2.14.1
 ```
-Install **cmake**: 
+Install **cmake**:
 ```
 $ sudo apt-get install cmake
 $ cmake --version
@@ -125,7 +125,7 @@ Copyright (C) 2014 Free Software Foundation, Inc.
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ```
-Install **automake**: 
+Install **automake**:
 ```
 $ sudo apt-get install automake
 $ automake --version
@@ -138,7 +138,7 @@ There is NO WARRANTY, to the extent permitted by law.
 Written by Tom Tromey <tromey@redhat.com>
        and Alexandre Duret-Lutz <adl@gnu.org>.
 ```
-Install **g++**: 
+Install **g++**:
 ```
 $ sudo apt-get install g++
 $ g++ --version
@@ -147,7 +147,7 @@ Copyright (C) 2017 Free Software Foundation, Inc.
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ```
-Install **curl**: 
+Install **curl**:
 ```
 $ sudo apt-get install curl
 $ curl --version
@@ -156,13 +156,13 @@ Release-Date: 2017-08-14
 Protocols: dict file ftp ftps gopher http https imap imaps ldap ldaps pop3 pop3s rtmp rtsp smb smbs smtp smtps telnet tftp
 Features: AsynchDNS IDN IPv6 Largefile GSS-API Kerberos SPNEGO NTLM NTLM_WB SSL libz TLS-SRP UnixSockets HTTPS-proxy PSL
 ```
-Install **pkg-config**: 
+Install **pkg-config**:
 ```
 $ sudo apt-get install pkg-config
 $ pkg-config --version
 0.29.1
 ```
-Install **flex**: 
+Install **flex**:
 ```
 $ sudo apt-get install flex
 $ flex --version
@@ -179,7 +179,7 @@ Copyright (C) 2015 Free Software Foundation, Inc.
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ```
-Install **Open JDK**: 
+Install **Open JDK**:
 ```
 $ sudo apt-get install openjdk-8-jdk
 $ java -showversion
@@ -187,11 +187,11 @@ openjdk version "1.8.0_151"
 OpenJDK Runtime Environment (build 1.8.0_151-8u151-b12-0ubuntu0.17.10.2-b12)
 OpenJDK 64-Bit Server VM (build 25.151-b12, mixed mode)
 ```
-Set **JAVA_HOME** environment variable: 
+Set **JAVA_HOME** environment variable:
 ```
 $ export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 ```
-Run the build script: (within `kinesis-video-native-build` folder) 
+Run the build script: (within `kinesis-video-native-build` folder)
 ```
 ./install-script
 ```
@@ -214,10 +214,10 @@ optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS
 The GStreamer demo app will be built in `kinesis_video_gstreamer_sample_app` in the `kinesis-video-native-build` directory. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution (width and height) through command line arguments.
 
 ```
-Usage: AWS_ACCESS_KEY_ID=<SAMPLEKEY> AWS_SECRET_ACCESS_KEY=<SAMPLESECRET> ./kinesis_video_gstreamer_sample_app <my-stream-name> -w <width> -h <height> -f <framerate> -b <bitrateInKBPS>
+Usage: AWS_ACCESS_KEY_ID=<SAMPLEKEY> AWS_SECRET_ACCESS_KEY=<SAMPLESECRET> ./kinesis_video_gstreamer_sample_app -w <width> -h <height> -f <framerate> -b <bitrateInKBPS> <my-stream-name>
 ```
 * **A.** If resolution is provided then the sample will try to check if the camera supports that resolution. If it does detect that the camera can supprt the resolution supplied in command line, then streaming starts; else, it will fail with an error msg `Resolution not supported`
-  
+
 * **B.** If no resolution is specified, the demo will try to use these three resolutions **1920x1080, 1280x720 and 640x480** in that order (highest resolution first) and will **start streaming** once the camera supported resolution is detected.
 
 #### GStreamer RTSP demo application
@@ -240,7 +240,7 @@ Define `HEAP_DEBUG` and `LOG_STREAMING` C-defines by uncommenting the appropriat
 
 #### Additional Examples
 
-For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Video Streams Parsing Library refer: 
+For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Video Streams Parsing Library refer:
 
 ##### [Kinesis Video Streams Producer Java SDK](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-java/blob/master/README.md)
 ##### [Kinesis Video Streams Parser Library](https://github.com/aws/amazon-kinesis-video-streams-parser-library/blob/master/README.md)
@@ -253,15 +253,15 @@ For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Vid
 ### Troubleshooting
 
 ##### Ubuntu builds link issues
-Ubuntu bulds link against the system versions of the open source component libraries or missing .so files (./start in the kinesis-video-native-build directory shows linkage against system versions of the open source libraries).We are working on providing fix but the immediate steps to remedy is to run 
+Ubuntu bulds link against the system versions of the open source component libraries or missing .so files (./start in the kinesis-video-native-build directory shows linkage against system versions of the open source libraries).We are working on providing fix but the immediate steps to remedy is to run
 
 ```
   rm -rf ./kinesis-video-native-build/CMakeCache.txt ./kinesis-video-native-build/CMakeFiles
-``` 
-  and run 
+```
+  and run
 ```
  ./install-script
-``` 
+```
    to rebuild and re-link the project only.
 
 ##### Raspberry PI failure to load the camera device.
@@ -272,7 +272,7 @@ $ls /dev/video*
 {not found}
 ```
 ```
-$vcgencmd get_camera 
+$vcgencmd get_camera
 ```
 Example output:
 ```
@@ -286,7 +286,7 @@ if the driver does not detect the camera then
 $sudo modprobe bcm2835-v4l2
 ```
 ```
-$ls /dev/video* 
+$ls /dev/video*
 {lists the device}
 ```
 
@@ -301,7 +301,7 @@ $ sudo reboot
 * Raspberry PI GStreamer assertion on gst_value_set_fraction_range_full: assertion 'gst_util_fraction_compare (numerator_start, denominator_start, numerator_end, denominator_end) < 0' failed. The uv4l service running in the background. Kill the service and restart the sample app.
 
 
-##### Raspberry PI seg fauls after some time running on `libx264.so`. 
+##### Raspberry PI seg fauls after some time running on `libx264.so`.
 Rebuilding the `libx264.so` library and **re-linking the demo application** fixes the issue.
 
 ##### Curl SSL issue - "unable to get local issuer certificate"
