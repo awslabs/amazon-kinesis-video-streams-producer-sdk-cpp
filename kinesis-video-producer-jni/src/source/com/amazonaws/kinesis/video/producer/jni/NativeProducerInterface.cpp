@@ -12,7 +12,7 @@
 // IMPORTANT: This version number *must* be incremented every time a new library build is checked in.
 // We are seeing a very high incidence of runtime failures due to APKs being deployed with the wrong native libraries,
 // and they are much easier to diagnose when the numeric version check fails.
-#define NATIVE_LIBRARY_VERSION "1.4"
+#define NATIVE_LIBRARY_VERSION "1.5"
 
 // Used for serializing the access to functions
 static SyncMutex ACCESS_LOCK;
@@ -343,24 +343,21 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API jint Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamData(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject dataBuffer, jint offset, jint length)
+    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamData(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
         jint retStatus = STATUS_SUCCESS;
-        jint byteSize;
 
         DLOGS("get kinesis video stream data event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
         if (pWrapper != NULL) {
-            byteSize = pWrapper->getKinesisVideoStreamData(streamHandle, dataBuffer, offset, length);
+            pWrapper->getKinesisVideoStreamData(streamHandle, dataBuffer, offset, length, readResult);
         }
 
         LEAVES();
-
-        return byteSize;
     }
 
     PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFormatChanged(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject codecPrivateData)

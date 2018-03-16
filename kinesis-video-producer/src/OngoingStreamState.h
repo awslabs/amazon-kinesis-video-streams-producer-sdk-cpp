@@ -28,9 +28,9 @@ class Response;
 class OngoingStreamState {
 public:
     OngoingStreamState(CallbackProvider* callback_provider,
-                         UINT64 upload_handle,
-                         STREAM_HANDLE stream_handle,
-                         std::string stream_name)
+                       UPLOAD_HANDLE upload_handle,
+                       STREAM_HANDLE stream_handle,
+                       std::string stream_name)
             : stream_handle_(stream_handle), duration_available_(0),
               bytes_available_(0), stream_name_(stream_name),
               end_of_stream_(false), shutdown_(false),
@@ -132,7 +132,7 @@ public:
     /**
      * Returns the stream upload handle
      */
-    UINT64 getUploadHandle() {
+    UPLOAD_HANDLE getUploadHandle() {
         return upload_handle_;
     }
 
@@ -228,7 +228,7 @@ private:
     /**
      * Stream upload handle
      */
-    UINT64 upload_handle_;
+    UPLOAD_HANDLE upload_handle_;
 
     /**
      * Mutex needed for the condition variable for data available locking.

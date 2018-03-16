@@ -69,12 +69,6 @@ typedef __FragmentAckParser* PFragmentAckParser;
 #define DEFAULT_MKV_TIMECODE_SCALE      (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 /**
- * Definition of the upload handle map bucket count and size
- */
-#define UPLOAD_HANDLE_MAP_BUCKET_COUNT      32
-#define UPLOAD_HANDLE_MAP_BUCKET_SIZE       2
-
-/**
  * Kinesis Video stream diagnostics information accumulator
  */
 typedef struct __KinesisVideoStreamDiagnostics KinesisVideoStreamDiagnostics;
@@ -110,6 +104,63 @@ struct __CurrentViewItem {
 typedef __CurrentViewItem* PCurrentViewItem;
 
 /**
+ * Streaming type definition
+ */
+typedef enum {
+    // State none is a sentinel value for comparison
+    UPLOAD_HANDLE_STATE_NONE = (UINT32) 0,
+
+    // New handle returned by put stream result event
+    UPLOAD_HANDLE_STATE_NEW = (1 << 0),
+
+    // Handle that's been put to rotation after moving from put stream state
+    UPLOAD_HANDLE_STATE_READY = (1 << 1),
+
+    // Handle that's been already used to stream some data
+    UPLOAD_HANDLE_STATE_STREAMING = (1 << 2),
+
+    // Terminating
+    UPLOAD_HANDLE_STATE_TERMINATING = (1 << 3),
+
+    // Terminated
+    UPLOAD_HANDLE_STATE_TERMINATED = (1 << 4),
+
+    // Error terminated
+    UPLOAD_HANDLE_STATE_ERROR = (1 << 5),
+
+    // All states combined
+    UPLOAD_HANDLE_STATE_ANY =  UPLOAD_HANDLE_STATE_NEW |
+            UPLOAD_HANDLE_STATE_READY |
+            UPLOAD_HANDLE_STATE_STREAMING |
+            UPLOAD_HANDLE_STATE_TERMINATING |
+            UPLOAD_HANDLE_STATE_TERMINATED |
+            UPLOAD_HANDLE_STATE_ERROR,
+
+} UPLOAD_HANDLE_STATE;
+
+/**
+ * Upload handle information struct
+ */
+typedef struct __UploadHandleInfo UploadHandleInfo;
+struct __UploadHandleInfo {
+    // The upload handle
+    UPLOAD_HANDLE handle;
+
+    // Start timestamp
+    UINT64 timestamp;
+
+    // Content view item index when the session started
+    UINT64 startIndex;
+
+    // Content view item index when the session ended
+    UINT64 endIndex;
+
+    // Handle state
+    UPLOAD_HANDLE_STATE state;
+};
+typedef __UploadHandleInfo* PUploadHandleInfo;
+
+/**
  * Kinesis Video stream internal structure
  */
 typedef struct __KinesisVideoStream KinesisVideoStream;
@@ -129,11 +180,8 @@ struct __KinesisVideoStream {
     // MKV stream generator
     PMkvGenerator pMkvGenerator;
 
-    // Hash table for storing upload handles to timestamp mapping.
-    PHashTable pSessionMap;
-
-    // Hash table for storing the stream start index to upload handle mapping.
-    PHashTable pStartIndexMap;
+    // Upload handle queue
+    PStackQueue pUploadInfoQueue;
 
     // Stream Info structure
     StreamInfo streamInfo;
@@ -143,12 +191,6 @@ struct __KinesisVideoStream {
 
     // Streaming end point - 1 more for the null terminator
     CHAR streamingEndpoint[MAX_URI_CHAR_LEN + 1];
-
-    // Client stream handle
-    UINT64 streamHandle;
-
-    // Storing the new stream handle to switch to after the connection is established.
-    UINT64 newStreamHandle;
 
     // New stream timestamp which will be used as current after the rotation in relative timestamp streams.
     UINT64 newSessionTimestamp;
@@ -173,6 +215,9 @@ struct __KinesisVideoStream {
 
     // Indicates whether the connection has been dropped
     BOOL connectionDropped;
+
+    // Indicates whether the connection has been dropped
+    BOOL retryingOnRotation;
 
     // Indicates whether the stream has been stopped
     BOOL streamStopped;
@@ -306,6 +351,43 @@ STATUS checkStreamingTokenExpiration(PKinesisVideoStream);
  */
 STATUS streamStartFixupOnReconnect(PKinesisVideoStream);
 
+/**
+ * Fixes up the current view item to remove stream start.
+ */
+STATUS resetCurrentViewItemStreamStart(PKinesisVideoStream);
+
+/**
+ * Frees the upload handle info queue
+ */
+STATUS freeUploadInfoQueue(PKinesisVideoStream);
+
+/**
+ * Gets the current stream upload handle info if existing or NULL otherwise.
+ *
+ * NOTE: This doesn't dequeue the item
+ */
+PUploadHandleInfo getCurrentStreamUploadInfo(PKinesisVideoStream);
+
+/**
+ * Deletes and frees the specified stream upload info object
+ */
+VOID deleteStreamUploadInfo(PKinesisVideoStream, PUploadHandleInfo);
+
+/**
+ * Gets the first upload handle info corresponding to the state and NULL otherwise
+ */
+PUploadHandleInfo getStreamUploadInfoWithState(PKinesisVideoStream, UINT32);
+
+/**
+ * Gets the first upload handle info corresponding to the index and NULL otherwise
+ */
+PUploadHandleInfo getStreamUploadInfoWithEndIndex(PKinesisVideoStream, UINT64);
+
+/**
+ * Gets the upload handle info corresponding to the specified handle and NULL otherwise
+ */
+PUploadHandleInfo getStreamUploadInfo(PKinesisVideoStream, UPLOAD_HANDLE);
+
 ///////////////////////////////////////////////////////////////////////////
 // Service call event functions
 ///////////////////////////////////////////////////////////////////////////
@@ -313,9 +395,9 @@ STATUS describeStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT, PStreamDes
 STATUS createStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT, PCHAR);
 STATUS getStreamingTokenResult(PKinesisVideoStream, SERVICE_CALL_RESULT, PBYTE, UINT32, UINT64);
 STATUS getStreamingEndpointResult(PKinesisVideoStream, SERVICE_CALL_RESULT, PCHAR);
-STATUS putStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT, UINT64);
+STATUS putStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT, UPLOAD_HANDLE);
 STATUS tagStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT);
-STATUS streamTerminatedEvent(PKinesisVideoStream, SERVICE_CALL_RESULT);
+STATUS streamTerminatedEvent(PKinesisVideoStream, UPLOAD_HANDLE, SERVICE_CALL_RESULT);
 STATUS serviceCallResultCheck(SERVICE_CALL_RESULT);
 
 

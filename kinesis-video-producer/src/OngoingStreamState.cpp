@@ -9,12 +9,18 @@ LOGGER_TAG("com.amazonaws.kinesis.video");
 using std::string;
 
 void OngoingStreamState::noteDataAvailable(UINT64 duration_available, UINT64 size_available) {
-    LOG_DEBUG("Note data received: duration(100ns): "
+    LOG_TRACE("Note data received: duration(100ns): "
                       << duration_available
                       << " bytes: "
                       << size_available
                       << " for stream handle: "
                       << upload_handle_);
+
+    // Special handling for EOS triggering from close handle
+    if (duration_available == 0 && size_available == 0) {
+        endOfStream();
+    }
+
     setDataAvailable(duration_available, size_available);
 }
 
@@ -45,7 +51,7 @@ size_t OngoingStreamState::awaitData(size_t read_size) {
 }
 
 size_t OngoingStreamState::postHeaderReadFunc(char *buffer, size_t item_size, size_t n_items) {
-    LOG_DEBUG("postHeaderReadFunc (curl callback) invoked");
+    LOG_TRACE("postHeaderReadFunc (curl callback) invoked");
 
     size_t data_size = item_size * n_items;
 
@@ -55,23 +61,33 @@ size_t OngoingStreamState::postHeaderReadFunc(char *buffer, size_t item_size, si
 }
 
 size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_size, size_t n_items) {
-    LOG_DEBUG("postBodyStreamingReadFunc (curl callback) invoked");
+    LOG_TRACE("postBodyStreamingReadFunc (curl callback) invoked");
 
-    // Check for end-of-stream
-    if (isEndOfStream()) {
-        // Returning 0 will close the connection
-        LOG_INFO("Closing connection for upload stream handle: " << getUploadHandle());
-        return 0;
-    }
+    UPLOAD_HANDLE upload_handle = getUploadHandle();
 
     size_t buffer_size = item_size * n_items;
 
     // Block until data is available.
     size_t bytes_written = 0;
-    while (bytes_written == 0 && !isEndOfStream()) {
+    while (bytes_written == 0) {
+        // Check for end-of-stream before the await
+        if (isEndOfStream()) {
+            // Returning 0 will close the connection
+            LOG_INFO("Closing connection for upload stream handle: " << upload_handle);
+            break;
+        }
+
         size_t available_bytes = awaitData(buffer_size);
 
+        // Check for EOS and shutdown after the await
+        if (isEndOfStream()) {
+            // Returning 0 will close the connection
+            LOG_INFO("Closing connection for upload stream handle: " << upload_handle);
+            break;
+        }
+
         if (isShutdown()) {
+            LOG_WARN("Aborting the connection for upload stream handle: " << upload_handle);
             return CURL_READFUNC_ABORT;
         }
 
@@ -90,26 +106,64 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
                                               << " written bytes: "
                                               << bytes_written
                                               << " for client stream handle: "
-                                              << client_stream_handle);
+                                              << client_stream_handle
+                                              << " current stream handle: "
+                                              << upload_handle);
 
         // The return should be OK, no more data or an end of stream
         switch (retStatus) {
             case STATUS_SUCCESS:
             case STATUS_NO_MORE_DATA_AVAILABLE:
+                // Check if we the return is for this handle
+                if (client_stream_handle != upload_handle) {
+                    // Pulse the 'other' stream handler
+                    auto callback_provider = getCallbackProvider();
+                    auto custom_data = callback_provider->getCallbacks().customData;
+                    auto data_available_callback = callback_provider->getStreamDataAvailableCallback();
+                    if (nullptr != data_available_callback) {
+                        CHAR stream_name[MAX_STREAM_NAME_LEN + 1];
+                        STRNCPY(stream_name, getStreamName().c_str(), MAX_STREAM_NAME_LEN);
+                        stream_name[MAX_STREAM_NAME_LEN] = '\0';
+                        LOG_DEBUG("Indicating data available for a different upload handle: " << client_stream_handle);
+                        data_available_callback(custom_data,
+                                                getStreamHandle(),
+                                                stream_name,
+                                                client_stream_handle,
+                                                0,
+                                                0);
+                    }
 
-                // This is an OK case - ensure that we reset the available bytes in the state if we got 0 returned
-                if (0 == bytes_written) {
-                    LOG_DEBUG("Resetting the available data for the streaming state object.");
-                    setDataAvailable(0, 0);
+                    bytes_written = 0;
+                } else {
+                    // This is an OK case - ensure that we reset the available bytes in the state if we got 0 returned
+                    if (0 == bytes_written) {
+                        LOG_DEBUG("Resetting the available data for the streaming state object.");
+                        setDataAvailable(0, 0);
+                    }
                 }
 
                 break;
 
             case STATUS_END_OF_STREAM:
-                LOG_INFO("Reported end-of-stream for " << getStreamName() << ". Upload handle: " << getUploadHandle());
+                // Check if we the return is for this handle
+                if (client_stream_handle != upload_handle) {
+                    // Terminate the other stream
+                    auto callback_provider = getCallbackProvider();
+                    auto custom_data = callback_provider->getCallbacks().customData;
+                    auto stream_closed_callback = callback_provider->getStreamClosedCallback();
+                    if (nullptr != stream_closed_callback) {
+                        LOG_DEBUG("Indicating end-of-stream for a different upload handle: " << client_stream_handle);
+                        stream_closed_callback(custom_data, getStreamHandle(), client_stream_handle);
+                    }
 
-                // Output the remaining bytes and signal the EOS
-                endOfStream();
+                    bytes_written = 0;
+                } else {
+                    LOG_INFO("Reported end-of-stream for " << getStreamName() << ". Upload handle: " << upload_handle);
+
+                    // Output the remaining bytes and signal the EOS
+                    endOfStream();
+                }
+
                 break;
 
             default:
@@ -120,13 +174,13 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
         }
     }
 
-    LOG_DEBUG("Wrote " << bytes_written << " bytes to Kinesis Video. Upload stream handle: " << getUploadHandle());
+    LOG_DEBUG("Wrote " << bytes_written << " bytes to Kinesis Video. Upload stream handle: " << upload_handle);
 
     return bytes_written;
 }
 
 size_t OngoingStreamState::postBodyStreamingWriteFunc(char *buffer, size_t item_size, size_t n_items) {
-    LOG_DEBUG("postBodyStreamingWriteFunc (curl callback) invoked");
+    LOG_TRACE("postBodyStreamingWriteFunc (curl callback) invoked");
 
     STATUS status = STATUS_SUCCESS;
     size_t data_size = item_size * n_items;
@@ -154,7 +208,7 @@ size_t OngoingStreamState::postBodyStreamingWriteFunc(char *buffer, size_t item_
                               << " with status code: "
                               << status);
         } else {
-            LOG_DEBUG("Processed ACK OK.");
+            LOG_TRACE("Processed ACK OK.");
         }
     }
 

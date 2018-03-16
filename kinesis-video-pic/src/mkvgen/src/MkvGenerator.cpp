@@ -405,6 +405,28 @@ CleanUp:
 }
 
 /**
+ * Gets the MKV overhead size
+ */
+STATUS mkvgenGetMkvOverheadSize(PMkvGenerator pMkvGenerator, MKV_STREAM_STATE mkvStreamState, PUINT32 pOverhead)
+{
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    PStreamMkvGenerator pStreamMkvGenerator;
+
+    // Check the input params
+    CHK(pOverhead != NULL && pMkvGenerator != NULL, STATUS_NULL_ARG);
+
+    pStreamMkvGenerator = (PStreamMkvGenerator) pMkvGenerator;
+
+    *pOverhead = mkvgenGetFrameOverhead(pStreamMkvGenerator, mkvStreamState);
+
+CleanUp:
+
+    LEAVES();
+    return retStatus;
+}
+
+/**
  * Converts an MKV timecode to a timestamp
  */
 STATUS mkvgenTimecodeToTimestamp(PMkvGenerator pMkvGenerator, UINT64 timecode, PUINT64 pTimestamp)

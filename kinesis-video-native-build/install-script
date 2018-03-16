@@ -255,7 +255,22 @@ fi
     make
     make install
  fi
-
+#-----------------------liby.a----------------------------
+if [[ $PLATFORM != 'mac' || $KERNEL_VERSION < 17 ]]; then
+ if [ ! -f $DOWNLOADS/local/lib/liby.a ]; then
+    echo "bison not found. Installing"
+    if [ ! -f $DOWNLOADS/bison-2.3.tar.gz ]; then
+      cd $DOWNLOADS
+      curl -L "http://ftp.gnu.org/gnu/bison/bison-3.0.4.tar.gz" -o "bison-3.0.4.tar.xz"
+    fi
+    cd $DOWNLOADS
+    tar -xvf bison-3.0.4.tar.xz
+    cd $DOWNLOADS/bison-3.0.4
+    ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
+    make
+    make install
+ fi
+fi
 # -----  libfl.2.dylib and libfl.2.so ---------------------
   if [ ! -f $DOWNLOADS/local/lib/libfl.2.dylib ]; then
     if [ ! -f $DOWNLOADS/local/lib/libfl.2.so ]; then
@@ -273,22 +288,6 @@ fi
           make install
       fi
   fi
-fi
-#-----------------------liby.a----------------------------
-if [[ $PLATFORM != 'mac' || $KERNEL_VERSION < 17 ]]; then
- if [ ! -f $DOWNLOADS/local/lib/liby.a ]; then
-    echo "bison not found. Installing"
-    if [ ! -f $DOWNLOADS/bison-2.3.tar.gz ]; then
-      cd $DOWNLOADS
-      curl -L "http://ftp.gnu.org/gnu/bison/bison-3.0.4.tar.gz" -o "bison-3.0.4.tar.xz"
-    fi
-    cd $DOWNLOADS
-    tar -xvf bison-3.0.4.tar.xz
-    cd $DOWNLOADS/bison-3.0.4
-    ./configure --prefix=$DOWNLOADS/local  CFLAGS="-I$DOWNLOADS/local/include" LDFLAGS="-L$DOWNLOADS/local/lib"
-    make
-    make install
- fi
 fi
 # --------- libltdl------------------------------------------
  if [ ! -f $DOWNLOADS/local/lib/libltdl.7.dylib ]; then
@@ -612,7 +611,10 @@ export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
 ## --------- build kinesis video ---------
 cd $KINESIS_VIDEO_ROOT
 cmake CMakeLists.txt
-make
+make producer
+make start
+make kinesis_video_gstreamer_sample_app
+make kinesis_video_gstreamer_sample_rtsp_app
 
 echo "**********************************************************"
 echo Success!!!

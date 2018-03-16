@@ -72,6 +72,15 @@ public:
     bool start();
 
     /**
+     * Pulses the current upload stream. This will effectively inject a stream termination event into the stream
+     * causing it to re-set the upload stream and re-acquire a new connection.
+     * This is useful in situations when the current connection goes stale and the stream latency pressure
+     * notification gets invoked. The listener can pulse the stream to acquire a new connection to re-stream
+     * the accumulated frames in the buffer without loosing them.
+     */
+    bool resetConnection();
+
+    /**
      * Stops the the stream. Consecutive calls will fail until start is called again.
      *
      * NOTE: The function is async and will return immediately but the stream buffer

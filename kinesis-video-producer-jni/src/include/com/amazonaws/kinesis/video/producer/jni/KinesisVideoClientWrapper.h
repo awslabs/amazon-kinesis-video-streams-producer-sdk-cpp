@@ -187,7 +187,7 @@ public:
     void createStreamResult(jlong streamHandle, jint httpStatusCode, jstring streamArn);
     void putStreamResult(jlong streamHandle, jint httpStatusCode, jlong clientStreamHandle);
     void tagResourceResult(jlong customData, jint httpStatusCode);
-    UINT32 getKinesisVideoStreamData(jlong streamHandle, jobject dataBuffer, jint offset, jint length);
+    void getKinesisVideoStreamData(jlong streamHandle, jobject dataBuffer, jint offset, jint length, jobject readResult);
     void streamFormatChanged(jlong streamHandle, jobject codecPrivateData);
     void createDeviceResult(jlong clientHandle, jint httpStatusCode, jstring deviceArn);
     void deviceCertToTokenResult(jlong clientHandle, jint httpStatusCode, jbyteArray token, jint tokenSize, jlong expiration);

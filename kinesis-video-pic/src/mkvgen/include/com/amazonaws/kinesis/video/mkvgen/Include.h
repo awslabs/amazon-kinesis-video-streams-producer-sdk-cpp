@@ -326,6 +326,17 @@ PUBLIC_API STATUS mkvgenPackageFrame(PMkvGenerator, PFrame, PBYTE, PUINT32, PEnc
  */
 PUBLIC_API STATUS mkvgenTimecodeToTimestamp(PMkvGenerator, UINT64, PUINT64);
 
+/**
+ * Gets the MKV overhead in bytes for a specified type of frame
+ *
+ * @PMkvGenerator - The generator object
+ * MKV_STREAM_STATE - Type of frame to get the overhead for
+ * @PUINT32 - OUT - The overhead in bytes
+ *
+ * @return - STATUS code of the execution
+ */
+PUBLIC_API STATUS mkvgenGetMkvOverheadSize(PMkvGenerator, MKV_STREAM_STATE, PUINT32);
+
 #pragma pack(pop, include)
 
 #ifdef  __cplusplus

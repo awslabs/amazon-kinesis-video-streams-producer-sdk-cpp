@@ -135,3 +135,65 @@ TEST_F(MkvgenApiTest, mkvgenResetGenerator_NegativeTest)
 {
     EXPECT_TRUE(STATUS_FAILED(mkvgenResetGenerator(NULL)));
 }
+
+TEST_F(MkvgenApiTest, mkvgenGenerateHeader_PositiveAndNegativeTest)
+{
+    BYTE testBuf[1000];
+    UINT32 size, storedSize;
+    UINT64 timestamp;
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(NULL, testBuf, &size, &timestamp));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, NULL, &timestamp));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, NULL, NULL, &timestamp));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(NULL, NULL, NULL, &timestamp));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(NULL, NULL, NULL, NULL));
+
+    size = 0;
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, NULL, &size, &timestamp));
+    size = 0;
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, NULL, &size, NULL));
+
+    storedSize = size;
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, &timestamp));
+    EXPECT_EQ(storedSize, size);
+
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, NULL));
+    EXPECT_EQ(storedSize, size);
+
+    size = storedSize + 1;
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, &timestamp));
+    EXPECT_EQ(storedSize, size);
+
+    size = storedSize + 1;
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, NULL));
+    EXPECT_EQ(storedSize, size);
+
+    size = storedSize - 1;
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, &timestamp));
+
+    size = storedSize - 1;
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, NULL));
+
+    size = 0;
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, NULL));
+
+    size = 0;
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, &timestamp));
+}
+
+TEST_F(MkvgenApiTest, mkvgenGetMkvOverheadSize_PositiveAndNegativeTest)
+{
+    UINT32 size;
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(NULL, MKV_STATE_START_BLOCK, &size));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(mMkvGenerator, MKV_STATE_START_BLOCK, NULL));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(NULL, MKV_STATE_START_BLOCK, NULL));
+
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(mMkvGenerator, MKV_STATE_START_STREAM, &size));
+    EXPECT_GE(MKV_HEADER_OVERHEAD, size);
+
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(mMkvGenerator, MKV_STATE_START_CLUSTER, &size));
+    EXPECT_EQ(MKV_CLUSTER_OVERHEAD, size);
+
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(mMkvGenerator, MKV_STATE_START_BLOCK, &size));
+    EXPECT_EQ(MKV_SIMPLE_BLOCK_OVERHEAD, size);
+
+}

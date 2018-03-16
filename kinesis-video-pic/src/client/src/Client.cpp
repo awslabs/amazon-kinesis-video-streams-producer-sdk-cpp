@@ -561,7 +561,7 @@ CleanUp:
 /**
  * Put stream with endless payload API call result event
  */
-STATUS putStreamResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult, UINT64 streamHandle)
+STATUS putStreamResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult, UPLOAD_HANDLE streamHandle)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -619,7 +619,7 @@ CleanUp:
 /**
  * Kinesis Video stream terminated notification
  */
-STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, UINT64 streamUploadHandle, SERVICE_CALL_RESULT callResult)
+STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, UPLOAD_HANDLE streamUploadHandle, SERVICE_CALL_RESULT callResult)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -629,21 +629,7 @@ STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, UINT64 streamUpl
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
 
-    // Check if the error happened on a connection that has not yet been put into the rotation.
-    // This happens only after the token rotation when the new stream failed to establish a connection.
-    if (streamUploadHandle == pKinesisVideoStream->newStreamHandle &&
-            streamUploadHandle != pKinesisVideoStream->streamHandle) {
-        // Invalidate the new stream handle and force into a grace period
-        pKinesisVideoStream->newStreamHandle = INVALID_UPLOAD_HANDLE_VALUE;
-        pKinesisVideoStream->gracePeriod = TRUE;
-        CHK_STATUS(streamTerminatedEvent(pKinesisVideoStream, SERVICE_CALL_STREAM_AUTH_IN_GRACE_PERIOD));
-    } else {
-        // Set the stream upload handle to invalid as the client stream has existed unexpectedly
-        pKinesisVideoStream->streamHandle = INVALID_UPLOAD_HANDLE_VALUE;
-
-        // Notify of termination
-        CHK_STATUS(streamTerminatedEvent(pKinesisVideoStream, callResult));
-    }
+    CHK_STATUS(streamTerminatedEvent(pKinesisVideoStream, streamUploadHandle, callResult));
 
 CleanUp:
     LEAVES();
@@ -703,8 +689,8 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
     PKinesisVideoClient pKinesisVideoClient = NULL;
-    BOOL streamLocked = FALSE, contains = FALSE;
-    UPLOAD_HANDLE uploadHandle = INVALID_UPLOAD_HANDLE_VALUE;
+    BOOL streamLocked = FALSE;
+    PUploadHandleInfo pUploadHandleInfo;
 
     // Validate the input just in case
     CHK(pContentView != NULL && pViewItem != NULL && pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
@@ -716,18 +702,10 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
 
     // Check whether we need to purge the data from the hash tables
     if (pViewItem->index != 0) {
-        // Check if it's a session start
-        CHK_STATUS(hashTableContains(pKinesisVideoStream->pStartIndexMap, pViewItem->index, &contains));
-
-        if (contains) {
-            // Get the current session handle
-            CHK_STATUS(hashTableGet(pKinesisVideoStream->pStartIndexMap, pKinesisVideoStream->curSessionIndex, &uploadHandle));
-
-            // Remove from the maps
-            CHK_STATUS(hashTableRemove(pKinesisVideoStream->pStartIndexMap, pKinesisVideoStream->curSessionIndex));
-
-            // The session map handle could have been already removed after an error ACK processing
-            hashTableRemove(pKinesisVideoStream->pSessionMap, uploadHandle);
+        // Check if it's a session start and remove in a loop as there could be multiple terminations at the given index
+        while (NULL != (pUploadHandleInfo = getStreamUploadInfoWithEndIndex(pKinesisVideoStream, pViewItem->index))) {
+            // Remove the handle info from the queue
+            deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
 
             // Rotate the index
             pKinesisVideoStream->curSessionIndex = pViewItem->index;

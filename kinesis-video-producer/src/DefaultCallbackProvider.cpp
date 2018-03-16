@@ -2,11 +2,6 @@
 
 #include "DefaultCallbackProvider.h"
 
-#include "json/json.h"
-
-#include <fstream>
-#include <curl/curl.h>
-
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
@@ -506,7 +501,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
 
     string stream_name_str(stream_name);
 
-    UINT64 upload_handle = this_obj->getUploadHandle();
+    UPLOAD_HANDLE upload_handle = this_obj->getUploadHandle();
 
     // Create a new state
     auto state = make_shared<OngoingStreamState>(this_obj,
@@ -570,14 +565,14 @@ STATUS DefaultCallbackProvider::putStreamHandler(
 
         // does not return until the stream ends.
         // this behavior is important because it keeps the cb_data variable valid for the lifetime of the stream.
-        LOG_INFO("Network thread for Kinesis Video stream: " << stream_name_str
+        LOG_DEBUG("Network thread for Kinesis Video stream: " << stream_name_str
                                                              << " with upload handle: "
                                                              << upload_handle
                                                              << " exited. http status: "
                                                              << response->getStatusCode());
 
         if (state->isShutdown()) {
-            LOG_INFO("Stream terminated");
+            LOG_INFO("Streaming session terminated");
         } else {
             // Remove the state from the active list
             {
@@ -640,10 +635,10 @@ void DefaultCallbackProvider::shutdownStream(STREAM_HANDLE stream_handle) {
 STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
                                                            STREAM_HANDLE stream_handle,
                                                            PCHAR stream_name,
-                                                           UINT64 stream_upload_handle,
+                                                           UPLOAD_HANDLE stream_upload_handle,
                                                            UINT64 duration_available,
                                                            UINT64 size_available) {
-    LOG_DEBUG("streamDataAvailableHandler invoked for stream: "
+    LOG_TRACE("streamDataAvailableHandler invoked for stream: "
               << stream_name
               << " and stream upload handle: "
               << stream_upload_handle);
@@ -667,8 +662,8 @@ STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
 
 STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
                                                     STREAM_HANDLE stream_handle,
-                                                    UINT64 stream_upload_handle) {
-    LOG_DEBUG("streamClosedHandler invoked");
+                                                    UPLOAD_HANDLE stream_upload_handle) {
+    LOG_DEBUG("streamClosedHandler invoked for upload handle: " << stream_upload_handle);
 
     auto this_obj = reinterpret_cast<DefaultCallbackProvider *>(custom_data);
     if (IS_VALID_UPLOAD_HANDLE(stream_upload_handle)) {
@@ -703,7 +698,7 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
         auto async_call = [](const StreamClosedFunc client_eos_callback,
                              UINT64 custom_data,
                              STREAM_HANDLE stream_handle,
-                             UINT64 stream_upload_handle) -> auto {
+                             UPLOAD_HANDLE stream_upload_handle) -> auto {
             // Wait for the specified amount of time before calling the provided callback
             // NOTE: We will add an extra time for curl handle to settle and close the stream.
             std::this_thread::sleep_for(std::chrono::milliseconds(TIMEOUT_AFTER_STREAM_STOPPED +

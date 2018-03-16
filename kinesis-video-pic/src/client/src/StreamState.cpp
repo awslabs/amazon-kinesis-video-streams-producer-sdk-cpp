@@ -257,14 +257,20 @@ STATUS fromPutStreamState(UINT64 customData, PUINT64 pState) {
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
     UINT64 state = STREAM_STATE_PUT_STREAM;
+    PUploadHandleInfo pUploadHandleInfo;
 
     CHK(pKinesisVideoStream != NULL && pState != NULL, STATUS_NULL_ARG);
 
     // Transition to states if not stopped
     if (pKinesisVideoStream->streamState == STREAM_STATE_STOPPED) {
         state = STREAM_STATE_STOPPED;
-    } else if (pKinesisVideoStream->base.result == SERVICE_CALL_RESULT_OK &&
-               IS_VALID_UPLOAD_HANDLE(pKinesisVideoStream->newStreamHandle)) {
+    } else if (pKinesisVideoStream->base.result == SERVICE_CALL_RESULT_OK) {
+        // find the handle in the new state and set it to ready
+        pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_NEW);
+        if (NULL != pUploadHandleInfo) {
+            pUploadHandleInfo->state = UPLOAD_HANDLE_STATE_READY;
+        }
+
         state = STREAM_STATE_STREAMING;
     }
 

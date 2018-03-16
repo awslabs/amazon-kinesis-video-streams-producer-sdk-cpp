@@ -119,6 +119,19 @@ bool KinesisVideoStream::start() {
     return true;
 }
 
+bool KinesisVideoStream::resetConnection() {
+    STATUS status = STATUS_SUCCESS;
+
+    if (STATUS_FAILED(status = kinesisVideoStreamTerminated(stream_handle_,
+                                                            INVALID_UPLOAD_HANDLE_VALUE,
+                                                            SERVICE_CALL_RESULT_OK))) {
+        LOG_ERROR("Failed to reset the connection with: " << status);
+        return false;
+    }
+
+    return true;
+}
+
 void KinesisVideoStream::free() {
     // Set the ready indicator to false
     stream_ready_ = false;

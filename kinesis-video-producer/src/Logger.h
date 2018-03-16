@@ -8,6 +8,8 @@
 #include <sstream>
 #include <stdexcept>
 
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
+
 // configure the logger by loading configuration from specific properties file.
 // generally, it should be called only once in your main() function.
 #define LOG_CONFIGURE(filename) \
@@ -75,3 +77,8 @@
       return s_logger; \
     } \
   };
+
+} // namespace video
+} // namespace kinesis
+} // namespace amazonaws
+} // namespace com

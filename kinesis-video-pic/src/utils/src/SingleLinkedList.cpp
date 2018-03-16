@@ -243,6 +243,41 @@ CleanUp:
 }
 
 /**
+ * Removes and deletes the specified node
+ */
+STATUS singleListDeleteNode(PSingleList pList, PSingleListNode pNode)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    PSingleListNode pPrevNode = NULL;
+    BOOL found = FALSE;
+
+    CHK(pList != NULL && pNode != NULL, STATUS_NULL_ARG);
+
+    if (pList->pHead == pNode) {
+        // Fast path to remove the head and return
+        CHK_STATUS(singleListDeleteHead(pList));
+        CHK(FALSE, retStatus);
+    }
+
+    pPrevNode = pList->pHead;
+    while (pPrevNode != NULL && !found) {
+        if (pPrevNode->pNext == pNode) {
+            found = TRUE;
+        } else {
+            pPrevNode = pPrevNode->pNext;
+        }
+    }
+
+    if (found) {
+        CHK_STATUS(singleListDeleteNextNode(pList, pPrevNode));
+    }
+
+CleanUp:
+
+    return retStatus;
+}
+
+/**
  * Gets the head node
  */
 STATUS singleListGetHeadNode(PSingleList pList, PSingleListNode* ppNode)

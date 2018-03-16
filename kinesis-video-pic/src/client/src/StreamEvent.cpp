@@ -388,12 +388,13 @@ CleanUp:
 /**
  * PutStream result event func
  */
-STATUS putStreamResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_CALL_RESULT callResult, UINT64 streamHandle)
+STATUS putStreamResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_CALL_RESULT callResult, UPLOAD_HANDLE streamHandle)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PStateMachineState pState;
     PKinesisVideoClient pKinesisVideoClient = NULL;
+    PUploadHandleInfo pUploadHandleInfo = NULL;
     BOOL locked = FALSE;
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
@@ -422,17 +423,24 @@ STATUS putStreamResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_CALL_RES
     pKinesisVideoStream->base.result = callResult;
 
     // Store the client stream handle to call back with.
-    pKinesisVideoStream->newStreamHandle = streamHandle;
+    CHK(NULL != (pUploadHandleInfo = (PUploadHandleInfo) MEMALLOC(SIZEOF(UploadHandleInfo))), STATUS_NOT_ENOUGH_MEMORY);
+    pUploadHandleInfo->handle = streamHandle;
+    pUploadHandleInfo->startIndex = INVALID_VIEW_INDEX_VALUE;
+    pUploadHandleInfo->endIndex = INVALID_VIEW_INDEX_VALUE;
+    pUploadHandleInfo->timestamp = INVALID_TIMESTAMP_VALUE;
+    pUploadHandleInfo->state = UPLOAD_HANDLE_STATE_NEW;
 
-    // If we haven't yet set the stream handle then set it
-    if (!IS_VALID_UPLOAD_HANDLE(pKinesisVideoStream->streamHandle)) {
-        pKinesisVideoStream->streamHandle = pKinesisVideoStream->newStreamHandle;
-    }
+    // Ensueue the stream upload info object
+    CHK_STATUS(stackQueueEnqueue(pKinesisVideoStream->pUploadInfoQueue, (UINT64) pUploadHandleInfo));
 
     // Step the machine
     CHK_STATUS(stepStateMachine(pKinesisVideoStream->base.pStateMachine));
 
 CleanUp:
+
+    if (STATUS_FAILED(retStatus) && NULL != pUploadHandleInfo) {
+        MEMFREE(pUploadHandleInfo);
+    }
 
     // Unlock the stream
     if (locked) {
@@ -496,13 +504,15 @@ CleanUp:
 /**
  * Stream terminated notification
  */
-STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, SERVICE_CALL_RESULT callResult)
+STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE uploadHandle, SERVICE_CALL_RESULT callResult)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PStateMachineState pState;
     PKinesisVideoClient pKinesisVideoClient = NULL;
+    PUploadHandleInfo pUploadHandleInfo;
     BOOL locked = FALSE;
+    UINT64 curItemIndex;
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
     pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
@@ -510,6 +520,42 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, SERVICE_CA
     // Lock the state
     pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
     locked = TRUE;
+
+    // We should handle the in-grace termination differently by not setting the terminated state
+    if (SERVICE_CALL_STREAM_AUTH_IN_GRACE_PERIOD != callResult) {
+        if (IS_VALID_UPLOAD_HANDLE(uploadHandle)) {
+            // Get the upload handle
+            pUploadHandleInfo = getStreamUploadInfo(pKinesisVideoStream, uploadHandle);
+
+            // IMPORTANT!!!
+            // If the upload handle has not been put into rotation then we need to delete it from the queue
+            // and reset the retrying state so we won't rollback the current session in progress during
+            // the token rotation.
+            if ((NULL != pUploadHandleInfo) &&
+                    (pUploadHandleInfo->state & (UPLOAD_HANDLE_STATE_NEW | UPLOAD_HANDLE_STATE_READY))
+                        != UPLOAD_HANDLE_STATE_NONE) {
+                // Remove the handle info from the queue
+                deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
+
+                // Set the indicator of the retrying handle
+                pKinesisVideoStream->retryingOnRotation = TRUE;
+            }
+        } else {
+            // Get the first upload handle in case of invalid handle specified
+            pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_ANY);
+        }
+
+        // Get the index at which we are terminating
+        CHK_STATUS(contentViewGetCurrentIndex(pKinesisVideoStream->pView, &curItemIndex));
+
+        if (NULL != pUploadHandleInfo) {
+            // Set the state to terminating
+            pUploadHandleInfo->state = UPLOAD_HANDLE_STATE_TERMINATING;
+
+            // Set the ending index for cleanup
+            pUploadHandleInfo->endIndex = curItemIndex;
+        }
+    }
 
     // Stop the stream
     pKinesisVideoStream->streamState = STREAM_STATE_STOPPED;
@@ -545,9 +591,9 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = NULL;
-    BOOL locked = FALSE, inView = FALSE, sessionPresent = FALSE;
-    UINT64 timestamp = 0, streamStartTimestamp = 0;
-    UINT64 curIndex;
+    PUploadHandleInfo pUploadHandleInfo;
+    BOOL locked = FALSE, inView = FALSE;
+    UINT64 timestamp = 0, curIndex;
     PViewItem pViewItem;
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL && pFragmentAck != NULL, STATUS_NULL_ARG);
@@ -568,8 +614,10 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
     locked = TRUE;
 
     // First of all, check if the ACK is for a session that's expired/closed already and ignore if it is
-    CHK_STATUS(hashTableContains(pKinesisVideoStream->pSessionMap, uploadHandle, &sessionPresent));
-    if (!sessionPresent) {
+    pUploadHandleInfo = getStreamUploadInfo(pKinesisVideoStream, uploadHandle);
+    if (NULL == pUploadHandleInfo ||
+            pUploadHandleInfo->state == UPLOAD_HANDLE_STATE_ERROR ||
+            !IS_VALID_UPLOAD_HANDLE(pUploadHandleInfo->handle)) {
         // No session is present - early return
         DLOGW("An ACK received for an already expired upload handle %" PRIu64, uploadHandle);
         CHK(FALSE, retStatus);
@@ -583,12 +631,11 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
         CHK_STATUS(contentViewGetCurrentIndex(pKinesisVideoStream->pView, &curIndex));
         CHK_STATUS(contentViewGetHead(pKinesisVideoStream->pView, &pViewItem));
 
-        if (curIndex > pViewItem->index) {
-            timestamp = pViewItem->timestamp;
-        } else {
+        if (curIndex < pViewItem->index) {
             CHK_STATUS(contentViewGetItemAt(pKinesisVideoStream->pView, curIndex, &pViewItem));
-            timestamp = pViewItem->timestamp;
         }
+
+        timestamp = pViewItem->timestamp;
     } else {
         // Calculate the timestamp based on the ACK.
         // Convert the timestamp
@@ -596,18 +643,10 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
 
         // In case we have a relative cluster timestamp stream we need to adjust for the stream start.
         // The stream start timestamp is extracted from the stream session map.
-        if (!pKinesisVideoStream->streamInfo.streamCaps.absoluteFragmentTimes) {
-            // Get the stream start timestamp for the given upload handle
-            retStatus = hashTableGet(pKinesisVideoStream->pSessionMap, uploadHandle, &streamStartTimestamp);
-            CHK(retStatus == STATUS_SUCCESS || retStatus == STATUS_HASH_KEY_NOT_PRESENT, retStatus);
-
-            if (retStatus == STATUS_HASH_KEY_NOT_PRESENT) {
-                // Fix-up the return status
-                retStatus = STATUS_SUCCESS;
-            } else {
-                // In case we found the entry we will adjust the timestamp to make an absolute
-                timestamp += streamStartTimestamp;
-            }
+        if (!pKinesisVideoStream->streamInfo.streamCaps.absoluteFragmentTimes &&
+            IS_VALID_TIMESTAMP(pUploadHandleInfo->timestamp)) {
+            // Adjust the relative timestamp to make an absolute timestamp
+            timestamp += pUploadHandleInfo->timestamp;
         }
     }
 
