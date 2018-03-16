@@ -318,7 +318,7 @@ typedef CID*                PCID;
 #endif
 
 #ifndef SAFE_MEMFREE
-    #define SAFE_MEMFREE(p) do {if (p) {free(p); (p)=NULL;}} while (0)
+    #define SAFE_MEMFREE(p) do {if (p) {MEMFREE(p); (p)=NULL;}} while (0)
 #endif
 
 #ifndef SAFE_DELETE
@@ -367,6 +367,7 @@ typedef CID*                PCID;
 #define STATUS_INVALID_OPERATION                    STATUS_BASE + 0x0000000d
 #define STATUS_NOT_IMPLEMENTED                      STATUS_BASE + 0x0000000e
 #define STATUS_OPERATION_TIMED_OUT                  STATUS_BASE + 0x0000000f
+#define STATUS_NOT_FOUND                            STATUS_BASE + 0x00000010
 
 #include <stdlib.h>
 #include <string.h>

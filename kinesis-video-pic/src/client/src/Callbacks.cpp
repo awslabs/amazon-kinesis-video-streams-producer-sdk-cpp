@@ -81,7 +81,7 @@ STATUS defaultStreamReady(UINT64 customData, STREAM_HANDLE streamHandle)
 /**
  * Default end of stream callback functionality - NOOP
  */
-STATUS defaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 streamUploadHandle)
+STATUS defaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle, UPLOAD_HANDLE streamUploadHandle)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(streamHandle);
@@ -96,5 +96,24 @@ STATUS defaultClientReady(UINT64 customData, CLIENT_HANDLE clientHandle)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(clientHandle);
+    return STATUS_SUCCESS;
+}
+
+/**
+ * Default stream data available callback functionality - NOOP
+ */
+STATUS defaultStreamDataAvailable(UINT64 customData,
+                                  STREAM_HANDLE streamHandle,
+                                  PCHAR streamName,
+                                  UPLOAD_HANDLE uploadHandle,
+                                  UINT64 duration,
+                                  UINT64 size)
+{
+    UNUSED_PARAM(customData);
+    UNUSED_PARAM(streamHandle);
+    UNUSED_PARAM(streamName);
+    UNUSED_PARAM(uploadHandle);
+    UNUSED_PARAM(duration);
+    UNUSED_PARAM(size);
     return STATUS_SUCCESS;
 }

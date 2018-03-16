@@ -93,6 +93,22 @@ TEST(NegativeInvalidInput, SingleListDeleteNextNode)
     EXPECT_EQ(STATUS_SUCCESS, singleListFree(pList));
 }
 
+TEST(NegativeInvalidInput, SingleListDeleteNode)
+{
+    SingleListNode node;
+    MEMSET(&node, 0x00, SIZEOF(SingleListNode));
+    PSingleList pList;
+
+    // Create the list
+    EXPECT_EQ(STATUS_SUCCESS, singleListCreate(&pList));
+
+    EXPECT_NE(STATUS_SUCCESS, singleListDeleteNode(NULL, &node));
+    EXPECT_NE(STATUS_SUCCESS, singleListDeleteNode(pList, NULL));
+
+    // Destroy the list
+    EXPECT_EQ(STATUS_SUCCESS, singleListFree(pList));
+}
+
 TEST(NegativeInvalidInput, SingleListGetHeadTailNode)
 {
     PSingleListNode pNode;
@@ -317,7 +333,7 @@ TEST(FunctionalTest, SingleListBasicOperationsCreateInsertGetDelete)
     EXPECT_EQ(STATUS_SUCCESS, singleListFree(pList));
 }
 
-TEST(FunctionalTest, SingleListDeleteNode)
+TEST(FunctionalTest, SingleListDeleteNextNode)
 {
     PSingleList pList;
     PSingleListNode pNode, pHead, pTail;
@@ -356,6 +372,76 @@ TEST(FunctionalTest, SingleListDeleteNode)
     EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeCount(pList, &retCount));
     EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeAt(pList, retCount - 1, &pNode));
     EXPECT_EQ(STATUS_SUCCESS, singleListDeleteNextNode(pList, pNode));
+
+    // Remove all the remaining nodes
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeCount(pList, &retCount));
+
+    // Remove the nodes
+    for (UINT64 i = 0; i < retCount; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, singleListDeleteHead(pList));
+    }
+
+    // Add a single node and remove head
+    EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemHead(pList, 1));
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteHead(pList));
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeCount(pList, &retCount));
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetHeadNode(pList, &pHead));
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetTailNode(pList, &pTail));
+    EXPECT_EQ(retCount, 0);
+    EXPECT_EQ(pHead, pTail);
+    EXPECT_TRUE(pHead == NULL);
+
+    // Destroy the list
+    EXPECT_EQ(STATUS_SUCCESS, singleListFree(pList));
+}
+
+TEST(FunctionalTest, SingleListDeleteNode)
+{
+    PSingleList pList;
+    PSingleListNode pNode, pHead, pTail;
+    UINT64 count = 100;
+    UINT32 retCount;
+
+    // Create the list
+    EXPECT_EQ(STATUS_SUCCESS, singleListCreate(&pList));
+
+    // Delete the head/tail of an empty list - should work OK
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteHead(pList));
+
+    // Insert at the tail
+    for (UINT64 i = 0; i < count; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemTail(pList, i));
+    }
+
+    // Delete the first, second as head, then second after head, one before last and last
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetHeadNode(pList, &pHead));
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteNode(pList, pHead));
+
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetHeadNode(pList, &pHead));
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteNode(pList, pHead));
+
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetHeadNode(pList, &pHead));
+    pNode = pHead->pNext;
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteNode(pList, pNode));
+
+    // Get the 3rd last and delete it
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeCount(pList, &retCount));
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeAt(pList, retCount - 3, &pNode));
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteNode(pList, pNode));
+
+    // Get the 2nd last and delete it
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeCount(pList, &retCount));
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeAt(pList, retCount - 2, &pNode));
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteNode(pList, pNode));
+
+    // Get the last and delete it
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeCount(pList, &retCount));
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeAt(pList, retCount - 1, &pNode));
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteNode(pList, pNode));
+
+    // Get the tail and delete it
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetTailNode(pList, &pTail));
+    EXPECT_EQ(STATUS_SUCCESS, singleListDeleteNode(pList, pTail));
 
     // Remove all the remaining nodes
     EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeCount(pList, &retCount));

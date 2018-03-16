@@ -1257,13 +1257,13 @@ typedef STATUS (*StreamReadyFunc)(UINT64,
  *
  * @param 1 UINT64 - Custom handle passed by the caller.
  * @param 2 STREAM_HANDLE - The stream to report for.
- * @param 3 UINT64 - Client upload handle.
+ * @param 3 UPLOAD_HANDLE - Client upload handle.
  *
  * @return Status of the callback
  */
 typedef STATUS (*StreamClosedFunc)(UINT64,
                                    STREAM_HANDLE,
-                                   UINT64);
+                                   UPLOAD_HANDLE);
 
 /**
  * Notifies that a given stream has data available.
@@ -1271,7 +1271,7 @@ typedef STATUS (*StreamClosedFunc)(UINT64,
  * @param 1 UINT64 - Custom handle passed by the caller.
  * @param 2 STREAM_HANDLE - The stream to report for.
  * @param 3 PCHAR - Stream name.
- * @param 4 UINT64 - Current client stream handle passed by the caller.
+ * @param 4 UPLOAD_HANDLE - Current client stream upload handle passed by the caller.
  * @param 5 UINT64 - The duration of content currently available in 100ns.
  * @param 6 UINT64 - The size of content in bytes currently available.
  *
@@ -1280,7 +1280,7 @@ typedef STATUS (*StreamClosedFunc)(UINT64,
 typedef STATUS (*StreamDataAvailableFunc)(UINT64,
                                           STREAM_HANDLE,
                                           PCHAR,
-                                          UINT64,
+                                          UPLOAD_HANDLE,
                                           UINT64,
                                           UINT64);
 
@@ -1606,18 +1606,21 @@ PUBLIC_API STATUS stopKinesisVideoStream(STREAM_HANDLE);
 PUBLIC_API STATUS putKinesisVideoFrame(STREAM_HANDLE, PFrame);
 
 /**
- * Updates the codec private data associated with the stream.
+ * Gets the data for the stream.
  *
- * NOTE: Many encoders provide CPD after they have been initialized.
- * This update should happen in states other than STREAMING state.
+ * NOTE: The function will try to fill as much buffer as available to fill
+ * and will return a STATUS_NO_MORE_DATA_AVAILABLE status code. The caller
+ * should check the returned filled size for partially filled buffers.
  *
  * @param 1 STREAM_HANDLE - the stream handle.
- * @param 2 UINT32 - Codec Private Data size
- * @param 3 PBYTE - Codec Private Data bits.
+ * @param 2 PUINT64 - Client stream upload handle.
+ * @param 3 PBYTE - Buffer to fill in.
+ * @param 4 UINT32 - Size of the buffer to fill up-to.
+ * @param 5 PUINT32 - Actual size filled.
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS kinesisVideoStreamFormatChanged(STREAM_HANDLE, UINT32, PBYTE);
+PUBLIC_API STATUS getKinesisVideoStreamData(STREAM_HANDLE, PUINT64, PBYTE, UINT32, PUINT32);
 
 ////////////////////////////////////////////////////
 // Diagnostics functions
@@ -1722,11 +1725,11 @@ PUBLIC_API STATUS getStreamingEndpointResultEvent(UINT64, SERVICE_CALL_RESULT, P
  *
  * @param 1 UINT64 - the custom data passed to the callback by Kinesis Video.
  * @param 2 SERVICE_CALL_RESULT - Service call result.
- * @param 3 UINT64 - Client stream handle.
+ * @param 3 UPLOAD_HANDLE - Client stream upload handle.
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS putStreamResultEvent(UINT64, SERVICE_CALL_RESULT, UINT64);
+PUBLIC_API STATUS putStreamResultEvent(UINT64, SERVICE_CALL_RESULT, UPLOAD_HANDLE);
 
 /**
  * Tag resource API call result event
@@ -1743,32 +1746,29 @@ PUBLIC_API STATUS tagResourceResultEvent(UINT64, SERVICE_CALL_RESULT);
 ////////////////////////////////////////////////////
 
 /**
- * Gets the data for the stream.
+ * Updates the codec private data associated with the stream.
  *
- * NOTE: The function will try to fill as much buffer as available to fill
- * and will return a STATUS_NO_MORE_DATA_AVAILABLE status code. The caller
- * should check the returned filled size for partially filled buffers.
+ * NOTE: Many encoders provide CPD after they have been initialized.
+ * This update should happen in states other than STREAMING state.
  *
  * @param 1 STREAM_HANDLE - the stream handle.
- * @param 2 PUINT64 - Client stream handle.
- * @param 3 PBYTE - Buffer to fill in
- * @param 4 UINT32 - Size of the buffer to fill up-to
- * @param 6 PUINT32 - Actual size filled.
+ * @param 2 UINT32 - Codec Private Data size
+ * @param 3 PBYTE - Codec Private Data bits.
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS getKinesisVideoStreamData(STREAM_HANDLE, PUINT64, PBYTE, UINT32, PUINT32);
+PUBLIC_API STATUS kinesisVideoStreamFormatChanged(STREAM_HANDLE, UINT32, PBYTE);
 
 /**
  * Streaming has been terminated unexpectedly
  *
  * @param 1 STREAM_HANDLE - the stream handle.
- * @param 2 UINT64 - Stream upload handle returned by the client.
+ * @param 2 UPLOAD_HANDLE - Stream upload handle returned by the client.
  * @param 3 SERVICE_CALL_RESULT - Result returned.
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS kinesisVideoStreamTerminated(STREAM_HANDLE, UINT64, SERVICE_CALL_RESULT);
+PUBLIC_API STATUS kinesisVideoStreamTerminated(STREAM_HANDLE, UPLOAD_HANDLE, SERVICE_CALL_RESULT);
 
 /**
  * Stream fragment ACK received.

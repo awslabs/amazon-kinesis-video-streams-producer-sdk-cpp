@@ -12,6 +12,8 @@
 #include "ThreadSafeMap.h"
 #include "OngoingStreamState.h"
 
+#include "json/json.h"
+
 #include <algorithm>
 #include <memory>
 #include <thread>
@@ -346,7 +348,7 @@ public:
             UINT64 custom_data,
             STREAM_HANDLE stream_handle,
             PCHAR stream_name,
-            UINT64 stream_upload_handle,
+            UPLOAD_HANDLE stream_upload_handle,
             UINT64 duration_available,
             UINT64 size_available);
 
@@ -361,7 +363,7 @@ public:
     static STATUS streamClosedHandler(
             UINT64 custom_data,
             STREAM_HANDLE stream_handle,
-            UINT64 stream_upload_handle);
+            UPLOAD_HANDLE stream_upload_handle);
 
 protected:
 
@@ -383,7 +385,7 @@ protected:
     /**
      * Returns a new upload handle and increments the current value
      */
-    UINT64 getUploadHandle() {
+    UPLOAD_HANDLE getUploadHandle() {
         return current_upload_handle_++;
     }
 
@@ -422,7 +424,7 @@ protected:
     /**
      * Upload handle value
      */
-    UINT64 current_upload_handle_;
+    UPLOAD_HANDLE current_upload_handle_;
 
     /**
      * Stores the credentials provider
@@ -458,7 +460,7 @@ protected:
      * returned by the pending_tasks_ future. At that point the OngoingPutFrameState shared pointer falls out of scope.
      *
      */
-    ThreadSafeMap<UINT64, std::shared_ptr<OngoingStreamState>> active_streams_;
+    ThreadSafeMap<UPLOAD_HANDLE, std::shared_ptr<OngoingStreamState>> active_streams_;
 };
 
 } // namespace video

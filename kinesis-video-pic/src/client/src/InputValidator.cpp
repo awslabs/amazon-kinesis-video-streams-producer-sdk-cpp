@@ -69,6 +69,10 @@ STATUS validateClientCallbacks(PDeviceInfo pDeviceInfo, PClientCallbacks pClient
         pClientCallbacks->clientReadyFn = defaultClientReady;
     }
 
+    if (pClientCallbacks->streamDataAvailableFn == NULL) {
+        pClientCallbacks->streamDataAvailableFn = defaultStreamDataAvailable;
+    }
+
     if (pClientCallbacks->getRandomNumberFn == NULL) {
         // Call to seed the number generator
         SRAND(pClientCallbacks->getCurrentTimeFn(pClientCallbacks->customData));

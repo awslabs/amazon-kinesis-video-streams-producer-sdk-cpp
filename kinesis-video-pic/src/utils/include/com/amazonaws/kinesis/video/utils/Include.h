@@ -319,6 +319,11 @@ PUBLIC_API STATUS singleListInsertItemAfter(PSingleList, PSingleListNode, UINT64
 PUBLIC_API STATUS singleListDeleteHead(PSingleList);
 
 /**
+ * Removes and deletes the specified node
+ */
+PUBLIC_API STATUS singleListDeleteNode(PSingleList, PSingleListNode);
+
+/**
  * Removes and deletes the next node of the specified node
  */
 PUBLIC_API STATUS singleListDeleteNextNode(PSingleList, PSingleListNode);
@@ -364,6 +369,10 @@ PUBLIC_API STATUS singleListGetNodeCount(PSingleList, PUINT32);
 
 typedef SingleList StackQueue;
 typedef PSingleList PStackQueue;
+typedef PSingleListNode StackQueueIterator;
+typedef StackQueueIterator* PStackQueueIterator;
+
+#define IS_VALID_ITERATOR(x)    ((x) != NULL)
 
 /**
  * Create a new stack queue
@@ -384,6 +393,31 @@ PUBLIC_API STATUS stackQueueClear(PStackQueue);
  * Gets the number of items in the stack/queue
  */
 PUBLIC_API STATUS stackQueueGetCount(PStackQueue, PUINT32);
+
+/**
+ * Gets the item at the given index
+ */
+PUBLIC_API STATUS stackQueueGetAt(PStackQueue, UINT32, PUINT64);
+
+/**
+ * Sets the item value at the given index
+ */
+PUBLIC_API STATUS stackQueueSetAt(PStackQueue, UINT32, UINT64);
+
+/**
+ * Gets the index of an item
+ */
+PUBLIC_API STATUS stackQueueGetIndexOf(PStackQueue, UINT64, PUINT32);
+
+/**
+ * Removes the item at the given index
+ */
+PUBLIC_API STATUS stackQueueRemoveAt(PStackQueue, UINT32);
+
+/**
+ * Removes the item at the given item
+ */
+PUBLIC_API STATUS stackQueueRemoveItem(PStackQueue, UINT64);
 
 /**
  * Whether the stack queue is empty
@@ -414,6 +448,21 @@ PUBLIC_API STATUS stackQueueEnqueue(PStackQueue, UINT64);
  * Dequeues an item from the queue
  */
 PUBLIC_API STATUS stackQueueDequeue(PStackQueue, PUINT64);
+
+/**
+ * Gets the iterator
+ */
+PUBLIC_API STATUS stackQueueGetIterator(PStackQueue, PStackQueueIterator);
+
+/**
+ * Iterates to next
+ */
+PUBLIC_API STATUS stackQueueIteratorNext(PStackQueueIterator);
+
+/**
+ * Gets the data
+ */
+PUBLIC_API STATUS stackQueueIteratorGetItem(StackQueueIterator, PUINT64);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hash table functionality

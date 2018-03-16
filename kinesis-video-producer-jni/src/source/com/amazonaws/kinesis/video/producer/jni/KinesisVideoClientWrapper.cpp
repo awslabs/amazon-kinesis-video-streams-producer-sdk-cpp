@@ -334,14 +334,24 @@ void KinesisVideoClientWrapper::putKinesisVideoFrame(jlong streamHandle, jobject
     }
 }
 
-UINT32 KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, jobject dataBuffer, jint offset, jint length)
+void KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)
 {
     STATUS retStatus = STATUS_SUCCESS;
     JNIEnv *env;
     mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
-    UINT64 clientStreamHandle = 0;
+    UINT64 uploadHandle = 0;
     UINT32 filledSize = 0, bufferSize = 0;
     PBYTE pBuffer = NULL;
+    jboolean isEos = JNI_FALSE;
+    jclass readResultClass;
+    jmethodID setterMethodId;
+
+    if (NULL == readResult)
+    {
+        DLOGE("NULL ReadResult object");
+        throwNativeException(env, EXCEPTION_NAME, "NULL ReadResult object is passsed.", STATUS_NULL_ARG);
+        goto CleanUp;
+    }
 
     if (!IS_VALID_CLIENT_HANDLE(mClientHandle))
     {
@@ -372,7 +382,7 @@ UINT32 KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, 
         goto CleanUp;
     }
 
-    retStatus = ::getKinesisVideoStreamData(streamHandle, &clientStreamHandle, pBuffer, (UINT32) length, &filledSize);
+    retStatus = ::getKinesisVideoStreamData(streamHandle, &uploadHandle, pBuffer, (UINT32) length, &filledSize);
     if (STATUS_SUCCESS != retStatus && STATUS_NO_MORE_DATA_AVAILABLE != retStatus && STATUS_END_OF_STREAM != retStatus)
     {
         DLOGE("Failed to get data from the stream with status code 0x%08x", retStatus);
@@ -380,10 +390,33 @@ UINT32 KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, 
         goto CleanUp;
     }
 
-    // If we have an end-of-stream then we will need to add an indicator by ORing with an MSB
     if (STATUS_END_OF_STREAM == retStatus) {
-        filledSize |= END_OF_STREAM_INDICATOR;
+        isEos = JNI_TRUE;
     }
+
+    // Get the class
+    readResultClass = env->GetObjectClass(readResult);
+    if (readResultClass == NULL){
+        DLOGE("Failed to get ReadResult class object");
+        throwNativeException(env, EXCEPTION_NAME, "Failed to get ReadResult class object.", STATUS_INVALID_OPERATION);
+        goto CleanUp;
+    }
+
+    // Get the Java method id
+    setterMethodId = env->GetMethodID(readResultClass, "setReadResult", "(JIZ)V");
+    if (setterMethodId == NULL)
+    {
+        DLOGE("Failed to get the setter method id.");
+        throwNativeException(env, EXCEPTION_NAME, "Failed to get setter method id.", STATUS_INVALID_OPERATION);
+        goto CleanUp;
+    }
+
+    // Call the setter method
+    env->CallVoidMethod(readResult,
+                        setterMethodId,
+                        uploadHandle,
+                        filledSize,
+                        isEos);
 
 CleanUp:
 
@@ -391,10 +424,7 @@ CleanUp:
     {
         DLOGE("Failed releasing kinesis video stream data buffer object.");
         throwNativeException(env, EXCEPTION_NAME, "Failed releasing kinesis video stream data buffer object.", STATUS_INVALID_OPERATION);
-        return 0;
     }
-
-    return filledSize;
 }
 
 void KinesisVideoClientWrapper::kinesisVideoStreamFragmentAck(jlong streamHandle, jlong uploadHandle, jobject fragmentAck)

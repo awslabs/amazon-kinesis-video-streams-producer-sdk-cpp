@@ -269,8 +269,9 @@ VOID defaultUnlockMutex(UINT64, MUTEX);
 VOID defaultTryLockMutex(UINT64, MUTEX);
 VOID defaultFreeMutex(UINT64, MUTEX);
 STATUS defaultStreamReady(UINT64, STREAM_HANDLE);
-STATUS defaultEndOfStream(UINT64, STREAM_HANDLE, UINT64);
+STATUS defaultEndOfStream(UINT64, STREAM_HANDLE, UPLOAD_HANDLE);
 STATUS defaultClientReady(UINT64, CLIENT_HANDLE);
+STATUS defaultStreamDataAvailable(UINT64, STREAM_HANDLE, PCHAR, UINT64, UINT64, UINT64);
 
 ///////////////////////////////////////////////////////////////////////////
 // Client service call event functions
