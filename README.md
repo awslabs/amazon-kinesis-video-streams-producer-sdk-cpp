@@ -214,7 +214,7 @@ optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS
 The GStreamer demo app will be built in `kinesis_video_gstreamer_sample_app` in the `kinesis-video-native-build` directory. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution (width and height) through command line arguments.
 
 ```
-Usage: AWS_ACCESS_KEY_ID=<SAMPLEKEY> AWS_SECRET_ACCESS_KEY=<SAMPLESECRET> ./kinesis_video_gstreamer_sample_app <my-stream-name> -w <width> -h <height> -f <framerate> -b <bitrateInKBPS>
+Usage: AWS_ACCESS_KEY_ID=<SAMPLEKEY> AWS_SECRET_ACCESS_KEY=<SAMPLESECRET> ./kinesis_video_gstreamer_sample_app -w <width> -h <height> -f <framerate> -b <bitrateInKBPS> <my_stream_name>
 ```
 * **A.** If resolution is provided then the sample will try to check if the camera supports that resolution. If it does detect that the camera can supprt the resolution supplied in command line, then streaming starts; else, it will fail with an error msg `Resolution not supported`
   
