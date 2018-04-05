@@ -229,6 +229,10 @@ AWS_ACCESS_KEY_ID=<ACCESS_KEY> AWS_SECRET_ACCESS_KEY=<SECRET_KEY> ./kinesis_vide
 
 ```
 
+##### Run the demo application from Docker
+
+Refer the **README.md** file in the  *docker_native_scripts* folder for running the build and RTSP demo app within Docker container.
+
 #### Running C++ Unit tests
 
 The executable for **unit tests** will be built in `./start` inside the `kinesis-video-native-build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
@@ -263,6 +267,21 @@ Ubuntu bulds link against the system versions of the open source component libra
  ./install-script
 ``` 
    to rebuild and re-link the project only.
+
+##### Library not found error when running the demo application
+If any error similar to the following shows that the library path is not properly set:
+
+```
+ liblog4cplus-1.2.so.5: cannot open shared object file: No such file or directory
+
+```
+To resolve this issue, export the LD_LIBRARY_PATH=`<full path to your sdk cpp directory`>/kinesis-video-native-build/downloads/local/lib. If you have downloaded the CPP SDK in `/opt/awssdk` directory then you can set
+	the LD_LIBRARY_PATH as below:
+
+```
+export LD_LIBRARY_PATH=/opt/awssdk/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$LD_LIBRARY_PATH
+
+```
 
 ##### Raspberry PI failure to load the camera device.
 
@@ -322,6 +341,10 @@ make install
 
 
 ## Release Notes
+
+#### Release 1.3.1 (5th April 2018)
+* Fixed video source negotiation error caused by camera with fractional fps 
+* Docker suport for RTSP streaming
 #### Release 1.3.0 (15th March 2018)
 * Fixed producer intermittent termination issue for some edge cases involving re-streaming on error.
 #### Release 1.2.3 (1st March 2018)

@@ -21,9 +21,58 @@ extern "C" {
 #define AVCC_CPD_OVERHEAD       11
 
 /**
- * Minimal size of the Annex-B encoded CPD size should be at least two short start codes and min sps pps data
+ * Avcc format CPD overhead size
+ *
+ * For more info on the format check out https://www.iso.org/standard/69660.html
+ *
+ * aligned(8) class HEVCDecoderConfigurationRecord {
+ *  unsigned int(8) configurationVersion = 1;
+ *  unsigned int(2) general_profile_space;
+ *  unsigned int(1) general_tier_flag;
+ *  unsigned int(5) general_profile_idc;
+ *  unsigned int(32) general_profile_compatibility_flags;
+ *  unsigned int(48) general_constraint_indicator_flags;
+ *  unsigned int(8) general_level_idc;
+ *  bit(4) reserved = ‘1111’b;
+ *  unsigned int(12) min_spatial_segmentation_idc;
+ *  bit(6) reserved = ‘111111’b;
+ *  unsigned int(2) parallelismType;
+ *  bit(6) reserved = ‘111111’b;
+ *  unsigned int(2) chroma_format_idc;
+ *  bit(5) reserved = ‘11111’b;
+ *  unsigned int(3) bit_depth_luma_minus8;
+ *  bit(5) reserved = ‘11111’b;
+ *  unsigned int(3) bit_depth_chroma_minus8;
+ *  bit(16) avgFrameRate;
+ *  bit(2) constantFrameRate;
+ *  bit(3) numTemporalLayers;
+ *  bit(1) temporalIdNested;
+ *  unsigned int(2) lengthSizeMinusOne;
+ *  unsigned int(8) numOfArrays;
+ *  for (j=0; j < numOfArrays; j++) {
+ *     bit(1) array_completeness;
+ *     unsigned int(1) reserved = 0;
+ *     unsigned int(6) NAL_unit_type;
+ *     unsigned int(16) numNalus;
+ *     for (i=0; i< numNalus; i++) {
+ *        unsigned int(16) nalUnitLength;
+ *        bit(8*nalUnitLength) nalUnit;
+ *     }
+ *  }
+ *}
  */
-#define MIN_ANNEXB_CPD_SIZE     3 + 3 + 4 + 1
+#define HEVC_CPD_HEADER_OVERHEAD       23
+#define HEVC_CPD_ENTRY_OVERHEAD        5
+
+/**
+ * Minimal size of the H264 Annex-B encoded CPD size should be at least two short start codes and min sps pps data
+ */
+#define MIN_H264_ANNEXB_CPD_SIZE     3 + 3 + 4 + 1
+
+/**
+ * Minimal size of the H265 Annex-B encoded CPD size should be at least three short start codes and min vps sps pps data
+ */
+#define MIN_H_265_ANNEXB_CPD_SIZE     3 + 3 + 3 + 1 + 4 + 1
 
 /**
  * AVCC Nalu size minus one byte - 6 significant bits set to 1 + 4 bytes per NALU - another 11 bits set
@@ -41,14 +90,34 @@ extern "C" {
 #define AVCC_VERSION_CODE           0x01
 
 /**
+ * HEVC configuration version code
+ */
+#define HEVC_CONFIG_VERSION_CODE           0x01
+
+/**
  * The H264/H265 should be at least this long
  */
 #define MIN_H264_H265_CPD_SIZE      8
 
 /**
+ * Min Hevc encoded CPD size
+ */
+#define HEVC_CPD_HEADER_SIZE        23
+
+/**
+ * Min HEVC array entry size
+ */
+#define HEVC_NALU_ARRAY_ENTRY_SIZE   3
+
+/**
  * SPS bits offset in AVCC encoded CPD
  */
 #define AVCC_SPS_OFFSET             8
+
+/**
+ * HEVC SPS NALu type
+ */
+#define HEVC_SPS_NALU_TYPE          0x21
 
 /**
  * NALu adaptation
@@ -67,15 +136,16 @@ typedef enum {
  *
  * @PBYTE - Frame data buffer
  * @UINT32 - Frame data buffer size
+ * @BOOL - Remove EPB (Emulation Prevention Bytes)
  * @PBYTE - OUT - OPTIONAL - Adapted frame data buffer
  * @PUINT32 - IN/OUT - Adapted frame data buffer size
  *
  * @return - STATUS code of the execution
  */
-STATUS adaptFrameNalsFromAnnexBToAvcc(PBYTE, UINT32, PBYTE, PUINT32);
+STATUS adaptFrameNalsFromAnnexBToAvcc(PBYTE, UINT32, BOOL, PBYTE, PUINT32);
 
 /**
- * Adapts the CPD Annex-B NALUs to AVCC
+ * Adapts the CPD Annex-B NALUs to AVCC for H264
  *
  * @PBYTE - CPD buffer
  * @UINT32 - CPD buffer size
@@ -84,7 +154,19 @@ STATUS adaptFrameNalsFromAnnexBToAvcc(PBYTE, UINT32, PBYTE, PUINT32);
  *
  * @return - STATUS code of the execution
  */
-STATUS adaptCpdNalsFromAnnexBToAvcc(PBYTE, UINT32, PBYTE, PUINT32);
+STATUS adaptH264CpdNalsFromAnnexBToAvcc(PBYTE, UINT32, PBYTE, PUINT32);
+
+/**
+ * Adapts the CPD Annex-B NALUs to HEVC for H265
+ *
+ * @PBYTE - CPD buffer
+ * @UINT32 - CPD buffer size
+ * @PBYTE - OUT - OPTIONAL - Adapted CPD buffer
+ * @PUINT32 - IN/OUT - Adapted CPD buffer size
+ *
+ * @return - STATUS code of the execution
+ */
+STATUS adaptH265CpdNalsFromAnnexBToHvcc(PBYTE, UINT32, PBYTE, PUINT32);
 
 /**
  * Adapts the frame data AVCC NALUs to Annex-B
@@ -110,6 +192,15 @@ STATUS adaptFrameNalsFromAvccToAnnexB(PBYTE, UINT32);
  * @return - STATUS code of the execution
  */
 STATUS getAdaptedFrameSize(PFrame, MKV_NALS_ADAPTATION, PUINT32);
+
+/**
+ * @PBYTE - CPD buffer
+ * @UINT32 - CPD buffer size
+ *
+ * @return - Whether the format is HEVC header
+ */
+BOOL checkHevcFormatHeader(PBYTE, UINT32);
+
 #ifdef __cplusplus
 }
 #endif

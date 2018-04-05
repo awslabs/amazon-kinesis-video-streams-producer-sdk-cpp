@@ -48,6 +48,15 @@ extern "C" {
 #define STATUS_MKV_INVALID_H264_H265_SPS_HEIGHT                                     STATUS_MKVGEN_BASE + 0x00000014
 #define STATUS_MKV_INVALID_H264_H265_SPS_NALU                                       STATUS_MKVGEN_BASE + 0x00000015
 #define STATUS_MKV_INVALID_BIH_CPD                                                  STATUS_MKVGEN_BASE + 0x00000016
+#define STATUS_MKV_INVALID_HEVC_NALU_COUNT                                          STATUS_MKVGEN_BASE + 0x00000017
+#define STATUS_MKV_INVALID_HEVC_FORMAT                                              STATUS_MKVGEN_BASE + 0x00000018
+#define STATUS_MKV_HEVC_SPS_NALU_MISSING                                            STATUS_MKVGEN_BASE + 0x00000019
+#define STATUS_MKV_INVALID_HEVC_SPS_NALU_SIZE                                       STATUS_MKVGEN_BASE + 0x0000001a
+#define STATUS_MKV_INVALID_HEVC_SPS_CHROMA_FORMAT_IDC                               STATUS_MKVGEN_BASE + 0x0000001b
+#define STATUS_MKV_INVALID_HEVC_SPS_RESERVED                                        STATUS_MKVGEN_BASE + 0x0000001c
+#define STATUS_MKV_MIN_ANNEX_B_CPD_SIZE                                             STATUS_MKVGEN_BASE + 0x0000001d
+#define STATUS_MKV_ANNEXB_CPD_MISSING_NALUS                                         STATUS_MKVGEN_BASE + 0x0000001e
+#define STATUS_MKV_INVALID_ANNEXB_CPD_NALUS                                         STATUS_MKVGEN_BASE + 0x0000001f
 
 ////////////////////////////////////////////////////
 // Main structure declarations

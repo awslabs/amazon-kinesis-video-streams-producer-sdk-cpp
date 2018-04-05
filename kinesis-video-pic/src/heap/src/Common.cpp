@@ -303,29 +303,3 @@ VOID decrementUsage(PHeap pHeap, UINT32 overallSize) {
     pHeap->heapSize -= overallSize;
     pHeap->numAlloc--;
 }
-
-/**
- * Prints the content of the memory
- */
-VOID printMemory(PVOID pMem, UINT32 size)
-{
-    DLOGE("============================================");
-    DLOGE("Dumping memory: %p, size: %d", pMem, size);
-    DLOGE("++++++++++++++++++++++++++++++++++++++++++++");
-    CHAR buf[256];
-    PCHAR pCur;
-    pCur = buf;
-    PBYTE pByte = (PBYTE) pMem;
-    for(UINT32 i = 0; i < size; i++) {
-        sprintf(pCur, "%02x ", *pByte++);
-        pCur += 3;
-        if ((i + 1) % 16 == 0) {
-            DLOGE("%s", buf);
-            buf[0] = 0;
-            pCur = buf;
-        }
-    }
-    DLOGE("++++++++++++++++++++++++++++++++++++++++++++");
-    DLOGE("Dumping memory done!");
-    DLOGE("============================================");
-}

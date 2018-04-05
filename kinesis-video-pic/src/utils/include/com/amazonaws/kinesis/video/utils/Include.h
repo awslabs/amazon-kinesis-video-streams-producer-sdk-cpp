@@ -11,6 +11,7 @@ extern "C" {
 #pragma once
 
 #include <com/amazonaws/kinesis/video/common/CommonDefs.h>
+#include <com/amazonaws/kinesis/video/common/PlatformUtils.h>
 
 #define MAX_STRING_CONVERSION_BASE          36
 
@@ -703,6 +704,11 @@ extern putInt64Func putInt64;
 
 PUBLIC_API BOOL isBigEndian();
 PUBLIC_API VOID initializeEndianness();
+
+////////////////////////////////////////////////////
+// Dumping memory functionality
+////////////////////////////////////////////////////
+VOID dumpMemoryHex(PVOID, UINT32);
 
 #ifdef __cplusplus
 }
