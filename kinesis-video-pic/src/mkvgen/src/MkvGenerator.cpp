@@ -56,10 +56,20 @@ STATUS createMkvGenerator(PCHAR contentType, UINT32 behaviorFlags, UINT64 timeco
     // Initialize the random generator
     SRAND((UINT32) GETTIME());
 
+    if (codecPrivateDataSize != 0) {
+        dumpMemoryHex(codecPrivateData, codecPrivateDataSize);
+    }
+
     // Calculate the adapted CPD size
     adaptedCodecPrivateDataSize = codecPrivateDataSize;
     if (codecPrivateDataSize != 0 && adaptCpdAnnexB) {
-        CHK_STATUS(adaptCpdNalsFromAnnexBToAvcc(codecPrivateData, codecPrivateDataSize, NULL, &adaptedCodecPrivateDataSize));
+        if (0 == STRCMP(contentType, MKV_H264_CONTENT_TYPE)) {
+            CHK_STATUS(adaptH264CpdNalsFromAnnexBToAvcc(codecPrivateData, codecPrivateDataSize, NULL,
+                                                        &adaptedCodecPrivateDataSize));
+        } else if (0 == STRCMP(contentType, MKV_H265_CONTENT_TYPE)) {
+            CHK_STATUS(adaptH265CpdNalsFromAnnexBToHvcc(codecPrivateData, codecPrivateDataSize, NULL,
+                                                        &adaptedCodecPrivateDataSize));
+        }
     }
 
     // Allocate the main struct
@@ -104,40 +114,46 @@ STATUS createMkvGenerator(PCHAR contentType, UINT32 behaviorFlags, UINT64 timeco
     pMkvGenerator->codecPrivateData = (PBYTE)(pMkvGenerator + 1);
     if (adaptedCodecPrivateDataSize != 0) {
         if (pMkvGenerator->adaptCpdNals) {
-            CHK_STATUS(adaptCpdNalsFromAnnexBToAvcc(codecPrivateData, codecPrivateDataSize, pMkvGenerator->codecPrivateData, &pMkvGenerator->codecPrivateDataSize));
+            if (0 == STRCMP(contentType, MKV_H264_CONTENT_TYPE)) {
+                CHK_STATUS(adaptH264CpdNalsFromAnnexBToAvcc(codecPrivateData, codecPrivateDataSize,
+                                                            pMkvGenerator->codecPrivateData,
+                                                            &pMkvGenerator->codecPrivateDataSize));
+            } else if (0 == STRCMP(contentType, MKV_H265_CONTENT_TYPE)) {
+                CHK_STATUS(adaptH265CpdNalsFromAnnexBToHvcc(codecPrivateData, codecPrivateDataSize,
+                                                            pMkvGenerator->codecPrivateData,
+                                                            &pMkvGenerator->codecPrivateDataSize));
+            }
         } else {
             MEMCPY(pMkvGenerator->codecPrivateData, codecPrivateData, adaptedCodecPrivateDataSize);
         }
     }
 
     // Check whether we need to generate a video config element for
-    // H264 or H265 content type if the CPD is present
-    if ((0 == STRCMP(contentType, MKV_H264_CONTENT_TYPE) || 0 == STRCMP(contentType, MKV_H265_CONTENT_TYPE))
-        && codecPrivateData != NULL
-        && codecPrivateDataSize != 0) {
+    // H264, H265 or M-JJPG content type if the CPD is present
+    if (codecPrivateData != NULL && codecPrivateDataSize != 0) {
+        // Check and process the H264 then H265 and later M-JPG content type
+        if (0 == STRCMP(contentType, MKV_H264_CONTENT_TYPE)) {
+            retStatus = getVideoWidthAndHeightFromH264Sps(pMkvGenerator->codecPrivateData,
+                                                          pMkvGenerator->codecPrivateDataSize,
+                                                          &pMkvGenerator->videoWidth,
+                                                          &pMkvGenerator->videoHeight);
 
-        retStatus = getVideoWidthAndHeightFromSps(pMkvGenerator->codecPrivateData,
-                                                  pMkvGenerator->codecPrivateDataSize,
-                                                  &pMkvGenerator->videoWidth,
-                                                  &pMkvGenerator->videoHeight);
-        if (STATUS_FAILED(retStatus)) {
-            // This might not be yet fatal so warn and reset the status
-            DLOGW("Failed extracting video configuration from SPS with %08x.", retStatus);
+        } else if (0 == STRCMP(contentType, MKV_H265_CONTENT_TYPE)) {
+            retStatus = getVideoWidthAndHeightFromH265Sps(pMkvGenerator->codecPrivateData,
+                                                          pMkvGenerator->codecPrivateDataSize,
+                                                          &pMkvGenerator->videoWidth,
+                                                          &pMkvGenerator->videoHeight);
 
-            retStatus = STATUS_SUCCESS;
+        } else if ((0 == STRCMP(contentType, MKV_X_MKV_CONTENT_TYPE)) &&
+                (0 == STRCMP(codecId, MKV_FOURCC_CODEC_ID))) {
+            // For M-JPG we have content type as video/x-matroska and the codec
+            // type set as V_MS/VFW/FOURCC
+            retStatus = getVideoWidthAndHeightFromBih(pMkvGenerator->codecPrivateData,
+                                                      pMkvGenerator->codecPrivateDataSize,
+                                                      &pMkvGenerator->videoWidth,
+                                                      &pMkvGenerator->videoHeight);
         }
-    }
 
-    // For M-JPG we have content type as video/x-matroska and the codec
-    // type set as V_MS/VFW/FOURCC
-    if ((0 == STRCMP(contentType, MKV_X_MKV_CONTENT_TYPE) && 0 == STRCMP(codecId, MKV_FOURCC_CODEC_ID))
-        && codecPrivateData != NULL
-        && codecPrivateDataSize != 0) {
-
-        retStatus = getVideoWidthAndHeightFromBih(pMkvGenerator->codecPrivateData,
-                                                  pMkvGenerator->codecPrivateDataSize,
-                                                  &pMkvGenerator->videoWidth,
-                                                  &pMkvGenerator->videoHeight);
         if (STATUS_FAILED(retStatus)) {
             // This might not be yet fatal so warn and reset the status
             DLOGW("Failed extracting video configuration from SPS with %08x.", retStatus);
@@ -947,6 +963,7 @@ STATUS mkvgenEbmlEncodeSimpleBlock(PBYTE pBuffer, UINT32 bufferSize, INT16 times
             // Adapt from Annex-B to Avcc nals. NOTE: The conversion is not 'in-place'
             CHK_STATUS(adaptFrameNalsFromAnnexBToAvcc(pFrame->frameData,
                                                       pFrame->size,
+                                                      FALSE,
                                                       pBuffer + MKV_SIMPLE_BLOCK_BITS_SIZE,
                                                       &adaptedFrameSize));
     }
@@ -998,6 +1015,7 @@ STATUS getAdaptedFrameSize(PFrame pFrame, MKV_NALS_ADAPTATION nalsAdaptation, PU
             // Get the size after conversion
             CHK_STATUS(adaptFrameNalsFromAnnexBToAvcc(pFrame->frameData,
                                                       pFrame->size,
+                                                      FALSE,
                                                       NULL,
                                                       &adaptedFrameSize));
             break;

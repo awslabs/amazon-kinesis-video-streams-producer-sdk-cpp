@@ -10,6 +10,7 @@
  */
 STATUS adaptFrameNalsFromAnnexBToAvcc(PBYTE pFrameData,
                                       UINT32 frameDataSize,
+                                      BOOL removeEpb,
                                       PBYTE pAdaptedFrameData,
                                       PUINT32 pAdaptedFrameDataSize)
 {
@@ -54,6 +55,29 @@ STATUS adaptFrameNalsFromAnnexBToAvcc(PBYTE pFrameData,
             markerFound = TRUE;
 
             // Start the new run
+            zeroCount = 0;
+            runSize = 0;
+        } else if (removeEpb &&
+                *pCurPnt == 0x03 &&
+                zeroCount == 2 &&
+                (i < frameDataSize - 1) &&
+                ((*(pCurPnt + 1) == 0x00) ||
+                        (*(pCurPnt + 1) == 0x01) ||
+                        (*(pCurPnt + 1) == 0x02) ||
+                        (*(pCurPnt + 1) == 0x03))) {
+
+            // Removing the EPB
+            pAdaptedCurPnt += zeroCount;
+
+            // If the adapted frame is specified then copy the zeros and then the current byte
+            if (pAdaptedFrameData != NULL) {
+                while (zeroCount != 0) {
+                    *(pAdaptedCurPnt - zeroCount) = 0x00;
+                    zeroCount--;
+                }
+            }
+
+            // Reset the zero count
             zeroCount = 0;
             runSize = 0;
         } else {
@@ -105,8 +129,10 @@ STATUS adaptFrameNalsFromAnnexBToAvcc(PBYTE pFrameData,
 
 CleanUp:
 
-    if (pAdaptedFrameDataSize != NULL) {
-        *pAdaptedFrameDataSize = pAdaptedCurPnt - pAdaptedFrameData;
+    if (STATUS_SUCCEEDED(retStatus) && pAdaptedFrameDataSize != NULL) {
+        // NOTE: Due to EPB removal we could in fact make the adaptation buffer smaller than the original
+        // We will require at least the original size buffer.
+        *pAdaptedFrameDataSize = MAX(frameDataSize, pAdaptedCurPnt - pAdaptedFrameData);
     }
 
     return retStatus;
@@ -152,14 +178,14 @@ CleanUp:
 }
 
 /**
- * Codec Private Data NALU adaptation from Annex-B to AVCC format for H264
+ * Codec Private Data NALu adaptation from Annex-B to AVCC format for H264
  *
  * NOTE: We are processing H264 and a single SPS/PPS only for now.
  */
-STATUS adaptCpdNalsFromAnnexBToAvcc(PBYTE pCpd,
-                                    UINT32 cpdSize,
-                                    PBYTE pAdaptedCpd,
-                                    PUINT32 pAdaptedCpdSize)
+STATUS adaptH264CpdNalsFromAnnexBToAvcc(PBYTE pCpd,
+                                        UINT32 cpdSize,
+                                        PBYTE pAdaptedCpd,
+                                        PUINT32 pAdaptedCpdSize)
 {
     STATUS retStatus = STATUS_SUCCESS;
     UINT32 spsSize, ppsSize, adaptedRawSize, adaptedCpdSize = 0;
@@ -167,8 +193,8 @@ STATUS adaptCpdNalsFromAnnexBToAvcc(PBYTE pCpd,
 
     CHK(pCpd != NULL && pAdaptedCpdSize != NULL, STATUS_NULL_ARG);
 
-    // We should have at least 2 NALs with at least single byte data so even the short start code shuold account for 8
-    CHK(cpdSize >= MIN_ANNEXB_CPD_SIZE, STATUS_INVALID_ARG_LEN);
+    // We should have at least 2 NALs with at least single byte data so even the short start code should account for 8
+    CHK(cpdSize >= MIN_H264_ANNEXB_CPD_SIZE, STATUS_MKV_MIN_ANNEX_B_CPD_SIZE);
 
     // Calculate the adapted size first. The size should be an overall Avcc package size + the raw sps and pps sizes.
     // The AnnexB packaged sps pps should be the raw size minus the delimiters which can be 2 three bytes start codes.
@@ -178,7 +204,7 @@ STATUS adaptCpdNalsFromAnnexBToAvcc(PBYTE pCpd,
     CHK(pAdaptedCpd != NULL, retStatus);
 
     // Convert the raw bits
-    CHK_STATUS(adaptFrameNalsFromAnnexBToAvcc(pCpd, cpdSize, NULL, &adaptedRawSize));
+    CHK_STATUS(adaptFrameNalsFromAnnexBToAvcc(pCpd, cpdSize, FALSE, NULL, &adaptedRawSize));
 
     // If we get a larger buffer size then it's an error
     CHK(adaptedRawSize <= *pAdaptedCpdSize, STATUS_BUFFER_TOO_SMALL);
@@ -188,7 +214,7 @@ STATUS adaptCpdNalsFromAnnexBToAvcc(PBYTE pCpd,
     CHK(pAdaptedBits != NULL, STATUS_NOT_ENOUGH_MEMORY);
 
     // Get the converted bits
-    CHK_STATUS(adaptFrameNalsFromAnnexBToAvcc(pCpd, cpdSize, pAdaptedBits, &adaptedRawSize));
+    CHK_STATUS(adaptFrameNalsFromAnnexBToAvcc(pCpd, cpdSize, FALSE, pAdaptedBits, &adaptedRawSize));
 
     // Set the source pointer to walk the adapted data
     pSrcPnt = pAdaptedBits;
@@ -239,6 +265,165 @@ STATUS adaptCpdNalsFromAnnexBToAvcc(PBYTE pCpd,
 
     // Precise adapted size
     adaptedCpdSize = pCurPnt - pAdaptedCpd;
+
+CleanUp:
+
+    if (pAdaptedCpdSize != NULL) {
+        *pAdaptedCpdSize = adaptedCpdSize;
+    }
+
+    if (pAdaptedBits != NULL) {
+        MEMFREE(pAdaptedBits);
+    }
+
+    return retStatus;
+}
+
+/**
+ * Codec Private Data NALu adaptation from Annex-B to HEVC format for H265
+ *
+ * NOTE: We are processing H265 and a single VPS/SPS/PPS/SEI only for now.
+ * IMPORTANT: We will store a single NALu per type
+ */
+STATUS adaptH265CpdNalsFromAnnexBToHvcc(PBYTE pCpd,
+                                        UINT32 cpdSize,
+                                        PBYTE pAdaptedCpd,
+                                        PUINT32 pAdaptedCpdSize)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    UINT32 naluSize, adaptedRawSize, adaptedCpdSize = 0, naluCount = 0, i;
+    PBYTE pAdaptedBits = NULL, pCurPnt = pAdaptedCpd, pSrcPnt;
+    H265SpsInfo spsInfo;
+    UINT32 naluSizes[3];
+    PBYTE naluPtrs[3];
+    // Nalu types in order - VPS, SPS, PPS
+    BYTE naluTypes[3] = {0x20, 0x21, 0x22};
+
+    CHK(pCpd != NULL && pAdaptedCpdSize != NULL, STATUS_NULL_ARG);
+
+    // We should have at least 3 NALs with at least single byte data so even the short start code should account for 12
+    CHK(cpdSize >= MIN_H_265_ANNEXB_CPD_SIZE, STATUS_MKV_MIN_ANNEX_B_CPD_SIZE);
+
+    // Convert the raw bits
+    CHK_STATUS(adaptFrameNalsFromAnnexBToAvcc(pCpd, cpdSize, FALSE, NULL, &adaptedRawSize));
+
+    // Allocate enough storage to store the data temporarily
+    pAdaptedBits = (PBYTE) MEMALLOC(adaptedRawSize);
+    CHK(pAdaptedBits != NULL, STATUS_NOT_ENOUGH_MEMORY);
+
+    // Get the converted bits
+    CHK_STATUS(adaptFrameNalsFromAnnexBToAvcc(pCpd, cpdSize, FALSE, pAdaptedBits, &adaptedRawSize));
+
+    // Set the source pointer to walk the adapted data
+    pSrcPnt = pAdaptedBits;
+
+    // Get the NALu count and store the pointer to SPS
+    // It should be VPS/SPS/PPS
+    // In some cases the PPS might be missing
+    while(pSrcPnt - pAdaptedBits < adaptedRawSize) {
+        CHK(pSrcPnt - pAdaptedBits + SIZEOF(UINT32) <= adaptedRawSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
+        naluSize = getInt32(*(PUINT32) pSrcPnt);
+
+        // Store the NALU pointer
+        naluPtrs[naluCount] = pSrcPnt + SIZEOF(UINT32);
+        naluSizes[naluCount] = naluSize;
+
+        pSrcPnt += SIZEOF(UINT32) + naluSize;
+        CHK(pSrcPnt - pAdaptedBits <= adaptedRawSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
+        naluCount++;
+    }
+
+    CHK(naluCount >= 2, STATUS_MKV_ANNEXB_CPD_MISSING_NALUS);
+
+    // Limit NALus to 3
+    naluCount = MIN(3, naluCount);
+
+    // Calculate the required size
+    adaptedCpdSize = HEVC_CPD_HEADER_OVERHEAD + naluCount * HEVC_CPD_ENTRY_OVERHEAD;
+
+    // Add the raw size
+    for (i = 0; i < naluCount; i++) {
+        adaptedCpdSize += naluSizes[i];
+    }
+
+    // Quick check for size only
+    CHK(pAdaptedCpd != NULL, retStatus);
+
+    // If we get a larger buffer size then it's an error
+    CHK(adaptedCpdSize <= *pAdaptedCpdSize, STATUS_BUFFER_TOO_SMALL);
+
+    // Parse the SPS
+    CHK_STATUS(parseH265Sps(naluPtrs[1], naluSizes[1], &spsInfo));
+
+    // Start converting and copying it to the output
+
+    // configurationVersion
+    *pCurPnt++ = HEVC_CONFIG_VERSION_CODE;
+
+    // general_profile_space, general_tier_flag, general_profile_idc
+    *pCurPnt++ = (((UINT8) spsInfo.general_profile_space) << 6) |
+            (((UINT8) spsInfo.general_tier_flag) & 0x1 << 5) |
+            (((UINT8) spsInfo.general_profile_idc) & 0x1f);
+
+    // general_profile_compatibility_flags
+    *pCurPnt++ = spsInfo.general_profile_compatibility_flags[0];
+    *pCurPnt++ = spsInfo.general_profile_compatibility_flags[1];
+    *pCurPnt++ = spsInfo.general_profile_compatibility_flags[2];
+    *pCurPnt++ = spsInfo.general_profile_compatibility_flags[3];
+
+    // general_constraint_indicator_flags
+    *pCurPnt++ = spsInfo.general_constraint_indicator_flags[0];
+    *pCurPnt++ = spsInfo.general_constraint_indicator_flags[1];
+    *pCurPnt++ = spsInfo.general_constraint_indicator_flags[2];
+    *pCurPnt++ = spsInfo.general_constraint_indicator_flags[3];
+    *pCurPnt++ = spsInfo.general_constraint_indicator_flags[4];
+    *pCurPnt++ = spsInfo.general_constraint_indicator_flags[5];
+
+    // general_level_idc
+    *pCurPnt++ = spsInfo.general_level_idc;
+
+    // min_spatial_segmentation_idc
+    *pCurPnt++ = 0xf0;
+    *pCurPnt++ = 0x00;
+
+    // parallelismType
+    *pCurPnt++ = 0xfc;
+
+    // chroma_format_idc
+    *pCurPnt++ = 0xfc | (((UINT8) spsInfo.chroma_format_idc) & 0x03);
+
+    // bit_depth_luma_minus8
+    *pCurPnt++ = 0xf8 | (((UINT8) spsInfo.bit_depth_luma_minus8) & 0x07);
+
+    // bit_depth_luma_minus8
+    *pCurPnt++ = 0xf8 | (((UINT8) spsInfo.bit_depth_chroma_minus8) & 0x07);
+
+    // avgFrameRate
+    *pCurPnt++ = 0x00;
+    *pCurPnt++ = 0x00;
+
+    // constantFrameRate, numTemporalLayers, temporalIdNested, lengthSizeMinusOne
+    *pCurPnt++ = 0x0f;
+
+    // numOfArrays
+    *pCurPnt++ = naluCount;
+
+    for (i = 0; i < naluCount; i++) {
+        // array_completeness, reserved, NAL_unit_type
+        *pCurPnt++ = naluTypes[i];
+
+        // numNalus
+        *pCurPnt++ = 0x00;
+        *pCurPnt++ = 0x01;
+
+        // nalUnitLength
+        putInt16((PINT16) pCurPnt, (UINT16) naluSizes[i]);
+        pCurPnt += SIZEOF(UINT16);
+
+        // Write the NALu data
+        MEMCPY(pCurPnt, naluPtrs[i], naluSizes[i]);
+        pCurPnt += naluSizes[i];
+    }
 
 CleanUp:
 

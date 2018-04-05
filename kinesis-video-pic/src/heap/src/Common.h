@@ -79,11 +79,6 @@ DEFINE_INIT_HEAP(commonHeapInit);
 DEFINE_HEAP_CHK(commonHeapDebugCheckAllocator);
 
 /**
- * Prints the content of the memory
- */
-VOID printMemory(PVOID, UINT32);
-
-/**
  * Increment the allocations/count
  */
 VOID incrementUsage(PHeap, UINT32);

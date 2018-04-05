@@ -1041,6 +1041,10 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
     EXPECT_EQ(pHead->index, pTail->index);
 }
 
+/**
+ * NOTE: Disabling this test as it runs for long time to try to simulate a wraparound for 32 bit.
+ * We currently use 64 bit indexes so it will not wrap around at 32 bit boundary.
+ */
 TEST_F(ViewApiFunctionalityTest, DISABLED_IntOverflowRangeCheck)
 {
     UINT64 index;
