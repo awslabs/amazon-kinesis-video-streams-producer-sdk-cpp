@@ -29,12 +29,12 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     DeviceInfo device_info = device_info_provider->getDeviceInfo();
 
     // Create the producer object
-    auto kinesis_video_producer = new KinesisVideoProducer();
+    std::unique_ptr<KinesisVideoProducer> kinesis_video_producer(new KinesisVideoProducer());
 
     kinesis_video_producer->stored_callbacks_ = callback_provider->getCallbacks();
 
     ClientCallbacks override_callbacks;
-    override_callbacks.customData = reinterpret_cast<UINT64> (kinesis_video_producer);
+    override_callbacks.customData = reinterpret_cast<UINT64> (kinesis_video_producer.get());
     override_callbacks.version = CALLBACKS_CURRENT_VERSION;
     override_callbacks.getDeviceCertificateFn = kinesis_video_producer->stored_callbacks_.getDeviceCertificateFn == NULL ? NULL : KinesisVideoProducer::getDeviceCertificateFunc;
     override_callbacks.getSecurityTokenFn = kinesis_video_producer->stored_callbacks_.getSecurityTokenFn == NULL ? NULL : KinesisVideoProducer::getSecurityTokenFunc;
@@ -65,15 +65,15 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     override_callbacks.getCurrentTimeFn = kinesis_video_producer->stored_callbacks_.getCurrentTimeFn == NULL ? NULL : KinesisVideoProducer::getCurrentTimeFunc;
     override_callbacks.getRandomNumberFn = kinesis_video_producer->stored_callbacks_.getRandomNumberFn == NULL ? NULL : KinesisVideoProducer::getRandomNumberFunc;
 
+    // Special handling for the logger as we won't be calling channeling the call through the SDK
+    override_callbacks.logPrintFn = kinesis_video_producer->stored_callbacks_.logPrintFn != NULL ? kinesis_video_producer->stored_callbacks_.logPrintFn : KinesisVideoProducer::logPrintFunc;
+
     // Override the client and the stream ready API
     override_callbacks.clientReadyFn = KinesisVideoProducer::clientReadyFunc;
     override_callbacks.streamReadyFn = KinesisVideoProducer::streamReadyFunc;
 
     STATUS status = createKinesisVideoClient(&device_info, &override_callbacks, &client_handle);
     if (STATUS_FAILED(status)) {
-        // Delete the producer on error
-        delete kinesis_video_producer;
-
         stringstream status_strstrm;
         status_strstrm << std::hex << status;
         LOG_AND_THROW(" Unable to create Kinesis Video client. Error status: 0x" + status_strstrm.str());
@@ -82,7 +82,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     kinesis_video_producer->client_handle_ = client_handle;
     kinesis_video_producer->callback_provider_ = move(callback_provider);
 
-    return unique_ptr<KinesisVideoProducer>(kinesis_video_producer);
+    return kinesis_video_producer;
 }
 
 unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
@@ -311,6 +311,57 @@ UINT64 KinesisVideoProducer::getCurrentTimeFunc(UINT64 custom_data) {
 UINT32 KinesisVideoProducer::getRandomNumberFunc(UINT64 custom_data) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     return this_obj->stored_callbacks_.getRandomNumberFn(this_obj->stored_callbacks_.customData);
+}
+
+VOID KinesisVideoProducer::logPrintFunc(UINT32 logLevel, PCHAR tag, PCHAR format, ...) {
+    // This is a special function in a sense that it doesn't have the "custom_data"
+    // Having custom data would change the underlying PIC logging macros signature
+    // and would cause a lot of churn in the codebase.
+    // Moreover, this would not serve a great purpose as the SDK itself integrates with
+    // the default implementation of the logger - log4cplus
+    UNUSED_PARAM(tag);
+
+    // Ignore if level is at silent level or above or the format is NULL
+    if (logLevel >= LOG_LEVEL_SILENT || NULL == format) {
+        return;
+    }
+
+    // Reserve the temporary buffer on the stack for the performance reasons.
+    // The default size of 64K is ample and will not put too much pressure on the stack.
+    CHAR formatted_str[0xffff];
+    va_list valist;
+    va_start(valist, format);
+    vsnprintf(formatted_str, SIZEOF(formatted_str), format, valist);
+    va_end(valist);
+
+    // Null terminate the string in case of an overflow
+    formatted_str[SIZEOF(formatted_str) - 1] = '\0';
+
+    switch (logLevel) {
+        case LOG_LEVEL_VERBOSE:
+            LOG_TRACE(formatted_str);
+            break;
+
+        case LOG_LEVEL_DEBUG:
+            LOG_DEBUG(formatted_str);
+            break;
+
+        case LOG_LEVEL_INFO:
+            LOG_INFO(formatted_str);
+            break;
+
+        case LOG_LEVEL_WARN:
+            LOG_WARN(formatted_str);
+            break;
+
+        case LOG_LEVEL_ERROR:
+            LOG_ERROR(formatted_str);
+            break;
+
+        case LOG_LEVEL_FATAL:
+            LOG_FATAL(formatted_str);
+            break;
+    }
 }
 
 STATUS KinesisVideoProducer::getSecurityTokenFunc(UINT64 custom_data,

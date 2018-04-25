@@ -29,8 +29,6 @@ STATUS createKinesisVideoClient(PDeviceInfo pDeviceInfo, PClientCallbacks pClien
     PCHAR pCurPnt;
     CLIENT_HANDLE clientHandle;
 
-    DLOGI("Creating Kinesis Video Client");
-
     // Check the input params
     CHK(pDeviceInfo != NULL && pClientHandle != NULL, STATUS_NULL_ARG);
 
@@ -39,7 +37,12 @@ STATUS createKinesisVideoClient(PDeviceInfo pDeviceInfo, PClientCallbacks pClien
 
     // Validate the input structs
     CHK_STATUS(validateDeviceInfo(pDeviceInfo));
+
+    // Validate the callbacks. Set default callbacks.
     CHK_STATUS(validateClientCallbacks(pDeviceInfo, pClientCallbacks));
+
+    // Report the creation after the validation as we might have the overwritten logger.
+    DLOGI("Creating Kinesis Video Client");
 
     // Allocate the main struct with an array of stream pointers following the structure and the array of tags following it
     // NOTE: The calloc will Zero the fields
@@ -720,7 +723,7 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
         DLOGW("Reporting a dropped frame/fragment.");
 
         // Invalidate the streams current view item
-        MEMSET(&pKinesisVideoStream->curViewItem, 0x00, SIZEOF(ViewItem));
+        MEMSET(&pKinesisVideoStream->curViewItem, 0x00, SIZEOF(CurrentViewItem));
         pKinesisVideoStream->curViewItem.viewItem.handle = INVALID_ALLOCATION_HANDLE_VALUE;
 
         switch (pKinesisVideoStream->streamInfo.streamCaps.streamingType) {

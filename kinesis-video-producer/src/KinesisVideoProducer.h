@@ -196,6 +196,7 @@ protected:
                               MUTEX);
     static UINT64 getCurrentTimeFunc(UINT64);
     static UINT32 getRandomNumberFunc(UINT64);
+    static VOID logPrintFunc(UINT32, PCHAR, PCHAR, ...);
     static STATUS getSecurityTokenFunc(UINT64,
                                        PBYTE*,
                                        PUINT32,

@@ -183,6 +183,113 @@ public:
     static UINT64 getCurrentTimeHandler(UINT64 custom_data);
 
     /**
+     * Reports a ready state for the client.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 CLIENT_HANDLE - The client handle.
+     *
+     * @return Status of the callback
+     */
+    static STATUS clientReadyHandler(UINT64 custom_data, CLIENT_HANDLE client_handle);
+
+    /**
+     * Reports storage pressure.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 UINT64 - Remaining bytes.
+     *
+     * @return Status of the callback
+     */
+    static STATUS storageOverflowPressureHandler(UINT64 custom_data, UINT64 bytes_remaining);
+
+    /**
+     * Reports an underflow for the stream.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Reporting for this stream.
+     *
+     * @return Status of the callback
+     */
+    static STATUS streamUnderflowReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle);
+
+    /**
+     * Reports stream latency excess.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - The stream to report for.
+     * @param 3 UINT64 - The current buffer duration/depth in 100ns.
+     *
+     * @return Status of the callback
+     */
+    static STATUS streamLatencyPressureHandler(UINT64 custom_data,
+                                               STREAM_HANDLE stream_handle,
+                                               UINT64 buffer_duration);
+
+    /**
+     * Reports a dropped frame for the stream.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - The stream to report for.
+     * @param 3 UINT64 - The timecode of the dropped frame in 100ns.
+     *
+     * @return Status of the callback
+     */
+    static STATUS droppedFrameReportHandler(UINT64 custom_data,
+                                            STREAM_HANDLE stream_handle,
+                                            UINT64 timecode);
+
+    /**
+     * Reports a dropped fragment for the stream.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - The stream to report for.
+     * @param 3 UINT64 - The timecode of the dropped fragment in 100ns.
+     *
+     * @return Status of the callback
+     */
+    static STATUS droppedFragmentReportHandler(UINT64 custom_data,
+                                               STREAM_HANDLE stream_handle,
+                                               UINT64 timecode);
+
+    /**
+     * Reports stream staleness as the last buffering ack is greater than
+     * a specified duration in the stream caps.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - The stream to report for.
+     * @param 3 UINT64 - Duration of the last buffering ACK received in 100ns.
+     *
+     * @return Status of the callback
+     */
+    static STATUS streamConnectionStaleHandler(UINT64 custom_data,
+                                               STREAM_HANDLE stream_handle,
+                                               UINT64 last_ack_duration);
+
+    /**
+     * Reports a ready state for the stream.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - The stream to report for.
+     *
+     * @return Status of the callback
+     */
+    static STATUS streamReadyHandler(UINT64 custom_data, STREAM_HANDLE stream_handle);
+
+    /**
+     * Reports a received fragment ack for the stream.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - The stream to report for.
+     * @param 3 PFragmentAck - The constructed fragment ack.
+     *
+     * @return Status of the callback
+    */
+    static STATUS fragmentAckReceivedHandler(UINT64 custom_data,
+                                             STREAM_HANDLE stream_handle,
+                                             PFragmentAck fragment_ack);
+
+
+    /**
      * Retrieve the security token to authenticate the client to AWS.
      *
      * @param custom_data Custom handle passed by the caller (this class)
@@ -212,14 +319,13 @@ public:
      * @param service_call_ctx service call context passed from Kinesis Video PIC
      * @return Status of the callback
      */
-    static STATUS createStreamHandler(
-            UINT64 custom_data,
-            PCHAR device_name,
-            PCHAR stream_name,
-            PCHAR content_type,
-            PCHAR kms_arn,
-            UINT64 retention_period,
-            PServiceCallContext service_call_ctx);
+    static STATUS createStreamHandler(UINT64 custom_data,
+                                      PCHAR device_name,
+                                      PCHAR stream_name,
+                                      PCHAR content_type,
+                                      PCHAR kms_arn,
+                                      UINT64 retention_period,
+                                      PServiceCallContext service_call_ctx);
 
     /**
      * Invoked when the Kinesis Video SDK to check if the stream, defined by stream_name, exists.
@@ -235,8 +341,7 @@ public:
      * @param service_call_ctx
      * @return Status of the callback
      */
-    static STATUS
-    describeStreamHandler(UINT64 custom_data, PCHAR stream_name, PServiceCallContext service_call_ctx);
+    static STATUS describeStreamHandler(UINT64 custom_data, PCHAR stream_name, PServiceCallContext service_call_ctx);
 
     /**
      * Gets the streaming endpoint.
@@ -248,9 +353,10 @@ public:
      * @param service_call_ctx service call context passed from Kinesis Video PIC
      * @return Status of the callback
      */
-    static STATUS streamingEndpointHandler(
-            UINT64 custom_data, PCHAR stream_name, PCHAR api_name,
-            PServiceCallContext service_call_ctx);
+    static STATUS streamingEndpointHandler(UINT64 custom_data,
+                                           PCHAR stream_name,
+                                           PCHAR api_name,
+                                           PServiceCallContext service_call_ctx);
 
     /**
      * Currently this handler does nothing but echo the params received back to Kinesis Video by invoking
@@ -262,9 +368,10 @@ public:
      * @param service_call_ctx service call context passed from Kinesis Video PIC
      * @return Status of the callback
      */
-    static STATUS streamingTokenHandler(
-            UINT64 custom_data, PCHAR stream_name, STREAM_ACCESS_MODE access_mode,
-            PServiceCallContext service_call_ctx);
+    static STATUS streamingTokenHandler(UINT64 custom_data,
+                                        PCHAR stream_name,
+                                        STREAM_ACCESS_MODE access_mode,
+                                        PServiceCallContext service_call_ctx);
 
     /**
      * This handler is invoked once per stream on start up of the stream to Kinesis Video.
@@ -287,8 +394,13 @@ public:
      * @return Status of the callback
      */
     static STATUS
-    putStreamHandler(UINT64 custom_data, PCHAR stream_name, PCHAR container_type, UINT64 start_timestamp,
-                     BOOL absolute_fragment_timestamp, BOOL do_ack, PCHAR streaming_endpoint,
+    putStreamHandler(UINT64 custom_data,
+                     PCHAR stream_name,
+                     PCHAR container_type,
+                     UINT64 start_timestamp,
+                     BOOL absolute_fragment_timestamp,
+                     BOOL do_ack,
+                     PCHAR streaming_endpoint,
                      PServiceCallContext service_call_ctx);
 
     /**
@@ -302,12 +414,11 @@ public:
      * @param service_call_ctx service call context passed from Kinesis Video PIC
      * @return Status of the callback
      */
-    static STATUS tagResourceHandler(
-            UINT64 custom_data,
-            PCHAR stream_arn,
-            UINT32 num_tags,
-            PTag tags,
-            PServiceCallContext service_call_ctx);
+    static STATUS tagResourceHandler(UINT64 custom_data,
+                                     PCHAR stream_arn,
+                                     UINT32 num_tags,
+                                     PTag tags,
+                                     PServiceCallContext service_call_ctx);
 
     /**
      * Creates/updates the device in the cloud. Currently, no-op.
@@ -344,13 +455,12 @@ public:
      * @param size_available_in_bytes
      * @return
      */
-    static STATUS streamDataAvailableHandler(
-            UINT64 custom_data,
-            STREAM_HANDLE stream_handle,
-            PCHAR stream_name,
-            UPLOAD_HANDLE stream_upload_handle,
-            UINT64 duration_available,
-            UINT64 size_available);
+    static STATUS streamDataAvailableHandler(UINT64 custom_data,
+                                             STREAM_HANDLE stream_handle,
+                                             PCHAR stream_name,
+                                             UPLOAD_HANDLE stream_upload_handle,
+                                             UINT64 duration_available,
+                                             UINT64 size_available);
 
     /**
      * Gets triggered the closing of the stream
@@ -360,10 +470,9 @@ public:
      * @param stream_upload_handle opaque handle to the current stream upload from the client.
      * @return
      */
-    static STATUS streamClosedHandler(
-            UINT64 custom_data,
-            STREAM_HANDLE stream_handle,
-            UPLOAD_HANDLE stream_upload_handle);
+    static STATUS streamClosedHandler(UINT64 custom_data,
+                                      STREAM_HANDLE stream_handle,
+                                      UPLOAD_HANDLE stream_upload_handle);
 
 protected:
 

@@ -79,6 +79,10 @@ STATUS validateClientCallbacks(PDeviceInfo pDeviceInfo, PClientCallbacks pClient
         pClientCallbacks->getRandomNumberFn = defaultGetRandomNumber;
     }
 
+    if (pClientCallbacks->logPrintFn != NULL) {
+        globalCustomLogPrintFn = pClientCallbacks->logPrintFn;
+    }
+
 CleanUp:
     return retStatus;
 }

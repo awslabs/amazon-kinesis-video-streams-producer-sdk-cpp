@@ -33,6 +33,10 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 class SampleClientCallbackProvider : public ClientCallbackProvider {
 public:
 
+    UINT64 getCallbackCustomData() override {
+        return reinterpret_cast<UINT64> (this);
+    }
+
     StorageOverflowPressureFunc getStorageOverflowPressureCallback() override {
         return storageOverflowPressure;
     }
@@ -42,6 +46,10 @@ public:
 
 class SampleStreamCallbackProvider : public StreamCallbackProvider {
 public:
+
+    UINT64 getCallbackCustomData() override {
+        return reinterpret_cast<UINT64> (this);
+    }
 
     StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
         return streamConnectionStaleHandler;

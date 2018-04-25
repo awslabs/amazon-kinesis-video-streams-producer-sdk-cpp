@@ -64,6 +64,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 *     getFreeMutexCallback();
 *     getCurrentTimeCallback();
 *     getRandomNumberCallback();
+*     getLogPrintCallback();
 *
 * The optional callbacks are virtual, but there are default implementations defined for them that return nullptr,
 * which will therefore use the defaults provided by the Kinesis Video SDK.
@@ -122,6 +123,11 @@ public:
      * @return Kinesis Video client default implementation
      */
     virtual GetRandomNumberFunc getRandomNumberCallback();
+
+    /**
+     * @return Kinesis Video client default implementation
+     */
+    virtual LogPrintFunc getLogPrintCallback();
 
     /**
      * The function returned by this callback takes three arguments:

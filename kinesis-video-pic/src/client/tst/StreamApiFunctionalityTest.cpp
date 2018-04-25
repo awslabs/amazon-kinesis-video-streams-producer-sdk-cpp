@@ -483,8 +483,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamLatencyNotification)
     // Create and ready a stream
     ReadyStream();
 
-    // Iterate 2 items over the buffer limit
-    for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+    for (i = 0, timestamp = 0; timestamp <= TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
@@ -500,8 +499,8 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamLatencyNotification)
             // Should have called a pressure notification
             EXPECT_EQ(1, mStreamLatencyPressureFuncCount);
             EXPECT_EQ(latency + TEST_LONG_FRAME_DURATION, mDuration);
-        } else if (timestamp == TEST_BUFFER_DURATION - 1) {
-            EXPECT_EQ((TEST_BUFFER_DURATION - latency) / 100, mStreamLatencyPressureFuncCount);
+        } else if (timestamp == TEST_BUFFER_DURATION) {
+            EXPECT_EQ(i - latency / TEST_LONG_FRAME_DURATION + 1, mStreamLatencyPressureFuncCount);
             EXPECT_EQ(TEST_BUFFER_DURATION, mDuration);
         } else if (timestamp < latency) {
             // Shouldn't have been called yet
@@ -1132,4 +1131,62 @@ TEST_F(StreamApiFunctionalityTest, putFrame_AdaptAnnexB)
     frame.frameData = frameData;
     frame.flags = FRAME_FLAG_KEY_FRAME;
     EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
+}
+
+TEST_F(StreamApiFunctionalityTest, PutGet_ConnectionStaleNotification)
+{
+    UINT32 i, filledSize;
+    BYTE tempBuffer[10000];
+    BYTE getDataBuffer[20000];
+    UINT64 timestamp, delay, clientStreamHandle;
+    Frame frame;
+    STATUS retStatus = STATUS_SUCCESS;
+
+    // Set the connection staleness threshold
+    delay = TEST_LONG_FRAME_DURATION * 30;
+    mStreamInfo.streamCaps.connectionStalenessDuration = delay;
+    mStreamInfo.streamCaps.fragmentAcks = true;
+
+    // Create and ready a stream
+    ReadyStream();
+
+    for (i = 0, timestamp = 0; timestamp <= TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+        frame.index = i;
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+        frame.duration = TEST_LONG_FRAME_DURATION;
+        frame.size = SIZEOF(tempBuffer);
+        frame.frameData = tempBuffer;
+
+        // Key frame every 10th
+        frame.flags = i % 10 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
+
+        // Return a put stream result on 1st
+        if (i == 1) {
+           EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+        }
+
+        if (i >= 1) {
+            clientStreamHandle = 0;
+            retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                    &filledSize);
+            EXPECT_EQ(true, STATUS_SUCCESS == retStatus || STATUS_NO_MORE_DATA_AVAILABLE == retStatus);
+            EXPECT_EQ(true, filledSize > 0);
+            EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
+        }
+
+        if (timestamp == delay + TEST_LONG_FRAME_DURATION) {
+            // Should have called a pressure notification
+            EXPECT_EQ(1, mStreamConnectionStaleFuncCount);
+            EXPECT_EQ(delay + TEST_LONG_FRAME_DURATION, mDuration);
+        } else if (timestamp == TEST_BUFFER_DURATION) {
+            EXPECT_EQ(i - delay / TEST_LONG_FRAME_DURATION, mStreamConnectionStaleFuncCount);
+            EXPECT_EQ(delay + TEST_LONG_FRAME_DURATION, mDuration);
+        } else if (timestamp < delay) {
+            // Shouldn't have been called yet
+            EXPECT_EQ(0, mStreamConnectionStaleFuncCount);
+            EXPECT_EQ(0, mDuration);
+        }
+    }
 }

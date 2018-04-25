@@ -639,11 +639,11 @@ STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
                                                            UINT64 duration_available,
                                                            UINT64 size_available) {
     LOG_TRACE("streamDataAvailableHandler invoked for stream: "
-              << stream_name
-              << " and stream upload handle: "
-              << stream_upload_handle);
+                      << stream_name
+                      << " and stream upload handle: "
+                      << stream_upload_handle);
 
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider *>(custom_data);
     if (IS_VALID_UPLOAD_HANDLE(stream_upload_handle)) {
         std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
         auto state = this_obj->active_streams_.get(stream_upload_handle);
@@ -652,9 +652,14 @@ STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
         }
     }
 
-    auto client_stream_report_callback = this_obj->stream_callback_provider_->getStreamDataAvailableCallback();
-    if (nullptr != client_stream_report_callback) {
-        return client_stream_report_callback(custom_data, stream_handle, stream_name, stream_upload_handle, duration_available, size_available);
+    auto stream_data_available_callback = this_obj->stream_callback_provider_->getStreamDataAvailableCallback();
+    if (nullptr != stream_data_available_callback) {
+        return stream_data_available_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                              stream_handle,
+                                              stream_name,
+                                              stream_upload_handle,
+                                              duration_available,
+                                              size_available);
     } else {
         return STATUS_SUCCESS;
     }
@@ -690,12 +695,12 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
         }
     }
 
-    auto client_eos_callback = this_obj->stream_callback_provider_->getStreamClosedCallback();
-    if (nullptr != client_eos_callback) {
+    auto stream_eos_callback = this_obj->stream_callback_provider_->getStreamClosedCallback();
+    if (nullptr != stream_eos_callback) {
         // Await for some time for CURL to terminate properly before triggering the callback on another thread
         // as the calling thread is likely to be the curls thread and most implementations have a single threaded
         // pool which we can't block.
-        auto async_call = [](const StreamClosedFunc client_eos_callback,
+        auto async_call = [](const StreamClosedFunc stream_eos_callback,
                              UINT64 custom_data,
                              STREAM_HANDLE stream_handle,
                              UPLOAD_HANDLE stream_upload_handle) -> auto {
@@ -704,13 +709,18 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
             std::this_thread::sleep_for(std::chrono::milliseconds(TIMEOUT_AFTER_STREAM_STOPPED +
                                                                   CURL_CLOSE_HANDLE_DELAY_IN_MILLIS));
 
-            STATUS status = client_eos_callback(custom_data, stream_handle, stream_upload_handle);
+            STATUS status = stream_eos_callback(custom_data, stream_handle, stream_upload_handle);
             if (STATUS_FAILED(status)) {
                 LOG_ERROR("streamClosedHandler failed with: " << status);
             }
         };
 
-        thread worker(async_call, client_eos_callback, custom_data, stream_handle, stream_upload_handle);
+        thread worker(async_call,
+                      stream_eos_callback,
+                      this_obj->stream_callback_provider_->getCallbackCustomData(),
+                      stream_handle,
+                      stream_upload_handle);
+
         worker.detach();
     }
 
@@ -743,9 +753,149 @@ STATUS DefaultCallbackProvider::streamErrorHandler(UINT64 custom_data,
     }
 
     // Call the client callback if any specified
-    auto client_stream_report_callback = this_obj->stream_callback_provider_->getStreamErrorReportCallback();
-    if (nullptr != client_stream_report_callback) {
-        return client_stream_report_callback(custom_data, stream_handle, fragment_timecode, status);
+    auto stream_error_callback = this_obj->stream_callback_provider_->getStreamErrorReportCallback();
+    if (nullptr != stream_error_callback) {
+        return stream_error_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                     stream_handle,
+                                     fragment_timecode,
+                                     status);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::clientReadyHandler(UINT64 custom_data, CLIENT_HANDLE client_handle) {
+    LOG_DEBUG("clientReadyHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto client_ready_callback = this_obj->client_callback_provider_->getClientReadyCallback();
+    if (nullptr != client_ready_callback) {
+        return client_ready_callback(this_obj->client_callback_provider_->getCallbackCustomData(), client_handle);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::storageOverflowPressureHandler(UINT64 custom_data, UINT64 bytes_remaining) {
+    LOG_DEBUG("storageOverflowPressureHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto storage_pressure_callback = this_obj->client_callback_provider_->getStorageOverflowPressureCallback();
+    if (nullptr != storage_pressure_callback) {
+        return storage_pressure_callback(this_obj->client_callback_provider_->getCallbackCustomData(), bytes_remaining);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::streamUnderflowReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle) {
+    LOG_DEBUG("streamUnderflowReportHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto stream_underflow_callback = this_obj->stream_callback_provider_->getStreamUnderflowReportCallback();
+    if (nullptr != stream_underflow_callback) {
+        return stream_underflow_callback(this_obj->stream_callback_provider_->getCallbackCustomData(), stream_handle);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data,
+                                                             STREAM_HANDLE stream_handle,
+                                                             UINT64 buffer_duration) {
+    LOG_DEBUG("streamLatencyPressureHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto stream_latency_callback = this_obj->stream_callback_provider_->getStreamLatencyPressureCallback();
+    if (nullptr != stream_latency_callback) {
+        return stream_latency_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                       stream_handle,
+                                       buffer_duration);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::droppedFrameReportHandler(UINT64 custom_data,
+                                                          STREAM_HANDLE stream_handle,
+                                                          UINT64 timecode) {
+    LOG_DEBUG("droppedFrameReportHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto dropped_frame_callback = this_obj->stream_callback_provider_->getDroppedFrameReportCallback();
+    if (nullptr != dropped_frame_callback) {
+        return dropped_frame_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                      stream_handle,
+                                      timecode);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::droppedFragmentReportHandler(UINT64 custom_data,
+                                                             STREAM_HANDLE stream_handle,
+                                                             UINT64 timecode) {
+    LOG_DEBUG("droppedFragmentReportHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto dropped_fragment_callback = this_obj->stream_callback_provider_->getDroppedFragmentReportCallback();
+    if (nullptr != dropped_fragment_callback) {
+        return dropped_fragment_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                         stream_handle,
+                                         timecode);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
+                                                             STREAM_HANDLE stream_handle,
+                                                             UINT64 last_ack_duration) {
+    LOG_DEBUG("streamConnectionStaleHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto connection_stale_callback = this_obj->stream_callback_provider_->getStreamConnectionStaleCallback();
+    if (nullptr != connection_stale_callback) {
+        return connection_stale_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                         stream_handle,
+                                         last_ack_duration);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::streamReadyHandler(UINT64 custom_data, STREAM_HANDLE stream_handle) {
+    LOG_DEBUG("streamReadyHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto stream_ready_callback = this_obj->stream_callback_provider_->getStreamReadyCallback();
+    if (nullptr != stream_ready_callback) {
+        return stream_ready_callback(this_obj->stream_callback_provider_->getCallbackCustomData(), stream_handle);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+STATUS DefaultCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
+                                                           STREAM_HANDLE stream_handle,
+                                                           PFragmentAck fragment_ack) {
+    LOG_DEBUG("fragmentAckReceivedHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto fragment_ack_callback = this_obj->stream_callback_provider_->getFragmentAckReceivedCallback();
+    if (nullptr != fragment_ack_callback) {
+        return fragment_ack_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                     stream_handle,
+                                     fragment_ack);
     } else {
         return STATUS_SUCCESS;
     }
@@ -755,9 +905,9 @@ void DefaultCallbackProvider::notifyResult(STATUS status, STREAM_HANDLE stream_h
     // Check whether we succeeded or failed with STATUS_NULL_ARG which is an OK case on teardown
     if (status != STATUS_SUCCESS && status != STATUS_NULL_ARG) {
         LOG_ERROR("Submitting event result for stream: " << stream_handle << " failed with: " << status);
-        auto client_stream_report_callback = stream_callback_provider_->getStreamErrorReportCallback();
-        if (nullptr != client_stream_report_callback) {
-            client_stream_report_callback(reinterpret_cast<UINT64>(this), stream_handle, 0, status);
+        auto stream_error_callback = stream_callback_provider_->getStreamErrorReportCallback();
+        if (nullptr != stream_error_callback) {
+            stream_error_callback(stream_callback_provider_->getCallbackCustomData(), stream_handle, 0, status);
         }
     }
 }
@@ -812,11 +962,11 @@ GetCurrentTimeFunc DefaultCallbackProvider::getCurrentTimeCallback() {
 }
 
 DroppedFragmentReportFunc DefaultCallbackProvider::getDroppedFragmentReportCallback() {
-    return stream_callback_provider_->getDroppedFragmentReportCallback();
+    return droppedFragmentReportHandler;
 }
 
 StreamReadyFunc DefaultCallbackProvider::getStreamReadyCallback() {
-    return stream_callback_provider_->getStreamReadyCallback();
+    return streamReadyHandler;
 }
 
 StreamClosedFunc DefaultCallbackProvider::getStreamClosedCallback() {
@@ -824,7 +974,7 @@ StreamClosedFunc DefaultCallbackProvider::getStreamClosedCallback() {
 }
 
 FragmentAckReceivedFunc DefaultCallbackProvider::getFragmentAckReceivedCallback() {
-    return stream_callback_provider_->getFragmentAckReceivedCallback();
+    return fragmentAckReceivedHandler;
 }
 
 CreateStreamFunc DefaultCallbackProvider::getCreateStreamCallback() {
@@ -856,19 +1006,19 @@ GetSecurityTokenFunc DefaultCallbackProvider::getSecurityTokenCallback() {
 }
 
 StreamUnderflowReportFunc DefaultCallbackProvider::getStreamUnderflowReportCallback() {
-    return stream_callback_provider_->getStreamUnderflowReportCallback();
+    return streamUnderflowReportHandler;
 }
 
 StorageOverflowPressureFunc DefaultCallbackProvider::getStorageOverflowPressureCallback() {
-    return client_callback_provider_->getStorageOverflowPressureCallback();
+    return storageOverflowPressureHandler;
 }
 
 StreamLatencyPressureFunc DefaultCallbackProvider::getStreamLatencyPressureCallback() {
-    return stream_callback_provider_->getStreamLatencyPressureCallback();
+    return streamLatencyPressureHandler;
 }
 
 DroppedFrameReportFunc DefaultCallbackProvider::getDroppedFrameReportCallback() {
-    return stream_callback_provider_->getDroppedFrameReportCallback();
+    return droppedFrameReportHandler;
 }
 
 StreamErrorReportFunc DefaultCallbackProvider::getStreamErrorReportCallback() {
@@ -886,7 +1036,7 @@ GetDeviceFingerprintFunc DefaultCallbackProvider::getDeviceFingerprintCallback()
 }
 
 ClientReadyFunc DefaultCallbackProvider::getClientReadyCallback() {
-    return client_callback_provider_->getClientReadyCallback();
+    return clientReadyHandler;
 }
 
 CreateDeviceFunc DefaultCallbackProvider::getCreateDeviceCallback() {
@@ -903,7 +1053,7 @@ StreamDataAvailableFunc DefaultCallbackProvider::getStreamDataAvailableCallback(
 }
 
 StreamConnectionStaleFunc DefaultCallbackProvider::getStreamConnectionStaleCallback() {
-    return stream_callback_provider_->getStreamConnectionStaleCallback();
+    return streamConnectionStaleHandler;
 }
 
 } // namespace video

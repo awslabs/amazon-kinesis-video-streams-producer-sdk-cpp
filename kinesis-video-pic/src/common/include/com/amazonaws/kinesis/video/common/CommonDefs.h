@@ -437,7 +437,7 @@ INLINE PVOID defaultMemAlloc(UINT32 size)
 INLINE PVOID defaultMemAlignAlloc(UINT32 size, UINT32 alignment)
 {
 #if defined (__MACH__)
-    // On Mac allocations are 16 byte alligned. There is hardly an equivalent anyway
+    // On Mac allocations are 16 byte aligned. There is hardly an equivalent anyway
     UNUSED_PARAM(alignment);
     return malloc(size);
 #elif defined(_MSC_VER) || defined(__MINGW64__) || defined(__MINGW32__)

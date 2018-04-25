@@ -341,7 +341,11 @@ make install
 
 
 ## Release Notes
-
+#### Release 1.4.0 (25th April 2018)
+* Fix for crash caused by latest Mac tool chain issue
+* Fix for callbacks returning incorrect custom data in gstreamer sample app
+* Support for custom logger
+* Fix for multiple callbacks when triggering connection staleness
 #### Release 1.3.1 (5th April 2018)
 * Fixed video source negotiation error caused by camera with fractional fps 
 * Docker suport for RTSP streaming

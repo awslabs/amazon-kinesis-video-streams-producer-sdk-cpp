@@ -9,13 +9,19 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 /**
 * Kinesis Video client level callback provider
 *
-*   getCredentialProvider();
-*   getStorageOverflowPressureCallback();
 *   getClientReadyCallback();
+*   getStorageOverflowPressureCallback();
 *
 */
 class ClientCallbackProvider {
 public:
+    /**
+     * Returns the custom data for this object to be used with the callbacks.
+     *
+     * @return Custom data
+     */
+    virtual UINT64 getCallbackCustomData() = 0;
+
     /**
      * Reports a ready state for the client.
      *

@@ -64,8 +64,8 @@ private:
 
     std::string generateSignedHeaderList(const Request::HeaderMap &headers) const;
 
-    std::string region_;                                   ///< The service region.
-    std::string service_;                                  ///< The service name.
+    const std::string& region_;                                   ///< The service region.
+    const std::string& service_;                                  ///< The service name.
     std::unique_ptr<CredentialProvider> credential_provider_;   ///< The credential provider.
     SigningVariant signing_variant_;                        ///< The signing variant to use.
 };

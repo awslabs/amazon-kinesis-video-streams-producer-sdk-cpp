@@ -41,6 +41,7 @@ CallbackProvider::callback_t CallbackProvider::getCallbacks() {
     callbacks.freeMutexFn = getFreeMutexCallback();
     callbacks.getCurrentTimeFn = getCurrentTimeCallback();
     callbacks.getRandomNumberFn = getRandomNumberCallback();
+    callbacks.logPrintFn = getLogPrintCallback();
 
     return callbacks;
 }
@@ -50,6 +51,7 @@ void CallbackProvider::shutdown() {
 }
 
 void CallbackProvider::shutdownStream(STREAM_HANDLE stream_handle) {
+    UNUSED_PARAM(stream_handle);
     // No-op
 }
 
@@ -78,6 +80,10 @@ GetCurrentTimeFunc CallbackProvider::getCurrentTimeCallback() {
 }
 
 GetRandomNumberFunc CallbackProvider::getRandomNumberCallback() {
+    return nullptr;
+}
+
+LogPrintFunc CallbackProvider::getLogPrintCallback() {
     return nullptr;
 }
 
