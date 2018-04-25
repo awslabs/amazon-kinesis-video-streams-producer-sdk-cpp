@@ -26,6 +26,13 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 class StreamCallbackProvider {
 public:
     /**
+     * Returns the custom data for this object to be used with the callbacks.
+     *
+     * @return Custom data
+     */
+    virtual UINT64 getCallbackCustomData() = 0;
+
+    /**
      * The function returned by this callback takes two arguments:
      * - UINT64 custom_data: Custom handle passed by the caller.
      * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which is reporting underflow.

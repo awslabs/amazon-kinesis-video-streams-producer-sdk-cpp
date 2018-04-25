@@ -125,6 +125,7 @@ set(PIC_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/String.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/Threads.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/Time.cpp
+        ${KINESIS_VIDEO_PIC_SRC}/src/utils/src/Logger.cpp
 
         ${KINESIS_VIDEO_PIC_SRC}/src/view/include/com/amazonaws/kinesis/video/view/Include.h
         ${KINESIS_VIDEO_PIC_SRC}/src/view/src/ContentView.cpp
@@ -301,11 +302,11 @@ target_link_libraries(kinesis_video_gstreamer_sample_app
         glib-2.0)
 
 target_link_libraries(kinesis_video_gstreamer_sample_rtsp_app
-        producer 
-        pthread 
-        dl 
-        gstreamer-1.0 
-        gstapp-1.0 
-        gobject-2.0 
+        producer
+        pthread
+        dl
+        gstreamer-1.0
+        gstapp-1.0
+        gobject-2.0
         glib-2.0)
 

@@ -1647,7 +1647,7 @@ STATUS checkForConnectionStaleness(PKinesisVideoStream pKinesisVideoStream, PVie
 
     // Check if we need to do anything
     CHK(pKinesisVideoStream->streamInfo.streamCaps.connectionStalenessDuration != CONNECTION_STALENESS_DETECTION_SENTINEL &&
-        !pKinesisVideoStream->streamInfo.streamCaps.fragmentAcks &&
+        pKinesisVideoStream->streamInfo.streamCaps.fragmentAcks &&
         pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.streamConnectionStaleFn != NULL,
         retStatus);
 
@@ -1668,6 +1668,7 @@ STATUS checkForConnectionStaleness(PKinesisVideoStream pKinesisVideoStream, PVie
                     pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.customData,
                     TO_STREAM_HANDLE(pKinesisVideoStream),
                     lastAckDuration));
+            break;
         }
 
         curIndex--;

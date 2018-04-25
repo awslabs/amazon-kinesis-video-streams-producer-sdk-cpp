@@ -29,6 +29,17 @@ UINT32 ClientTestBase::getRandomNumberFunc(UINT64 customData)
     return RAND();
 }
 
+VOID ClientTestBase::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt, ...)
+{
+    // Temp scratch buffer = 10KB
+    CHAR tempBuf[10 * 1024];
+    snprintf(tempBuf, SIZEOF(tempBuf), "\n[0x%016llx] [level %u] %s %s", GETTID(), level, tag, fmt);
+    va_list valist;
+    va_start(valist, fmt);
+    vprintf(tempBuf, valist);
+    va_end(valist);
+}
+
 STATUS ClientTestBase::getDeviceCertificateFunc(UINT64 customData, PBYTE* ppCert, PUINT32 pSize, PUINT64 pExpiration)
 {
     DLOGV("TID 0x%016llx getDeviceCertificateFunc called.", GETTID());

@@ -4,7 +4,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 class ProducerApiTest : public ProducerTestBase {
 };
 
-extern ProducerTestBase* gProducerApiTest;
+ProducerTestBase* gProducerApiTest;
 
 PVOID staticProducerRoutine(PVOID arg)
 {

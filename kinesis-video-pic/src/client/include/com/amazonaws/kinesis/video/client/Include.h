@@ -1353,6 +1353,15 @@ typedef VOID (*FreeMutexFunc)(UINT64,
 typedef UINT32 (*GetRandomNumberFunc)(UINT64);
 
 ///////////////////////////////////////////////////////////////
+// Logging callbacks
+///////////////////////////////////////////////////////////////
+
+/**
+ * Logs a line of text with the tag and the log level - see PlatformUtils.h for more info
+ */
+typedef logPrintFunc LogPrintFunc;
+
+///////////////////////////////////////////////////////////////
 // Service call callbacks
 ///////////////////////////////////////////////////////////////
 
@@ -1528,6 +1537,7 @@ struct __ClientCallbacks {
     CreateDeviceFunc createDeviceFn;
     DeviceCertToTokenFunc deviceCertToTokenFn;
     ClientReadyFunc clientReadyFn;
+    LogPrintFunc logPrintFn;
 };
 typedef __ClientCallbacks* PClientCallbacks;
 

@@ -28,8 +28,17 @@ LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
 #define TEST_STORAGE_SIZE_IN_BYTES                          1024 * 1024 * 1024ull
 #define TEST_MAX_STREAM_LATENCY_IN_MILLIS                   60000
 
+#define TEST_MAGIC_NUMBER                                   0x1234abcd
+
+// Forward declaration
+class ProducerTestBase;
+
 class TestClientCallbackProvider : public ClientCallbackProvider {
 public:
+    UINT64 getCallbackCustomData() override {
+        return reinterpret_cast<UINT64> (this);
+    }
+
     StorageOverflowPressureFunc getStorageOverflowPressureCallback() override {
         return storageOverflowPressure;
     }
@@ -39,6 +48,13 @@ public:
 
 class TestStreamCallbackProvider : public StreamCallbackProvider {
 public:
+    TestStreamCallbackProvider(ProducerTestBase* producer_test_base) {
+        producer_test_base_ = producer_test_base;
+    }
+
+    UINT64 getCallbackCustomData() override {
+        return reinterpret_cast<UINT64> (this);
+    }
 
     StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
         return streamConnectionStaleHandler;
@@ -60,12 +76,43 @@ public:
         return streamLatencyPressureHandler;
     }
 
+    FragmentAckReceivedFunc getFragmentAckReceivedCallback() override {
+        return fragmentAckReceivedHandler;
+    }
+
+    StreamDataAvailableFunc getStreamDataAvailableCallback() override {
+        return streamDataAvailableHandler;
+    }
+
+    ProducerTestBase* getTestBase() {
+        return producer_test_base_;
+    }
+
+    UINT64 getTestMagicNumber() {
+        // This function will return a pre-set 64 bit number which will be used in
+        // the callback to validate the that we landed on the correct object.
+        // If we didn't land on the correct object then it will likely result in
+        // a memory access fault so this is a rather simple check.
+        return TEST_MAGIC_NUMBER;
+    }
+
 private:
     static STATUS streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 last_buffering_ack);
     static STATUS streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 errored_timecode, STATUS status);
     static STATUS droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 dropped_frame_timecode);
     static STATUS streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 stream_upload_handle);
     static STATUS streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 duration);
+    static STATUS fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, PFragmentAck fragment_ack);
+    static STATUS streamDataAvailableHandler(UINT64 custom_data,
+                                             STREAM_HANDLE stream_handle,
+                                             PCHAR stream_name,
+                                             UPLOAD_HANDLE stream_upload_handle,
+                                             UINT64 duration_available,
+                                             UINT64 size_available);
+
+    static STATUS validateCallback(UINT64 custom_data);
+
+    ProducerTestBase* producer_test_base_;
 };
 
 class TestDeviceInfoProvider : public DefaultDeviceInfoProvider {
@@ -76,6 +123,8 @@ public:
         return device_info;
     }
 };
+
+extern ProducerTestBase* gProducerApiTest;
 
 class TestCredentialProvider : public StaticCredentialProvider {
     // Test rotation period is 40 second for the grace period.
@@ -97,8 +146,6 @@ public:
     }
 };
 
-class ProducerTestBase;
-extern ProducerTestBase* gProducerApiTest;
 class ProducerTestBase : public ::testing::Test {
 public:
     ProducerTestBase() : producer_thread_(0),
@@ -108,12 +155,12 @@ public:
                          access_key_set_(true),
                          defaultRegion_(DEFAULT_AWS_REGION) {
 
-        // Set the global to this object so we won't need to allocate structures in the heap
-        gProducerApiTest = this;
-
         device_provider_ = make_unique<TestDeviceInfoProvider>();
         client_callback_provider_ = make_unique<TestClientCallbackProvider>();
-        stream_callback_provider_ = make_unique<TestStreamCallbackProvider>();
+        stream_callback_provider_ = make_unique<TestStreamCallbackProvider>(this);
+
+        // Set the global to this object so we won't need to allocate structures in the heap
+        gProducerApiTest = this;
 
         // Read the credentials from the environmental variables if defined. Use defaults if not.
         char const *accessKey;

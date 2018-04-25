@@ -32,6 +32,11 @@ public:
     }
 
     /**
+     * Virtual destructor
+     */
+    virtual ~Credentials() {}
+
+    /**
     * Gets the underlying access key credential
     */
     inline const std::string& getAccessKey() const
@@ -200,7 +205,8 @@ class CredentialProvider {
 public:
     void getCredentials(Credentials& credentials);
     void getUpdatedCredentials(Credentials& credentials);
-
+    virtual ~CredentialProvider() {}
+    
 protected:
     CredentialProvider();
 

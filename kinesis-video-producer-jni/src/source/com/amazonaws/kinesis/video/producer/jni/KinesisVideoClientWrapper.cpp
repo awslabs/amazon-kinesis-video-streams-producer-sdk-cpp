@@ -873,6 +873,12 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mClientCallbacks.createDeviceFn = createDeviceFunc;
     mClientCallbacks.deviceCertToTokenFn = deviceCertToTokenFunc;
 
+    // We do not expose logging functionality to Java
+    // as the signature of the function does not have "custom_data"
+    // to properly map to the client object.
+    // We will use the default logger for Java.
+    mClientCallbacks.logPrintFn = NULL;
+
     // Extract the method IDs for the callbacks and set a global reference
     jclass thizCls = env->GetObjectClass(thiz);
     if (thizCls == NULL) {
