@@ -125,7 +125,7 @@ if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.dylib ]; then
     echo "log4cplus lib not found. Installing"
     if [ ! -f $DOWNLOADS/log4cplus-1.2.0.tar.xz ]; then
       cd $DOWNLOADS
-      curl -L "https://versaweb.dl.sourceforge.net/project/log4cplus/log4cplus-stable/1.2.0/log4cplus-1.2.0.tar.xz" -o "log4cplus-1.2.0.tar.xz"
+      curl -L "https://sourceforge.net/projects/log4cplus/files/log4cplus-stable/1.2.0/log4cplus-1.2.0.tar.xz" -o "log4cplus-1.2.0.tar.xz"
     fi
     cd $DOWNLOADS
     tar -xvf log4cplus-1.2.0.tar.xz
