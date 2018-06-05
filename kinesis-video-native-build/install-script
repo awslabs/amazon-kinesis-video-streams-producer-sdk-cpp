@@ -533,7 +533,7 @@ echo "Checking for yasm"
    echo "yasm-1.3.0.tar.gz not found. Installing"
     if [ ! -f $DOWNLOADS/yasm-1.3.0.tar.gz ]; then
       cd $DOWNLOADS
-      curl -L "https://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz" -o "yasm-1.3.0.tar.gz"
+      curl -L "http://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz" -o "yasm-1.3.0.tar.gz"
       cd $DOWNLOADS
     fi
     cd $DOWNLOADS
