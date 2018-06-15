@@ -424,77 +424,6 @@ make install
 
 ----
 ## Release notes
-#### Release 1.4.1 (8th May 2018)
-* Update log4cplus download link in install-script
-#### Release 1.4.0 (25th April 2018)
-* Fix for crash caused by latest Mac tool chain issue
-* Fix for callbacks returning incorrect custom data in gstreamer sample app
-* Support for custom logger
-* Fix for multiple callbacks when triggering connection staleness
-#### Release 1.3.1 (5th April 2018)
-* Fixed video source negotiation error caused by camera with fractional fps
-* Docker suport for RTSP streaming
-#### Release 1.3.0 (15th March 2018)
-* Fixed producer intermittent termination issue for some edge cases involving re-streaming on error.
-#### Release 1.2.3 (1st March 2018)
-* Updated install-script to fix the local certificate trust issue for curl.
-* Added steps in README troubleshooting section for curl trust issues.
-#### Release 1.2.2 (March 2018)
-* Remove open-source dependencies from KinesisVideoProducerJNI native library. java-install-script can be used to build KinesisVideoProducerJNI native library fast.
-* README note improved.
-#### Release 1.2.1 (February 2018)
-* Bug fix for producer timestamp *video playback* in the console should be fixed if proper timestamp is provided to SDK. Current setting in sample app uses Gstreamer frame timecode and relative timestamp (used by SDK).
-* `install-script` is updated to automatically detect OS version and avoid dependency issue on Mac High Sierra and Ubuntu 17.10.
-* Known issue: Producer timestamp mode *video playback in console* will not work if GStreamer demoapp is configured to use frame timecode and absolute timestamp (used by SDK).
-#### Release 1.2.0 (February 2018)
-* Bug fixes and performance enhancement
-* Streaming error recovery improvements
-* Minor API changes:
-  * create stream APIs return shared pointers instead of unique pointers
-  * Addition of StreamClosed callback to notify the caller application when the stream is finished draining the existing buffered frames before closing in the graceful termination case.
-#### Release 1.1.3 (February 2018)
-* Added **RTSP Demo Sample**
-* Run the demo using:
-```
-AWS_ACCESS_KEY_ID=<MYACCESSKEYID> AWS_SECRET_ACCESS_KEY=<MYSECRETKEY> ./kinesis_video_gstreamer_sample_rtsp_app <rtspurl> <stream-name>
-```
-#### Release 1.1.2 (January 2018)
-* Allowed devices to output h.264 streams directly
-* The user can also supply a streaming resolution through command line arguments.
-  * If resolution is provided then the sample will try to check if the camera supports that resolution. If it does then streaming starts; else, it will fail with an error msg "Resolution not supported"
-  * If no resolution is specified, the demo will try to use resolutions 1920x1080, 1280x720 and 640x480 in that order (highest resolution first)and will start streaming once the camera supported resolution is detected.
-* Known issues:
-  * When streaming on raspberry pi. Some green artifacts might be observed on the preview screen. Reducing the resolution can fix the issue.
-#### Release 1.1.1 (December 2017)
-* Fix USB webcam support
-* Known issues:
-    * If USB webcam doesn't support 720p, then gstreamer negotiation will fail. Trying lower resolution as mentioned in Troubleshooting may fix this issue.
-#### Release 1.1.0 (December 2017)
-* Addition of a received application ACK notification callback
-* Lifecycle management improvements
-* Exposed failure on progressive back-off/retry logic
-* Hardening/fixing various edge-cases
-* Fixing Raspberry PI frame dropping issue
-#### Release 1.0.0 (November 2017)
-* First release of the Amazon Kinesis Video Producer SDK for Cpp.
-* Known issues:
-    * Missing build scripts for Windows-based systems.
-    * Missing cross-compile option.
-    * Sample application/unit tests can't handle buffer pressures properly - simple print in debug log.
-
-## Documentation
-
-  [Kinesis Video Producer SDK CPP](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producer-sdk-cpp.html)
-
-er_sdk_path>/kinesis-video-native-build/downloads
-make clean
-./configure --prefix=$DOWNLOADS/local/ --enable-dynamic --disable-rtsp --disable-ldap --without-zlib --with-ssl=$DOWNLOADS/local/ --with-ca-bundle=/etc/ssl/cert.pem
-make
-make install
-```
-
-----
-## Release notes
 #### Release 1.4.2 (14th June 2018)
 * Release first version of gstreamer plugin kvssink
 * Fix gstreamer demo issue when running on raspberry pi
@@ -559,4 +488,3 @@ AWS_ACCESS_KEY_ID=<MYACCESSKEYID> AWS_SECRET_ACCESS_KEY=<MYSECRETKEY> ./kinesis_
 ## Documentation
 
   [Kinesis Video Producer SDK CPP](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producer-sdk-cpp.html)
-
