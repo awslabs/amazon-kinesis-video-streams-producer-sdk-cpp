@@ -196,7 +196,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
     bool delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
     FRAME_FLAGS kinesis_video_flags;
-   
+
     if (GST_BUFFER_PTS_IS_VALID(buffer)) {
          buffer->dts = buffer->pts;
     }
@@ -330,8 +330,7 @@ static void cb_rtsp_pad_created(GstElement *element, GstPad *pad, CustomData *da
 }
 
 int gstreamer_init(int argc, char *argv[]) {
-    BasicConfigurator config;
-    config.configure();
+    PropertyConfigurator::doConfigure("kvs_log_configuration");
 
     if (argc < 3) {
         LOG_ERROR(
@@ -365,7 +364,7 @@ int gstreamer_init(int argc, char *argv[]) {
 
     // RTSP source component
     data.source = gst_element_factory_make("rtspsrc", "source");
- 
+
     data.filter = gst_element_factory_make("capsfilter", "encoder_filter");
 
     GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",

@@ -1,12 +1,21 @@
 #!/bin/bash
 set -e
-# --------- create require directories ---------
+# --------- create required directories ---------------------------------------
 KINESIS_VIDEO_ROOT=`pwd`
 
 if [[ "$KINESIS_VIDEO_ROOT" == *\ * ]]; then
     echo "Current working path cannot have space in it !"
     exit
 fi
+
+DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
+if [ ! -d "$DOWNLOADS" ]; then
+    mkdir "$DOWNLOADS"
+fi
+
+LIB_DESTINATION_FOLDER_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib"
+
+# --------- check if cmake version is applicable ------------------------------
 
 CMAKE_VERSION_STRING=`cmake --version`
 echo $CMAKE_VERSION_STRING
@@ -20,17 +29,18 @@ if [ "$CMAKE_MAJOR_VERSION" \< "$CMAKE_EXPECTED_MAJOR_VERSION" ]; then
   exit
 fi
 
-DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
-if [ ! -d "$DOWNLOADS" ]; then
-    mkdir "$DOWNLOADS"
+# -------- Check if cert.pem exists in the /etc/ssl/ directory ----------------
+# In the case if the curl is already installed by the user or install-script is already run with /etc/ssl/cert.pem ca-bundle setting
+ if [ ! -f "$KINESIS_VIDEO_ROOT/cert.pem" ];then
+  echo "cert.pem" file does not exist in the current directory
+  echo "Downloading the https://www.amazontrust.com/repository/SFSRootCAG2.pem ..."
+  curl -L "https://www.amazontrust.com/repository/SFSRootCAG2.pem" -o "cert.pem"
+  echo "Copy or append the cert.pem to /etc/ssl/cert.pem if libcurl refers this location for certificate"
 fi
 
-export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
-export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
+# --------- download libs -----------------------------------------------------
 
-# --------- download libs ---------
-
-# --------- build + install libs ---------
+# --------- build + install libs ----------------------------------------------
 
 echo "Checking log4cplus at $DOWNLOADS/local/lib/liblog4cplus.dylib/.so"
 if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.dylib ]; then
@@ -67,14 +77,26 @@ if [ ! -f $DOWNLOADS/local/lib/libgtest.dylib ]; then
     cp ./lib* $DOWNLOADS/local/lib
   fi
 fi
+# ---Setting environment variables for cmake ----------------------------------
+export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
+export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
 
-## --------- build kinesis video ---------
+## --------- build kinesis video ----------------------------------------------
 cd $KINESIS_VIDEO_ROOT
 cmake CMakeLists.txt
 make producer
 make start
 make kinesis_video_gstreamer_sample_app
 make kinesis_video_gstreamer_sample_rtsp_app
+# copy the kvssink plugin into the library folder
+cp libproducer* "$LIB_DESTINATION_FOLDER_PATH"
+
+#  Environment variables in ~/.bashrc or ~/.bash_profile or ~/.zshrc
+echo you may want to add the following environment variables 
+echo in ~/.bashrc or ~/.bash_profile or ~/.zshrc 
+
+export LD_LIBRARY_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib":$LD_LIBRARY_PATH
+export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin":$PATH
 
 echo "**********************************************************"
 echo Success!!!
