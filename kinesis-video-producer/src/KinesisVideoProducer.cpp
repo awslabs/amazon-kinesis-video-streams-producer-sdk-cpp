@@ -186,6 +186,7 @@ shared_ptr<KinesisVideoStream> KinesisVideoProducer::createStreamSync(unique_ptr
                                                              [kinesis_video_stream = kinesis_video_stream.get()]() {
                                                                  return kinesis_video_stream->isReady();
                                                              })) {
+                freeStream(kinesis_video_stream);
                 LOG_AND_THROW("Failed to create Kinesis Video Stream - timed out.");
                 break;
             }
@@ -277,7 +278,7 @@ uint64_t KinesisVideoProducer::getAvailableStorageSize() const {
 MUTEX KinesisVideoProducer::createMutexFunc(UINT64 custom_data,
                                             BOOL reentrant) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
-    return this_obj->stored_callbacks_.createMutexFn(this_obj->stored_callbacks_.customData, 
+    return this_obj->stored_callbacks_.createMutexFn(this_obj->stored_callbacks_.customData,
                                                      reentrant);
 }
 
