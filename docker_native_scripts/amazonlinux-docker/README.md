@@ -38,7 +38,7 @@ Run the command as such in your command prompt. This will authorize the `docker 
 
 Run the following command to get the AmazonLinux Docker image to your local environment. E.g.
 
-`sudo docker pull 546150905175.dkr.ecr.us-west-2.amazonaws.com/kinesis-video-producer-cpp-amazon-linux:latest`
+`sudo docker pull 546150905175.dkr.ecr.us-west-2.amazonaws.com/kinesis-video-producer-sdk-cpp-amazon-linux:latest`
 
 you can verify the images in your local docker environment by running `docker images`.
 
@@ -47,7 +47,7 @@ you can verify the images in your local docker environment by running `docker im
 
 Run the following command to start the kinesis video sdk container
 
-`sudo docker run -it --network="host" --device=/dev/video0 546150905175.dkr.ecr.us-west-2.amazonaws.com/kinesis-video-producer-cpp-amazon-linux:latest /bin/bash`
+`sudo docker run -it --network="host" --device=/dev/video0 546150905175.dkr.ecr.us-west-2.amazonaws.com/kinesis-video-producer-sdk-cpp-amazon-linux:latest /bin/bash`
 
 
 #### Step 4: Run the GStreamer plugin
