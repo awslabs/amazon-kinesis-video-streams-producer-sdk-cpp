@@ -62,6 +62,52 @@ if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ldl -lrt -lpthread")
 endif()
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules (GLIB2        REQUIRED   glib-2.0)
+pkg_check_modules (CRYPTO       REQUIRED   libcrypto)
+pkg_check_modules (CURL         REQUIRED   libcurl)
+pkg_check_modules (GST          REQUIRED   gstreamer-1.0)
+pkg_check_modules (GST_APP      REQUIRED   gstreamer-app-1.0)
+pkg_check_modules (LOG4CPLUS    REQUIRED   log4cplus)
+pkg_check_modules (GOBJ2        REQUIRED   gobject-2.0)
+pkg_check_modules (SSL          REQUIRED   libssl)
+find_library(GTEST gtest REQUIRED HINTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local PATH_SUFFIXES lib)
+find_library(GTEST_MAIN gtest_main REQUIRED HINTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local PATH_SUFFIXES lib)
+
+set(OPEN_SRC_INCLUDE_DIRS
+        ${GLIB2_INCLUDE_DIRS}
+        ${CRYPTO_INCLUDE_DIRS}
+        ${CURL_INCLUDE_DIRS}
+        ${GST_APP_INCLUDE_DIRS}
+        ${GST_INCLUDE_DIRS}
+        ${LOG4CPLUS_INCLUDE_DIRS}
+        ${GOBJ2_INCLUDE_DIRS}
+        ${SSL_INLCUDE_DIRS})
+
+set(OPEN_SRC_LIBRARY_DIRS
+        ${GLIB2_LIBRARY_DIRS}
+        ${CRYPTO_LIBRARY_DIRS}
+        ${CURL_LIBRARY_DIRS}
+        ${GST_APP_LIBRARY_DIRS}
+        ${GST_LIBRARY_DIRS}
+        ${LOG4CPLUS_LIBRARY_DIRS}
+        ${GOBJ2_LIBRARY_DIRS}
+        ${SSL_LIBRARY_DIRS})
+
+set(PRODUCER_LIBRARIES
+        ${CRYPTO_LIBRARIES}
+        ${SSL_LIBRARIES}
+        ${CURL_LIBRARIES}
+        ${LOG4CPLUS_LIBRARIES}
+        ${GOBJ2_LIBRARIES})
+
+set(GST_DEMO_LIBRARIES
+        ${GLIB2_LIBRARIES}
+        pthread
+        ${GST_APP_LIBRARIES}
+        ${GST_LIBRARIES}
+        ${GOBJ2_LIBRARIES})
+
 set(PIC_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/client/include/com/amazonaws/kinesis/video/client/Include.h
         ${KINESIS_VIDEO_PIC_SRC}/src/client/src/AuthIntegration.cpp
@@ -259,34 +305,24 @@ include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/opensource/jsoncpp)
 include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/tst)
 include_directories(${KINESIS_VIDEO_PRODUCER_JNI_SRC}/src/include/)
-include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/include/)
-include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/include/gstreamer-1.0)
-include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/include/glib-2.0)
-include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/glib-2.54.2)
-include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/lib/glib-2.0/include)
+include_directories(${OPEN_SRC_INCLUDE_DIRS})
 include_directories(/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers)
 include_directories(${JAVA_HOME}/include)
 include_directories(${JAVA_HOME}/include/${CMAKE_SYSTEM_NAME_LOWER_CASE})
 
-link_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/lib)
+link_directories(${OPEN_SRC_LIBRARY_DIRS})
 add_library(producer SHARED ${PRODUCER_SOURCE_FILES})
 add_library(KinesisVideoProducerJNI SHARED ${PRODUCER_SOURCE_FILES_JNI} ${PIC_SOURCE_FILES})
 add_executable(start ${TST_PRODUCER_SOURCE_FILES})
 add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
 add_executable(kinesis_video_gstreamer_sample_rtsp_app ${RTSP_DEMO_APP})
 
-target_include_directories(kinesis_video_gstreamer_sample_app PRIVATE ${GST_INCLUDE_DIRS})
-target_include_directories(kinesis_video_gstreamer_sample_rtsp_app PRIVATE ${GST_INCLUDE_DIRS})
-
 target_link_libraries(KinesisVideoProducerJNI)
 
 target_link_libraries(producer
-        log4cplus
-        crypto
-        ssl
-        gtest
-        gtest_main
-        curl)
+        ${PRODUCER_LIBRARIES}
+        ${GTEST_MAIN}
+        ${GTEST})
 
 target_link_libraries(start
         producer
@@ -294,19 +330,8 @@ target_link_libraries(start
 
 target_link_libraries(kinesis_video_gstreamer_sample_app
         producer
-        pthread
-        dl
-        gstreamer-1.0
-        gstapp-1.0
-        gobject-2.0
-        glib-2.0)
+        ${GST_DEMO_LIBRARIES})
 
 target_link_libraries(kinesis_video_gstreamer_sample_rtsp_app
         producer
-        pthread
-        dl
-        gstreamer-1.0
-        gstapp-1.0
-        gobject-2.0
-        glib-2.0)
-
+        ${GST_DEMO_LIBRARIES})
