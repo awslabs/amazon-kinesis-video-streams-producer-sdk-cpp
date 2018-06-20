@@ -239,31 +239,31 @@ $ export GST_PLUGIN_PATH=<YourSdkFolderPath>/kinesis-video-native-build/download
 ```
 ###### 3.1 Run the following `gst-launch-1.0` command to start streaming from RTSP camera source.
 ```
-$ gst-launch-1.0 rtspsrc location=“rtsp://YourCameraRtspUrl” short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! kvssink stream-name=“YourStreamName” storage-size=512
+$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=512
 ```
 ###### 3.2 Run the following `gst-launch-1.0` command to start streaming from USB camera source in **Ubuntu**.
 
 ```
-$ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! x264enc  bframes=0 key-int-max=45 bitrate=500 ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name="YourStreamName" storage-size=512
+$ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! x264enc  bframes=0 key-int-max=45 bitrate=500 ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=512
 ```
 ###### 3.3 Run the following `gst-launch-1.0` command to start streaming from USB camera source which has h264 encoded stream already in **Ubuntu**.
 
 ```
-$ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name="plugin" storage-size=512
+$ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=512
 ```
 
 ###### 3.4 Run the following `gst-launch-1.0` command to start streaming from camera source in **Mac-OS**.
 
 ```
-$ gst-launch-1.0 autovideosrc ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! vtenc_h264_hw allow-frame-reordering=FALSE realtime=TRUE max-keyframe-interval=45 bitrate=500 ! h264parse ! video/x-h264,stream-format=avc,alignment=au,width=640,height=480,framerate=30/1 ! kvssink stream-name="YourStreamName" storage-size=512
+$ gst-launch-1.0 autovideosrc ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! vtenc_h264_hw allow-frame-reordering=FALSE realtime=TRUE max-keyframe-interval=45 bitrate=500 ! h264parse ! video/x-h264,stream-format=avc,alignment=au,width=640,height=480,framerate=30/1 ! kvssink stream-name=YourStreamName storage-size=512
 ```
 
 ###### 3.5 Run the following `gst-launch-1.0` command to start streaming from camera source in **Raspberry-PI**.
 
 ```
-$ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! omxh264enc control-rate=1 target-bitrate=5120000 periodicity-idr=45 inline-header=FALSE ! h264parse ! video/x-h264,stream-format=avc,alignment=au,width=640,height=480,framerate=30/1 ! kvssink stream-name="YourStreamName" frame-timestamp=KVS_SINK_TIMESTAMP_DTS_ONLY access-key="YourAccessKey" secret-key="YourSecretKey"
+$ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! omxh264enc control-rate=1 target-bitrate=5120000 periodicity-idr=45 inline-header=FALSE ! h264parse ! video/x-h264,stream-format=avc,alignment=au,width=640,height=480,framerate=30/1 ! kvssink stream-name=YourStreamName frame-timestamp=dts-only access-key=YourAccessKey secret-key=YourSecretKey
 ```
-Note:  Raspberry PI camera module requires `frame-timestamp=KVS_SINK_TIMESTAMP_DTS_ONLY` . If USB camera is used for streaming then this property is optional.
+Note:  Raspberry PI camera module requires `frame-timestamp=dts-only` . If USB camera is used for streaming then this property is optional.
 
 ##### 4. Run the demo application from Docker
 
@@ -424,31 +424,45 @@ make install
 
 ----
 ## Release notes
+#### Release 1.4.3 (20th June 2018)
+* Added prebuilt docker images for AmazonLinux and Raspbian Stretch
+* Updated install-script to accept commandline argument -j and pass the value to `make` to speed up building
+* Updated install-script to accept commandline argument -d to remove opensource library installation files after finishing
+* Updated CMakeLists.txt in kinesis-video-native-build to link up libraries properly
+
 #### Release 1.4.2 (14th June 2018)
 * Release first version of gstreamer plugin kvssink
 * Fix gstreamer demo issue when running on raspberry pi
+
 #### Release 1.4.1 (8th May 2018)
 * Update log4cplus download link in install-script
+
 #### Release 1.4.0 (25th April 2018)
 * Fix for crash caused by latest Mac tool chain issue
 * Fix for callbacks returning incorrect custom data in gstreamer sample app
 * Support for custom logger
 * Fix for multiple callbacks when triggering connection staleness
+
 #### Release 1.3.1 (5th April 2018)
 * Fixed video source negotiation error caused by camera with fractional fps
 * Docker suport for RTSP streaming
+
 #### Release 1.3.0 (15th March 2018)
 * Fixed producer intermittent termination issue for some edge cases involving re-streaming on error.
+
 #### Release 1.2.3 (1st March 2018)
 * Updated install-script to fix the local certificate trust issue for curl.
 * Added steps in README troubleshooting section for curl trust issues.
+
 #### Release 1.2.2 (March 2018)
 * Remove open-source dependencies from KinesisVideoProducerJNI native library. java-install-script can be used to build KinesisVideoProducerJNI native library fast.
 * README note improved.
+
 #### Release 1.2.1 (February 2018)
 * Bug fix for producer timestamp *video playback* in the console should be fixed if proper timestamp is provided to SDK. Current setting in sample app uses Gstreamer frame timecode and relative timestamp (used by SDK).
 * `install-script` is updated to automatically detect OS version and avoid dependency issue on Mac High Sierra and Ubuntu 17.10.
 * Known issue: Producer timestamp mode *video playback in console* will not work if GStreamer demoapp is configured to use frame timecode and absolute timestamp (used by SDK).
+
 #### Release 1.2.0 (February 2018)
 * Bug fixes and performance enhancement
 * Streaming error recovery improvements
@@ -461,6 +475,7 @@ make install
 ```
 AWS_ACCESS_KEY_ID=<MYACCESSKEYID> AWS_SECRET_ACCESS_KEY=<MYSECRETKEY> ./kinesis_video_gstreamer_sample_rtsp_app <rtspurl> <stream-name>
 ```
+
 #### Release 1.1.2 (January 2018)
 * Allowed devices to output h.264 streams directly
 * The user can also supply a streaming resolution through command line arguments.
@@ -468,16 +483,19 @@ AWS_ACCESS_KEY_ID=<MYACCESSKEYID> AWS_SECRET_ACCESS_KEY=<MYSECRETKEY> ./kinesis_
   * If no resolution is specified, the demo will try to use resolutions 1920x1080, 1280x720 and 640x480 in that order (highest resolution first)and will start streaming once the camera supported resolution is detected.
 * Known issues:
   * When streaming on raspberry pi. Some green artifacts might be observed on the preview screen. Reducing the resolution can fix the issue.
+
 #### Release 1.1.1 (December 2017)
 * Fix USB webcam support
 * Known issues:
     * If USB webcam doesn't support 720p, then gstreamer negotiation will fail. Trying lower resolution as mentioned in Troubleshooting may fix this issue.
+
 #### Release 1.1.0 (December 2017)
 * Addition of a received application ACK notification callback
 * Lifecycle management improvements
 * Exposed failure on progressive back-off/retry logic
 * Hardening/fixing various edge-cases
 * Fixing Raspberry PI frame dropping issue
+
 #### Release 1.0.0 (November 2017)
 * First release of the Amazon Kinesis Video Producer SDK for Cpp.
 * Known issues:
