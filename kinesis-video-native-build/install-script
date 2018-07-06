@@ -91,7 +91,7 @@ if [ "$user_confirmation" != "Y" ]; then
 fi
 
 if [[ "$user_confirmation" = "N" || "$user_confirmation" = "n" ]]; then
-    echo "Existing install"
+    echo "Exiting install"
     exit
 fi
 # --------- install-script build options --------------------------------------
