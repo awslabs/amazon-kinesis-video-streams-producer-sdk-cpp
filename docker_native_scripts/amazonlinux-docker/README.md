@@ -50,20 +50,9 @@ Run the following command to start the kinesis video sdk container
 `sudo docker run -it --network="host" --device=/dev/video0 546150905175.dkr.ecr.us-west-2.amazonaws.com/kinesis-video-producer-sdk-cpp-amazon-linux:latest /bin/bash`
 
 
-#### Step 4: Run the GStreamer plugin
+#### Step 4: Start the streaming with `gst-launch-1.0` command
 
-Follow the next few steps to start Producer SDK GStreamer plugin element for sending video streams from webcamera to Kinesis Video:
-
-##### 4.1 Set these environment variable:
-
-`export LD_LIBRARY_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$LD_LIBRARY_PATH`
-
-`export PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/bin:$PATH`
-
-`export GST_PLUGIN_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$GST_PLUGIN_PATH`
-
-
-##### 4.2 Start the streaming with `gst-launch-1.0` command.
+Use the below command to start Producer SDK GStreamer plugin element for sending video streams from webcamera to Kinesis Video:
 
 `gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! x264enc bframes=0 key-int-max=45 bitrate=512 ! h264parse ! video/x-h264,stream-format=avc,alignment=au,width=640,height=480,framerate=30/1,profile=baseline ! kvssink stream-name="YOURSTREAMNAME" access-key=YOURACCESSKEY secret-key=YOURSECRETKEY`
 
