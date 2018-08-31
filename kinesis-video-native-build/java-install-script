@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
 # --------- create require directories ---------
-KINESIS_VIDEO_ROOT=`pwd`
+if [ -z $KINESIS_VIDEO_ROOT ]; then
+  KINESIS_VIDEO_ROOT=`pwd`
+fi
 
 if [[ "$KINESIS_VIDEO_ROOT" == *\ * ]]; then
     echo "Current working path cannot have space in it !"
@@ -22,7 +24,7 @@ fi
 
 ## --------- build kinesis video ---------
 cd $KINESIS_VIDEO_ROOT
-cmake CMakeLists.txt 
+cmake -DBUILD_JNI_ONLY=TRUE CMakeLists.txt
 make KinesisVideoProducerJNI
 
 echo "**********************************************************"

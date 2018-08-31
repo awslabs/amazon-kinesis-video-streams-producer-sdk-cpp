@@ -75,7 +75,7 @@ STATUS validateClientCallbacks(PDeviceInfo pDeviceInfo, PClientCallbacks pClient
 
     if (pClientCallbacks->getRandomNumberFn == NULL) {
         // Call to seed the number generator
-        SRAND(pClientCallbacks->getCurrentTimeFn(pClientCallbacks->customData));
+        SRAND((UINT32)pClientCallbacks->getCurrentTimeFn(pClientCallbacks->customData));
         pClientCallbacks->getRandomNumberFn = defaultGetRandomNumber;
     }
 
@@ -168,7 +168,8 @@ STATUS validateStreamInfo(PStreamInfo pStreamInfo, PClientCallbacks pClientCallb
 
     // Validate the retention period.
     // NOTE: 0 has is a sentinel value indicating no retention
-    CHK(pStreamInfo->retention == 0 || pStreamInfo->retention >= 1 * HUNDREDS_OF_NANOS_IN_AN_HOUR, STATUS_INVALID_RETENTION_PERIOD);
+    CHK(pStreamInfo->retention == RETENTION_PERIOD_SENTINEL ||
+        pStreamInfo->retention >= MIN_RETENTION_PERIOD, STATUS_INVALID_RETENTION_PERIOD);
 
     // Validate the tags
     CHK_STATUS(validateTags(pStreamInfo->tagCount, pStreamInfo->tags));

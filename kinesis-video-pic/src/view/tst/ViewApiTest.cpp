@@ -188,7 +188,6 @@ TEST_F(ViewApiTest, contentViewGetHead_NullPointer)
 
 TEST_F(ViewApiTest, contentViewGetAllocationSize_NullPointer)
 {
-    PViewItem pViewItem;
     UINT32 allocationSize;
 
     EXPECT_TRUE(STATUS_FAILED(contentViewGetAllocationSize(NULL, &allocationSize)));
@@ -233,7 +232,7 @@ TEST_F(ViewApiTest, contentViewGetWindowDuration_NullPointer)
 
 TEST_F(ViewApiTest, contentViewGetWindowItemCount_NullPointer)
 {
-    UINT32 currentSize, windowSize;
+    UINT64 currentSize, windowSize;
 
     EXPECT_TRUE(STATUS_FAILED(contentViewGetWindowItemCount(NULL, &currentSize, &windowSize)));
     EXPECT_TRUE(STATUS_FAILED(contentViewGetWindowItemCount(NULL, NULL, &windowSize)));

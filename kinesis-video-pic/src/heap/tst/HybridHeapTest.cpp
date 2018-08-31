@@ -16,7 +16,7 @@ TEST_F(HybridHeapTest, hybridCreateHeap)
     UINT32 numAlloc = 50;
 
     // Split the 50% and allocate half from ram and half from vram
-    memHeapLimit = heapSize * ((DOUBLE)spillRatio / 100);
+    memHeapLimit = (UINT32)(heapSize * ((DOUBLE)spillRatio / 100));
     vramHeapLimit = heapSize - memHeapLimit;
     vramAllocSize = vramHeapLimit / numAlloc;
     ramAllocSize = memHeapLimit / numAlloc;
@@ -244,7 +244,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamAllocError)
     UINT32 numAlloc = 50;
 
     // Split the 50% and allocate half from ram and half from vram
-    memHeapLimit = heapSize * ((DOUBLE)spillRatio / 100);
+    memHeapLimit = (UINT32)(heapSize * ((DOUBLE)spillRatio / 100));
     vramHeapLimit = heapSize - memHeapLimit;
     vramAllocSize = vramHeapLimit / numAlloc;
     ramAllocSize = memHeapLimit / numAlloc;
@@ -287,7 +287,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamMapError)
     UINT32 spillRatio = 50;
     UINT32 numAlloc = 50;
     // Split the 50% and allocate half from ram and half from vram
-    memHeapLimit = heapSize * ((DOUBLE)spillRatio / 100);
+    memHeapLimit = (UINT32)(heapSize * ((DOUBLE)spillRatio / 100));
     vramHeapLimit = heapSize - memHeapLimit;
     vramAllocSize = vramHeapLimit / numAlloc;
     ramAllocSize = memHeapLimit / numAlloc;
@@ -333,7 +333,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamUnmapError)
     UINT32 spillRatio = 50;
     UINT32 numAlloc = 50;
     // Split the 50% and allocate half from ram and half from vram
-    memHeapLimit = heapSize * ((DOUBLE)spillRatio / 100);
+    memHeapLimit = (UINT32)(heapSize * ((DOUBLE)spillRatio / 100));
     vramHeapLimit = heapSize - memHeapLimit;
     vramAllocSize = vramHeapLimit / numAlloc;
     ramAllocSize = memHeapLimit / numAlloc;
@@ -386,7 +386,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamFreeError)
     UINT32 spillRatio = 50;
     UINT32 numAlloc = 50;
     // Split the 50% and allocate half from ram and half from vram
-    memHeapLimit = heapSize * ((DOUBLE)spillRatio / 100);
+    memHeapLimit = (UINT32)(heapSize * ((DOUBLE)spillRatio / 100));
     vramHeapLimit = heapSize - memHeapLimit;
     vramAllocSize = vramHeapLimit / numAlloc;
     ramAllocSize = memHeapLimit / numAlloc;

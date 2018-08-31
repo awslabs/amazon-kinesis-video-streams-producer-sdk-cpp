@@ -1,7 +1,9 @@
-#include "gtest/gtest.h"
-#include <com/amazonaws/kinesis/video/utils/Include.h>
+#include "UtilTestFixture.h"
 
-TEST(NegativeInvalidInput, BitReaderReset)
+class BitReaderFunctionalityTest : public UtilTestBase {
+};
+
+TEST_F(BitReaderFunctionalityTest, NegativeInvalidInput_BitReaderReset)
 {
     BitReader bitReader;
     BYTE tempBuffer[1000];
@@ -12,7 +14,7 @@ TEST(NegativeInvalidInput, BitReaderReset)
     EXPECT_EQ(STATUS_SUCCESS, bitReaderReset(&bitReader, tempBuffer, 0));
 }
 
-TEST(Variations, BitReaderSet)
+TEST_F(BitReaderFunctionalityTest, Variations_BitReaderSet)
 {
     BitReader bitReader;
     BYTE tempBuffer[1000];
@@ -32,7 +34,7 @@ TEST(Variations, BitReaderSet)
     EXPECT_NE(STATUS_SUCCESS, bitReaderSetCurrent(&bitReader, 0));
 }
 
-TEST(Variations, BitReaderReadBit)
+TEST_F(BitReaderFunctionalityTest, BitReaderReadBit)
 {
     BitReader bitReader;
     BYTE tempBuffer[1000];
@@ -76,7 +78,7 @@ TEST(Variations, BitReaderReadBit)
     EXPECT_NE(STATUS_SUCCESS, bitReaderReadBit(&bitReader, &readVal));
 }
 
-TEST(Variations, BitReaderReadBits)
+TEST_F(BitReaderFunctionalityTest, BitReaderReadBits)
 {
     BitReader bitReader;
     BYTE tempBuffer[1000];
@@ -139,7 +141,7 @@ TEST(Variations, BitReaderReadBits)
     EXPECT_NE(STATUS_SUCCESS, bitReaderReadBits(&bitReader, 2, &readVal));
 }
 
-TEST(Variations, BitReaderReadExpGolomb)
+TEST_F(BitReaderFunctionalityTest, BitReaderReadExpGolomb)
 {
     BitReader bitReader;
     BYTE tempBuffer[1000];

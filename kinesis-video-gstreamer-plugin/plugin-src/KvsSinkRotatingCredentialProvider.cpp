@@ -1,8 +1,8 @@
 #include "KvsSinkRotatingCredentialProvider.h"
-#include <iomanip>
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include "Util/KvsSinkUtil.h"
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
@@ -55,20 +55,11 @@ void KvsSinkRotatingCredentialProvider::updateCredentials(Credentials &credentia
         auto now_time = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::system_clock::now().time_since_epoch());
         expiration = now_time + ROTATION_PERIOD;
-    } else {
-        std::tm timeinfo = std::tm();
-        std::istringstream ss(expiration_string);
-        if (ss >> std::get_time(&timeinfo, "%Y-%m-%dT%H:%M:%SZ"))
-        {
-            std::time_t tt = std::mktime(&timeinfo);
-            system_clock::time_point tp = system_clock::from_time_t (tt);
-            expiration = std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch());
-
-        } else {
-            LOG_ERROR("Failed to parse AWS_TOKEN_EXPIRATION.");
-            goto CleanUp;
-        }
+    } else if (kvs_sink_util::parseTimeStr(expiration_string, expiration) == false) {
+        LOG_ERROR("Failed to parse AWS_TOKEN_EXPIRATION.");
+        goto CleanUp;
     }
+
 
     credentials.setAccessKey(std::string(access_key));
     credentials.setSecretKey(std::string(secret_key));

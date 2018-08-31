@@ -115,11 +115,11 @@ shared_ptr<Response> Response::create(Request &request) {
     }
 
     // set request completion timeout in milliseconds
-    long completion_timeout = std::chrono::duration_cast<std::chrono::milliseconds>(
+    long completion_timeout = (long)std::chrono::duration_cast<std::chrono::milliseconds>(
             request.getRequestCompletionTimeout()).count();
     curl_easy_setopt(response->curl_, CURLOPT_TIMEOUT_MS, completion_timeout);
 
-    long connection_timeout = std::chrono::duration_cast<std::chrono::seconds>(
+    long connection_timeout = (long)std::chrono::duration_cast<std::chrono::seconds>(
             request.getConnectionTimeout()).count();
 
     curl_easy_setopt(response->curl_, CURLOPT_CONNECTTIMEOUT, connection_timeout);

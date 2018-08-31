@@ -87,30 +87,33 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_LargeFrameTimecode)
 TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsH264)
 {
     PMkvGenerator mkvGenerator;
-    BYTE frameBuf[MKV_TEST_BUFFER_SIZE];
-    CHAR fileName[256];
+    CHAR fileName[MAX_PATH_LEN];
     UINT32 size = 5000000, packagedSize;
     PBYTE mkvBuffer = (PBYTE) MEMCALLOC(size, 1);
+    PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     UINT64 frameDuration = 500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
     Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, frameDuration, 0, frameBuf};
     UINT32 i, cpdSize, index;
     UINT64 fileSize;
     BYTE cpd[] = {0x01, 0x42, 0x40, 0x15, 0xFF, 0xE1, 0x00, 0x09, 0x67, 0x42, 0x40, 0x28, 0x96, 0x54, 0x0a, 0x0f, 0xc8, 0x01, 0x00, 0x04, 0x68, 0xce, 0x3c, 0x80};
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN];
+    CHAR tagVal[MKV_MAX_TAG_VALUE_LEN];
 
     cpdSize = SIZEOF(cpd);
     // Pretend it's h264 to enforce the video width and height inclusion in the track info
     EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_H264_CONTENT_TYPE, MKV_GEN_IN_STREAM_TIME, MKV_TEST_TIMECODE_SCALE,
             2 * HUNDREDS_OF_NANOS_IN_A_SECOND, "V_MJPEG", MKV_TEST_TRACK_NAME, cpd, cpdSize, NULL, 0, &mkvGenerator));
-
+    
     for (i = 0, index = 0; i < 100; i++) {
-        sprintf(fileName, "samples/gif%03d.jpg", i);
+        SPRINTF(fileName, "samples" FPATHSEPARATOR_STR "gif%03d.jpg", i);
         fileSize = MKV_TEST_BUFFER_SIZE;
+    
         if (STATUS_FAILED(readFile(fileName, TRUE, NULL, &fileSize))) {
             break;
         }
-
+        
         EXPECT_EQ(STATUS_SUCCESS, readFile(fileName, TRUE, frameBuf, &fileSize));
-
+        
         frame.index = i;
         frame.presentationTs = frameDuration * i;
         frame.decodingTs = frameDuration * i;
@@ -121,19 +124,36 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsH2
         EXPECT_EQ(STATUS_SUCCESS, mkvgenPackageFrame(mkvGenerator, &frame, mkvBuffer + index, &packagedSize, NULL));
         index += packagedSize;
         size -= packagedSize;
+
+
+    }
+
+    // Add tags
+    for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
+        packagedSize = size;
+        SPRINTF(tagName, "testTag_%d", i);
+        SPRINTF(tagVal, "testTag_%d_Value", i);
+        EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
+                                                    mkvBuffer + index,
+                                                    tagName,
+                                                    tagVal,
+                                                    &packagedSize));
+        index += packagedSize;
+        size -= packagedSize;
     }
 
     EXPECT_EQ(STATUS_SUCCESS, writeFile("test_h264_jpg.mkv", TRUE, mkvBuffer, index));
     MEMFREE(mkvBuffer);
+    MEMFREE(frameBuf);
 }
 
 TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFourCc)
 {
     PMkvGenerator mkvGenerator;
-    BYTE frameBuf[MKV_TEST_BUFFER_SIZE];
-    CHAR fileName[256];
+    CHAR fileName[MAX_PATH_LEN];
     UINT32 size = 5000000, packagedSize;
     PBYTE mkvBuffer = (PBYTE) MEMCALLOC(size, 1);
+    PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     UINT64 frameDuration = 500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
     Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, frameDuration, 0, frameBuf};
     UINT32 i, cpdSize, index;
@@ -143,6 +163,8 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFo
                   0x4d, 0x4a, 0x50, 0x47, 0x00, 0x10, 0x0e, 0x00,
                   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN];
+    CHAR tagVal[MKV_MAX_TAG_VALUE_LEN];
 
     cpdSize = SIZEOF(cpd);
 
@@ -152,7 +174,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFo
                                                  MKV_TEST_TRACK_NAME, cpd, cpdSize, NULL, 0, &mkvGenerator));
 
     for (i = 0, index = 0; i < 100; i++) {
-        sprintf(fileName, "samples/gif%03d.jpg", i);
+        SPRINTF(fileName, "samples" FPATHSEPARATOR_STR "gif%03d.jpg", i);
         fileSize = MKV_TEST_BUFFER_SIZE;
         if (STATUS_FAILED(readFile(fileName, TRUE, NULL, &fileSize))) {
             break;
@@ -172,7 +194,143 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFo
         size -= packagedSize;
     }
 
+    // Add tags
+    for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
+        packagedSize = size;
+        SPRINTF(tagName, "testTag_%d", i);
+        SPRINTF(tagVal, "testTag_%d_Value", i);
+        EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
+                                                    mkvBuffer + index,
+                                                    tagName,
+                                                    tagVal,
+                                                    &packagedSize));
+        index += packagedSize;
+        size -= packagedSize;
+    }
+
     EXPECT_EQ(STATUS_SUCCESS, writeFile("test_jpeg.mkv", TRUE, mkvBuffer, index));
+    MEMFREE(mkvBuffer);
+    MEMFREE(frameBuf);
+}
+
+TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvTagsOnly)
+{
+    PMkvGenerator mkvGenerator;
+    UINT32 size = 5000000, packagedSize;
+    PBYTE mkvBuffer = (PBYTE) MEMCALLOC(size, 1);
+    UINT32 i, index = 0;
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN];
+    CHAR tagVal[MKV_MAX_TAG_VALUE_LEN];
+
+    // Pretend it's h264 to enforce the video width and height inclusion in the track info
+    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_H264_CONTENT_TYPE,
+                                                 MKV_GEN_IN_STREAM_TIME,
+                                                 MKV_TEST_TIMECODE_SCALE,
+                                                 2 * HUNDREDS_OF_NANOS_IN_A_SECOND,
+                                                 "V_MJPEG",
+                                                 MKV_TEST_TRACK_NAME,
+                                                 NULL,
+                                                 0,
+                                                 NULL,
+                                                 0,
+                                                 &mkvGenerator));
+
+    // Add tags
+    for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
+        packagedSize = size;
+        SPRINTF(tagName, "testTag_%d", i);
+        SPRINTF(tagVal, "testTag_%d_Value", i);
+        EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
+                                                    mkvBuffer + index,
+                                                    tagName,
+                                                    tagVal,
+                                                    &packagedSize));
+        index += packagedSize;
+        size -= packagedSize;
+    }
+
+    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_tags.mkv", TRUE, mkvBuffer, index));
+    MEMFREE(mkvBuffer);
+}
+
+TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvMixedTags) {
+    PMkvGenerator mkvGenerator;
+    BYTE frameBuf[100];
+    UINT32 size = 5000000, packagedSize;
+    PBYTE mkvBuffer = (PBYTE) MEMCALLOC(size, 1);
+    UINT64 frameDuration = 500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, frameDuration, SIZEOF(frameBuf), frameBuf};
+    UINT32 frameIndex, i, cpdSize, index = 0;
+    BYTE cpd[] = {0x28, 0x00, 0x00, 0x00, 0x80, 0x02, 0x00, 0x00,
+                  0xe0, 0x01, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00,
+                  0x4d, 0x4a, 0x50, 0x47, 0x00, 0x10, 0x0e, 0x00,
+                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN];
+    CHAR tagVal[MKV_MAX_TAG_VALUE_LEN];
+
+    cpdSize = SIZEOF(cpd);
+
+    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_X_MKV_CONTENT_TYPE,
+                                                 MKV_GEN_IN_STREAM_TIME | MKV_GEN_KEY_FRAME_PROCESSING,
+                                                 MKV_TEST_TIMECODE_SCALE, 2 * HUNDREDS_OF_NANOS_IN_A_SECOND,
+                                                 MKV_FOURCC_CODEC_ID, MKV_TEST_TRACK_NAME, cpd, cpdSize,
+                                                 NULL, 0, &mkvGenerator));
+
+    // Generate a key-frame every 10th frame
+    for (frameIndex = 0; frameIndex < 100; frameIndex++) {
+        frame.index = frameIndex;
+        frame.presentationTs = frameDuration * frameIndex;
+        frame.decodingTs = frameDuration * frameIndex;
+        frame.flags = (frameIndex % 10 == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+        // Insert tags before the cluster
+        if ((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) {
+            for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
+                packagedSize = size;
+                SPRINTF(tagName, "testTag_%d", i);
+                SPRINTF(tagVal, "testTag_%d_Value", i);
+                EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
+                                                            mkvBuffer + index,
+                                                            tagName,
+                                                            tagVal,
+                                                            &packagedSize));
+                index += packagedSize;
+                size -= packagedSize;
+            }
+
+            // Make sure adding a non-key frame fails on non start
+            if (frame.index != 0) {
+                frame.flags = FRAME_FLAG_NONE;
+                packagedSize = size;
+                EXPECT_NE(STATUS_SUCCESS,
+                          mkvgenPackageFrame(mkvGenerator, &frame, mkvBuffer + index, &packagedSize, NULL));
+                frame.flags = FRAME_FLAG_KEY_FRAME;
+            }
+        }
+
+        // Add a frame
+        packagedSize = size;
+        EXPECT_EQ(STATUS_SUCCESS, mkvgenPackageFrame(mkvGenerator, &frame, mkvBuffer + index, &packagedSize, NULL));
+        index += packagedSize;
+        size -= packagedSize;
+    }
+
+    // Insert tags after the last cluster
+    for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
+        packagedSize = size;
+        SPRINTF(tagName, "testTag_%d", i);
+        SPRINTF(tagVal, "testTag_%d_Value", i);
+        EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
+                                                    mkvBuffer + index,
+                                                    tagName,
+                                                    tagVal,
+                                                    &packagedSize));
+        index += packagedSize;
+        size -= packagedSize;
+    }
+
+    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_mixed_tags.mkv", TRUE, mkvBuffer, index));
     MEMFREE(mkvBuffer);
 }
 
@@ -181,7 +339,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CodecPrivateData)
     PMkvGenerator mkvGenerator;
     EncodedFrameInfo encodedFrameInfo;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
-    BYTE frameBuf[100000];
+    PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
     UINT32 i, cpdSize;
     UINT32 cpdSizes[3] = {0x80 - 2, 0x4000 - 2, 0x4000 - 1}; // edge cases for 1, 2 and 3 byte sizes
@@ -216,13 +374,14 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CodecPrivateData)
     }
 
     MEMFREE(tempBuffer);
+    MEMFREE(frameBuf);
 }
 
 TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_ClusterBoundaryNonKeyFrame)
 {
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
-    BYTE frameBuf[10000];
+    PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
     UINT32 i;
     EncodedFrameInfo encodedFrameInfo;
@@ -319,6 +478,8 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_ClusterBoundaryNonKeyFrame
 
     // Free the generator
     EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(mkvGenerator)));
+
+    MEMFREE(frameBuf);
 }
 
 TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCalls)
@@ -326,14 +487,14 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCalls)
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     UINT32 retSize;
-    BYTE frameBuf[10000];
+    PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_GEN_KEY_FRAME_PROCESSING, MKV_TEST_TIMECODE_SCALE,
-            MKV_TEST_CLUSTER_DURATION, MKV_TEST_CODEC_ID, MKV_TEST_TRACK_NAME, NULL, 0, getTimeCallback, MKV_TEST_CUSTOM_DATA, &mkvGenerator)));
+    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_GEN_KEY_FRAME_PROCESSING, MKV_TEST_TIMECODE_SCALE,
+            MKV_TEST_CLUSTER_DURATION, MKV_TEST_CODEC_ID, MKV_TEST_TRACK_NAME, NULL, 0, getTimeCallback, MKV_TEST_CUSTOM_DATA, &mkvGenerator));
 
-    // Add a key frame - get size first
-    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mkvGenerator, &frame, NULL, &size, NULL)));
+    // Add a key frame - get size first    
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenPackageFrame(mkvGenerator, &frame, NULL, &size, NULL));
 
     // Time function should get called to determine the state of the MKV stream
     EXPECT_TRUE(gTimeCallbackCalled);
@@ -343,7 +504,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCalls)
 
     // Package the frame in the buffer
     retSize = size;
-    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mkvGenerator, &frame, mBuffer, &retSize, NULL)));
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenPackageFrame(mkvGenerator, &frame, mBuffer, &retSize, NULL));
 
     // Time function shouldn't have been called
     EXPECT_TRUE(gTimeCallbackCalled);
@@ -352,7 +513,9 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCalls)
     EXPECT_EQ(size, retSize);
 
     // Free the generator
-    EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(mkvGenerator)));
+    EXPECT_EQ(STATUS_SUCCESS, freeMkvGenerator(mkvGenerator));
+
+    MEMFREE(frameBuf);
 }
 
 TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCallsNotCalled)
@@ -360,7 +523,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCallsNotCalled
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     UINT32 retSize;
-    BYTE frameBuf[10000];
+    PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
 
     EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE,
@@ -384,13 +547,15 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCallsNotCalled
 
     // Free the generator
     EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(mkvGenerator)));
+
+    MEMFREE(frameBuf);
 }
 
 TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGenerator_Variations)
 {
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
-    BYTE frameBuf[10000];
+    PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
     EncodedFrameInfo encodedFrameInfo;
 
@@ -446,22 +611,23 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGenerator_Variations)
     // Validate that it's a start of the stream + cluster
     EXPECT_EQ(10000 + MKV_HEADER_OVERHEAD, size);
     EXPECT_EQ(MKV_STATE_START_STREAM, encodedFrameInfo.streamState);
+
+    MEMFREE(frameBuf);
 }
 
 TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGeneratorWithAvccAdaptation_Variations)
 {
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
-    BYTE frameBuf[10000];
+    PBYTE frameBuf = (PBYTE) MEMALLOC(size);
     Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
     UINT32 i, runSize = 100 - SIZEOF(UINT32);
     EncodedFrameInfo encodedFrameInfo;
 
     // Set the buffer info
-    for (i = 0; i < SIZEOF(frameBuf);) {
+    for (i = 0; i < size; i += 100) {
         // Set every 100 bytes
         putInt32((PINT32) (frame.frameData + i), runSize);
-        i += 100;
     }
 
     EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS | MKV_GEN_ADAPT_AVCC_NALS, MKV_TEST_TIMECODE_SCALE,
@@ -510,12 +676,14 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGeneratorWithAvccAdaptation_Variat
     // Add a Non-key frame
     frame.decodingTs += MKV_TEST_FRAME_DURATION;
     frame.presentationTs += MKV_TEST_FRAME_DURATION;
-    size = MKV_TEST_BUFFER_SIZE;
+    size = MKV_TEST_BUFFER_SIZE; 
     EXPECT_EQ(STATUS_SUCCESS, mkvgenPackageFrame(mkvGenerator, &frame, mBuffer, &size, &encodedFrameInfo));
 
     // Validate that it's a start of the stream + cluster
     EXPECT_EQ(10000 + MKV_HEADER_OVERHEAD, size);
     EXPECT_EQ(MKV_STATE_START_STREAM, encodedFrameInfo.streamState);
+
+    MEMFREE(frameBuf);
 }
 
 TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGeneratorWithAnnexBAdaptation_Variations)

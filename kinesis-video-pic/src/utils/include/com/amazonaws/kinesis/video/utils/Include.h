@@ -10,6 +10,9 @@ extern "C" {
 
 #pragma once
 
+// For tight packing
+#pragma pack(push, include, 1) // for byte alignment
+
 #include <com/amazonaws/kinesis/video/common/CommonDefs.h>
 #include <com/amazonaws/kinesis/video/common/PlatformUtils.h>
 
@@ -709,6 +712,8 @@ PUBLIC_API VOID initializeEndianness();
 // Dumping memory functionality
 ////////////////////////////////////////////////////
 VOID dumpMemoryHex(PVOID, UINT32);
+
+#pragma pack(pop, include)
 
 #ifdef __cplusplus
 }

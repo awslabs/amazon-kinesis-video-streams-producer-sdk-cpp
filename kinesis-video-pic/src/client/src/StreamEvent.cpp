@@ -438,7 +438,7 @@ STATUS putStreamResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_CALL_RES
 
 CleanUp:
 
-    if (STATUS_FAILED(retStatus) && NULL != pUploadHandleInfo) {
+    if (STATUS_FAILED(retStatus) && (NULL != pUploadHandleInfo)) {
         MEMFREE(pUploadHandleInfo);
     }
 
@@ -542,7 +542,7 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HAN
             }
         } else {
             // Get the first upload handle in case of invalid handle specified
-            pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_ANY);
+            pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_ACTIVE);
         }
 
         // Get the index at which we are terminating
@@ -671,7 +671,7 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
             break;
         case FRAGMENT_ACK_TYPE_PERSISTED:
             if (inView) {
-                CHK_STATUS(streamFragmentPersistedAck(pKinesisVideoStream, timestamp));
+                CHK_STATUS(streamFragmentPersistedAck(pKinesisVideoStream, timestamp, pUploadHandleInfo));
             }
 
             break;
@@ -695,16 +695,19 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
 
 CleanUp:
 
-    // We will notify the fragment ACK received callback even if the processing failed
-    if (pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn != NULL) {
-        pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn(pKinesisVideoClient->clientCallbacks.customData,
-                                                                   TO_STREAM_HANDLE(pKinesisVideoStream),
-                                                                   pFragmentAck);
-    }
+    if (pKinesisVideoClient != NULL)
+    {
+        // We will notify the fragment ACK received callback even if the processing failed
+        if (pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn != NULL) {
+            pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                                       TO_STREAM_HANDLE(pKinesisVideoStream),
+                                                                       pFragmentAck);
+        }
 
-    // Unlock the stream
-    if (locked) {
-        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
+        // Unlock the stream
+        if (locked) {
+            pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
+        }
     }
 
     LEAVES();

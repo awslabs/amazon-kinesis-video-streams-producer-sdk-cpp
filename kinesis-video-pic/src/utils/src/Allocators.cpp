@@ -19,7 +19,7 @@ VOID dumpMemoryHex(PVOID pMem, UINT32 size)
         pCur += 3;
         if ((i + 1) % 16 == 0) {
             DLOGS("%s", buf);
-            buf[0] = 0;
+            buf[0] = '\0';
             pCur = buf;
         }
     }

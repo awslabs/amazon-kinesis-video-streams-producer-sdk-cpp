@@ -110,7 +110,7 @@ TEST_F(HeapApiTest, IdempotentHeapRelease_NullHeapRelease) {
 }
 
 TEST_F(HeapApiTest, InvalidHeapGetSize_NullHeap) {
-    PHeap pHeap;
+    PHeap pHeap = (PHeap) 12345;
     UINT64 size;
 
     EXPECT_TRUE(STATUS_FAILED(heapGetSize(NULL, &size)));
@@ -145,11 +145,11 @@ TEST_F(HeapApiTest, InvalidHeapGetAllocSize_NullHeapHandle) {
     EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
 
     EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(NULL, handle, &size)));
-    EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(pHeap, INVALID_HANDLE_VALUE, &size)));
+    EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(pHeap, INVALID_ALLOCATION_HANDLE_VALUE, &size)));
     EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(pHeap, handle, NULL)));
-    EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(NULL, INVALID_HANDLE_VALUE, &size)));
-    EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(pHeap, INVALID_HANDLE_VALUE, NULL)));
-    EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(NULL, INVALID_HANDLE_VALUE, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(NULL, INVALID_ALLOCATION_HANDLE_VALUE, &size)));
+    EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(pHeap, INVALID_ALLOCATION_HANDLE_VALUE, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(NULL, INVALID_ALLOCATION_HANDLE_VALUE, NULL)));
     EXPECT_TRUE(STATUS_FAILED(heapGetAllocSize(pHeap, handle, NULL)));
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapGetAllocSize(pHeap, handle, &size)));
@@ -269,9 +269,9 @@ TEST_F(HeapApiTest, InvalidHeapMap_NullAllocation) {
 }
 
 TEST_F(HeapApiTest, InvalidHeapMap_NullSize) {
-    PHeap pHeap;
+    PHeap pHeap = NULL;
     ALLOCATION_HANDLE handle;
-    PVOID pAlloc;
+    PVOID pAlloc = NULL;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
     EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
@@ -288,7 +288,7 @@ TEST_F(HeapApiTest, InvalidHeapMap_NullSize) {
 
 TEST_F(HeapApiTest, InvalidHeapUnmap_NullHeap) {
     PHeap pHeap;
-    PVOID pAlloc;
+    PVOID pAlloc = (PVOID) 12345;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
     EXPECT_TRUE(STATUS_FAILED(heapUnmap(NULL, pAlloc)));

@@ -1,8 +1,8 @@
 /**
  * Internal functionality
  */
-#ifndef __DASH_UTILS_I_H__
-#define __DASH_UTILS_I_H__
+#ifndef __UTILS_I_H__
+#define __UTILS_I_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,6 +13,17 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/common/CommonDefs.h>
 
 #include "com/amazonaws/kinesis/video/utils/Include.h"
+
+/**
+ * Thread wrapper for Windows
+ */
+typedef struct {
+    // Stored routine
+    startRoutine storedStartRoutine;
+
+    // Original arguments
+    PVOID storedArgs;
+} WindowsThreadRoutineWrapper, *PWindowsThreadRoutineWrapper;
 
 /**
  * Internal String operations
@@ -92,4 +103,4 @@ INLINE VOID putInt64NoSwap(PINT64, INT64);
 }
 #endif
 
-#endif // __DASH_UTILS_I_H__
+#endif // __UTILS_I_H__

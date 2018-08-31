@@ -10,28 +10,22 @@ class TimedSemaphore
 {
     TimedSemaphore(const TimedSemaphore&); // Prevent copy construction
     TimedSemaphore& operator=(const TimedSemaphore&); // Prevent assignment
-    pthread_mutex_t mMutex;
-    pthread_cond_t mCond;
-    uint32_t mCount;
+    MUTEX mMutex;
+    CVAR mCond;
+    UINT32 mCount;
 
 public:
 
     TimedSemaphore() : mCount(0)
     {
-        if (pthread_mutex_init(&mMutex, NULL) != 0)
-        {
-            CRASH("Fatal error creating a pthreads mutex");
-        }
-        if (pthread_cond_init(&mCond, NULL) != 0)
-        {
-            CRASH("Fatal error creating a pthreads condition variable");
-        }
+        mMutex = MUTEX_CREATE(FALSE);
+        mCond = CVAR_CREATE();
     }
 
     ~TimedSemaphore()
     {
-        pthread_cond_destroy(&mCond);
-        pthread_mutex_destroy(&mMutex);
+        MUTEX_FREE(mMutex);
+        CVAR_FREE(mCond);
     }
 
     /**
@@ -39,19 +33,20 @@ public:
      */
     void wait()
     {
-        pthread_mutex_lock(&mMutex);
+        MUTEX_LOCK(mMutex);
 
         while (mCount <= 0)
         {
-            if (pthread_cond_wait(&mCond, &mMutex) != 0)
+            if (STATUS_FAILED(CVAR_WAIT(mCond, mMutex, INFINITE_TIME_VALUE)))
             {
                 CRASH("Fatal error in semaphore wait");
                 break;
             }
         }
+
         mCount--;
 
-        pthread_mutex_unlock(&mMutex);
+        MUTEX_UNLOCK(mMutex);
     }
 
     /**
@@ -59,7 +54,7 @@ public:
      */
     bool tryWait()
     {
-        pthread_mutex_lock(&mMutex);
+        MUTEX_LOCK(mMutex);
 
         bool sem = (mCount > 0);
         if (sem)
@@ -67,7 +62,7 @@ public:
             mCount--;
         }
 
-        pthread_mutex_unlock(&mMutex);
+        MUTEX_UNLOCK(mMutex);
         return sem;
     }
 
@@ -75,39 +70,36 @@ public:
      * Waits until the semaphore count becomes positive, if necessary, then decrements it and returns true.
      * If the wait takes longer than the specified period of time, it gives up and returns false.
      */
-    bool timedWait(uint32_t relTimeOutMs)
+    bool timedWait(UINT32 relTimeOutMs)
     {
-        pthread_mutex_lock(&mMutex);
+        MUTEX_LOCK(mMutex);
+        BOOL retVal = true;
 
-        // Compute absolute timeout time by offsetting the current time by the relative timeout time.
-        // Use milliseconds as an intermediate value to keep the offset math simple.
-        timeval now; gettimeofday(&now, NULL);
-        uint64_t nowMs = now.tv_sec * 1000ull + now.tv_usec / 1000ull;
-        uint64_t absTimeOutMs = nowMs + relTimeOutMs;
-        timespec waitUntil;
-        waitUntil.tv_sec = absTimeOutMs / 1000ull;
-        waitUntil.tv_nsec = (absTimeOutMs % 1000ull) * 1000ull * 1000ull;
+        // Create default units duration
+        UINT64 duration = relTimeOutMs * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
 
         while (mCount == 0)
         {
-            int result = pthread_cond_timedwait(&mCond, &mMutex, &waitUntil);
-            if (result == ETIMEDOUT)
+            STATUS status = CVAR_WAIT(mCond, mMutex, duration);
+            if (status == STATUS_OPERATION_TIMED_OUT)
             {
-                pthread_mutex_unlock(&mMutex);
-                return false;
+                retVal = false;
+                break;
             }
+
             // Any other failure is fatal
-            if (result != 0)
+            if (STATUS_FAILED(status))
             {
-                pthread_mutex_unlock(&mMutex);
                 CRASH("Fatal error in timed semaphore wait");
-                return false;
+                
+                // Unreachable - just to keep some static code analysis tools happy
+                break;
             }
         }
         mCount--;
 
-        pthread_mutex_unlock(&mMutex);
-        return true;
+        MUTEX_UNLOCK(mMutex);
+        return retVal;
     }
 
     /**
@@ -118,16 +110,15 @@ public:
      */
     void post()
     {
-        pthread_mutex_lock(&mMutex);
+        MUTEX_LOCK(mMutex);
 
         mCount++;
 
-        if (mCount == 1 && pthread_cond_signal(&mCond) != 0)
-        {
+        if (mCount == 1 && STATUS_FAILED(CVAR_SIGNAL(mCond))) {
             CRASH("Signaling a condition variable failed; it probably wasn't initialized (errno = %d)", errno);
         }
 
-        pthread_mutex_unlock(&mMutex);
+        MUTEX_UNLOCK(mMutex);
     }
 };
 

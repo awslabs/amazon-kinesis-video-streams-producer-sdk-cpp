@@ -1,6 +1,7 @@
 /** Copyright 2017 Amazon.com. All rights reserved. */
 
 #include "DefaultCallbackProvider.h"
+#include "Version.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -63,6 +64,8 @@ UINT64 DefaultCallbackProvider::getCurrentTimeHandler(UINT64 custom_data) {
 
 STATUS DefaultCallbackProvider::createDeviceHandler(
         UINT64 custom_data, PCHAR device_name, PServiceCallContext service_call_ctx) {
+    UNUSED_PARAM(custom_data);
+    UNUSED_PARAM(device_name);
     LOG_DEBUG("createDeviceHandler invoked");
     // TODO: Implement the upsert of the device in the backend. Returning a dummy arn
     string device_arn = "arn:aws:kinesisvideo:us-west-2:11111111111:mediastream/device";
@@ -118,6 +121,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
     request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", endpoint);
     request->setHeader("content-type", "application/json");
+    request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
 
     LOG_DEBUG("createStreamHandler post body: " << post_body);
@@ -174,7 +178,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
 
     // Extract the tags into json format
     Json::Value json_tags;
-    for (int i = 0; i < num_tags; ++i) {
+    for (UINT32 i = 0; i < num_tags; ++i) {
         Tag &tag = tags[i];
         json_tags[tag.name] = tag.value;
     }
@@ -203,6 +207,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
     request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", endpoint);
     request->setHeader("content-type", "application/json");
+    request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
 
     LOG_DEBUG("tagResourceHandler post body: " << post_body);
@@ -269,6 +274,7 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
     request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", endpoint);
     request->setHeader("content-type", "application/json");
+    request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
 
     auto async_call = [](const DefaultCallbackProvider* this_obj,
@@ -395,6 +401,7 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
     unique_ptr<Request> request = make_unique<Request>(Request::POST, url);
     request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", endpoint);
+    request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
 
     auto async_call = [](const DefaultCallbackProvider* this_obj,
@@ -448,8 +455,10 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
 STATUS DefaultCallbackProvider::streamingTokenHandler(
         UINT64 custom_data, PCHAR stream_name, STREAM_ACCESS_MODE access_mode,
         PServiceCallContext service_call_ctx) {
+    UNUSED_PARAM(stream_name);
+    UNUSED_PARAM(access_mode);
     LOG_DEBUG("streamingTokenHandler invoked");
-    // TODO: (musheghm) Currently, we are not supporting scoped-down credentials for streaming. 
+    // TODO: Currently, we are not supporting scoped-down credentials for streaming.
     // Will need to implement this once the backend support is enabled.
     // NOTE: For now, we will use the credentials provider to get the token
     // Assuming, the security token will allow streaming.
@@ -487,6 +496,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
         UINT64 custom_data, PCHAR stream_name, PCHAR container_type,
         UINT64 start_timestamp, BOOL absolute_fragment_timestamp,
         BOOL do_ack, PCHAR streaming_endpoint, PServiceCallContext service_call_ctx) {
+    UNUSED_PARAM(container_type);
     LOG_DEBUG("putStreamHandler invoked");
 
     auto this_obj = reinterpret_cast<DefaultCallbackProvider *>(custom_data);
@@ -507,7 +517,8 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     auto state = make_shared<OngoingStreamState>(this_obj,
                                                  upload_handle,
                                                  service_call_ctx->customData,
-                                                 stream_name_str);
+                                                 stream_name_str,
+                                                 this_obj->debug_dump_file_);
 
     // Upsert into the active state map
     {
@@ -540,6 +551,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     request->setHeader("x-amzn-fragment-timecode-type", absolute_fragment_timestamp ? "ABSOLUTE" : "RELATIVE");
     request->setHeader("transfer-encoding", "chunked");
     request->setHeader("connection", "keep-alive");
+    request->setHeader("user-agent", this_obj->user_agent_);
 
     auto async_call = [](DefaultCallbackProvider* this_obj,
                          shared_ptr<OngoingStreamState> state,
@@ -912,21 +924,31 @@ void DefaultCallbackProvider::notifyResult(STATUS status, STREAM_HANDLE stream_h
     }
 }
 
+static std::string computeUserAgentString(std::string user_agent_name) {
+    std::stringstream ss;
+    ss << user_agent_name << "/" << getProducerSDKVersion() << " " << getCompilerVersion() << " "
+       << getOSVersion() << " " << getPlatformName();
+    return ss.str();
+}
+
 DefaultCallbackProvider::DefaultCallbackProvider(
         unique_ptr <ClientCallbackProvider> client_callback_provider,
         unique_ptr <StreamCallbackProvider> stream_callback_provider,
         unique_ptr <CredentialProvider> credentials_provider,
         const string& region,
-        const string& control_plane_uri)
+        const string& control_plane_uri,
+        const std::string &user_agent_name)
         : ccm_(CurlCallManager::getInstance()),
           region_(region),
           current_upload_handle_(0),
           service_(KINESIS_VIDEO_SERVICE_NAME),
           control_plane_uri_(control_plane_uri),
+          debug_dump_file_(false),
           security_token_(nullptr) {
     client_callback_provider_ = move(client_callback_provider);
     stream_callback_provider_ = move(stream_callback_provider);
     credentials_provider_ = move(credentials_provider);
+    user_agent_ = computeUserAgentString(user_agent_name);
 
     if (control_plane_uri_.empty()) {
         // Create a fully qualified URI
@@ -936,6 +958,11 @@ DefaultCallbackProvider::DefaultCallbackProvider(
                              + region_
                              + CONTROL_PLANE_URI_POSTFIX;
     }
+
+#ifdef KVS_DEBUG_DUMP_DATA_FILE
+    // Set the debug if compiled with debug file flags
+    debug_dump_file_ = true;
+#endif
 }
 
 void DefaultCallbackProvider::safeFreeBuffer(uint8_t** ppBuffer) {

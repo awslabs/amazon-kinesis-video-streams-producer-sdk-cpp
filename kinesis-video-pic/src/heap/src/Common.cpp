@@ -13,6 +13,7 @@ STATUS validateHeap(PHeap pHeap)
 #ifdef HEAP_DEBUG
     return heapDebugCheckAllocator(pHeap, FALSE);
 #else
+    UNUSED_PARAM(pHeap);
     return STATUS_SUCCESS;
 #endif
 
@@ -221,7 +222,7 @@ DEFINE_HEAP_FREE(commonHeapFree)
 
     overallSize = pBaseHeap->getAllocationSizeFn(pHeap, handle);
 
-    CHK_ERR(overallSize != INVALID_ALLOCATION_VALUE && pHeap->heapSize - overallSize >= 0,
+    CHK_ERR(overallSize != INVALID_ALLOCATION_VALUE && pHeap->heapSize >= overallSize,
         STATUS_HEAP_CORRUPTED,
         "Invalid allocation or heap corruption trying to free handle 0x%016" PRIx64,
         handle);

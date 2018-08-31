@@ -1,7 +1,9 @@
-#include "gtest/gtest.h"
-#include <com/amazonaws/kinesis/video/utils/Include.h>
+#include "UtilTestFixture.h"
 
-TEST(NegativeInvalidInput, BitFieldCreate)
+class BitfieldFunctionalityTest : public UtilTestBase {
+};
+
+TEST_F(BitfieldFunctionalityTest, NegativeInvalidInput_BitFieldCreate)
 {
     PBitField pBitField;
     EXPECT_NE(STATUS_SUCCESS, bitFieldCreate(0, &pBitField));
@@ -9,12 +11,12 @@ TEST(NegativeInvalidInput, BitFieldCreate)
     EXPECT_NE(STATUS_SUCCESS, bitFieldCreate(0, NULL));
 }
 
-TEST(PositiveIdempotentInvalidInput, BitFieldFree)
+TEST_F(BitfieldFunctionalityTest, PositiveIdempotentInvalidInput_BitFieldFree)
 {
     EXPECT_EQ(STATUS_SUCCESS, bitFieldFree(NULL));
 }
 
-TEST(NegativeInvalidInput, BitFieldGetCount)
+TEST_F(BitfieldFunctionalityTest, NegativeInvalidInput_BitFieldGetCount)
 {
     PBitField pBitField = (PBitField) 1;
     UINT32 count;
@@ -23,12 +25,12 @@ TEST(NegativeInvalidInput, BitFieldGetCount)
     EXPECT_NE(STATUS_SUCCESS, bitFieldGetCount(NULL, NULL));
 }
 
-TEST(NegativeInvalidInput, BitFieldReset)
+TEST_F(BitfieldFunctionalityTest, NegativeInvalidInput_BitFieldReset)
 {
     EXPECT_NE(STATUS_SUCCESS, bitFieldReset(NULL, TRUE));
 }
 
-TEST(NegativeInvalidInput, BitFieldSet)
+TEST_F(BitfieldFunctionalityTest, NegativeInvalidInput_BitFieldSet)
 {
     PBitField pBitField;
     EXPECT_EQ(STATUS_SUCCESS, bitFieldCreate(100, &pBitField));
@@ -40,7 +42,7 @@ TEST(NegativeInvalidInput, BitFieldSet)
     EXPECT_EQ(STATUS_SUCCESS, bitFieldFree(pBitField));
 }
 
-TEST(NegativeInvalidInput, BitFieldGet)
+TEST_F(BitfieldFunctionalityTest, NegativeInvalidInput_BitFieldGet)
 {
     PBitField pBitField;
     BOOL isSet;
@@ -56,7 +58,7 @@ TEST(NegativeInvalidInput, BitFieldGet)
     EXPECT_EQ(STATUS_SUCCESS, bitFieldFree(pBitField));
 }
 
-TEST(FunctionalTest, GetPutResetSingleItemBitField)
+TEST_F(BitfieldFunctionalityTest, GetPutResetSingleItemBitField)
 {
     PBitField pBitField;
     BOOL isSet;
@@ -87,7 +89,7 @@ TEST(FunctionalTest, GetPutResetSingleItemBitField)
     EXPECT_EQ(STATUS_SUCCESS, bitFieldFree(pBitField));
 }
 
-TEST(FunctionalTest, GetPutResetSubByteItemBitField)
+TEST_F(BitfieldFunctionalityTest, GetPutResetSubByteItemBitField)
 {
     PBitField pBitField;
     BOOL isSet;
@@ -132,7 +134,7 @@ TEST(FunctionalTest, GetPutResetSubByteItemBitField)
     EXPECT_EQ(STATUS_SUCCESS, bitFieldFree(pBitField));
 }
 
-TEST(FunctionalTest, GetPutResetVariousByteCountBitField)
+TEST_F(BitfieldFunctionalityTest, GetPutResetVariousByteCountBitField)
 {
     PBitField pBitField;
     BOOL isSet;

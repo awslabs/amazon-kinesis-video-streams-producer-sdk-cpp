@@ -57,21 +57,85 @@ CleanUp:
 STATUS traverseDirectory(PCHAR dirPath, UINT64 userData, BOOL iterate, DirectoryEntryCallbackFunc entryFn)
 {
     STATUS retStatus = STATUS_SUCCESS;
+    CHAR tempFileName[MAX_PATH_LEN];
+    UINT32 pathLen;
+
+#if defined __WINDOWS_BUILD__
+    WIN32_FIND_DATA findData;
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+    UINT32 error = 0;
+#else
+	UINT32 dirPathLen;
     DIR* pDir = NULL;
     dirent* pDirEnt = NULL;
     struct stat entryStat;
-    CHAR tempFileName[MAX_PATH_LEN];
-    UINT32 pathLen;
-    UINT32 dirPathLen;
+#endif
 
     CHK(dirPath != NULL && entryFn != NULL && dirPath[0] != '\0', STATUS_INVALID_ARG);
 
     // Ensure we don't get a very long paths. Need at least a separator and a null terminator.
-    pathLen = STRLEN(dirPath);
+    pathLen = (UINT32) STRLEN(dirPath);
     CHK(pathLen + 2 < MAX_PATH_LEN, STATUS_PATH_TOO_LONG);
 
     // Ensure the path is appended with the separator
     STRCPY(tempFileName, dirPath);
+
+#if defined __WINDOWS_BUILD__
+    // Open the find
+
+    if (tempFileName[pathLen - 1] != '*') {
+        tempFileName[pathLen] = FPATHSEPARATOR;
+        tempFileName[pathLen + 1] = '*';
+        tempFileName[pathLen + 2] = '\0';
+        
+    }
+    
+    hFind = FindFirstFile(tempFileName, &findData);
+
+    CHK(INVALID_HANDLE_VALUE != hFind, STATUS_DIRECTORY_OPEN_FAILED);
+
+    do {
+        if ((0 == STRCMP(findData.cFileName, ".")) || (0 == STRCMP(findData.cFileName, ".."))) {
+            continue;
+        }
+
+        // Prepare the path
+        tempFileName[pathLen] = '\0';
+        
+        // Check if it's a directory, link, file or unknown
+        tempFileName[pathLen] = FPATHSEPARATOR;
+        tempFileName[pathLen + 1] = '\0';
+        STRNCAT(tempFileName, findData.cFileName, MAX_PATH_LEN - pathLen - 2);
+        
+        if ((findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+            CHK_STATUS(entryFn(userData, DIR_ENTRY_TYPE_LINK, tempFileName, findData.cFileName));
+        } else if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+            // Iterate into sub-directories if specified
+            if (iterate) {
+                
+                DLOGE("\r\nDir Path %s, tempFile %s find %s\r\n", dirPath, tempFileName, findData.cFileName);
+
+                // Recurse into the directory
+                CHK_STATUS(traverseDirectory(tempFileName, userData, iterate, entryFn));
+            }
+
+            // Call the callback
+            CHK_STATUS(entryFn(userData, DIR_ENTRY_TYPE_DIRECTORY, tempFileName, findData.cFileName));
+        }
+        else {
+            // Treat as if a normal file
+            CHK_STATUS(entryFn(userData, DIR_ENTRY_TYPE_FILE, tempFileName, findData.cFileName));
+        }
+
+    } while (FindNextFile(hFind, &findData));
+
+CleanUp:
+
+    if (hFind != INVALID_HANDLE_VALUE) {
+        FindClose(hFind);
+    }
+
+#else
 
     if (tempFileName[pathLen - 1] != FPATHSEPARATOR) {
         tempFileName[pathLen] = FPATHSEPARATOR;
@@ -94,14 +158,10 @@ STATUS traverseDirectory(PCHAR dirPath, UINT64 userData, BOOL iterate, Directory
     }
 
     while (NULL != (pDirEnt = FREADDIR(pDir))) {
-        if (0 == STRCMP(pDirEnt->d_name, ".")) {
+        if ((0 == STRCMP(pDirEnt->d_name, ".")) || (0 == STRCMP(pDirEnt->d_name, ".."))) {
             continue;
         }
-
-        if (0 == STRCMP(pDirEnt->d_name, "..")) {
-            continue;
-        }
-
+       
         // Prepare the path
         tempFileName[pathLen] = '\0';
 
@@ -143,6 +203,7 @@ CleanUp:
         pDir = NULL;
     }
 
+#endif
     return retStatus;
 }
 
@@ -170,7 +231,6 @@ STATUS removeFileDir(UINT64 userData, DIR_ENTRY_TYPES entryType, PCHAR path, PCH
     }
 
 CleanUp:
-
     return retStatus;
 }
 

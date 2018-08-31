@@ -43,38 +43,38 @@ STATUS hybridCreateHeap(PHeap pHeap, UINT32 spillRatio, UINT32 behaviorFlags, PH
     // Load the library.
     // NOTE: The library will only be present on VRAM allocation capable devices
     // We will try to load the library with the name first and then with full path
-    if (NULL == (handle = DLOPEN(VRAM_LIBRARY_NAME, RTLD_NOW | RTLD_GLOBAL)) &&
-            NULL == (handle = DLOPEN(VRAM_LIBRARY_FULL_PATH, RTLD_NOW | RTLD_GLOBAL))) {
+    if (NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_NAME, RTLD_NOW | RTLD_GLOBAL)) &&
+            NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_FULL_PATH, RTLD_NOW | RTLD_GLOBAL))) {
                     CHK_ERR(FALSE, STATUS_HEAP_VRAM_LIB_MISSING, "Failed to load library %s with %s", VRAM_LIBRARY_NAME, DLERROR());
     }
 
     // HACK Reopening the vram library to increment the ref count, because for some unknown reason in heapRelease we
     // get a SIGSEGV on DLCLOSE as the library seems to be already closed, https://jira2.amazon.com/browse/AIVPLAYERS-5111.
-    if (reopenVramLibrary && NULL == (handle = DLOPEN(VRAM_LIBRARY_NAME, RTLD_NOW | RTLD_GLOBAL)) &&
-        NULL == (handle = DLOPEN(VRAM_LIBRARY_FULL_PATH, RTLD_NOW | RTLD_GLOBAL))) {
+    if (reopenVramLibrary && NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_NAME, RTLD_NOW | RTLD_GLOBAL)) &&
+        NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_FULL_PATH, RTLD_NOW | RTLD_GLOBAL))) {
                 CHK_ERR(FALSE, STATUS_HEAP_VRAM_LIB_REOPEN, "Failed to re-open library %s with %s", VRAM_LIBRARY_NAME, DLERROR());
     }
 
     // Load the functions and store the pointers
-    CHK_ERR(NULL != (vramInit = (VramInit) DLSYM(handle, VRAM_INIT_FUNC_SYMBOL_NAME)),
+    CHK_ERR(NULL != (vramInit = (VramInit) DLSYM(handle, (PCHAR) VRAM_INIT_FUNC_SYMBOL_NAME)),
             STATUS_HEAP_VRAM_INIT_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_INIT_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramAlloc = (VramAlloc) DLSYM(handle, VRAM_ALLOC_FUNC_SYMBOL_NAME)),
+    CHK_ERR(NULL != (vramAlloc = (VramAlloc) DLSYM(handle, (PCHAR) VRAM_ALLOC_FUNC_SYMBOL_NAME)),
             STATUS_HEAP_VRAM_ALLOC_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_ALLOC_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramFree = (VramFree) DLSYM(handle, VRAM_FREE_FUNC_SYMBOL_NAME)),
+    CHK_ERR(NULL != (vramFree = (VramFree) DLSYM(handle, (PCHAR) VRAM_FREE_FUNC_SYMBOL_NAME)),
             STATUS_HEAP_VRAM_FREE_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_FREE_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramLock = (VramLock) DLSYM(handle, VRAM_LOCK_FUNC_SYMBOL_NAME)),
+    CHK_ERR(NULL != (vramLock = (VramLock) DLSYM(handle, (PCHAR) VRAM_LOCK_FUNC_SYMBOL_NAME)),
             STATUS_HEAP_VRAM_LOCK_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_LOCK_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramUnlock = (VramUnlock) DLSYM(handle, VRAM_UNLOCK_FUNC_SYMBOL_NAME)),
+    CHK_ERR(NULL != (vramUnlock = (VramUnlock) DLSYM(handle, (PCHAR) VRAM_UNLOCK_FUNC_SYMBOL_NAME)),
             STATUS_HEAP_VRAM_UNLOCK_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_UNLOCK_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramUninit = (VramUninit) DLSYM(handle, VRAM_UNINIT_FUNC_SYMBOL_NAME)),
+    CHK_ERR(NULL != (vramUninit = (VramUninit) DLSYM(handle, (PCHAR) VRAM_UNINIT_FUNC_SYMBOL_NAME)),
             STATUS_HEAP_VRAM_UNINIT_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_UNINIT_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramGetMax = (VramGetMax) DLSYM(handle, VRAM_GETMAX_FUNC_SYMBOL_NAME)),
+    CHK_ERR(NULL != (vramGetMax = (VramGetMax) DLSYM(handle, (PCHAR) VRAM_GETMAX_FUNC_SYMBOL_NAME)),
             STATUS_HEAP_VRAM_GETMAX_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_GETMAX_FUNC_SYMBOL_NAME, DLERROR());
 

@@ -10,8 +10,15 @@
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
 #include "KinesisVideoProducer.h"
+#include "KinesisVideoStreamMetrics.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
+
+/**
+ * Stream stop timeout duration.
+ **/
+#define STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS 30
+
 /**
 * This definition comes from the Kinesis Video PIC, the typedef is to allow differentiation in case of other "Frame" definitions.
 */
@@ -37,7 +44,6 @@ class KinesisVideoProducer;
 class KinesisVideoStream {
     friend KinesisVideoProducer;
 public:
-    virtual ~KinesisVideoStream();
 
     /**
      * @return A pointer to the Kinesis Video STREAM_HANDLE for this instance.
@@ -47,27 +53,48 @@ public:
     }
 
     /**
-     * Encodes and streams the frame to Kinesis Video service.
+     * Packages and streams the frame to Kinesis Video service.
      *
-     * @param frame The frame to be encoded and streamed.
+     * @param frame The frame to be packaged and streamed.
      * @return true if the encoder accepted the frame and false otherwise.
      */
     bool putFrame(KinesisVideoFrame frame) const;
 
     /**
-     * Initializes the encoder with a hex-encoded codec private data
+     * Gets the stream metrics.
+     *
+     * @return Stream metrics object to be filled with the current metrics data.
+     */
+    KinesisVideoStreamMetrics getMetrics() const;
+
+    /**
+     * Appends a "metadata" - a key/value string pair into the stream.
+     *
+     * NOTE: The metadata is modeled as MKV tags and are not immediately put into the stream as
+     * it might break the fragment.
+     * This is a limitation of MKV format as Tags are level 1 elements.
+     * Instead, they will be accumulated and inserted in-between the fragments and at the end of the stream.
+     * @param 1 name - the metadata name.
+     * @param 2 value - the metadata value.
+     * @param 3 persistent - whether the metadata is persistent.
+     *
+     */
+    bool putFragmentMetadata(const std::string& name, const std::string& value, bool persistent = true);
+
+    /**
+     * Initializes the stream with a hex-encoded codec private data
      * and puts the stream in a state that it is ready to receive frames via putFrame().
      */
     bool start(const std::string& hexEncodedCodecPrivateData);
 
     /**
-     * Initializes the encoder with a binary codec private data
+     * Initializes the stream  with a binary codec private data
      * and puts the stream in a state that it is ready to receive frames via putFrame().
      */
     bool start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize);
 
     /**
-     * Initializes the encoder and puts the stream in a state that it is ready to receive frames via putFrame().
+     * Initializes the stream and puts the stream in a state that it is ready to receive frames via putFrame().
      */
     bool start();
 
@@ -88,6 +115,11 @@ public:
      */
     bool stop();
 
+    /**
+     * Stops the the stream and awaits until the buffer is depleted or a timeout occured.
+     */
+    bool stopSync();
+
     bool operator==(const KinesisVideoStream &rhs) const {
         return stream_handle_ == rhs.stream_handle_ &&
                stream_name_ == rhs.stream_name_;
@@ -102,12 +134,20 @@ public:
               kinesis_video_producer_(rhs.kinesis_video_producer_),
               stream_name_(rhs.stream_name_) {}
 
-    std::mutex& getStreamMutex() {
+    std::mutex& getStreamReadyMutex() {
         return stream_ready_mutex_;
+    }
+
+    std::mutex& getStreamClosedMutex() {
+        return stream_closed_mutex_;
     }
 
     std::condition_variable& getStreamReadyVar() {
         return stream_ready_var_;
+    }
+
+    std::condition_variable& getStreamClosedVar() {
+        return stream_closed_var_;
     }
 
     bool isReady() const {
@@ -118,6 +158,10 @@ public:
         stream_ready_ = true;
     }
 
+    void streamClosed() {
+        stream_closed_ = true;
+    }
+
     std::string getStreamName() {
         return stream_name_;
     }
@@ -126,10 +170,23 @@ public:
         return kinesis_video_producer_;
     }
 
-    void getStreamMetrics(StreamMetrics& metrics);
-
-private:
+protected:
+    /**
+     * Non-public constructor as streams should be only created by the producer client
+     */
     KinesisVideoStream(const KinesisVideoProducer& kinesis_video_producer, const std::string stream_name);
+
+    /**
+     * Non-public destructor as the streams should be de-allocated by the producer client
+     */
+    virtual ~KinesisVideoStream();
+
+    /**
+     * Static function to call destructor needed for the shared_ptr in the producer client object
+     */
+    static void videoStreamDeleter(KinesisVideoStream* kinesis_video_stream) {
+        delete kinesis_video_stream;
+    }
 
     /**
      * Stops the the stream immediately and frees the resources.
@@ -163,14 +220,34 @@ private:
     volatile bool stream_ready_;
 
     /**
+     * Whether the stream is closed
+     */
+    volatile bool stream_closed_;
+
+    /**
      * Mutex needed for the condition variable for stream ready locking.
      */
     std::mutex stream_ready_mutex_;
 
     /**
+     * Mutex needed for the condition variable for stream closed locking.
+     */
+    std::mutex stream_closed_mutex_;
+
+    /**
      * Condition variable used to signal the stream being ready.
      */
     std::condition_variable stream_ready_var_;
+
+    /**
+     * Condition variable used to signal the stream closed.
+     */
+    std::condition_variable stream_closed_var_;
+
+    /**
+     * Stream metrics
+     */
+    KinesisVideoStreamMetrics stream_metrics_;
 };
 
 } // namespace video

@@ -1,6 +1,6 @@
-/**
- * Common definition file
- */
+//
+// Common definition file
+//
 
 #ifndef __COMMON_DEFINITIONS__
 #define __COMMON_DEFINITIONS__
@@ -82,39 +82,51 @@ extern "C" {
     #endif
 #endif
 
-#if defined _MSC_VER
+#if defined _WIN32
+    #if defined _MSC_VER
+        #include <Windows.h>
+        #include <direct.h>
+    #elif defined (__MINGW64__) || defined (__MINGW32__)
+        #define WINVER 0x0A00  
+        #define _WIN32_WINNT 0x0A00
+        #include <windows.h>
+    #else
+        #error "Unknown Windows platform!"
+    #endif
+    #define __WINDOWS_BUILD__
+    #ifndef _WINNT_
+    typedef char                    CHAR;
+    typedef short                   WCHAR;
+    typedef unsigned __int8         UINT8;
+    typedef __int8                  INT8;
+    typedef unsigned __int16        UINT16;
+    typedef __int16                 INT16;
+    typedef unsigned __int32        UINT32;
+    typedef __int32                 INT32;
+    typedef unsigned __int64        UINT64;
+    typedef __int64                 INT64;
+    typedef double                  DOUBLE;
+    typedef float                   FLOAT;
+    #endif
 
-#ifndef _WINNT_
-typedef char                    CHAR;
-typedef short                   WCHAR;
-typedef unsigned __int8         UINT8;
-typedef __int8                  INT8;
-typedef unsigned __int16        UINT16;
-typedef __int16                 INT16;
-typedef unsigned __int32        UINT32;
-typedef __int32                 INT32;
-typedef unsigned __int64        UINT64;
-typedef __int64                 INT64;
-typedef double                  DOUBLE;
-typedef float                   FLOAT;
-#endif
+    typedef double                  DOUBLE;
 
 #elif defined (__GNUC__)
 
-#include <stdint.h>
+    #include <stdint.h>
 
-typedef char                    CHAR;
-typedef short                   WCHAR;
-typedef uint8_t                 UINT8;
-typedef int8_t                  INT8;
-typedef uint16_t                UINT16;
-typedef int16_t                 INT16;
-typedef uint32_t                UINT32;
-typedef int32_t                 INT32;
-typedef uint64_t                UINT64;
-typedef int64_t                 INT64;
-typedef double                  DOUBLE;
-typedef float                   FLOAT;
+    typedef char                    CHAR;
+    typedef short                   WCHAR;
+    typedef uint8_t                 UINT8;
+    typedef int8_t                  INT8;
+    typedef uint16_t                UINT16;
+    typedef int16_t                 INT16;
+    typedef uint32_t                UINT32;
+    typedef int32_t                 INT32;
+    typedef uint64_t                UINT64;
+    typedef int64_t                 INT64;
+    typedef double                  DOUBLE;
+    typedef float                   FLOAT;
 
 #else
 
@@ -186,9 +198,18 @@ typedef FLOAT*               PFLOAT;
 
 // Thread Id
 typedef UINT64              TID;
+typedef TID*                PTID;
 
 // Mutex typedef
 typedef UINT64              MUTEX;
+
+// Conditional variable
+#if defined __WINDOWS_BUILD__
+typedef PCONDITION_VARIABLE CVAR;
+#else
+#include <pthread.h>
+typedef pthread_cond_t* CVAR;
+#endif
 
 // Max thread name buffer length - similar to Linux platforms
 #ifndef MAX_THREAD_NAME
@@ -208,7 +229,6 @@ typedef CID*                PCID;
 // int and long ptr definitions
 //
 #if defined SIZE_64
-
     typedef INT64                INT_PTR, *PINT_PTR;
     typedef UINT64               UINT_PTR, *PUINT_PTR;
 
@@ -240,7 +260,6 @@ typedef CID*                PCID;
     #endif
 
 #elif defined SIZE_32
-
     typedef INT32                INT_PTR, *PINT_PTR;
     typedef UINT32               UINT_PTR, *PUINT_PTR;
 
@@ -263,6 +282,13 @@ typedef CID*                PCID;
 
 #else
     #error "Environment not 32 or 64-bit."
+#endif
+
+// Define pointer width size types
+#ifndef _SIZE_T_DEFINED_IN_COMMON
+typedef ULONG_PTR SIZE_T, *PSIZE_T;
+typedef LONG_PTR SSIZE_T, *PSSIZE_T;
+#define _SIZE_T_DEFINED_IN_COMMON
 #endif
 
 #ifndef NULL
@@ -292,15 +318,20 @@ typedef CID*                PCID;
 #define MAX_INT64           ((INT64) 0x7fffffffffffffff)
 #define MIN_INT64           ((INT64) 0x8000000000000000)
 
-/**
- * NOTE: Timer precision is in 100ns intervals. This is used in heuristics and in time functionality
- */
+//
+// NOTE: Timer precision is in 100ns intervals. This is used in heuristics and in time functionality
+//
 #define DEFAULT_TIME_UNIT_IN_NANOS                          100
 #define HUNDREDS_OF_NANOS_IN_A_MICROSECOND                  10LL
 #define HUNDREDS_OF_NANOS_IN_A_MILLISECOND                  (HUNDREDS_OF_NANOS_IN_A_MICROSECOND * 1000LL)
 #define HUNDREDS_OF_NANOS_IN_A_SECOND                       (HUNDREDS_OF_NANOS_IN_A_MILLISECOND * 1000LL)
 #define HUNDREDS_OF_NANOS_IN_A_MINUTE                       (HUNDREDS_OF_NANOS_IN_A_SECOND * 60LL)
 #define HUNDREDS_OF_NANOS_IN_AN_HOUR                        (HUNDREDS_OF_NANOS_IN_A_MINUTE * 60LL)
+
+//
+// Infinite time
+//
+#define INFINITE_TIME_VALUE                                 (MAX_UINT64)
 
 //
 // Some standard definitions/macros
@@ -368,17 +399,27 @@ typedef CID*                PCID;
 #define STATUS_NOT_IMPLEMENTED                      STATUS_BASE + 0x0000000e
 #define STATUS_OPERATION_TIMED_OUT                  STATUS_BASE + 0x0000000f
 #define STATUS_NOT_FOUND                            STATUS_BASE + 0x00000010
+#define STATUS_CREATE_THREAD_FAILED                 STATUS_BASE + 0x00000011
+#define STATUS_THREAD_NOT_ENOUGH_RESOURCES          STATUS_BASE + 0x00000012
+#define STATUS_THREAD_INVALID_ARG                   STATUS_BASE + 0x00000013
+#define STATUS_THREAD_PERMISSIONS                   STATUS_BASE + 0x00000014
+#define STATUS_THREAD_DEADLOCKED                    STATUS_BASE + 0x00000015
+#define STATUS_THREAD_DOES_NOT_EXIST                STATUS_BASE + 0x00000016
+#define STATUS_JOIN_THREAD_FAILED                   STATUS_BASE + 0x00000017
+#define STATUS_WAIT_FAILED                          STATUS_BASE + 0x00000018
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <errno.h>
 
-#include <dirent.h>
+#if !(defined _WIN32 || defined _WIN64)
 #include <unistd.h>
+#include <dirent.h>
+#include <sys/time.h>
+#endif
 
 #if !defined(_MSC_VER) && !defined(__MINGW64__) && !defined(__MINGW32__) && !defined (__MACH__)
 // NOTE!!! For some reason memalign is not included for Linux builds in stdlib.h
@@ -387,54 +428,75 @@ typedef CID*                PCID;
 
 #if defined _WIN32 || defined _WIN64 || defined __CYGWIN__
 
-#include <../utils/src/dlfcn_win_stub.h>
-
-// Definition of the static global mutexes
-#define GLOBAL_REENTRANT_MUTEX                      (MUTEX) 0
-#define GLOBAL_NON_REENTRANT_MUTEX                  (MUTEX) 0
+#include "dlfcn_win_stub.h"
 
 // Definition of the S_ISLNK for Windows
 #define S_ISLNK(x) FALSE
 
 // Definition of the mkdir for Windows with 1 param
-#define GLOBAL_MKDIR(p1, p2) mkdir(p1)
+#define GLOBAL_MKDIR(p1, p2) _mkdir(p1)
+
+// Definition of the case insensitive string compare
+#define GLOBAL_STRCMPI strcmpi
+
+#if defined (__MINGW64__) || defined(__MINGW32__)
+    #define GLOBAL_RMDIR rmdir
+#else
+    // Definition of rmdir for Windows
+    #define GLOBAL_RMDIR _rmdir
+#endif
+
+// Definition of the static initializers
+#define GLOBAL_MUTEX_INIT                       MUTEX_CREATE(FALSE)
+#define GLOBAL_MUTEX_INIT_RECURSIVE             MUTEX_CREATE(TRUE)
+#define GLOBAL_CVAR_INIT                        CVAR_CREATE()
 
 #else
 
 #include <dlfcn.h>
-#include <pthread.h>
 
 #if !defined (__MACH__)
 #include <sys/prctl.h>
 #endif
 
-// Definition of the static global mutexes
-extern pthread_mutex_t globalReentrantMutex;
-extern pthread_mutex_t globalNonReentrantMutex;
-#define GLOBAL_REENTRANT_MUTEX                      ((MUTEX) &globalReentrantMutex)
-#define GLOBAL_NON_REENTRANT_MUTEX                  ((MUTEX) &globalNonReentrantMutex)
-
 // Definition of the mkdir for non-Windows platforms with 2 params
 #define GLOBAL_MKDIR(p1, p2) mkdir((p1), (p2))
 
+// Definition of the case insensitive string compare
+#define GLOBAL_STRCMPI strcasecmp
+
+// Definition of rmdir for non-Windows platforms
+#define GLOBAL_RMDIR rmdir
+
+// NOTE!!! Some of the libraries don't have a definition of PTHREAD_RECURSIVE_MUTEX_INITIALIZER
+#ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER
+#define GLOBAL_MUTEX_INIT_RECURSIVE             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#else
+#define GLOBAL_MUTEX_INIT_RECURSIVE             PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 #endif
-/**
- * Allocator function definitions
- */
-typedef PVOID (*memAlloc)(UINT32 size);
-typedef PVOID (*memAlignAlloc)(UINT32 size, UINT32 alignment);
-typedef PVOID (*memCalloc)(UINT32 num, UINT32 size);
+#define GLOBAL_MUTEX_INIT                       PTHREAD_MUTEX_INITIALIZER
+
+#define GLOBAL_CVAR_INIT                        PTHREAD_COND_INITIALIZER
+
+#endif
+
+//
+// Allocator function definitions
+//
+typedef PVOID (*memAlloc)(SIZE_T size);
+typedef PVOID (*memAlignAlloc)(SIZE_T size, SIZE_T alignment);
+typedef PVOID (*memCalloc)(SIZE_T num, SIZE_T size);
 typedef VOID (*memFree)(PVOID ptr);
 
 //
 // Default allocator functions
 //
-INLINE PVOID defaultMemAlloc(UINT32 size)
+INLINE PVOID defaultMemAlloc(SIZE_T size)
 {
     return malloc(size);
 }
 
-INLINE PVOID defaultMemAlignAlloc(UINT32 size, UINT32 alignment)
+INLINE PVOID defaultMemAlignAlloc(SIZE_T size, SIZE_T alignment)
 {
 #if defined (__MACH__)
     // On Mac allocations are 16 byte aligned. There is hardly an equivalent anyway
@@ -447,7 +509,7 @@ INLINE PVOID defaultMemAlignAlloc(UINT32 size, UINT32 alignment)
 #endif
 }
 
-INLINE PVOID defaultMemCalloc(UINT32 num, UINT32 size)
+INLINE PVOID defaultMemCalloc(SIZE_T num, SIZE_T size)
 {
     return calloc(num, size);
 }
@@ -457,17 +519,17 @@ INLINE VOID defaultMemFree(VOID* ptr)
     free(ptr);
 }
 
-/**
- * Global allocator function pointers
- */
+//
+// Global allocator function pointers
+//
 extern memAlloc globalMemAlloc;
 extern memAlignAlloc globalMemAlignAlloc;
 extern memCalloc globalMemCalloc;
 extern memFree globalMemFree;
 
-/**
- * Dynamic library loading function definitions
- */
+//
+// Dynamic library loading function definitions
+//
 typedef PVOID (*dlOpen)(PCHAR filename, UINT32 flag);
 typedef INT32 (*dlClose)(PVOID handle);
 typedef PVOID (*dlSym)(PVOID handle, PCHAR symbol);
@@ -496,78 +558,102 @@ INLINE PCHAR defaultDlError()
     return (PCHAR) dlerror();
 }
 
-/**
- * Global dynamic library loading function pointers
- */
+//
+// Global dynamic library loading function pointers
+//
 extern dlOpen globalDlOpen;
 extern dlClose globalDlClose;
 extern dlSym globalDlSym;
 extern dlError globalDlError;
 
-/**
- * Thread library function definitions
- */
+//
+// Thread library function definitions
+//
 typedef TID (*getTId)();
 typedef STATUS (*getTName)(TID, PCHAR, UINT32);
 
-/**
- * Thread related functionality
- */
+//
+// Thread related functionality
+//
 extern getTId globalGetThreadId;
 extern getTName globalGetThreadName;
 
-/**
- * Time library function definitions
- */
+//
+// Time library function definitions
+//
 typedef UINT64 (*getTime)();
 
 //
 // Default time library functions
 //
+#define TIME_DIFF_UNIX_WINDOWS_TIME     116444736000000000ULL
+
 INLINE UINT64 defaultGetTime()
 {
-#if defined __MACH__ || defined _WIN32 || defined _WIN64 || defined __CYGWIN__
+#if defined _WIN32 || defined _WIN64
+    FILETIME fileTime;
+    GetSystemTimeAsFileTime(&fileTime);
+
+    return ((((UINT64)fileTime.dwHighDateTime << 32) | fileTime.dwLowDateTime) - TIME_DIFF_UNIX_WINDOWS_TIME);
+#elif defined __MACH__ || defined __CYGWIN__
     struct timeval nowTime;
     if (0 != gettimeofday(&nowTime, NULL)) {
         return 0;
     }
 
-    return (UINT64) nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64) nowTime.tv_usec * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
+    return (UINT64)nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64)nowTime.tv_usec * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
 #else
     struct timespec nowTime;
     clock_gettime(CLOCK_MONOTONIC, &nowTime);
 
     // The precision needs to be on a 100th nanosecond resolution
-    return (UINT64) nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64) nowTime.tv_nsec / 100;
+    return (UINT64)nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64)nowTime.tv_nsec / DEFAULT_TIME_UNIT_IN_NANOS;
 #endif
 }
 
-/**
- * Thread related functionality
- */
+//
+// Thread related functionality
+//
 extern getTime globalGetTime;
 
-/**
- * Thread library function definitions
- */
+//
+// Thread library function definitions
+//
+typedef PVOID (*startRoutine)(PVOID);
 typedef MUTEX (*createMutex)(BOOL);
 typedef VOID (*lockMutex)(MUTEX);
 typedef VOID (*unlockMutex)(MUTEX);
-typedef VOID (*tryLockMutex)(MUTEX);
+typedef BOOL (*tryLockMutex)(MUTEX);
 typedef VOID (*freeMutex)(MUTEX);
+typedef STATUS (*createThread)(PTID, startRoutine, PVOID);
+typedef STATUS (*joinThread)(TID, PVOID*);
+typedef VOID (*threadSleep)(UINT64);
+typedef CVAR (*createConditionVariable)();
+typedef STATUS (*signalConditionVariable)(CVAR);
+typedef STATUS (*broadcastConditionVariable)(CVAR);
+typedef STATUS (*waitConditionVariable)(CVAR, MUTEX, UINT64);
+typedef VOID (*freeConditionVariable)(CVAR);
 
-/**
- * Mutex related functionality
- */
+//
+// Thread and Mutex related functionality
+//
 extern createMutex globalCreateMutex;
 extern lockMutex globalLockMutex;
 extern unlockMutex globalUnlockMutex;
 extern tryLockMutex globalTryLockMutex;
 extern freeMutex globalFreeMutex;
+extern createThread globalCreateThread;
+extern joinThread globalJoinThread;
+extern threadSleep globalThreadSleep;
+extern createConditionVariable globalConditionVariableCreate;
+extern signalConditionVariable globalConditionVariableSignal;
+extern broadcastConditionVariable globalConditionVariableBroadcast;
+extern waitConditionVariable globalConditionVariableWait;
+extern freeConditionVariable globalConditionVariableFree;
 
-/**
- * Memory allocation and operations
- */
+//
+// Memory allocation and operations
+//
 #define MEMALLOC                   globalMemAlloc
 #define MEMALIGNALLOC              globalMemAlignAlloc
 #define MEMCALLOC                  globalMemCalloc
@@ -577,9 +663,9 @@ extern freeMutex globalFreeMutex;
 #define MEMSET                     memset
 #define MEMMOVE                    memmove
 
-/**
- * String operations
- */
+//
+// String operations
+//
 #define STRCAT                     strcat
 #define STRNCAT                    strncat
 #define STRCPY                     strcpy
@@ -589,14 +675,15 @@ extern freeMutex globalFreeMutex;
 #define STRCHR                     strchr
 #define STRRCHR                    strrchr
 #define STRCMP                     strcmp
+#define STRCMPI                    GLOBAL_STRCMPI
 #define STRNCMP                    strncmp
 #define PRINTF                     printf
 #define SPRINTF                    sprintf
 #define SNPRINTF                   snprintf
 
-/**
- * Pseudo-random functionality
- */
+//
+// Pseudo-random functionality
+//
 #ifndef SRAND
 #define SRAND                           srand
 #endif
@@ -604,16 +691,16 @@ extern freeMutex globalFreeMutex;
 #define RAND                            rand
 #endif
 
-/**
- * CRT functionality
- */
+//
+// CRT functionality
+//
 #define STRTOUL                    strtoul
 #define ULLTOSTR                   ulltostr
 #define ULTOSTR                    ultostr
 
-/**
- * File operations
- */
+//
+// File operations
+///
 #ifndef FOPEN
     #define FOPEN                       fopen
 #endif
@@ -666,7 +753,7 @@ extern freeMutex globalFreeMutex;
     #define FMKDIR                      GLOBAL_MKDIR
 #endif
 #ifndef FRMDIR
-    #define FRMDIR                      rmdir
+    #define FRMDIR                      GLOBAL_RMDIR
 #endif
 #ifndef FSTAT
     #define FSTAT                       stat
@@ -674,44 +761,69 @@ extern freeMutex globalFreeMutex;
 
 #if defined _WIN32 || defined _WIN64 || defined __CYGWIN__
     #define FPATHSEPARATOR              '\\'
+    #define FPATHSEPARATOR_STR          "\\"
 #else
     #define FPATHSEPARATOR              '/'
+    #define FPATHSEPARATOR_STR          "/"
 #endif
-/**
- * String to integer conversion
- */
+//
+// String to integer conversion
+//
 #define STRTOUI32                   strtoui32
 #define STRTOI32                    strtoi32
 #define STRTOUI64                   strtoui64
 #define STRTOI64                    strtoi64
 
-/**
- * Dynamic library loading routines
- */
+//
+// Dynamic library loading routines
+//
 #define DLOPEN                      globalDlOpen
 #define DLCLOSE                     globalDlClose
 #define DLSYM                       globalDlSym
 #define DLERROR                     globalDlError
 
-/**
- * Thread functionality
- */
+//
+// Thread functionality
+//
 #define GETTID                      globalGetThreadId
 #define GETTNAME                    globalGetThreadName
 
-/**
- * Time functionality
- */
+//
+// Time functionality
+//
 #define GETTIME                     globalGetTime
 
-/**
- * Mutex functionality
- */
+//
+// Mutex functionality
+//
 #define MUTEX_CREATE                globalCreateMutex
 #define MUTEX_LOCK                  globalLockMutex
 #define MUTEX_UNLOCK                globalUnlockMutex
 #define MUTEX_TRYLOCK               globalTryLockMutex
 #define MUTEX_FREE                  globalFreeMutex
+
+//
+// Condition variable functionality
+//
+#define CVAR_CREATE                 globalConditionVariableCreate
+#define CVAR_SIGNAL                 globalConditionVariableSignal
+#define CVAR_BROADCAST              globalConditionVariableBroadcast
+#define CVAR_WAIT                   globalConditionVariableWait
+#define CVAR_FREE                   globalConditionVariableFree
+
+//
+// Thread functionality
+//
+#define THREAD_CREATE                globalCreateThread
+#define THREAD_JOIN                  globalJoinThread
+#define THREAD_SLEEP                 globalThreadSleep
+
+//
+// Static initializers
+//
+#define MUTEX_INIT                  GLOBAL_MUTEX_INIT
+#define MUTEX_INIT_RECURSIVE        GLOBAL_MUTEX_INIT_RECURSIVE
+#define CVAR_INIT                   GLOBAL_CVAR_INIT
 
 #ifndef SQRT
 #include <math.h>
@@ -721,7 +833,9 @@ extern freeMutex globalFreeMutex;
 //
 // Calculate the byte offset of a field in a structure of type type.
 //
-#define FIELD_OFFSET(type, field)    ((LONG)(LONG_PTR)&(((type *)0)->field))
+#ifndef FIELD_OFFSET
+    #define FIELD_OFFSET(type, field)    ((LONG)(LONG_PTR)&(((type *)0)->field))
+#endif
 
 //
 // Aligns an integer X value up or down to alignment A
@@ -758,14 +872,14 @@ extern freeMutex globalFreeMutex;
     SWAP_INT32(LOW_INT32(x)) \
     )
 
-/**
- * Check if at most 1 bit is set
- */
+//
+// Check if at most 1 bit is set
+//
 #define CHECK_POWER_2(x)            !((x) & ((x) - 1))
 
-/**
- * Checks if only 1 bit is set
- */
+//
+// Checks if only 1 bit is set
+//
 #define CHECK_SINGLE_BIT_SET(x)    ((x) && CHECK_POWER_2(x))
 
 //
