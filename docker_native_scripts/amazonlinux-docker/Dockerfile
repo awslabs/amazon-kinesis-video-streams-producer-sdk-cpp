@@ -60,7 +60,6 @@ RUN cp libproducer.so /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis
 ENV KINESIS_VIDEO_STREAMS_PRODUCER_SDK_SOURCE_DIR=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/
 ENV SDK_SOURCE_DIR=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/
 RUN pwd
-RUN ./gstreamer-plugin-install-script
 
 #
 # Copy dynamic libraries into lib folder
