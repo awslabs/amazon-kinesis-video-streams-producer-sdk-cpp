@@ -48,7 +48,7 @@ WORKDIR /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-
 ENV CC=/usr/local/bin/gcc
 ENV CXX=/usr/local/bin/g++
 RUN chmod a+x ./install-script
-RUN chmod a+x ./gstreamer-plugin-install-script
+
 # =================  HTTPS Certificate =====================================================================
 RUN wget https://www.amazontrust.com/repository/SFSRootCAG2.pem
 RUN cp  SFSRootCAG2.pem /opt/amazon-kinesis-video-streams-producer-sdk-cpp
