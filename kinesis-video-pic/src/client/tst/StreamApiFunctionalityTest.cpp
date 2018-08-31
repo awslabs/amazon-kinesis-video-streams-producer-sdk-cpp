@@ -362,7 +362,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StorageOverflow)
     UINT32 i;
     UINT32 frameSize = 1000000;
     PBYTE pData = (PBYTE) MEMALLOC(frameSize);
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -422,7 +422,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StoragePressureNotification)
     UINT32 i, remaining;
     UINT32 frameSize = 100000;
     PBYTE pData = (PBYTE) MEMALLOC(frameSize);
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream

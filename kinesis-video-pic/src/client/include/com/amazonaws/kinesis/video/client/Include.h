@@ -164,6 +164,8 @@ extern "C" {
 #define STATUS_ACK_ERR_UNKNOWN_ACK_ERROR                                            STATUS_CLIENT_BASE + 0x0000006f
 #define STATUS_MISSING_ERR_ACK_ID                                                   STATUS_CLIENT_BASE + 0x00000070
 #define STATUS_INVALID_ACK_SEGMENT_LEN                                              STATUS_CLIENT_BASE + 0x00000071
+#define STATUS_AWAITING_PERSISTED_ACK                                               STATUS_CLIENT_BASE + 0x00000072
+#define STATUS_PERSISTED_ACK_TIMEOUT                                                STATUS_CLIENT_BASE + 0x00000073
 
 ////////////////////////////////////////////////////
 // Main defines
@@ -179,9 +181,9 @@ extern "C" {
 #define MAX_TAG_COUNT                            50
 
 /**
- * Max stream count
+ * Max stream count for sanity validation
  */
-#define MAX_STREAM_COUNT                         128
+#define MAX_STREAM_COUNT                         1024 * 1024
 
 /**
  * Max stream name length chars
@@ -232,6 +234,11 @@ extern "C" {
  * Max number of fragment metadatas in the segment
  */
 #define MAX_SEGMENT_METADATA_COUNT               1024
+
+/**
+ * Minimal valid retention period
+ */
+#define MIN_RETENTION_PERIOD                     (1 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
 
 /**
  * Max length of the fragment sequence number
@@ -339,6 +346,11 @@ extern "C" {
  * staleness is not required.
  */
 #define CONNECTION_STALENESS_DETECTION_SENTINEL     0
+
+/**
+ * Retention period sentinel value indicating no retention is needed
+ */
+#define RETENTION_PERIOD_SENTINEL                   0
 
 /**
  * Current versions for the public structs
@@ -518,9 +530,6 @@ typedef enum {
     // Bad request
     SERVICE_CALL_BAD_REQUEST = 400,
 
-    // Resource deleted exception
-    SERVICE_CALL_RESOURCE_DELETED = SERVICE_CALL_BAD_REQUEST,
-
     // Forbidden
     SERVICE_CALL_FORBIDDEN = 403,
 
@@ -544,6 +553,9 @@ typedef enum {
 
     // Network connection timeout
     SERVICE_CALL_NETWORK_CONNECTION_TIMEOUT = 599,
+
+    // Resource deleted exception
+    SERVICE_CALL_RESOURCE_DELETED = 10400,
 
     // The stream authorization is in a grace period
     SERVICE_CALL_STREAM_AUTH_IN_GRACE_PERIOD = 10401,
@@ -1199,8 +1211,8 @@ typedef STATUS (*DroppedFragmentReportFunc)(UINT64,
                                             UINT64);
 
 /**
- * Reports a stream error due to an error ACK. The client should terminate
- * the current stream as the inlet host has/will close the connection.
+ * Reports a stream error due to an error ACK. The PIC will initiate the termination
+ * of the stream itself as the Inlet host has/will close the connection regardless.
  *
  * @param 1 UINT64 - Custom handle passed by the caller.
  * @param 2 STREAM_HANDLE - The stream to report for.
@@ -1326,7 +1338,7 @@ typedef VOID (*UnlockMutexFunc)(UINT64,
  * @param 2 MUTEX - The mutex to try to lock.
  *
  */
-typedef VOID (*TryLockMutexFunc)(UINT64,
+typedef BOOL (*TryLockMutexFunc)(UINT64,
                                  MUTEX);
 
 /**
@@ -1631,6 +1643,30 @@ PUBLIC_API STATUS putKinesisVideoFrame(STREAM_HANDLE, PFrame);
  * @return Status of the function call.
  */
 PUBLIC_API STATUS getKinesisVideoStreamData(STREAM_HANDLE, PUINT64, PBYTE, UINT32, PUINT32);
+
+/**
+ * Inserts a "metadata" - a key/value string pair into the stream.
+ *
+ * NOTE: The metadata are modelled as MKV tags and are not immediately put into the stream as
+ * it might break the fragment.
+ * This is a limitation of MKV format as Tags are level 1 elements.
+ * Instead, they will be accumulated and inserted in-between the fragments and at the end of the stream.
+ *
+ * MKV spec is available at: https://matroska.org/technical/specs/index.html
+ *
+ * Putting a "persistent" metadata will result in the metadata being inserted before every fragment.
+ * The metadata can be changed by calling this function with the same name and a different value.
+ * Specifying an empty string for the value for a persistent metadata will clear it and it won't
+ * be applied to the consecutive fragments.
+ *
+ * @param 1 STREAM_HANDLE - the stream handle.
+ * @param 2 PCHAR - the metadata name.
+ * @param 3 PCHAR - the metadata value.
+ * @param 4 BOOL - Whether to keep applying the metadata to following fragments.
+ *
+ * @return Status of the function call.
+ */
+PUBLIC_API STATUS putKinesisVideoFragmentMetadata(STREAM_HANDLE, PCHAR, PCHAR, BOOL);
 
 ////////////////////////////////////////////////////
 // Diagnostics functions

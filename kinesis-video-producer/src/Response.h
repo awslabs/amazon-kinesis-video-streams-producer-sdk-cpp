@@ -3,6 +3,7 @@
 #include <com/amazonaws/kinesis/video/client/Include.h>
 #include <curl/curl.h>
 #include <mutex>
+#include <cctype>
 #include <thread>
 #include "Response.h"
 #include "Auth.h"

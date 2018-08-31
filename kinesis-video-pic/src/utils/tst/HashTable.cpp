@@ -1,5 +1,7 @@
-#include "gtest/gtest.h"
-#include <com/amazonaws/kinesis/video/utils/Include.h>
+#include "UtilTestFixture.h"
+
+class HashTableFunctionalityTest : public UtilTestBase {
+};
 
 /**
  * Static variable for using later in the tests with callbacks
@@ -13,6 +15,7 @@ UINT64 gCallerData = 0x55555;
  */
 STATUS successCallbackFn(UINT64 callerData, PHashEntry pHashEntry)
 {
+    UNUSED_PARAM(pHashEntry);
     if (callerData != gCallerData) {
         return STATUS_INTERNAL_ERROR;
     } else {
@@ -22,6 +25,7 @@ STATUS successCallbackFn(UINT64 callerData, PHashEntry pHashEntry)
 
 STATUS errCallbackFn(UINT64 callerData, PHashEntry pHashEntry)
 {
+    UNUSED_PARAM(pHashEntry);
     if (callerData != gCallerData) {
         return STATUS_INTERNAL_ERROR;
     } else {
@@ -54,12 +58,12 @@ STATUS abortCallbackFn(UINT64 callerData, PHashEntry pHashEntry)
  * Main tests
  */
 
-TEST(NegativeInvalidInput, HashTableCreate)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableCreate)
 {
     EXPECT_NE(STATUS_SUCCESS, hashTableCreate(NULL));
 }
 
-TEST(NegativeInvalidInput, HashTableCreateWithParams)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableCreateWithParams)
 {
     PHashTable pHashTable;
     EXPECT_NE(STATUS_SUCCESS, hashTableCreateWithParams(0, 1, &pHashTable));
@@ -68,17 +72,17 @@ TEST(NegativeInvalidInput, HashTableCreateWithParams)
     EXPECT_NE(STATUS_SUCCESS, hashTableCreateWithParams(MIN_HASH_BUCKET_COUNT, 1, NULL));
 }
 
-TEST(PositiveIdempotentInvalidInput, HashTableFree)
+TEST_F(HashTableFunctionalityTest, PositiveIdempotentInvalidInput_HashTableFree)
 {
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(NULL));
 }
 
-TEST(NegativeInvalidInput, HashTableClear)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableClear)
 {
     EXPECT_NE(STATUS_SUCCESS, hashTableClear(NULL));
 }
 
-TEST(NegativeInvalidInput, HashTableGetCount)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableGetCount)
 {
     PHashTable pHashTable = (PHashTable) 1;
     UINT32 count;
@@ -87,7 +91,7 @@ TEST(NegativeInvalidInput, HashTableGetCount)
     EXPECT_NE(STATUS_SUCCESS, hashTableGetCount(NULL, NULL));
 }
 
-TEST(NegativeInvalidInput, HashTableIsEmpty)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableIsEmpty)
 {
     PHashTable pHashTable = (PHashTable) 1;
     BOOL isEmpty;
@@ -96,7 +100,7 @@ TEST(NegativeInvalidInput, HashTableIsEmpty)
     EXPECT_NE(STATUS_SUCCESS, hashTableIsEmpty(NULL, NULL));
 }
 
-TEST(NegativeInvalidInput, HashTablePut)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTablePut)
 {
     PHashTable pHashTable;
     EXPECT_EQ(STATUS_SUCCESS, hashTableCreate(&pHashTable));
@@ -110,7 +114,7 @@ TEST(NegativeInvalidInput, HashTablePut)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
-TEST(NegativeInvalidInput, HashTableUpsert)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableUpsert)
 {
     PHashTable pHashTable;
     UINT64 value;
@@ -139,7 +143,7 @@ TEST(NegativeInvalidInput, HashTableUpsert)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
-TEST(NegativeInvalidInput, HashTableGet)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableGet)
 {
     PHashTable pHashTable;
     UINT64 val;
@@ -155,7 +159,7 @@ TEST(NegativeInvalidInput, HashTableGet)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
-TEST(NegativeInvalidInput, HashTableContains)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableContains)
 {
     PHashTable pHashTable;
     BOOL contains;
@@ -172,7 +176,7 @@ TEST(NegativeInvalidInput, HashTableContains)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
-TEST(NegativeInvalidInput, HashTableRemove)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableRemove)
 {
     PHashTable pHashTable;
     EXPECT_EQ(STATUS_SUCCESS, hashTableCreate(&pHashTable));
@@ -185,7 +189,7 @@ TEST(NegativeInvalidInput, HashTableRemove)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
-TEST(NegativeInvalidInput, HashTableGetBucketCount)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableGetBucketCount)
 {
     PHashTable pHashTable = (PHashTable) 1;
     UINT32 count;
@@ -194,10 +198,10 @@ TEST(NegativeInvalidInput, HashTableGetBucketCount)
     EXPECT_NE(STATUS_SUCCESS, hashTableGetBucketCount(NULL, NULL));
 }
 
-TEST(NegativeInvalidInput, HashTableGetAllEntries)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableGetAllEntries)
 {
     PHashTable pHashTable = (PHashTable) 1;
-    PHashEntry pHashEntries;
+    PHashEntry pHashEntries = (PHashEntry) 12345;
     UINT32 count;
 
     EXPECT_NE(STATUS_SUCCESS, hashTableGetAllEntries(NULL, NULL, &count));
@@ -207,7 +211,7 @@ TEST(NegativeInvalidInput, HashTableGetAllEntries)
     EXPECT_NE(STATUS_SUCCESS, hashTableGetAllEntries(pHashTable, pHashEntries, NULL));
 }
 
-TEST(NegativeInvalidInput, HashTableIterateEntries)
+TEST_F(HashTableFunctionalityTest, NegativeInvalidInput_HashTableIterateEntries)
 {
     PHashTable pHashTable = (PHashTable) 1;
 
@@ -216,7 +220,7 @@ TEST(NegativeInvalidInput, HashTableIterateEntries)
     EXPECT_NE(STATUS_SUCCESS, hashTableIterateEntries(pHashTable, 0, NULL));
 }
 
-TEST(FunctionalTest, HashTableClear)
+TEST_F(HashTableFunctionalityTest, HashTableClear)
 {
     PHashTable pHashTable;
     UINT64 count = 10000;
@@ -245,7 +249,7 @@ TEST(FunctionalTest, HashTableClear)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
-TEST(FunctionalTest, HashTablePutContainsRemoveIsEmpty)
+TEST_F(HashTableFunctionalityTest, HashTablePutContainsRemoveIsEmpty)
 {
     PHashTable pHashTable;
     UINT64 count = 1000;
@@ -323,7 +327,7 @@ TEST(FunctionalTest, HashTablePutContainsRemoveIsEmpty)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
-TEST(FunctionalTest, HashTableGetAllEntries)
+TEST_F(HashTableFunctionalityTest, HashTableGetAllEntries)
 {
     PHashTable pHashTable;
     UINT64 count = 100;
@@ -341,7 +345,7 @@ TEST(FunctionalTest, HashTableGetAllEntries)
     EXPECT_EQ(STATUS_SUCCESS, hashTableGetAllEntries(pHashTable, NULL, &retCount));
     EXPECT_EQ((UINT32)count, retCount);
 
-    retCount = count + 1;
+    retCount = (UINT32) (count + 1);
     EXPECT_EQ(STATUS_SUCCESS, hashTableGetAllEntries(pHashTable, gEntries, &retCount));
     EXPECT_EQ((UINT32)count, retCount);
 
@@ -362,7 +366,7 @@ TEST(FunctionalTest, HashTableGetAllEntries)
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
 
-TEST(FunctionalTest, HashTableIterateEntries)
+TEST_F(HashTableFunctionalityTest, HashTableIterateEntries)
 {
     PHashTable pHashTable;
     UINT64 count = 100;

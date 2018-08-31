@@ -1,5 +1,6 @@
 #include "Logger.h"
 #include "KinesisVideoStream.h"
+#include "KinesisVideoStreamMetrics.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -9,7 +10,8 @@ KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video
         : stream_handle_(INVALID_STREAM_HANDLE_VALUE),
           stream_name_(stream_name),
           kinesis_video_producer_(kinesis_video_producer),
-          stream_ready_(false) {
+          stream_ready_(false),
+          stream_closed_(false){
     LOG_INFO("Creating Kinesis Video Stream " << stream_name_);
     // the handle is NULL to start. We will set it later once Kinesis Video PIC gives us a stream handle.
 }
@@ -35,32 +37,25 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
 
     // Print metrics on every key-frame
     if ((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) {
-        StreamMetrics stream_metrics;
-        stream_metrics.version = STREAM_METRICS_CURRENT_VERSION;
-
-        ClientMetrics kinesis_video_client_metrics;
-        kinesis_video_client_metrics.version = CLIENT_METRICS_CURRENT_VERSION;
-
         // Extract metrics and print out
-        status = getKinesisVideoMetrics(kinesis_video_producer_.getClientHandle(), &kinesis_video_client_metrics);
-        LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get client metrics with: " << status);
-
-        status = getKinesisVideoStreamMetrics(stream_handle_, &stream_metrics);
-        LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get stream metrics with: " << status);
+        auto stream_metrics = getMetrics();
+        auto client_metrics = kinesis_video_producer_.getMetrics();
+        auto total_transfer_tate = 8 * client_metrics.getTotalTransferRate();
+        auto transfer_rate = 8 * stream_metrics.getCurrentTransferRate();
 
         LOG_DEBUG("Kinesis Video client and stream metrics"
-                          << "\n\t>> Overall storage size: " << kinesis_video_client_metrics.contentStoreSize
-                          << "\n\t>> Available storage size: " << kinesis_video_client_metrics.contentStoreAvailableSize
-                          << "\n\t>> Allocated storage size: " << kinesis_video_client_metrics.contentStoreAllocatedSize
-                          << "\n\t>> Total view allocation size: " << kinesis_video_client_metrics.totalContentViewsSize
-                          << "\n\t>> Total streams frame rate: " << kinesis_video_client_metrics.totalFrameRate
-                          << "\n\t>> Total streams transfer rate: " << kinesis_video_client_metrics.totalTransferRate
-                          << "\n\t>> Current view duration: " << stream_metrics.currentViewDuration
-                          << "\n\t>> Overall view duration: " << stream_metrics.overallViewDuration
-                          << "\n\t>> Current view size: " << stream_metrics.currentViewSize
-                          << "\n\t>> Overall view size: " << stream_metrics.overallViewSize
-                          << "\n\t>> Current frame rate: " << stream_metrics.currentFrameRate
-                          << "\n\t>> Current transfer rate: " << stream_metrics.currentTransferRate);
+                          << "\n\t>> Overall storage byte size: " << client_metrics.getContentStoreSizeSize()
+                          << "\n\t>> Available storage byte size: " << client_metrics.getContentStoreAvailableSize()
+                          << "\n\t>> Allocated storage byte size: " << client_metrics.getContentStoreAllocatedSize()
+                          << "\n\t>> Total view allocation byte size: " << client_metrics.getTotalContentViewsSize()
+                          << "\n\t>> Total streams frame rate (fps): " << client_metrics.getTotalFrameRate()
+                          << "\n\t>> Total streams transfer rate (bps): " <<  total_transfer_tate << " (" << total_transfer_tate / 1024 << " Kbps)"
+                          << "\n\t>> Current view duration (ms): " << stream_metrics.getCurrentViewDuration().count()
+                          << "\n\t>> Overall view duration (ms): " << stream_metrics.getOverallViewDuration().count()
+                          << "\n\t>> Current view byte size: " << stream_metrics.getCurrentViewSize()
+                          << "\n\t>> Overall view byte size: " << stream_metrics.getOverallViewSize()
+                          << "\n\t>> Current frame rate (fps): " << stream_metrics.getCurrentFrameRate()
+                          << "\n\t>> Current transfer rate (bps): " << transfer_rate << " (" << transfer_rate / 1024 << " Kbps)");
     }
 
     return true;
@@ -103,7 +98,7 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData) {
 bool KinesisVideoStream::start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize) {
     STATUS status = STATUS_SUCCESS;
 
-    if (STATUS_FAILED(status = kinesisVideoStreamFormatChanged(stream_handle_, codecPrivateDataSize,
+    if (STATUS_FAILED(status = kinesisVideoStreamFormatChanged(stream_handle_, (UINT32)codecPrivateDataSize,
                                                                (PBYTE) codecPrivateData))) {
         LOG_ERROR("Failed to set the codec private data with: " << status);
         return false;
@@ -156,9 +151,59 @@ bool KinesisVideoStream::stop() {
     return true;
 }
 
-void KinesisVideoStream::getStreamMetrics(StreamMetrics& metrics) {
-    STATUS status = ::getKinesisVideoStreamMetrics(stream_handle_, &metrics);
+bool KinesisVideoStream::stopSync() {
+    // Stop the stream and await for the result
+    if (!stop()) {
+        return false;
+    }
+
+    bool ret_val = true;
+
+    // Await for the completion or the timeout
+    {
+        LOG_DEBUG("Awaiting for the stream " << stream_name_ << " to stop...");
+        unique_lock<mutex> lock(stream_closed_mutex_);
+        do {
+            if (stream_closed_) {
+                LOG_DEBUG("Kinesis Video stream " << stream_name_ << " is Closed.");
+                break;
+            }
+
+            // Blocking path
+            // Wait may return due to a spurious wake up.
+            // See: https://en.wikipedia.org/wiki/Spurious_wakeup
+            if (!stream_closed_var_.wait_for(lock,
+                                             std::chrono::seconds(STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS),
+                                             [kinesis_video_stream = this]() {
+                                                 return kinesis_video_stream->stream_closed_;
+                                             })) {
+                LOG_WARN("Failed to close Kinesis Video Stream " << stream_name_ << " - timed out.");
+                ret_val = false;
+                break;
+            }
+        } while (true);
+    }
+
+    return ret_val;
+}
+
+KinesisVideoStreamMetrics KinesisVideoStream::getMetrics() const {
+    STATUS status = ::getKinesisVideoStreamMetrics(stream_handle_, (PStreamMetrics) stream_metrics_.getRawMetrics());
     LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get stream metrics with: " << status);
+
+    return stream_metrics_;
+}
+
+bool KinesisVideoStream::putFragmentMetadata(const std::string &name, const std::string &value, bool persistent){
+    const char* pMetadataName = name.c_str();
+    const char* pMetadataValue = value.c_str();
+    STATUS status = ::putKinesisVideoFragmentMetadata(stream_handle_, (PCHAR) pMetadataName, (PCHAR) pMetadataValue, persistent);
+    if (STATUS_FAILED(status)) {
+        LOG_ERROR("Failed to insert fragment metadata with: " << status);
+        return false;
+    }
+
+    return true;
 }
 
 KinesisVideoStream::~KinesisVideoStream() {

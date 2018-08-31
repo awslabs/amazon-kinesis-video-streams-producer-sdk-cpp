@@ -1,4 +1,6 @@
+#if 0
 #pragma GCC diagnostic ignored "-Wwrite-strings"
+#endif
 
 #include "gtest/gtest.h"
 #include <com/amazonaws/kinesis/video/utils/Include.h>
@@ -39,7 +41,7 @@
 #define TEST_FRAME_DURATION             (20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 #define TEST_LONG_FRAME_DURATION        (400 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
-#define TEST_SLEEP_TIME_IN_SECONDS                  1
+#define TEST_SLEEP_TIME_IN_MICROS                   1000000
 #define TEST_PRODUCER_SLEEP_TIME_IN_MICROS          20000
 #define TEST_CONSUMER_SLEEP_TIME_IN_MICROS          50000
 
@@ -48,46 +50,51 @@
 //
 // Default allocator functions
 //
-extern UINT64 gTotalMemoryUsage;
-
-INLINE PVOID instrumentedMemAlloc(UINT32 size)
+extern UINT64 gTotalClientMemoryUsage;
+extern MUTEX gClientMemMutex;
+INLINE PVOID instrumentedClientMemAlloc(SIZE_T size)
 {
-    DLOGS("Test malloc %u bytes", size);
-    gTotalMemoryUsage += size;
-    PBYTE pAlloc = (PBYTE) malloc(size + SIZEOF(UINT32));
-    * (PUINT32)pAlloc = size;
+    DLOGS("Test malloc %llu bytes", (UINT64)size);
+    MUTEX_LOCK(gClientMemMutex);
+    gTotalClientMemoryUsage += size;
+    MUTEX_UNLOCK(gClientMemMutex);
+    PBYTE pAlloc = (PBYTE) malloc(size + SIZEOF(SIZE_T));
+    *(PSIZE_T)pAlloc = size;
 
-    return pAlloc + SIZEOF(UINT32);
+    return pAlloc + SIZEOF(SIZE_T);
 }
 
-INLINE PVOID instrumentedMemAlignAlloc(UINT32 size, UINT32 alignment)
+INLINE PVOID instrumentedClientMemAlignAlloc(SIZE_T size, SIZE_T alignment)
 {
-    DLOGS("Test align malloc %u bytes", size);
+    DLOGS("Test align malloc %llu bytes", (UINT64)size);
     // Just do malloc
     UNUSED_PARAM(alignment);
-    return instrumentedMemAlloc(size);
+    return instrumentedClientMemAlloc(size);
 }
 
-INLINE PVOID instrumentedMemCalloc(UINT32 num, UINT32 size)
+INLINE PVOID instrumentedClientMemCalloc(SIZE_T num, SIZE_T size)
 {
-    UINT32 overallSize = num * size;
-    DLOGS("Test calloc %u bytes", overallSize);
+    SIZE_T overallSize = num * size;
+    DLOGS("Test calloc %llu bytes", (UINT64)overallSize);
+    MUTEX_LOCK(gClientMemMutex);
+    gTotalClientMemoryUsage += overallSize;
+    MUTEX_UNLOCK(gClientMemMutex);
 
-    gTotalMemoryUsage += overallSize;
+    PBYTE pAlloc = (PBYTE) calloc(1, overallSize + SIZEOF(SIZE_T));
+    *(PSIZE_T)pAlloc = overallSize;
 
-    PBYTE pAlloc = (PBYTE) calloc(1, overallSize + SIZEOF(UINT32));
-    * (PUINT32)pAlloc = overallSize;
-
-    return pAlloc + SIZEOF(UINT32);
+    return pAlloc + SIZEOF(SIZE_T);
 }
 
-INLINE VOID instrumentedMemFree(PVOID ptr)
+INLINE VOID instrumentedClientMemFree(PVOID ptr)
 {
-    PBYTE pAlloc = (PBYTE) ptr - SIZEOF(UINT32);
-    UINT32 size = *(PUINT32) pAlloc;
-    DLOGS("Test free %u bytes", size);
+    PBYTE pAlloc = (PBYTE) ptr - SIZEOF(SIZE_T);
+    SIZE_T size = *(PSIZE_T) pAlloc;
+    DLOGS("Test free %llu bytes", (UINT64)size);
 
-    gTotalMemoryUsage -= size;
+    MUTEX_LOCK(gClientMemMutex);
+    gTotalClientMemoryUsage -= size;
+    MUTEX_UNLOCK(gClientMemMutex);
 
     free(pAlloc);
 }
@@ -158,10 +165,20 @@ public:
                       mStreamConnectionStaleFuncCount(0),
                       mFragmentAckReceivedFuncCount(0)
     {
-        globalMemAlloc = instrumentedMemAlloc;
-        globalMemAlignAlloc = instrumentedMemAlignAlloc;
-        globalMemCalloc = instrumentedMemCalloc;
-        globalMemFree = instrumentedMemFree;
+        // Store the function pointers
+        gTotalClientMemoryUsage = 0;
+        storedMemAlloc = globalMemAlloc;
+        storedMemAlignAlloc = globalMemAlignAlloc;
+        storedMemCalloc = globalMemCalloc;
+        storedMemFree = globalMemFree;
+
+        // Create the mutex for the synchronization for the instrumentation
+        gClientMemMutex = MUTEX_CREATE(FALSE);
+
+        globalMemAlloc = instrumentedClientMemAlloc;
+        globalMemAlignAlloc = instrumentedClientMemAlignAlloc;
+        globalMemCalloc = instrumentedClientMemCalloc;
+        globalMemFree = instrumentedClientMemFree;
 
         // Zero things out
         mClientHandle = INVALID_CLIENT_HANDLE_VALUE;
@@ -297,8 +314,8 @@ protected:
     StreamDescription mStreamDescription;
     volatile BOOL mTerminate;
     volatile BOOL mStartThreads;
-    pthread_t mProducerThreads[MAX_TEST_STREAM_COUNT];
-    pthread_t mConsumerThreads[MAX_TEST_STREAM_COUNT];
+    TID mProducerThreads[MAX_TEST_STREAM_COUNT];
+    TID mConsumerThreads[MAX_TEST_STREAM_COUNT];
     STREAM_HANDLE mStreamHandles[MAX_TEST_STREAM_COUNT];
     UINT64 mCustomDatas[MAX_TEST_STREAM_COUNT];
     UINT32 mTagCount;
@@ -340,7 +357,7 @@ protected:
     STATUS CreateClient()
     {
         // Set the random number generator seed for reproducibility
-        SRAND(100);
+        SRAND(12345);
 
         // Create the client
         STATUS status = createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &mClientHandle);
@@ -494,8 +511,13 @@ protected:
         }
 
         // Validate the allocations cleanup
-        DLOGI("Final remaining allocation size is %llu", gTotalMemoryUsage);
-        EXPECT_EQ(0, gTotalMemoryUsage);
+        DLOGI("Final remaining allocation size is %llu\n", gTotalClientMemoryUsage);
+        EXPECT_EQ(0, gTotalClientMemoryUsage);
+        globalMemAlloc = storedMemAlloc;
+        globalMemAlignAlloc = storedMemAlignAlloc;
+        globalMemCalloc = storedMemCalloc;
+        globalMemFree = storedMemFree;
+        MUTEX_FREE(gClientMemMutex);
     };
 
     PCHAR GetTestName()
@@ -504,6 +526,12 @@ protected:
     };
 
 protected:
+
+    // Stored function pointers to reset on exit
+    memAlloc storedMemAlloc;
+    memAlignAlloc storedMemAlignAlloc;
+    memCalloc storedMemCalloc;
+    memFree storedMemFree;
 
     //////////////////////////////////////////////////////////////////////////////////////
     // Static callbacks definitions
@@ -527,7 +555,7 @@ protected:
     static MUTEX createMutexFunc(UINT64, BOOL);
     static VOID lockMutexFunc(UINT64, MUTEX);
     static VOID unlockMutexFunc(UINT64, MUTEX);
-    static VOID tryLockMutexFunc(UINT64, MUTEX);
+    static BOOL tryLockMutexFunc(UINT64, MUTEX);
     static VOID freeMutexFunc(UINT64, MUTEX);
     static STATUS createStreamFunc(UINT64,
                                    PCHAR,

@@ -160,7 +160,7 @@ DEFINE_INIT_HEAP(aivHeapInit)
     CHK_STATUS(commonHeapInit(pHeap, heapLimit));
 
     // Allocate the entire heap backed by the process default heap.
-    pAivHeap->pAllocation = MEMALLOC(heapLimit);
+    pAivHeap->pAllocation = MEMALLOC((SIZE_T)heapLimit);
     CHK_ERR(pAivHeap->pAllocation != NULL,
         STATUS_NOT_ENOUGH_MEMORY,
         "Failed to allocate heap with limit size %" PRIu64,
@@ -450,7 +450,7 @@ DEFINE_HEAP_LIMITS(aivGetHeapLimits)
 PAIV_ALLOCATION_HEADER getFreeBlock(PAivHeap pAivHeap, UINT32 size)
 {
     CHECK(pAivHeap != NULL && size > 0);
-
+    
     PAIV_ALLOCATION_HEADER pFree = pAivHeap->pFree;
     // overall allocation size - the header is already included in the free list but not the footer
     UINT32 allocationSize = size + AIV_ALLOCATION_FOOTER_SIZE;

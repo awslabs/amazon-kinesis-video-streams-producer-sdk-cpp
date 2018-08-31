@@ -15,26 +15,32 @@ STATUS TestClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle,
 }
 
 STATUS TestStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 last_buffering_ack) {
+    UNUSED_PARAM(stream_handle);
     LOG_WARN("Reporting stream stale. Last ACK received " << last_buffering_ack);
     return validateCallback(custom_data);
 }
 
 STATUS TestStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 errored_timecode, STATUS status) {
+    UNUSED_PARAM(stream_handle);
     LOG_ERROR("Reporting stream error. Errored timecode " << errored_timecode << " with status code " << status);
     return validateCallback(custom_data);
 }
 
 STATUS TestStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 dropped_frame_timecode) {
+    UNUSED_PARAM(stream_handle);
     LOG_WARN("Reporting dropped frame. Frame timecode " << dropped_frame_timecode);
     return validateCallback(custom_data);
 }
 
 STATUS TestStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 duration) {
+    UNUSED_PARAM(stream_handle);
     LOG_WARN("Reporting stream latency pressure. Current buffer duration " << duration);
     return validateCallback(custom_data);
 }
 
 STATUS TestStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, PFragmentAck fragment_ack) {
+    UNUSED_PARAM(stream_handle);
+    UNUSED_PARAM(fragment_ack);
     LOG_TRACE("Reporting fragment ack");
     return validateCallback(custom_data);
 }
@@ -45,11 +51,18 @@ STATUS TestStreamCallbackProvider::streamDataAvailableHandler(UINT64 custom_data
                                                               UPLOAD_HANDLE stream_upload_handle,
                                                               UINT64 duration_available,
                                                               UINT64 size_available) {
+    UNUSED_PARAM(stream_handle);
+    UNUSED_PARAM(stream_name);
+    UNUSED_PARAM(stream_upload_handle);
+    UNUSED_PARAM(duration_available);
+    UNUSED_PARAM(size_available);
     LOG_TRACE("Reporting stream data available");
     return validateCallback(custom_data);
 }
 
 STATUS TestStreamCallbackProvider::streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 stream_upload_handle) {
+    UNUSED_PARAM(stream_handle);
+    UNUSED_PARAM(stream_upload_handle);
     LOG_INFO("Reporting stream stopped.");
 
     TestStreamCallbackProvider* streamCallbackProvider = reinterpret_cast<TestStreamCallbackProvider*> (custom_data);

@@ -313,11 +313,11 @@ PUBLIC_API STATUS contentViewGetWindowDuration(PContentView, PUINT64, PUINT64);
  * Gets the view's window item count and entire window item count (optionally)
  *
  * PContentView - Content view
- * PUINT32 - current window item count - the number of elements from the current to the head
- * PUINT32 - Optional - entire window item count - the number of elements in the entire window
+ * PUINT64 - current window item count - the number of elements from the current to the head
+ * PUINT64 - Optional - entire window item count - the number of elements in the entire window
  *
  */
-PUBLIC_API STATUS contentViewGetWindowItemCount(PContentView, PUINT32, PUINT32);
+PUBLIC_API STATUS contentViewGetWindowItemCount(PContentView, PUINT64, PUINT64);
 
 /**
  * Gets the view's window allocation size and entire window allocation size (optionally)

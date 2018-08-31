@@ -19,7 +19,6 @@ UINT64 defaultGetCurrentTime(UINT64 customData)
 UINT32 defaultGetRandomNumber(UINT64 customData)
 {
     UNUSED_PARAM(customData);
-    SRAND(GETTIME());
     return RAND();
 }
 
@@ -53,10 +52,10 @@ VOID defaultUnlockMutex(UINT64 customData, MUTEX mutex)
 /**
  * Default try unlock mutex functionality
  */
-VOID defaultTryLockMutex(UINT64 customData, MUTEX mutex)
+BOOL defaultTryLockMutex(UINT64 customData, MUTEX mutex)
 {
     UNUSED_PARAM(customData);
-    MUTEX_TRYLOCK(mutex);
+    return MUTEX_TRYLOCK(mutex);
 }
 
 /**

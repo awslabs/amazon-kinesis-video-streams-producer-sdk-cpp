@@ -40,6 +40,32 @@ public:
     }
 
     /**
+     * Retrieve an item from the map at the given index.
+     * @param index Index of the item
+     * @return The value at index or nullptr.
+     */
+    V getAt(int index) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        int cur_index = 0;
+        V ret_value = nullptr;
+
+        auto size = map_.size();
+        if (index < 0 || index >= size) {
+            return ret_value;
+        }
+
+        // Iterate and find the item at the given index
+        for (auto iterator = map_.begin(); iterator != map_.end(); ++iterator) {
+            if (cur_index == index) {
+                ret_value = iterator->second;
+                break;
+            }
+        }
+
+        return ret_value;
+    }
+
+    /**
      * Remove the pair stored the map at k, if it exists.
      * @param k Key to be removed.
      */

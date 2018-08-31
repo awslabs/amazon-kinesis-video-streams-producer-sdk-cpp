@@ -67,7 +67,7 @@ STATUS getVideoWidthAndHeightFromH265Sps(PBYTE codecPrivateData, UINT32 codecPri
     UINT16 numNalus, naluIterator, naluLen;
     BOOL spsNaluFound = FALSE;
     PBYTE pRun;
-    UINT32 adaptedSize, naluSize, naluCount;
+    UINT32 adaptedSize, naluSize;
 
     CHK(codecPrivateData != NULL && pWidth != NULL && pHeight != NULL, STATUS_NULL_ARG);
     CHK(codecPrivateDataSize >= MIN_H264_H265_CPD_SIZE, STATUS_MKV_INVALID_H264_H265_CPD);
@@ -97,7 +97,7 @@ STATUS getVideoWidthAndHeightFromH265Sps(PBYTE codecPrivateData, UINT32 codecPri
         CHK(SIZEOF(UINT32) <= adaptedSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
         naluSize = getInt32(*(PUINT32) pRun);
         pRun += SIZEOF(UINT32) + naluSize;
-        CHK(pRun - pAdaptedBits <= adaptedSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
+        CHK((UINT32)(pRun - pAdaptedBits) <= adaptedSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
 
         // Get the SPS
         CHK(pRun - pAdaptedBits + SIZEOF(UINT32) <= adaptedSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
@@ -701,7 +701,7 @@ STATUS parseScalingListData(PBitReader pBitReader)
     CHK(pBitReader != NULL, STATUS_NULL_ARG);
 
     for (sizeId = 0; sizeId < 4; sizeId++) {
-        for (matrixId = 0; matrixId < ((sizeId == 3) ? 2 : 6); matrixId++) {
+        for (matrixId = 0; matrixId < (UINT32)(((sizeId == 3) ? 2 : 6)); matrixId++) {
             // Read scaling_list_pred_mode_flag[sizeId][matrixId]
             CHK_STATUS(bitReaderReadBits(pBitReader, 1, &read));
 

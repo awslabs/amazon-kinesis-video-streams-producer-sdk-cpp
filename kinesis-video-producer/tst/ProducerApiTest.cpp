@@ -19,9 +19,8 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
 
     // Loop until cancelled
     frame.duration = FRAME_DURATION_IN_MICROS * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
-    frame.size = SIZEOF(frameBuffer_);
     frame.frameData = frameBuffer_;
-    MEMSET(frame.frameData, 0x55, frame.size);
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
     while (!stop_producer_) {
         // Produce frames
@@ -30,6 +29,12 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
         frame.index = index++;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
+
+        // Add small variation to the frame size (if larger frames
+        frame.size = SIZEOF(frameBuffer_);
+        if (frame.size > 100) {
+            frame.size -= RAND() % 100;
+        }
 
         // Key frame every 50th
         frame.flags = (frame.index % 50 == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
@@ -46,26 +51,75 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
                                                << ", Dts: " << frame.decodingTs
                                                << ", Pts: " << frame.presentationTs);
 
+        // Apply some metadata every 20th frame
+        if (frame.index % 20 == 0) {
+            std::ostringstream metadataName;
+            metadataName << "MetadataNameForFrame_" << frame.index;
+            std::ostringstream metadataValue;
+            metadataValue << "MetadataValueForFrame_" << frame.index;
+            EXPECT_TRUE(kinesis_video_stream->putFragmentMetadata(metadataName.str(), metadataValue.str(), false));
+
+            // Set or clear persistent metadata
+            metadataName << "PersistentMetadataNameForFrame_" << frame.index;
+            metadataValue << "PersistentMetadataValueForFrame_" << frame.index;
+            EXPECT_TRUE(kinesis_video_stream->putFragmentMetadata(metadataName.str(), (frame.index % 2 == 0) ? metadataValue.str() : std::string(), true));
+        }
+
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
 
         // Sleep a while
-        usleep(FRAME_DURATION_IN_MICROS);
+        THREAD_SLEEP(FRAME_DURATION_IN_MICROS);
     }
 
     LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
-    kinesis_video_stream->stop();
+    EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
 
-    // The awaiting should really be handled properly with signalling per stream.
-    // We will wait for 10 seconds only
+
+    // The signalling should be handled per stream.
     // This is for a demo purpose only!!!
-    index = 0;
-    while (!gProducerApiTest->stop_called_ && index < 1000) {
-        LOG_DEBUG("Awaiting for the stopped notification... Status of stopped state " << gProducerApiTest->stop_called_);
-        usleep(10000L);
-        index++;
-    }
+    // IMPORTANT NOTE: There is a slight race condition between the stopSync completion
+    // and the callback function getting triggered. This is normal as we are just trying
+    // to ensure that any of the stream callbacks has fired so we need to introduce a
+    // short sleep which is longer than the CURL await sleep in order to ensure the
+    // callback had a chance to fire for validation.
+    THREAD_SLEEP(15000);
+    EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
 
     return NULL;
+}
+
+TEST_F(ProducerApiTest, create_free_stream)
+{
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    // Create streams
+    for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
+        // Create the stream
+        streams_[i] = CreateTestStream(i);
+    }
+
+    // Free the streams
+    for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
+        // Free the stream
+        kinesis_video_producer_->freeStream(streams_[i]);
+
+        // Re-create again
+        streams_[i] = CreateTestStream(i);
+    }
+
+    // Free all the streams
+    kinesis_video_producer_->freeStreams();
+
+    // Re-create the streams
+    for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
+        // Create the stream
+        streams_[i] = CreateTestStream(i);
+    }
+
+    // The destructor should clear the streams again.
 }
 
 TEST_F(ProducerApiTest, create_produce_stream)
@@ -80,18 +134,18 @@ TEST_F(ProducerApiTest, create_produce_stream)
         streams_[i] = CreateTestStream(i);
 
         // Spin off the producer
-        EXPECT_EQ(0, pthread_create(&producer_thread_, NULL, staticProducerRoutine, reinterpret_cast<PVOID> (streams_[i].get())));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&producer_thread_, staticProducerRoutine, reinterpret_cast<PVOID> (streams_[i].get())));
     }
 
 #if 0
     // This section will simply demonstrate a stream termination, waiting for the termination and then cleanup and
     // a consequent re-creation and restart. Normally, after stopping, the customers application will have to
     // await until the stream stopped event is called.
-    sleep(3);
+    THREAD_SLEEP(3000000);
     LOG_DEBUG("Stopping the streams");
     stop_producer_ = true;
     LOG_DEBUG("Waiting for the streams to finish and close...");
-    sleep(10);
+    THREAD_SLEEP(10000000);
 
     stop_producer_ = false;
 
@@ -116,7 +170,7 @@ TEST_F(ProducerApiTest, create_produce_stream)
 
 
     // Wait for some time to produce
-    sleep(TEST_EXECUTION_DURATION_IN_SECONDS);
+    THREAD_SLEEP(TEST_EXECUTION_DURATION_IN_MICROS);
 
     // Indicate the cancel for the threads
     stop_producer_ = true;
@@ -125,12 +179,12 @@ TEST_F(ProducerApiTest, create_produce_stream)
     // NOTE: THis is not a right way of doing it as for the multiple stream scenario
     // it will have a potential race condition. This is for demo purposes only and the
     // real implementations should use proper signalling.
-    EXPECT_EQ(0, pthread_join(producer_thread_, NULL));
+    EXPECT_EQ(STATUS_SUCCESS, THREAD_JOIN(producer_thread_, NULL));
 
     // We will block for some time due to an incorrect implementation of the awaiting code
     // NOTE: The proper implementation should use synchronization primities to await for the
     // producer threads to finish properly - here we just simulate a media pipeline.
-    usleep(100000L);
+    THREAD_SLEEP(100000ull);
 
     freeStreams();
 }

@@ -69,6 +69,16 @@ typedef __FragmentAckParser* PFragmentAckParser;
 #define DEFAULT_MKV_TIMECODE_SCALE      (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 /**
+ * End-of-stream metadata name
+ */
+#define EOS_METADATA_NAME                    "aws:KVS_END_OF_SESSION"
+
+/**
+ * Max packaged size for the EOS metadata including EOS metadata name len, max stream name + delta for packaging
+ */
+#define MAX_PACKAGED_EOS_METADATA_LEN        (SIZEOF(EOS_METADATA_NAME) + (MAX_STREAM_NAME_LEN + 256) * SIZEOF(CHAR))
+
+/**
  * Kinesis Video stream diagnostics information accumulator
  */
 typedef struct __KinesisVideoStreamDiagnostics KinesisVideoStreamDiagnostics;
@@ -104,6 +114,26 @@ struct __CurrentViewItem {
 typedef __CurrentViewItem* PCurrentViewItem;
 
 /**
+ * Helper structure storing and tracking EOS metadata.
+ */
+typedef struct __CurrentEosTracker CurrentEosTracker;
+struct __CurrentEosTracker {
+    // Whether we are sending EOS
+    BOOL sendEos;
+
+    // Consumed data offset
+    UINT32 offset;
+
+    // Packaged EOS metadata size
+    UINT32 size;
+
+    // Storage for the packaged EOS indicator metadata.
+    // Using maximum possible packaged size.
+    BYTE packagedEosMetadata[MAX_PACKAGED_EOS_METADATA_LEN];
+};
+typedef __CurrentEosTracker* PCurrentEosTracker;
+
+/**
  * Streaming type definition
  */
 typedef enum {
@@ -122,19 +152,35 @@ typedef enum {
     // Terminating
     UPLOAD_HANDLE_STATE_TERMINATING = (1 << 3),
 
+    // Terminating - awaiting ACK
+    UPLOAD_HANDLE_STATE_AWAITING_ACK = (1 << 4),
+
+    // Terminating - awaiting ACK received
+    UPLOAD_HANDLE_STATE_ACK_RECEIVED = (1 << 5),
+
     // Terminated
-    UPLOAD_HANDLE_STATE_TERMINATED = (1 << 4),
+    UPLOAD_HANDLE_STATE_TERMINATED = (1 << 6),
 
     // Error terminated
-    UPLOAD_HANDLE_STATE_ERROR = (1 << 5),
+    UPLOAD_HANDLE_STATE_ERROR = (1 << 7),
+
+    // Active states
+    UPLOAD_HANDLE_STATE_ACTIVE = UPLOAD_HANDLE_STATE_NEW |
+                                 UPLOAD_HANDLE_STATE_READY |
+                                 UPLOAD_HANDLE_STATE_STREAMING |
+                                 UPLOAD_HANDLE_STATE_TERMINATING |
+                                 UPLOAD_HANDLE_STATE_AWAITING_ACK |
+                                 UPLOAD_HANDLE_STATE_ACK_RECEIVED,
 
     // All states combined
-    UPLOAD_HANDLE_STATE_ANY =  UPLOAD_HANDLE_STATE_NEW |
-            UPLOAD_HANDLE_STATE_READY |
-            UPLOAD_HANDLE_STATE_STREAMING |
-            UPLOAD_HANDLE_STATE_TERMINATING |
-            UPLOAD_HANDLE_STATE_TERMINATED |
-            UPLOAD_HANDLE_STATE_ERROR,
+    UPLOAD_HANDLE_STATE_ANY = UPLOAD_HANDLE_STATE_NEW |
+                              UPLOAD_HANDLE_STATE_READY |
+                              UPLOAD_HANDLE_STATE_STREAMING |
+                              UPLOAD_HANDLE_STATE_TERMINATING |
+                              UPLOAD_HANDLE_STATE_AWAITING_ACK |
+                              UPLOAD_HANDLE_STATE_ACK_RECEIVED |
+                              UPLOAD_HANDLE_STATE_TERMINATED |
+                              UPLOAD_HANDLE_STATE_ERROR,
 
 } UPLOAD_HANDLE_STATE;
 
@@ -183,6 +229,9 @@ struct __KinesisVideoStream {
     // Upload handle queue
     PStackQueue pUploadInfoQueue;
 
+    // Stored metadata queue
+    PStackQueue pMetadataQueue;
+
     // Stream Info structure
     StreamInfo streamInfo;
 
@@ -213,6 +262,9 @@ struct __KinesisVideoStream {
     // Current view item
     CurrentViewItem curViewItem;
 
+    // Current EOS sending tracker
+    CurrentEosTracker eosTracker;
+
     // Indicates whether the connection has been dropped
     BOOL connectionDropped;
 
@@ -235,6 +287,27 @@ struct __KinesisVideoStream {
     SERVICE_CALL_RESULT connectionDroppedResult;
 };
 typedef __KinesisVideoStream* PKinesisVideoStream;
+
+/**
+ * Wrapper around an allocation which stores the application supplied metadata.
+ */
+typedef struct __SerializedMetadata SerializedMetadata;
+struct __SerializedMetadata {
+    // Packaged size
+    UINT32 packagedSize;
+
+    // Stored name of the metadata
+    PCHAR name;
+
+    // Stored value of the metadata
+    PCHAR value;
+
+    // Whether the metadata is persistent or not
+    BOOL persistent;
+
+    // The actual strings are stored following the structure
+};
+typedef SerializedMetadata* PSerializedMetadata;
 
 ////////////////////////////////////////////////////
 // Internal functionality
@@ -278,6 +351,21 @@ STATUS stopStream(PKinesisVideoStream);
  * @return Status of the function call.
  */
 STATUS putFrame(PKinesisVideoStream, PFrame);
+
+/**
+ * Puts a metadata into the stream.
+ *
+ * The metadata will be accumulated and
+ * prepended to the cluster that follows.
+ *
+ * @param 1 PKinesisVideoStream - Kinesis Video stream object.
+ * @param 2 PCHAR - The name of the metadata.
+ * @param 3 PCHAR - The value of the metadata.
+ * @param 4 BOOL - Whether to persist/apply the metadata for all fragments that follow.
+ *
+ * @return Status of the function call.
+ */
+STATUS putFragmentMetadata(PKinesisVideoStream, PCHAR, PCHAR, BOOL);
 
 /**
  * Puts the frame into the stream. The stream will be started if it hasn't been yet.
@@ -357,9 +445,9 @@ STATUS streamStartFixupOnReconnect(PKinesisVideoStream);
 STATUS resetCurrentViewItemStreamStart(PKinesisVideoStream);
 
 /**
- * Frees the upload handle info queue
+ * Frees the specified queue by removing and freeing the data before freeing the queue
  */
-STATUS freeUploadInfoQueue(PKinesisVideoStream);
+STATUS freeStackQueue(PStackQueue);
 
 /**
  * Gets the current stream upload handle info if existing or NULL otherwise.
@@ -367,6 +455,13 @@ STATUS freeUploadInfoQueue(PKinesisVideoStream);
  * NOTE: This doesn't dequeue the item
  */
 PUploadHandleInfo getCurrentStreamUploadInfo(PKinesisVideoStream);
+
+/**
+ * Gets the earliest stream info which is in an awaiting ack received state.
+ *
+ * NOTE: This doesn't dequeue the item
+ */
+PUploadHandleInfo getAckReceivedStreamUploadInfo(PKinesisVideoStream);
 
 /**
  * Deletes and frees the specified stream upload info object
@@ -388,6 +483,26 @@ PUploadHandleInfo getStreamUploadInfoWithEndIndex(PKinesisVideoStream, UINT64);
  */
 PUploadHandleInfo getStreamUploadInfo(PKinesisVideoStream, UPLOAD_HANDLE);
 
+/**
+ * Packages the stream metadata.
+ *
+ * @param 1 - IN - KVS object
+ * @param 2 - IN - Current state of the packager/generator
+ * @param 3 - IN/OPT - Optional buffer to package to. If NULL then the size will be returned
+ * @param 4 - IN/OUT - Size of the buffer when buffer is not NULL, otherwise will return the required size.
+ * @return  Status code of the operation
+ */
+STATUS packageStreamMetadata(PKinesisVideoStream, MKV_STREAM_STATE, PBYTE, PUINT32);
+
+/**
+ * Generates and packages the EOS metadata
+ *
+ * @param 1 - IN - KVS object
+ *
+ * @return Status code of the operation
+ */
+STATUS generateEosMetadata(PKinesisVideoStream);
+
 ///////////////////////////////////////////////////////////////////////////
 // Service call event functions
 ///////////////////////////////////////////////////////////////////////////
@@ -407,7 +522,7 @@ STATUS serviceCallResultCheck(SERVICE_CALL_RESULT);
 STATUS streamFragmentAckEvent(PKinesisVideoStream, UPLOAD_HANDLE, PFragmentAck);
 STATUS streamFragmentBufferingAck(PKinesisVideoStream, UINT64);
 STATUS streamFragmentReceivedAck(PKinesisVideoStream, UINT64);
-STATUS streamFragmentPersistedAck(PKinesisVideoStream, UINT64);
+STATUS streamFragmentPersistedAck(PKinesisVideoStream, UINT64, PUploadHandleInfo);
 STATUS streamFragmentErrorAck(PKinesisVideoStream, UINT64, SERVICE_CALL_RESULT);
 
 ///////////////////////////////////////////////////////////////////////////

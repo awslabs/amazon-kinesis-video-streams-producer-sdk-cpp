@@ -5,11 +5,6 @@
 #define LOG_CLASS "TraceProfiler"
 #include "Include_i.h"
 
-/**
- * Mutex for thread synchronization
- */
-MUTEX GLOBAL_PROFILER_MUTEX = GLOBAL_REENTRANT_MUTEX;
-
 //////////////////////////////////////////////////////////////////////
 // Public functions
 //////////////////////////////////////////////////////////////////////
@@ -42,7 +37,11 @@ STATUS profilerInitialize(UINT32 bufferSize, TRACE_LEVEL traceLevel, TRACE_PROFI
     // Set the end pointer
     pTraceProfiler->traceBufferEnd = (PBYTE)pTraceProfiler + bufferSize;
 
+    // Trace count reset
     pTraceProfiler->traceCount = 0;
+
+    // Create and initialize a reentrant mutex for interlocking
+    pTraceProfiler->traceLock = MUTEX_CREATE(TRUE);
 
     // Set the max length of the trace buffer
     pTraceProfiler->traceBufferLength = (bufferSize - SIZEOF(TraceProfiler)) / SIZEOF(Trace);
@@ -68,9 +67,6 @@ CleanUp:
 
 STATUS profilerRelease(TRACE_PROFILER_HANDLE traceProfilerHandle)
 {
-    // Requires locking
-    MUTEX_LOCK(GLOBAL_PROFILER_MUTEX);
-
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PTraceProfiler pTraceProfiler = NULL;
@@ -78,16 +74,16 @@ STATUS profilerRelease(TRACE_PROFILER_HANDLE traceProfilerHandle)
     // The call is idempotent
     CHK(IS_VALID_TRACE_PROFILER_HANDLE(traceProfilerHandle), STATUS_SUCCESS);
     pTraceProfiler = TRACE_PROFILER_HANDLE_TO_POINTER(traceProfilerHandle);
-
+        
     DLOGS("Releasing trace profiler");
+
+    // Free the lock
+    MUTEX_FREE(pTraceProfiler->traceLock);
 
     // Free the allocated memory
     MEMFREE(pTraceProfiler);
 
 CleanUp:
-
-    // Release the lock
-    MUTEX_UNLOCK(GLOBAL_PROFILER_MUTEX);
 
     LEAVES();
     return retStatus;
@@ -95,15 +91,15 @@ CleanUp:
 
 STATUS setProfilerLevel(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_LEVEL traceLevel)
 {
-    // Requires locking
-    MUTEX_LOCK(GLOBAL_PROFILER_MUTEX);
-
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PTraceProfiler pTraceProfiler = NULL;
 
     CHK(IS_VALID_TRACE_PROFILER_HANDLE(traceProfilerHandle), STATUS_INVALID_ARG);
     pTraceProfiler = TRACE_PROFILER_HANDLE_TO_POINTER(traceProfilerHandle);
+
+    // Requires locking
+    MUTEX_LOCK(pTraceProfiler->traceLock);
 
     // Set the level first
     pTraceProfiler->traceLevel = traceLevel;
@@ -117,28 +113,30 @@ STATUS setProfilerLevel(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_LEVEL t
         pTraceProfiler->traceStopFn = traceStopInternal;
     }
 
-CleanUp:
-    // Release the lock
-    MUTEX_UNLOCK(GLOBAL_PROFILER_MUTEX);
+    // Unlock before exiting
+    MUTEX_UNLOCK(pTraceProfiler->traceLock);
 
+CleanUp:
+    
     LEAVES();
     return retStatus;
 }
 
 STATUS getFormattedTraceBuffer(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR* ppBuffer, PUINT32 pBufferSize)
 {
-    // Requires locking
-    MUTEX_LOCK(GLOBAL_PROFILER_MUTEX);
-
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PTraceProfiler pTraceProfiler = NULL;
-    UINT32 format;
-    UINT32 numberOfTraces;
-    PTrace pCurTrace;
+    UINT32 format, numberOfTraces;
+    BOOL locked = FALSE;
+    PTrace pCurTrace = NULL;
 
     CHK(IS_VALID_TRACE_PROFILER_HANDLE(traceProfilerHandle), STATUS_INVALID_ARG);
     pTraceProfiler = TRACE_PROFILER_HANDLE_TO_POINTER(traceProfilerHandle);
+
+    // Requires locking
+    MUTEX_LOCK(pTraceProfiler->traceLock);
+    locked = TRUE;
 
     CHK(ppBuffer != NULL, STATUS_NULL_ARG);
 
@@ -180,9 +178,12 @@ STATUS getFormattedTraceBuffer(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR*
     }
 
 CleanUp:
-    // Release the lock
-    MUTEX_UNLOCK(GLOBAL_PROFILER_MUTEX);
-
+    
+    if (locked) {
+        // If locked then trace profiler object is not NULL so no need to validate
+        MUTEX_UNLOCK(pTraceProfiler->traceLock);
+    }
+    
     LEAVES();
     return retStatus;
 }
@@ -242,9 +243,6 @@ CleanUp:
 
 DEFINE_TRACE_START(traceStartInternal)
 {
-    // Requires locking
-    MUTEX_LOCK(GLOBAL_PROFILER_MUTEX);
-
     STATUS retStatus = STATUS_SUCCESS;
     UINT64 currentTime = GETTIME();
     TID threadId = GETTID();
@@ -258,24 +256,17 @@ DEFINE_TRACE_START(traceStartInternal)
     CHK_STATUS(traceStartInternalWorker(traceProfilerHandle, traceName, traceLevel, pTraceHandle, threadId, threadName, currentTime));
 
 CleanUp:
-    // Release the lock
-    MUTEX_UNLOCK(GLOBAL_PROFILER_MUTEX);
     return retStatus;
 }
 
 DEFINE_TRACE_STOP(traceStopInternal)
 {
-    // Requires locking
-    MUTEX_LOCK(GLOBAL_PROFILER_MUTEX);
-
     STATUS retStatus = STATUS_SUCCESS;
 
     // The actual processing is handled by the worker for unit test access
     CHK_STATUS(traceStopInternalWorker(traceProfilerHandle, traceHandle, GETTIME()));
 
 CleanUp:
-    // Release the lock
-    MUTEX_UNLOCK(GLOBAL_PROFILER_MUTEX);
     return retStatus;
 }
 
@@ -285,6 +276,7 @@ STATUS traceStartInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR
     STATUS retStatus = STATUS_SUCCESS;
     PTraceProfiler pTraceProfiler = NULL;
     PTrace pTrace = NULL;
+    BOOL locked = FALSE;
 
     CHK(traceName != NULL && pTraceHandle != NULL, STATUS_NULL_ARG);
     CHK(traceName[0] != '\0', STATUS_INVALID_ARG);
@@ -292,6 +284,9 @@ STATUS traceStartInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR
     // Validate the profiler
     CHK(IS_VALID_TRACE_PROFILER_HANDLE(traceProfilerHandle), STATUS_INVALID_ARG);
     pTraceProfiler = TRACE_PROFILER_HANDLE_TO_POINTER(traceProfilerHandle);
+
+    MUTEX_LOCK(pTraceProfiler->traceLock);
+    locked = TRUE;
 
     // See if we need to do anything due to the trace level - Early return with success
     *pTraceHandle = INVALID_TRACE_HANDLE_VALUE;
@@ -328,6 +323,11 @@ STATUS traceStartInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR
     *pTraceHandle = POINTER_TO_HANDLE(pTrace);
 
 CleanUp:
+
+    if (locked) {
+        MUTEX_UNLOCK(pTraceProfiler->traceLock);
+    }
+
     return retStatus;
 }
 
@@ -337,6 +337,7 @@ STATUS traceStopInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_
     STATUS retStatus = STATUS_SUCCESS;
     PTraceProfiler pTraceProfiler = NULL;
     PTrace pTrace = NULL;
+    BOOL locked = FALSE;
 
     // Quick check for the no-op trace. Return success
     CHK(IS_VALID_TRACE_HANDLE(traceHandle), STATUS_SUCCESS);
@@ -344,6 +345,10 @@ STATUS traceStopInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_
     // Validate the profiler
     CHK(IS_VALID_TRACE_PROFILER_HANDLE(traceProfilerHandle), STATUS_INVALID_ARG);
     pTraceProfiler = TRACE_PROFILER_HANDLE_TO_POINTER(traceProfilerHandle);
+    
+    MUTEX_LOCK(pTraceProfiler->traceLock);
+    locked = TRUE;
+
     pTrace = TRACE_HANDLE_TO_POINTER(traceHandle);
 
     CHK(pTraceProfiler->traceCount >= pTrace->traceCount, STATUS_INTERNAL_ERROR);
@@ -355,6 +360,11 @@ STATUS traceStopInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_
     pTrace->duration = currentTime - pTrace->start;
 
 CleanUp:
+    
+    if (locked) {
+        MUTEX_UNLOCK(pTraceProfiler->traceLock);
+    }
+
     return retStatus;
 }
 

@@ -10,13 +10,15 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
         unique_ptr<StreamCallbackProvider> stream_callback_provider,
         unique_ptr<CredentialProvider> credential_provider,
         const std::string &region,
-        const std::string &control_plane_uri) {
+        const std::string &control_plane_uri,
+        const std::string &user_agent_name) {
 
     auto callback_provider = make_unique<DefaultCallbackProvider>(move(client_callback_provider),
                                                                   move(stream_callback_provider),
                                                                   move(credential_provider),
                                                                   region,
-                                                                  control_plane_uri);
+                                                                  control_plane_uri,
+                                                                  user_agent_name);
 
     return KinesisVideoProducer::create(move(device_info_provider), move(callback_provider));
 }
@@ -43,7 +45,6 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     override_callbacks.storageOverflowPressureFn = kinesis_video_producer->stored_callbacks_.storageOverflowPressureFn == NULL ? NULL : KinesisVideoProducer::storageOverflowPressureFunc;
     override_callbacks.streamLatencyPressureFn = kinesis_video_producer->stored_callbacks_.streamLatencyPressureFn == NULL ? NULL : KinesisVideoProducer::streamLatencyPressureFunc;
     override_callbacks.droppedFrameReportFn = kinesis_video_producer->stored_callbacks_.droppedFrameReportFn == NULL ? NULL : KinesisVideoProducer::droppedFrameReportFunc;
-    override_callbacks.streamClosedFn = kinesis_video_producer->stored_callbacks_.streamClosedFn == NULL ? NULL : KinesisVideoProducer::streamClosedFunc;
     override_callbacks.droppedFragmentReportFn = kinesis_video_producer->stored_callbacks_.droppedFragmentReportFn == NULL ? NULL : KinesisVideoProducer::droppedFragmentReportFunc;
     override_callbacks.streamErrorReportFn = kinesis_video_producer->stored_callbacks_.streamErrorReportFn == NULL ? NULL : KinesisVideoProducer::streamErrorReportFunc;
     override_callbacks.createStreamFn = kinesis_video_producer->stored_callbacks_.createStreamFn == NULL ? NULL : KinesisVideoProducer::createStreamFunc;
@@ -68,9 +69,10 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     // Special handling for the logger as we won't be calling channeling the call through the SDK
     override_callbacks.logPrintFn = kinesis_video_producer->stored_callbacks_.logPrintFn != NULL ? kinesis_video_producer->stored_callbacks_.logPrintFn : KinesisVideoProducer::logPrintFunc;
 
-    // Override the client and the stream ready API
+    // Override the client and the stream ready and stream closed API
     override_callbacks.clientReadyFn = KinesisVideoProducer::clientReadyFunc;
     override_callbacks.streamReadyFn = KinesisVideoProducer::streamReadyFunc;
+    override_callbacks.streamClosedFn = KinesisVideoProducer::streamClosedFunc;
 
     STATUS status = createKinesisVideoClient(&device_info, &override_callbacks, &client_handle);
     if (STATUS_FAILED(status)) {
@@ -91,13 +93,15 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
         unique_ptr<StreamCallbackProvider> stream_callback_provider,
         unique_ptr<CredentialProvider> credential_provider,
         const std::string &region,
-        const std::string &control_plane_uri) {
+        const std::string &control_plane_uri,
+        const std::string &user_agent_name) {
 
     auto callback_provider = make_unique<DefaultCallbackProvider>(move(client_callback_provider),
                                                                   move(stream_callback_provider),
                                                                   move(credential_provider),
                                                                   region,
-                                                                  control_plane_uri);
+                                                                  control_plane_uri,
+                                                                  user_agent_name);
 
     return KinesisVideoProducer::createSync(move(device_info_provider), move(callback_provider));
 }
@@ -143,7 +147,7 @@ shared_ptr<KinesisVideoStream> KinesisVideoProducer::createStream(unique_ptr<Str
     assert(stream_definition.get());
 
     StreamInfo stream_info = stream_definition->getStreamInfo();
-    std::shared_ptr<KinesisVideoStream> kinesis_video_stream(new KinesisVideoStream(*this, stream_definition->getStreamName()));
+    std::shared_ptr<KinesisVideoStream> kinesis_video_stream(new KinesisVideoStream(*this, stream_definition->getStreamName()), KinesisVideoStream::videoStreamDeleter);
     STATUS status = createKinesisVideoStream(client_handle_, &stream_info, kinesis_video_stream->getStreamHandle());
 
     if (STATUS_FAILED(status)) {
@@ -170,7 +174,7 @@ shared_ptr<KinesisVideoStream> KinesisVideoProducer::createStreamSync(unique_ptr
 
     {
         LOG_DEBUG("Awaiting for the stream to become ready...");
-        unique_lock<mutex> lock(kinesis_video_stream->getStreamMutex());
+        unique_lock<mutex> lock(kinesis_video_stream->getStreamReadyMutex());
         do {
             if (kinesis_video_stream->isReady()) {
                 LOG_DEBUG("Kinesis Video stream " << kinesis_video_stream->getStreamName() << " is Ready.");
@@ -206,9 +210,28 @@ void KinesisVideoProducer::freeStream(std::shared_ptr<KinesisVideoStream> kinesi
 
     // Find the stream and remove it from the map
     active_streams_.remove(*kinesis_video_stream->getStreamHandle());
+
+    // Free the stream object itself
+    kinesis_video_stream->free();
+}
+
+void KinesisVideoProducer::freeStreams() {
+    {
+        std::lock_guard<std::mutex> lock(free_client_mutex_);
+        auto num_streams = active_streams_.getMap().size();
+
+        for (auto i = 0; i < num_streams; i++) {
+            auto stream = active_streams_.getAt(0);
+            freeStream(stream);
+        }
+    }
 }
 
 KinesisVideoProducer::~KinesisVideoProducer() {
+    // Free the streams
+    freeStreams();
+
+    // Freeing the underlying client object
     freeKinesisVideoClient();
 }
 
@@ -246,7 +269,7 @@ STATUS KinesisVideoProducer::streamReadyFunc(UINT64 custom_data,
 
     // Trigger the stream ready state
     {
-        std::lock_guard<std::mutex> lock(kinesis_video_stream->getStreamMutex());
+        std::lock_guard<std::mutex> lock(kinesis_video_stream->getStreamReadyMutex());
         kinesis_video_stream->streamReady();
         kinesis_video_stream->getStreamReadyVar().notify_one();
     }
@@ -260,16 +283,38 @@ STATUS KinesisVideoProducer::streamReadyFunc(UINT64 custom_data,
     }
 }
 
-uint64_t KinesisVideoProducer::getAvailableStorageSize() const {
-    ClientMetrics kinesis_video_client_metrics;
+/**
+ * Stream closed override callback
+ */
+STATUS KinesisVideoProducer::streamClosedFunc(UINT64 custom_data,
+                                              STREAM_HANDLE stream_handle,
+                                              UINT64 stream_upload_handle) {
+    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    auto kinesis_video_stream = this_obj->active_streams_.get(stream_handle);
+    assert(nullptr != kinesis_video_stream);
 
-    kinesis_video_client_metrics.version = CLIENT_METRICS_CURRENT_VERSION;
-    STATUS retStatus = ::getKinesisVideoMetrics(client_handle_, &kinesis_video_client_metrics);
+    // Trigger the stream closed
+    {
+        std::lock_guard<std::mutex> lock(kinesis_video_stream->getStreamClosedMutex());
+        kinesis_video_stream->streamClosed();
+        kinesis_video_stream->getStreamClosedVar().notify_one();
+    }
 
-    LOG_AND_THROW_IF(STATUS_FAILED(retStatus), "Failed to get available storage size with: " << retStatus);
+    // Call the stored callback if specified
+    if (nullptr != this_obj->stored_callbacks_.streamClosedFn) {
+        return this_obj->stored_callbacks_.streamClosedFn(this_obj->stored_callbacks_.customData,
+                                                          stream_handle,
+                                                          stream_upload_handle);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
 
-    // Return the allocated storage size
-    return kinesis_video_client_metrics.contentStoreAvailableSize;
+KinesisVideoProducerMetrics KinesisVideoProducer::getMetrics() const {
+    STATUS status = ::getKinesisVideoMetrics(client_handle_, (PClientMetrics) client_metrics_.getRawMetrics());
+    LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get producer metrics with: " << status);
+
+    return client_metrics_;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -293,10 +338,10 @@ VOID KinesisVideoProducer::unlockMutexFunc(UINT64 custom_data,
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     this_obj->stored_callbacks_.unlockMutexFn(this_obj->stored_callbacks_.customData, mutex);
 }
-VOID KinesisVideoProducer::tryLockMutexFunc(UINT64 custom_data,
+BOOL KinesisVideoProducer::tryLockMutexFunc(UINT64 custom_data,
                                             MUTEX mutex) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
-    this_obj->stored_callbacks_.tryLockMutexFn(this_obj->stored_callbacks_.customData, mutex);
+    return this_obj->stored_callbacks_.tryLockMutexFn(this_obj->stored_callbacks_.customData, mutex);
 }
 VOID KinesisVideoProducer::freeMutexFunc(UINT64 custom_data,
                                          MUTEX mutex) {
@@ -433,15 +478,6 @@ STATUS KinesisVideoProducer::droppedFragmentReportFunc(UINT64 custom_data,
     return this_obj->stored_callbacks_.droppedFragmentReportFn(this_obj->stored_callbacks_.customData,
                                                                stream_handle,
                                                                timecode);
-}
-
-STATUS KinesisVideoProducer::streamClosedFunc(UINT64 custom_data,
-                                              STREAM_HANDLE stream_handle,
-                                              UINT64 stream_upload_handle) {
-    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
-    return this_obj->stored_callbacks_.streamClosedFn(this_obj->stored_callbacks_.customData,
-                                                      stream_handle,
-                                                      stream_upload_handle);
 }
 
 STATUS KinesisVideoProducer::streamErrorReportFunc(UINT64 custom_data,

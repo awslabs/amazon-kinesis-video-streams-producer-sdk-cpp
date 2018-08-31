@@ -1,13 +1,15 @@
-#include "gtest/gtest.h"
-#include <com/amazonaws/kinesis/video/utils/Include.h>
+#include "UtilTestFixture.h"
 
-TEST(InvalidInput, NullStrInput) {
+class ItoEFunctionalityTest : public UtilTestBase {
+};
+
+TEST_F(ItoEFunctionalityTest, InvalidInput_NullStrInput) {
     UINT32 size;
     EXPECT_NE(STATUS_SUCCESS, ULLTOSTR(1, NULL, 100, 10, &size));
     EXPECT_NE(STATUS_SUCCESS, ULTOSTR(1, NULL, 100, 10, &size));
 }
 
-TEST(InvalidInput, ZeroSizeInput) {
+TEST_F(ItoEFunctionalityTest, InvalidInput_ZeroSizeInput) {
     UINT32 size;
     PCHAR pStr = (PCHAR) 1;
     EXPECT_NE(STATUS_SUCCESS, ULLTOSTR(1, pStr, 0, 10, &size));
@@ -18,7 +20,7 @@ TEST(InvalidInput, ZeroSizeInput) {
 }
 
 
-TEST(InvalidInput, InvalidBase) {
+TEST_F(ItoEFunctionalityTest, InvalidInput_InvalidBase) {
     UINT32 size;
     PCHAR pStr = (PCHAR) 1;
     EXPECT_NE(STATUS_SUCCESS, ULLTOSTR(1, pStr, 100, 0, &size));
@@ -31,14 +33,14 @@ TEST(InvalidInput, InvalidBase) {
     EXPECT_NE(STATUS_SUCCESS, ULTOSTR(1, pStr, 100, 37, &size));
 }
 
-TEST(InvalidInput, BufferTooSmall) {
+TEST_F(ItoEFunctionalityTest, InvalidInput_BufferTooSmall) {
     UINT32 size;
     CHAR temp[256];
     EXPECT_NE(STATUS_SUCCESS, ULLTOSTR(100, temp, 3, 10, &size));
     EXPECT_NE(STATUS_SUCCESS, ULTOSTR(100, temp, 3, 10, &size));
 }
 
-TEST(ValidInput, SizeNotSpecified) {
+TEST_F(ItoEFunctionalityTest, ValidInput_SizeNotSpecified) {
     UINT32 size;
     CHAR temp[256];
 
@@ -61,7 +63,7 @@ TEST(ValidInput, SizeNotSpecified) {
     EXPECT_TRUE(STRCMP(temp, "100") == 0);
 }
 
-TEST(ValidInput, MinMaxValues) {
+TEST_F(ItoEFunctionalityTest, ValidInput_MinMaxValues) {
     CHAR temp[256];
 
     temp[0] = '\0';
@@ -81,7 +83,7 @@ TEST(ValidInput, MinMaxValues) {
     EXPECT_TRUE(STRCMP(temp, "0") == 0);
 }
 
-TEST(ValidInput, VariousBases) {
+TEST_F(ItoEFunctionalityTest, ValidInput_VariousBases) {
     CHAR temp[256];
     UINT32 value = 255;
 

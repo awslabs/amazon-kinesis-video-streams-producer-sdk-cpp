@@ -36,7 +36,9 @@ echo " ===========================Starting to build ===========================
         ========================================================================
  "
 
-KINESIS_VIDEO_ROOT=`pwd`
+if [ -z $KINESIS_VIDEO_ROOT ]; then
+  KINESIS_VIDEO_ROOT=`pwd`
+fi
 
 # Make confirmation optional for Docker builds
 # e.g. ./install-script -a
@@ -342,7 +344,7 @@ fi
 if [[ $PLATFORM != 'mac' || $KERNEL_VERSION < 17 ]]; then
  if [ ! -f $DOWNLOADS/local/lib/liby.a ]; then
     echo "bison not found. Installing"
-    if [ ! -f $DOWNLOADS/bison-2.3.tar.gz ]; then
+    if [ ! -f $DOWNLOADS/bison-3.0.4.tar.gz ]; then
       cd $DOWNLOADS
       $SYS_CURL -L $addl_curl_args "https://ftp.gnu.org/gnu/bison/bison-3.0.4.tar.gz" -o "bison-3.0.4.tar.xz"
     fi
@@ -712,17 +714,39 @@ make -j $max_parallel producer
 make -j $max_parallel start
 make -j $max_parallel kinesis_video_gstreamer_sample_app
 make -j $max_parallel kinesis_video_gstreamer_sample_rtsp_app
-# copy the kvssink plugin into the library folder
+make -j $max_parallel gstkvssink
+make -j $max_parallel kvs_producer_plugin_demo
+make -j $max_parallel kvs_producer_plugin_rtsp_demo
+make -j $max_parallel gstkvsplugintest
+
+# Copy the kvssink plugin into the library folder
 cp libproducer* "$LIB_DESTINATION_FOLDER_PATH"
 
-#  Environment variables in ~/.bashrc or ~/.bash_profile or ~/.zshrc
-echo you may want to add the following environment variables
-echo in ~/.bashrc or ~/.bash_profile or ~/.zshrc
+echo "**********************************************************"
+echo Success in building the Kinesis Video Streams Producer SDK !!!
+echo "**********************************************************"
 
+# -- Copy the kvssink plugin into the library folder ------------
+cp libgstkvssink* "$LIB_DESTINATION_FOLDER_PATH"
+
+# -- Create environment ----------------------------------------- 
+cd "${KINESIS_VIDEO_ROOT}"
+cat > set_kvs_sdk_env.sh << END_TEXT
 export LD_LIBRARY_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib":$LD_LIBRARY_PATH
 export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin":$PATH
+export GST_PLUGIN_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib":$GST_PLUGIN_PATH
+export GST_SYSTEM_PLUGIN_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib":$GST_SYSTEM_PLUGIN_PATH
+END_TEXT
+chmod a+x set_kvs_sdk_env.sh
+
+# --- Environment variables in ~/.bashrc or ~/.bash_profile or ~/.zshrc -------
+echo Now you can set the environment variables before running the sample applications
+echo by running source set_kvs_sdk_env.sh
+echo Also, you may want to add the following environment variables to set it permanently
+echo in ~/.bashrc or ~/.bash_profile or ~/.zshrc
 
 echo "**********************************************************"
-echo Success!!!
+echo Success in building kinesis-video-gstreamer-plugin !!!
 echo "**********************************************************"
+
 

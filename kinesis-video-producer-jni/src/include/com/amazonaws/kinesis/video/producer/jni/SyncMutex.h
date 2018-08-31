@@ -16,9 +16,8 @@ class SyncMutex
     bool mLogsEnabled;
 
     // Mutex implementation primitives
-    pthread_mutex_t mMutex;
-    pthread_mutexattr_t mMutexAttributes;
-    pthread_cond_t mCondition;
+    MUTEX mMutex;
+    CVAR mCondition;
 
     SyncMutex(const SyncMutex&); // Prevent copies
     SyncMutex& operator=(const SyncMutex&); // Prevent assignment
@@ -43,26 +42,21 @@ public:
         mLogsEnabled = false;
 
         // Prepare pthreads primitives
-        if (pthread_mutexattr_init(&mMutexAttributes) != 0 ||
-            pthread_mutexattr_settype(&mMutexAttributes, PTHREAD_MUTEX_RECURSIVE) != 0 ||
-            pthread_mutex_init(&mMutex, &mMutexAttributes) != 0 ||
-            pthread_cond_init(&mCondition, NULL) != 0)
-        {
-            CRASH("Mutex initialization failed");
-        }
+        mMutex = MUTEX_CREATE(TRUE);
+        mCondition = CVAR_CREATE();
     }
 
     ~SyncMutex()
     {
-        int status = pthread_mutex_destroy(&mMutex);
-        CHECK_EXT(status == 0, "pthread_mutex_destroy() returned Unix errno %d", status);
+        MUTEX_FREE(mMutex);
+        CVAR_FREE(mCondition);
     }
 
     // Set the mutex name to be shown in log messages.
     void setName(const char* mutexName)
     {
         CHECK(mutexName);
-        strncpy(mMutexDescription, mutexName, sizeof mMutexDescription);
+        STRNCPY(mMutexDescription, mutexName, sizeof mMutexDescription);
         mMutexDescription[sizeof mMutexDescription - 1] = '\0'; // Don't trust strncpy() to NUL-terminate
     }
 
@@ -89,8 +83,7 @@ public:
             DLOGI("%s: locking %s", function, mMutexDescription);
         }
 
-        int status = pthread_mutex_lock(&mMutex);
-        CHECK_EXT(status == 0, "pthread_mutex_lock() returned Unix errno %d", status);
+        MUTEX_LOCK(mMutex);
     }
 
     // Release the mutex.
@@ -101,31 +94,26 @@ public:
             DLOGI("%s: unlocking %s", function, mMutexDescription);
         }
 
-        int status = pthread_mutex_unlock(&mMutex);
-        CHECK_EXT(status == 0, "pthread_mutex_unlock() returned Unix errno %d", status);
+        MUTEX_UNLOCK(mMutex);
     }
 
     // Acquire the mutex and wait on the condition variable.
     void wait(const char* function)
     {
-        long before_ms = 0;
+        UINT64 before = 0;
         if (mLogsEnabled)
         {
             DLOGI("%s: waiting on %s", function, mMutexDescription);
-            timeval before;
-            gettimeofday(&before, NULL);
-            before_ms = before.tv_sec * 1000 + before.tv_usec / 1000;
+            UINT64 before = GETTIME();
         }
 
-        int status = pthread_cond_wait(&mCondition, &mMutex);
+        int status = CVAR_WAIT(mCondition, mMutex, INFINITE_TIME_VALUE);
         CHECK_EXT(status == 0, "pthread_cond_wait() returned Unix errno %d", status);
 
         if (mLogsEnabled)
         {
-            timeval after;
-            gettimeofday(&after, NULL);
-            long after_ms = after.tv_sec * 1000 + after.tv_usec / 1000;
-            long elapsed_ms = after_ms - before_ms;
+            UINT64 after = GETTIME();
+            UINT64 elapsed_ms = (after - before) / HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
             DLOGI("%s: waited %ldms for %s", function, elapsed_ms, mMutexDescription);
         }
     }
@@ -138,8 +126,8 @@ public:
             DLOGI("%s: signalling %s", function, mMutexDescription);
         }
 
-        int status = pthread_cond_broadcast(&mCondition);
-        CHECK_EXT(status == 0, "pthread_cond_broadcast() returned Unix errno %d", status);
+        STATUS status = CVAR_BROADCAST(mCondition);
+        CHECK_EXT(STATUS_SUCCEEDED(status), "pthread_cond_broadcast() returned Unix errno %d", status);
     }
 
     /**

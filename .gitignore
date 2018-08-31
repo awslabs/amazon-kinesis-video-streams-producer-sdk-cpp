@@ -10,3 +10,4 @@ kinesis-video-native-build/libproducer.dylib
 kinesis-video-native-build/start
 kinesis-video-native-build/test_h264_jpg.mkv
 kinesis-video-native-build/test_jpeg.mkv
+test-stream/

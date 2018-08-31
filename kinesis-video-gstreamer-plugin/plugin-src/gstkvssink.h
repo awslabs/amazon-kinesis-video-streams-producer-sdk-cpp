@@ -42,7 +42,7 @@
 
 #include <gst/gst.h>
 #include <gst/base/gstbasesink.h>
-#include "KinesisVideoProducer.h"
+#include <KinesisVideoProducer.h>
 #include <string.h>
 #include "gstkvssinkenumproperties.h"
 #include <mutex>
@@ -118,6 +118,7 @@ struct _GstKvsSink {
     GstKvsSinkFrameTimestamp    frame_timestamp;
     guint                       storage_size;
     gchar                       *credential_file_path;
+    GstStructure                *iot_certificate;
 
     unique_ptr<Credentials> credentials_;
     shared_ptr<CustomData> data;

@@ -31,6 +31,13 @@ typedef struct _CustomData {
     bool h264_stream_supported;
 } CustomData;
 
+
+//    send fragmentMetaData
+//    GstStructure *gst_struct = gst_structure_new_from_string ("kvs-add-metadata,name=foo,value=boo,persist=TRUE");
+//    GstEvent *event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM,gst_struct);
+//    gst_element_send_event (data->pipeline, event);
+
+
 static bool format_supported_by_source(GstCaps *src_caps, GstCaps *query_caps, int width, int height, int framerate) {
     gst_caps_set_simple(query_caps,
                         "width", G_TYPE_INT, width,
@@ -89,42 +96,60 @@ int gstreamer_init(int argc, char *argv[]) {
     gst_init(&argc, &argv);
 
     /* init stream format */
+    char stream_name[MAX_STREAM_NAME_LEN];
     int width = 0, height = 0, framerate = 30, bitrateInKBPS = 512;
-    int opt;
-    char *endptr;
-    while ((opt = getopt(argc, argv, "w:h:f:b:")) != -1) {
-        switch (opt) {
-            case 'w':
-                width = strtol(optarg, &endptr, 0);
-                if (*endptr != '\0') {
-                    g_printerr("Invalid width value.\n");
+    for (int i = 1; i < argc; i++) {
+        if (i < argc - 1) {
+            if ((0 == STRCMPI(argv[i], "-w")) ||
+                (0 == STRCMPI(argv[i], "/w")) ||
+                (0 == STRCMPI(argv[i], "--w"))) {
+                // process the width
+                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &width))) {
                     return 1;
                 }
-                break;
-            case 'h':
-                height = strtol(optarg, &endptr, 0);
-                if (*endptr != '\0') {
-                    g_printerr("Invalid height value.\n");
+            }
+            else if ((0 == STRCMPI(argv[i], "-h")) ||
+                     (0 == STRCMPI(argv[i], "/h")) ||
+                     (0 == STRCMPI(argv[i], "--h"))) {
+                // process the width
+                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &height))) {
                     return 1;
                 }
-                break;
-            case 'f':
-                framerate = strtol(optarg, &endptr, 0);
-                if (*endptr != '\0') {
-                    g_printerr("Invalid framerate value.\n");
+            }
+            else if ((0 == STRCMPI(argv[i], "-f")) ||
+                     (0 == STRCMPI(argv[i], "/f")) ||
+                     (0 == STRCMPI(argv[i], "--f"))) {
+                // process the width
+                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &framerate))) {
                     return 1;
                 }
-                break;
-            case 'b':
-                bitrateInKBPS = strtol(optarg, &endptr, 0);
-                if (*endptr != '\0') {
-                    g_printerr("Invalid bitrate value.\n");
+            }
+            else if ((0 == STRCMPI(argv[i], "-b")) ||
+                     (0 == STRCMPI(argv[i], "/b")) ||
+                     (0 == STRCMPI(argv[i], "--b"))) {
+                // process the width
+                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &bitrateInKBPS))) {
                     return 1;
                 }
-                break;
-            default: /* '?' */
-                g_printerr("Invalid arguments\n");
-                return 1;
+            }
+            // skip the index
+            i++;
+        }
+        else if (0 == STRCMPI(argv[i], "-?") ||
+                 0 == STRCMPI(argv[i], "--?") ||
+                 0 == STRCMPI(argv[i], "--help")) {
+            g_printerr("Invalid arguments\n");
+            return 1;
+        }
+        else if (argv[i][0] == '/' ||
+                 argv[i][0] == '-') {
+            // Unknown option
+            g_printerr("Invalid arguments\n");
+            return 1;
+        }
+        else {
+            // Assume it's the stream name
+            STRNCPY(stream_name, argv[i], MAX_STREAM_NAME_LEN);
         }
     }
     /* create the elements */
@@ -149,6 +174,9 @@ int gstreamer_init(int argc, char *argv[]) {
             isOnRpi = false;
         }
         data.source = gst_element_factory_make("v4l2src", "source");
+        if (!data.source) {
+            data.source = gst_element_factory_make("ksvideosrc", "source");
+        }
         vtenc = false;
     }
 
@@ -180,6 +208,23 @@ int gstreamer_init(int argc, char *argv[]) {
 
     g_object_set(G_OBJECT (data.kvsproducer), "stream-name", "plugin-test-stream", "frame-timestamp", KVS_SINK_TIMESTAMP_DEFAULT, "storage-size", 512, NULL);
 
+//    Iot certificate sample usage.
+//    const char* iot_g_struct = "iot-certificate,endpoint=endpoint,"
+//            "cert-path=/path/to/certificate,"
+//            "key-path=/path/to/private/key,"
+//            "ca-path=/path/to/ca-cert,"
+//            "role-aliases=role-aliases";
+//    GstStructure *iot_cert = gst_structure_from_string(iot_g_struct, NULL);
+//    g_object_set(G_OBJECT (data.kvsproducer), "iot-certificate", iot_cert, NULL);
+//    gst_structure_free(iot_cert);
+
+//    Iot certificate sample pipeline usage.
+//    gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
+//    kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
+
+//    Iot certificate sample pipeline usage. (Windows)
+//    gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
+//    kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=C:/path/to/certificate,key-path=C:/path/to/private/key,ca-path=C:/path/to/ca-cert,role-aliases=role-aliases"
 
     /* Determine whether device supports h264 encoding and select a streaming resolution supported by the device*/
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(data.source, GST_STATE_READY)) {
@@ -287,16 +332,16 @@ int gstreamer_init(int argc, char *argv[]) {
                          data.encoder,
                          data.h264parse, data.filter,
                          data.kvsproducer, NULL);
-        if (gst_element_link_many(data.source, data.video_convert, data.source_filter, data.encoder,
+        if (!gst_element_link_many(data.source, data.video_convert, data.source_filter, data.encoder,
                                   data.h264parse,
-                                  data.filter, data.kvsproducer, NULL) != TRUE) {
+                                  data.filter, data.kvsproducer, NULL)) {
             g_printerr("Elements could not be linked in the pipeline (h264 supported upstream).\n");
             gst_object_unref(data.pipeline);
             return 1;
         }
     } else {
         gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.h264parse, data.filter, data.kvsproducer, NULL);
-        if (gst_element_link_many(data.source, data.h264parse, data.filter, data.kvsproducer, NULL) != TRUE) {
+        if (!gst_element_link_many(data.source, data.h264parse, data.filter, data.kvsproducer, NULL)) {
             g_printerr("Elements could not be linked in the pipeline \n");
             gst_object_unref(data.pipeline);
             return 1;

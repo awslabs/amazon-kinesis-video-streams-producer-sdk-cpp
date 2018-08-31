@@ -32,6 +32,7 @@ const std::string KINESIS_VIDEO_SERVICE_NAME = "kinesisvideo";
 const std::string DEFAULT_CONTROL_PLANE_URI = "https://kinesisvideo.us-west-2.amazonaws.com";
 const std::string CONTROL_PLANE_URI_PREFIX = "https://";
 const std::string CONTROL_PLANE_URI_POSTFIX = ".amazonaws.com";
+const std::string DEFAULT_USER_AGENT_NAME = "AWS-SDK-KVS-PRODUCER";
 }
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
@@ -44,7 +45,8 @@ public:
             std::unique_ptr <CredentialProvider> credentials_provider =
                 std::make_unique<EmptyCredentialProvider>(),
             const std::string &region = DEFAULT_AWS_REGION,
-            const std::string &control_plane_uri = "");
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME);
 
     virtual ~DefaultCallbackProvider();
 
@@ -559,6 +561,16 @@ protected:
      * Mutex needed for locking the states for atomic operations
      */
     std::recursive_mutex active_streams_mutex_;
+
+    /**
+     * Whether to debug dump to a file
+     */
+    bool debug_dump_file_;
+
+    /**
+     * Stores the user agent string
+     */
+    std::string user_agent_;
 
     /**
      * A map which holds a reference mapping the stream handle to th OngoingPutFrameState instance associated with that

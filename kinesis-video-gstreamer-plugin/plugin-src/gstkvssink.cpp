@@ -69,6 +69,12 @@
 #include "KvsSinkDeviceInfoProvider.h"
 #include "StreamLatencyStateMachine.h"
 #include "ConnectionStaleStateMachine.h"
+#include "KvsSinkIotCertCredentialProvider.h"
+#include "Util/KvsSinkUtil.h"
+
+LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
+
+
 
 using namespace std;
 using namespace log4cplus;
@@ -80,7 +86,7 @@ static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
 
 GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
-LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
+
 
 // default starting delay between reties when trying to create and start kvs stream.
 #define DEFAULT_INITIAL_RETRY_DELAY_MS 400
@@ -90,7 +96,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 /* KvsSink signals and args */
 enum {
     /* FILL ME */
-            SIGNAL_HANDOFF,
+    SIGNAL_HANDOFF,
     SIGNAL_PREROLL_HANDOFF,
     LAST_SIGNAL
 };
@@ -138,13 +144,17 @@ enum {
 #define DEFRAGMENTATION_FACTOR 1.2
 #define ESTIMATED_AVG_BUFFER_SIZE_BYTE 3 * 1024 // for 720p 25 fps stream
 #define DEFAULT_STORAGE_SIZE_MB \
-        static_cast<UINT64>(ESTIMATED_AVG_BUFFER_SIZE_BYTE) * \
+        static_cast<UINT64>(static_cast<UINT64>(ESTIMATED_AVG_BUFFER_SIZE_BYTE) * \
         DEFAULT_STREAM_FRAMERATE * \
         DEFAULT_BUFFER_DURATION_SECONDS * \
-        DEFRAGMENTATION_FACTOR / (1024 * 1024)
+        DEFRAGMENTATION_FACTOR / (1024 * 1024))
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 
 #define FRAME_DATA_ALLOCATION_MULTIPLIER 1.5
+#define KVS_ADD_METADATA_G_STRUCT_NAME "kvs-add-metadata"
+#define KVS_ADD_METADATA_NAME "name"
+#define KVS_ADD_METADATA_VALUE "value"
+#define KVS_ADD_METADATA_PERSISTENT "persist"
 
 enum {
     PROP_0,
@@ -185,6 +195,7 @@ enum {
     PROP_FRAME_TIMESTAMP,
     PROP_STORAGE_SIZE,
     PROP_CREDENTIAL_FILE_PATH,
+    PROP_IOT_CERTIFICATE
 };
 
 #define GST_TYPE_KVS_SINK_FRAME_TIMESTAMP_TYPE (gst_kvs_sink_frame_timestamp_type_get_type())
@@ -282,9 +293,9 @@ void kinesis_video_producer_init(GstKvsSink *sink) {
     string region_str;
     bool credential_is_static = true;
 
-    if (0 == strcmp(sink->access_key, DEFAULT_ACCESS_KEY)) { // Check if static credential is available in plugin property.
+    if (0 == strcmp(sink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
         if (nullptr == (access_key = getenv(ACCESS_KEY_ENV_VAR))
-            || nullptr == (secret_key = getenv(SECRET_KEY_ENV_VAR))) { // Check if static credential is available in env var.
+            || nullptr == (secret_key = getenv(SECRET_KEY_ENV_VAR))) { // if no static credential is available in env var.
             credential_is_static = false; // No static credential available.
             access_key_str = "";
             secret_key_str = "";
@@ -305,12 +316,22 @@ void kinesis_video_producer_init(GstKvsSink *sink) {
     }
 
     unique_ptr<CredentialProvider> credential_provider;
+
     if (credential_is_static) {
         sink->credentials_ = make_unique<Credentials>(access_key_str,
                                                       secret_key_str,
                                                       "",
                                                       std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS));
         credential_provider = make_unique<KvsSinkStaticCredentialProvider>(*sink->credentials_, sink->rotation_period);
+    } else if (sink->iot_certificate) {
+        std::map<std::string, std::string> iot_cert_params;
+        gboolean ret = kvs_sink_util::parse_gstructure(sink->iot_certificate, iot_cert_params);
+        g_assert_true(ret);
+        credential_provider = make_unique<KvsSinkIotCertCredentialProvider>(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
+                                                                            iot_cert_params[CERTIFICATE_PATH],
+                                                                            iot_cert_params[PRIVATE_KEY_PATH],
+                                                                            iot_cert_params[ROLE_ALIASES],
+                                                                            iot_cert_params[CA_CERT_PATH]);
     } else {
         credential_provider = make_unique<KvsSinkRotatingCredentialProvider>(data);
     }
@@ -582,6 +603,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                      g_param_spec_string ("credential-path", "Credential File Path",
                                                           "Credential File Path", DEFAULT_CREDENTIAL_FILE_PATH, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_IOT_CERTIFICATE,
+                                     g_param_spec_boxed ("iot-certificate", "Iot Certificate",
+                                                         "Use aws iot certificate to obtain credentials",
+                                                         GST_TYPE_STRUCTURE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
 
     /**
      * GstKvsSink::handoff:
@@ -690,6 +716,9 @@ gst_kvs_sink_finalize(GObject *object) {
     g_free(sink->track_name);
     g_free(sink->secret_key);
     g_free(sink->access_key);
+    if (sink->iot_certificate) {
+        gst_structure_free (sink->iot_certificate);
+    }
     delete [] sink->frame_data;
     G_OBJECT_CLASS (parent_class)->finalize(object);
 }
@@ -810,6 +839,15 @@ static void gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_CREDENTIAL_FILE_PATH:
             sink->credential_file_path = g_strdup (g_value_get_string (value));
             break;
+        case PROP_IOT_CERTIFICATE: {
+            const GstStructure *s = gst_value_get_structure(value);
+
+            if (sink->iot_certificate)
+                gst_structure_free(sink->iot_certificate);
+
+            sink->iot_certificate = s ? gst_structure_copy(s) : NULL;
+            break;
+        }
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -930,6 +968,9 @@ static void gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *va
         case PROP_CREDENTIAL_FILE_PATH:
             g_value_set_string (value, sink->credential_file_path);
             break;
+        case PROP_IOT_CERTIFICATE:
+            gst_value_set_structure (value, sink->iot_certificate);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -996,8 +1037,38 @@ static gboolean gst_kvs_sink_event(GstBaseSink *bsink, GstEvent *event) {
         }
 
         GST_INFO ("structure is %" GST_PTR_FORMAT, gststructforcaps);
+    } else if (GST_EVENT_TYPE (event) == GST_EVENT_CUSTOM_DOWNSTREAM) {
+        const GstStructure *structure = gst_event_get_structure(event);
+        std::string metadata_name, metadata_value;
+        gboolean persistent;
+        bool is_persist;
+
+        if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME)) {
+            goto CleanUp;
+        }
+
+        LOG_INFO("received kvs-add-metadata event");
+        if (NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
+            NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
+            FALSE == gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
+
+            LOG_WARN("Event structure contains invalid field: " << std::string(gst_structure_to_string (structure)));
+            goto CleanUp;
+        }
+
+        metadata_name = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_NAME));
+        metadata_value = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE));
+        is_persist = persistent;
+
+        for (auto stream : sink->data->kinesis_video_stream_map.getMap()) {
+            bool result = stream.second->putFragmentMetadata(metadata_name, metadata_value, is_persist);
+            if (false == result) {
+                LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+            }
+        }
     }
 
+CleanUp:
     return GST_BASE_SINK_CLASS (parent_class)->event(bsink, event);
 }
 
@@ -1089,8 +1160,6 @@ static GstFlowReturn gst_kvs_sink_prepare(GstBaseSink *bsink, GstBuffer *buffer)
         worker.detach();
     }
 
-CleanUp:
-
     return ret;
 }
 
@@ -1123,7 +1192,7 @@ static GstFlowReturn gst_kvs_sink_render(GstBaseSink *bsink, GstBuffer *buf) {
         GstMapInfo info;
 
         if (gst_buffer_map(buf, &info, GST_MAP_READ)) {
-            gst_util_dump_mem(info.data, info.size);
+            gst_util_dump_mem(info.data, (guint) info.size);
             gst_buffer_unmap(buf, &info);
         }
     }
@@ -1182,7 +1251,7 @@ static GstFlowReturn gst_kvs_sink_render(GstBaseSink *bsink, GstBuffer *buf) {
             size_t buffer_size = gst_buffer_get_size(buf);
             if (buffer_size > sink->current_frame_data_size) {
                 delete [] sink->frame_data;
-                sink->current_frame_data_size = buffer_size * FRAME_DATA_ALLOCATION_MULTIPLIER;
+                sink->current_frame_data_size = (size_t) (buffer_size * FRAME_DATA_ALLOCATION_MULTIPLIER);
                 sink->frame_data = new uint8_t[sink->current_frame_data_size];
             }
             gst_buffer_extract(buf, 0, sink->frame_data, buffer_size);

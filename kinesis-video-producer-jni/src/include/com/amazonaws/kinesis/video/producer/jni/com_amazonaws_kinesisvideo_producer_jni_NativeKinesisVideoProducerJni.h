@@ -60,6 +60,14 @@ JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesi
 
 /*
  * Class:     com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni
+ * Method:    freeKinesisVideoStream
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_freeKinesisVideoStream
+        (JNIEnv *, jobject, jlong, jlong);
+
+/*
+ * Class:     com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni
  * Method:    getKinesisVideoMetrics
  * Signature: (JLcom/amazonaws/kinesisvideo/producer/KinesisVideoMetrics;)V
  */
@@ -89,6 +97,14 @@ JNIEXPORT jlong JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKines
  */
 JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_putKinesisVideoFrame
   (JNIEnv *, jobject, jlong, jlong, jobject);
+
+/*
+ * Class:     com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni
+ * Method:    putKinesisVideoFragmentMetadata
+ * Signature: (JJLjava/lang/String;Ljava/lang/String;Z)V
+ */
+JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_putKinesisVideoFragmentMetadata
+  (JNIEnv*, jobject, jlong, jlong, jstring, jstring, jboolean);
 
 /*
  * Class:     com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni
@@ -151,7 +167,7 @@ JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesi
 * Method:    tagResourceResultEvent
 * Signature: (JJI)V
 */
-JNIEXPORT void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_tagResourceResultEvent
+JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_tagResourceResultEvent
   (JNIEnv *, jobject, jlong, jlong, jint);
 
 /*

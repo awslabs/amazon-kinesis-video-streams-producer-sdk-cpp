@@ -1,5 +1,7 @@
 #pragma once
 
+#include "com/amazonaws/kinesis/video/client/Include.h"
+
 /**
  * Provides a minimal pthread implementation of callbacks required by openssl for thread safety.
  * See: https://www.openssl.org/docs/manmaster/crypto/threads.html

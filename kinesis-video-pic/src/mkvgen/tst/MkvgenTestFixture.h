@@ -1,4 +1,6 @@
+#if 0
 #pragma GCC diagnostic ignored "-Wwrite-strings"
+#endif
 
 #include "gtest/gtest.h"
 #include <com/amazonaws/kinesis/video/utils/Include.h>
@@ -20,6 +22,8 @@
 
 #define MKV_TEST_CUSTOM_DATA            0x12345
 
+#define MKV_TEST_TAG_COUNT          5
+
 /**
  * Callback function
  */
@@ -37,30 +41,32 @@ protected:
 
     STATUS CreateMkvGenerator()
     {
+        STATUS retStatus = STATUS_SUCCESS;
         mBuffer = (PBYTE)MEMALLOC(MKV_TEST_BUFFER_SIZE);
-
+        
         // Create the MKV generator
-        EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE,
-                MKV_TEST_CLUSTER_DURATION,MKV_TEST_CODEC_ID, MKV_TEST_TRACK_NAME, NULL, 0, NULL, 0, &mMkvGenerator));
-
-        return STATUS_SUCCESS;
+        retStatus = createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE,
+            MKV_TEST_CLUSTER_DURATION, MKV_TEST_CODEC_ID, MKV_TEST_TRACK_NAME, NULL, 0, NULL, 0, &mMkvGenerator);
+        EXPECT_EQ(STATUS_SUCCESS, retStatus);
+        
+        return retStatus;
     };
 
     virtual void SetUp()
     {
-        printf("\nSetting up test: %s\n", GetTestName());
+        DLOGI("\nSetting up test: %s\n", GetTestName());
         ASSERT_TRUE(STATUS_SUCCEEDED(CreateMkvGenerator()));
-
+        
         // Reset the globals
         gTimeCallbackCalled = FALSE;
     };
 
     virtual void TearDown()
     {
-        printf("\nTearing down test: %s\n", GetTestName());
+        DLOGI("\nTearing down test: %s\n", GetTestName());
 
         // Free the scratch buffer
-        if (mBuffer) {
+        if (NULL != mBuffer) {
             MEMFREE(mBuffer);
             mBuffer = NULL;
         }

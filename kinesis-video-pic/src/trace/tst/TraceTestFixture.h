@@ -1,4 +1,6 @@
+#if 0
 #pragma GCC diagnostic ignored "-Wwrite-strings"
+#endif
 
 #include "gtest/gtest.h"
 

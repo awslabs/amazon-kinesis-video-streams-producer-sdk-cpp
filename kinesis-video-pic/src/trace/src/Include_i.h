@@ -126,6 +126,11 @@ typedef struct
     TraceStopFunc traceStopFn;
 
     /**
+    * Tracing function pointers
+    */
+    MUTEX traceLock;
+
+    /**
      * Trace buffer. It's a ring buffer. IMPORTANT! This will point to the end of the main structure
      */
     PTrace traceBuffer;
@@ -135,7 +140,7 @@ typedef struct
  * Conversion definitions
  */
 #ifndef TRACE_PROFILER_HANDLE_TO_POINTER
-#define TRACE_PROFILER_HANDLE_TO_POINTER(h) ((PTraceProfiler) (h))
+#define TRACE_PROFILER_HANDLE_TO_POINTER(h) (IS_VALID_TRACE_PROFILER_HANDLE(h) ? (PTraceProfiler) (h) : NULL)
 #endif
 
 #ifndef TRACE_HANDLE_TO_POINTER

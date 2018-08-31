@@ -1,22 +1,24 @@
-#include "gtest/gtest.h"
-#include <com/amazonaws/kinesis/video/utils/Include.h>
+#include "UtilTestFixture.h"
 
-TEST(NegativeInvalidInput, DoubleListCreate)
+class DoubleListFunctionalityTest : public UtilTestBase {
+};
+
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListCreate)
 {
     EXPECT_NE(STATUS_SUCCESS, doubleListCreate(NULL));
 }
 
-TEST(PositiveIdempotentInvalidInput, DoubleListFree)
+TEST_F(DoubleListFunctionalityTest, PositiveIdempotentInvalidInput_DoubleListFree)
 {
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(NULL));
 }
 
-TEST(NegativeInvalidInput, DoubleListClear)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListClear)
 {
     EXPECT_NE(STATUS_SUCCESS, doubleListClear(NULL));
 }
 
-TEST(NegativeInvalidInput, DoubleListInsertNodeHeadTail)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListInsertNodeHeadTail)
 {
     DoubleListNode node;
     MEMSET(&node, 0x00, SIZEOF(DoubleListNode));
@@ -34,7 +36,7 @@ TEST(NegativeInvalidInput, DoubleListInsertNodeHeadTail)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(NegativeInvalidInput, DoubleListInsertNodeBeforeAfter)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListInsertNodeBeforeAfter)
 {
     DoubleListNode node1, node2;
     MEMSET(&node1, 0x00, SIZEOF(DoubleListNode));
@@ -56,7 +58,7 @@ TEST(NegativeInvalidInput, DoubleListInsertNodeBeforeAfter)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(NegativeInvalidInput, DoubleListInsertItemHeadTailBeforeAfter)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListInsertItemHeadTailBeforeAfter)
 {
     DoubleListNode node;
     MEMSET(&node, 0x00, SIZEOF(DoubleListNode));
@@ -79,13 +81,13 @@ TEST(NegativeInvalidInput, DoubleListInsertItemHeadTailBeforeAfter)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(PositiveIdempotentInvalidInput, DoubleListDeleteHeadTail)
+TEST_F(DoubleListFunctionalityTest, PositiveIdempotentInvalidInput_DoubleListDeleteHeadTail)
 {
     EXPECT_NE(STATUS_SUCCESS, doubleListDeleteHead(NULL));
     EXPECT_NE(STATUS_SUCCESS, doubleListDeleteTail(NULL));
 }
 
-TEST(NegativeInvalidInput, DoubleListRemoveDeleteNode)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListRemoveDeleteNode)
 {
     DoubleListNode node;
     MEMSET(&node, 0x00, SIZEOF(DoubleListNode));
@@ -104,7 +106,7 @@ TEST(NegativeInvalidInput, DoubleListRemoveDeleteNode)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(NegativeInvalidInput, DoubleListGetHeadTailNode)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListGetHeadTailNode)
 {
     PDoubleListNode pNode;
     PDoubleList pList;
@@ -122,7 +124,7 @@ TEST(NegativeInvalidInput, DoubleListGetHeadTailNode)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(NegativeInvalidInput, DoubleListGetNodeAt)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListGetNodeAt)
 {
     PDoubleListNode pNode;
     PDoubleList pList;
@@ -142,7 +144,7 @@ TEST(NegativeInvalidInput, DoubleListGetNodeAt)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(NegativeInvalidInput, DoubleListGetNodeDataAt)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListGetNodeDataAt)
 {
     UINT64 data;
     PDoubleList pList;
@@ -162,7 +164,7 @@ TEST(NegativeInvalidInput, DoubleListGetNodeDataAt)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(NegativeInvalidInput, DoubleListGetNodeData)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListGetNodeData)
 {
     PDoubleListNode pNode = (PDoubleListNode) 1;
     UINT64 data;
@@ -171,7 +173,7 @@ TEST(NegativeInvalidInput, DoubleListGetNodeData)
     EXPECT_NE(STATUS_SUCCESS, doubleListGetNodeData(pNode, NULL));
 }
 
-TEST(NegativeInvalidInput, DoubleListGetNodeNextPrev)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListGetNodeNextPrev)
 {
     PDoubleListNode pNode;
 
@@ -182,7 +184,7 @@ TEST(NegativeInvalidInput, DoubleListGetNodeNextPrev)
     EXPECT_NE(STATUS_SUCCESS, doubleListGetPrevNode(pNode, NULL));
 }
 
-TEST(NegativeInvalidInput, DoubleListGetNodeCount)
+TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListGetNodeCount)
 {
     PDoubleList pList = (PDoubleList) 1;
     UINT32 count;
@@ -191,7 +193,7 @@ TEST(NegativeInvalidInput, DoubleListGetNodeCount)
     EXPECT_NE(STATUS_SUCCESS, doubleListGetNodeCount(pList, NULL));
 }
 
-TEST(FunctionalTest, DoubleListClear)
+TEST_F(DoubleListFunctionalityTest,  DoubleListClear)
 {
     PDoubleList pList;
     UINT64 count = 10;
@@ -220,7 +222,7 @@ TEST(FunctionalTest, DoubleListClear)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(FunctionalTest, DoubleListBasicOperationsCreateInsertGetDelete)
+TEST_F(DoubleListFunctionalityTest, DoubleListBasicOperationsCreateInsertGetDelete)
 {
     PDoubleList pList;
     PDoubleListNode pInsertNode;
@@ -239,9 +241,9 @@ TEST(FunctionalTest, DoubleListBasicOperationsCreateInsertGetDelete)
 
     // Validate
     for (UINT64 i = 0; i < count; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeDataAt(pList, i, &data));
+        EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeDataAt(pList, (UINT32) i, &data));
         EXPECT_EQ(data, count - i - 1);
-        EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeAt(pList, i, &pNode));
+        EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeAt(pList, (UINT32) i, &pNode));
         EXPECT_EQ(pNode->data, count - i - 1);
     }
 
@@ -267,9 +269,9 @@ TEST(FunctionalTest, DoubleListBasicOperationsCreateInsertGetDelete)
 
     // Validate
     for (UINT64 i = 0; i < count; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeDataAt(pList, i, &data));
+        EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeDataAt(pList, (UINT32) i, &data));
         EXPECT_EQ(data, i);
-        EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeAt(pList, i, &pNode));
+        EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeAt(pList, (UINT32) i, &pNode));
         EXPECT_EQ(pNode->data, i);
     }
 
@@ -347,7 +349,7 @@ TEST(FunctionalTest, DoubleListBasicOperationsCreateInsertGetDelete)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(FunctionalTest, DoubleListRemoveDeleteNode)
+TEST_F(DoubleListFunctionalityTest, DoubleListRemoveDeleteNode)
 {
     PDoubleList pList;
     PDoubleListNode pNode, pHead, pTail;
@@ -439,7 +441,7 @@ TEST(FunctionalTest, DoubleListRemoveDeleteNode)
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
 }
 
-TEST(FunctionalTest, DoubleListInsertBeforeAfter)
+TEST_F(DoubleListFunctionalityTest, DoubleListInsertBeforeAfter)
 {
     PDoubleList pList;
     PDoubleListNode pHead, pTail;

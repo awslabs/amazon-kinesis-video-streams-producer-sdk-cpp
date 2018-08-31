@@ -90,3 +90,28 @@ BYTE gMkvSimpleBlockBits[] = {
         // Frame data follows
 };
 UINT32 gMkvSimpleBlockBitsSize = SIZEOF(gMkvSimpleBlockBits);
+
+BYTE gMkvTagsBits[] = {
+        0x12, 0x54, 0xC3, 0x67, // Tags
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Size of the tags - needs to be fixed up
+        0x73, 0x73, // Tag
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Size of the tag - needs to be fixed up
+        0x67, 0xC8, // Simple tag
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Size of the simple tag - needs to be fixed up
+        // Tag name and tag string to follow
+};
+UINT32 gMkvTagsBitsSize = SIZEOF(gMkvTagsBits);
+
+BYTE gMkvTagNameBits[] = {
+        0x45, 0xA3, // Tag name
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Size of the tag name - needs to be fixed up
+        // Tag name
+};
+UINT32 gMkvTagNameBitsSize = SIZEOF(gMkvTagNameBits);
+
+BYTE gMkvTagStringBits[] = {
+        0x44, 0x87, // Tag string
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Size of the tag string - needs to be fixed up
+        // Tag string
+};
+UINT32 gMkvTagStringBitsSize = SIZEOF(gMkvTagStringBits);

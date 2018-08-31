@@ -21,7 +21,7 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
     BOOL isAvailable;
     PViewItem pViewItem;
     UINT64 timestamp = 0, currentDuration = 0, windowDuration = 0;
-    UINT32 currentSize = 0, windowSize = 0;
+    UINT64 currentSize = 0, windowSize = 0;
     UINT64 currentAllocationSize = 0, windowAllocationSize = 0;
 
     CreateContentView();
@@ -183,7 +183,7 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrentRemoveAll)
     PViewItem pViewItem;
     UINT64 timestamp = 0;
     UINT64 curDuration, windowDuration;
-    UINT32 curItemCount, windowItemCount;
+    UINT64 curItemCount, windowItemCount;
 
     CreateContentView();
 
@@ -260,7 +260,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowCheck)
     BOOL isAvailable;
     PViewItem pViewItem;
     UINT64 timestamp = 0, currentDuration = 0, windowDuration = 0, currentAllocationSize = 0, windowAllocationSize = 0;
-    UINT32 currentSize = 0, windowSize = 0;
+    UINT64 currentSize = 0, windowSize = 0;
 
     CreateContentView();
 
@@ -396,7 +396,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeTail)
 TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationCurrent)
 {
     UINT32 index;
-    UINT64 timestamp, duration;
+    UINT64 timestamp;
 
     CreateContentView();
 
@@ -950,7 +950,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrameRe
 
 TEST_F(ViewApiFunctionalityTest, getItemWithTimestamp)
 {
-    PViewItem pViewItem, pTail, pHead;
+    PViewItem pViewItem = NULL, pTail = NULL, pHead = NULL;
     UINT64 index;
     UINT64 timestamp;
 
@@ -983,7 +983,7 @@ TEST_F(ViewApiFunctionalityTest, getItemWithTimestamp)
 
 TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
 {
-    PViewItem pViewItem, pTail, pHead;
+    PViewItem pTail = NULL, pHead = NULL;
     UINT64 index;
     UINT64 timestamp;
 
