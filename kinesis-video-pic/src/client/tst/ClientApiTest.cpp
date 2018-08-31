@@ -166,8 +166,6 @@ TEST_F(ClientApiTest, createKinesisVideoClient_ValiateDeviceInfo)
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     mDeviceInfo.storageInfo.storageSize = MAX_STORAGE_ALLOCATION_SIZE + 1;
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
-    mDeviceInfo.storageInfo.storageSize = TEST_DEVICE_STORAGE_SIZE;
-
     mDeviceInfo.storageInfo.storageSize = MIN_STORAGE_ALLOCATION_SIZE - 1;
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     mDeviceInfo.storageInfo.storageSize = MAX_STORAGE_ALLOCATION_SIZE + 1;

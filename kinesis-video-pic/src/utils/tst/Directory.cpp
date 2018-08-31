@@ -1,7 +1,11 @@
-#include "gtest/gtest.h"
-#include <com/amazonaws/kinesis/video/utils/Include.h>
+#include "UtilTestFixture.h"
 
+class DirectoryFunctionalityTest : public UtilTestBase {
+};
+
+#if 0
 #pragma GCC diagnostic ignored "-Wwrite-strings"
+#endif
 
 #define TEMP_TEST_DIRECTORY_PATH "temp"
 
@@ -16,6 +20,7 @@ STATUS printDirInfo(UINT64 callerData, DIR_ENTRY_TYPES entryType, PCHAR path, PC
             STRCPY(typeName, "Directory");
 
             if (0 != STRNCMP(name, "tmp_dir_", 8)) {
+                DLOGE("Unexpected dir name %s", name);
                 return STATUS_INVALID_OPERATION;
             }
 
@@ -24,6 +29,7 @@ STATUS printDirInfo(UINT64 callerData, DIR_ENTRY_TYPES entryType, PCHAR path, PC
             STRCPY(typeName, "File");
 
             if (0 != STRNCMP(name, "file_", 5)) {
+                DLOGE("Unexpected file name %s", name);
                 return STATUS_INVALID_OPERATION;
             }
 
@@ -38,7 +44,7 @@ STATUS printDirInfo(UINT64 callerData, DIR_ENTRY_TYPES entryType, PCHAR path, PC
             STRCPY(typeName, "Other");
     }
 
-    printf("Caller data %p, Type %s, \t Path %s \t Name %s\n", (PUINT64) callerData, typeName, path, name);
+    DLOGV("Caller data %p, Type %s, \t Path %s \t Name %s\n", (PUINT64) callerData, typeName, path, name);
 
     PUINT64 pCount = (PUINT64) callerData;
     (*pCount)++;
@@ -56,16 +62,16 @@ STATUS createSubDirStruct(PCHAR dirPath, UINT32 depth, UINT32 numberOfFiles, UIN
         return STATUS_SUCCESS;
     }
 
-    UINT32 strLen = STRLEN(dirPath);
+    UINT32 strLen = (UINT32)STRLEN(dirPath);
 
     // Create the files first
     for (UINT32 i = 0; i < numberOfFiles; i++) {
         // Create the file path
-        sprintf(temp, "/file_%03d.tmp", i);
+        SPRINTF(temp, FPATHSEPARATOR_STR "file_%03d.tmp", i);
         STRCAT(dirPath, temp);
 
         // Create/write the file
-        STATUS status = writeFile(dirPath, FALSE, (PBYTE) temp, 100);
+        STATUS status = writeFile(dirPath, TRUE, (PBYTE) temp, 100);
         if (status != STATUS_SUCCESS) {
             return status;
         }
@@ -77,11 +83,11 @@ STATUS createSubDirStruct(PCHAR dirPath, UINT32 depth, UINT32 numberOfFiles, UIN
     // Create the directories and iterate
     for (UINT32 i = 0; i < numberOfDirectories; i++) {
         // Create the file path
-        sprintf(temp, "/tmp_dir_%03d", i);
+        SPRINTF(temp, FPATHSEPARATOR_STR "tmp_dir_%03d", i);
         STRCAT(dirPath, temp);
 
         // Create the dir
-        if (0 != FMKDIR(dirPath, 0777)) {
+        if (0 != FMKDIR(dirPath, 0777) && errno != EEXIST) {
             return STATUS_INVALID_OPERATION;
         }
 
@@ -103,9 +109,13 @@ STATUS createDirStruct()
     CHAR tempStr[MAX_PATH_LEN];
 
     // Remove the existing
-    removeDirectory(TEMP_TEST_DIRECTORY_PATH);
+    removeDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH);
 
+#if defined __WINDOWS_BUILD__
+    system("del /q /s " TEMP_TEST_DIRECTORY_PATH);
+#else
     system("rm -rf " TEMP_TEST_DIRECTORY_PATH);
+#endif
 
     // Start creating
     FMKDIR(TEMP_TEST_DIRECTORY_PATH, 0777);
@@ -115,7 +125,7 @@ STATUS createDirStruct()
     return createSubDirStruct(tempStr, 3, 3, 3);
 }
 
-TEST(NegativeInvalidInput, DirectoryTraverseRemoveGetSize)
+TEST_F(DirectoryFunctionalityTest, NegativeInvalidInput_DirectoryTraverseRemoveGetSize)
 {
     CHAR tempBuf[10];
     tempBuf[0] = '\0';
@@ -138,7 +148,7 @@ TEST(NegativeInvalidInput, DirectoryTraverseRemoveGetSize)
     EXPECT_NE(STATUS_SUCCESS, getDirectorySize(tempBuf, NULL));
 }
 
-TEST(FunctionalTest, CreateTraverseRemoveDirs)
+TEST_F(DirectoryFunctionalityTest, CreateTraverseRemoveDirs)
 {
     UINT64 count;
     EXPECT_EQ(STATUS_SUCCESS, createDirStruct());
@@ -157,17 +167,17 @@ TEST(FunctionalTest, CreateTraverseRemoveDirs)
     EXPECT_EQ(STATUS_SUCCESS, createDirStruct());
 
     count = 0;
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH "/", (UINT64) &count, TRUE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR, (UINT64) &count, TRUE, printDirInfo));
     EXPECT_EQ((3 + 3 + 3 * (3 + 3  + 3 * (3 + 3))), count);
 
     count = 0;
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH "/", (UINT64) &count, FALSE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR, (UINT64) &count, FALSE, printDirInfo));
     EXPECT_EQ(3 + 3, count);
 
-    EXPECT_EQ(STATUS_SUCCESS, removeDirectory(TEMP_TEST_DIRECTORY_PATH "/"));
+    EXPECT_EQ(STATUS_SUCCESS, removeDirectory(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR));
 }
 
-TEST(FunctionalTest, CreateTraverseGetDirSize)
+TEST_F(DirectoryFunctionalityTest, CreateTraverseGetDirSize)
 {
     UINT64 size;
     EXPECT_EQ(STATUS_SUCCESS, createDirStruct());
@@ -177,8 +187,8 @@ TEST(FunctionalTest, CreateTraverseGetDirSize)
 
     // Perform the same with the ending separator
     EXPECT_EQ(STATUS_SUCCESS, createDirStruct());
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH "/", (UINT64) &size, TRUE, printDirInfo));
-    EXPECT_EQ(STATUS_SUCCESS, getDirectorySize(TEMP_TEST_DIRECTORY_PATH "/", &size));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR, (UINT64) &size, TRUE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, getDirectorySize(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR, &size));
     EXPECT_EQ((((100 * 3) * 3 + 3 * 100) * 3) + 3 * 100, size);
 
     // Remove the directories

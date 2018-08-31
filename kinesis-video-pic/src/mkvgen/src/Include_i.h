@@ -141,6 +141,43 @@ extern UINT32 gMkvSimpleBlockBitsSize;
 // gMkvSimpleBlockBits simple block flags offset for fixing up
 #define MKV_SIMPLE_BLOCK_FLAGS_OFFSET 12
 
+extern BYTE gMkvTagsBits[];
+extern UINT32 gMkvTagsBitsSize;
+#define MKV_TAGS_BITS gMkvTagsBits
+#define MKV_TAGS_BITS_SIZE gMkvTagsBitsSize
+
+extern BYTE gMkvTagNameBits[];
+extern UINT32 gMkvTagNameBitsSize;
+#define MKV_TAG_NAME_BITS gMkvTagNameBits
+#define MKV_TAG_NAME_BITS_SIZE gMkvTagNameBitsSize
+
+extern BYTE gMkvTagStringBits[];
+extern UINT32 gMkvTagStringBitsSize;
+#define MKV_TAG_STRING_BITS gMkvTagStringBits
+#define MKV_TAG_STRING_BITS_SIZE gMkvTagStringBitsSize
+
+// gMkvTagsBits tags element size offset for fixing up
+#define MKV_TAGS_ELEMENT_SIZE_OFFSET 4
+
+// gMkvTagsBits tag element offset for fixing up
+#define MKV_TAG_ELEMENT_OFFSET 12
+
+// gMkvTagsBits tag element size offset for fixing up
+#define MKV_TAG_ELEMENT_SIZE_OFFSET 14
+
+// gMkvTagsBits simple tag element offset for fixing up
+#define MKV_SIMPLE_TAG_ELEMENT_OFFSET 22
+
+// gMkvTagsBits simple tag element size offset for fixing up
+#define MKV_SIMPLE_TAG_ELEMENT_SIZE_OFFSET 24
+
+// gMkvTagNameBits simple tag name element size offset for fixing up
+#define MKV_TAG_NAME_ELEMENT_SIZE_OFFSET 2
+
+// gMkvTagStringBits simple tag string element size offset for fixing up
+#define MKV_TAG_STRING_ELEMENT_SIZE_OFFSET 2
+
+
 /**
  * MKV simple block flags
  */
@@ -160,13 +197,29 @@ extern UINT32 gMkvSimpleBlockBitsSize;
 #define MKV_CLUSTER_OVERHEAD     (MKV_CLUSTER_INFO_BITS_SIZE + MKV_SIMPLE_BLOCK_OVERHEAD)
 
 /**
+ * MKV EBML and Segment header size in bytes
+ */
+#define MKV_EBML_SEGMENT_SIZE               (MKV_HEADER_BITS_SIZE + MKV_SEGMENT_HEADER_BITS_SIZE)
+
+/**
+ * MKV Segment and Track info
+ */
+#define MKV_SEGMENT_TRACK_INFO_SIZE         (MKV_SEGMENT_INFO_BITS_SIZE + MKV_TRACK_INFO_BITS_SIZE)
+
+/**
  * MKV header size in bytes
  */
-#define MKV_HEADER_SIZE         (MKV_HEADER_BITS_SIZE + MKV_SEGMENT_HEADER_BITS_SIZE + MKV_SEGMENT_INFO_BITS_SIZE + MKV_TRACK_INFO_BITS_SIZE)
+#define MKV_HEADER_SIZE                     (MKV_EBML_SEGMENT_SIZE + MKV_SEGMENT_TRACK_INFO_SIZE)
+
 /**
  * MKV header overhead in bytes
  */
-#define MKV_HEADER_OVERHEAD     (MKV_HEADER_SIZE + MKV_CLUSTER_OVERHEAD)
+#define MKV_HEADER_OVERHEAD                 (MKV_HEADER_SIZE + MKV_CLUSTER_OVERHEAD)
+
+/**
+ * MKV Segment and Track info overhead in bytes
+ */
+#define MKV_SEGMENT_TRACK_INFO_OVERHEAD                 (MKV_SEGMENT_TRACK_INFO_SIZE + MKV_CLUSTER_OVERHEAD)
 
 /**
  * To and from MKV timestamp conversion factoring in the timecode
@@ -179,6 +232,17 @@ extern UINT32 gMkvSimpleBlockBitsSize;
  */
 #include "NalAdapter.h"
 #include "SpsParser.h"
+
+/**
+ * MKV stream states enum
+ */
+typedef enum {
+    MKV_GENERATOR_STATE_START,
+    MKV_GENERATOR_STATE_SEGMENT_HEADER,
+    MKV_GENERATOR_STATE_CLUSTER_INFO,
+    MKV_GENERATOR_STATE_SIMPLE_BLOCK,
+    MKV_GENERATOR_STATE_TAGS,
+} MKV_GENERATOR_STATE, *PMKV_GENERATOR_STATE;
 
 /**
  * MkvGenerator internal structure
@@ -217,14 +281,17 @@ typedef struct {
     // Custom data to be passed to the callback
     UINT64 customData;
 
-    // Whether the stream has started
-    BOOL streamStarted;
+    // Generator internal state
+    MKV_GENERATOR_STATE generatorState;
 
     // The latest cluster start timestamp
     UINT64 lastClusterTimestamp;
 
     // The timestamp of the beginning of the stream
     UINT64 streamStartTimestamp;
+
+    // Whether we have stored the timestamp for clusters in case of relative cluster timestamps
+    BOOL streamStartTimestampStored;
 
     // NALUs adaptation
     MKV_NALS_ADAPTATION nalsAdaptation;

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <ctime>
 #include <cstdio>
 
 namespace {
@@ -124,11 +125,13 @@ void AwsV4Signer::generateHMAC(const byte_vector &key, const std::string &messag
     unsigned int hmacLength = 0;
 
     const EVP_MD *evp = EVP_sha256();
-    ::HMAC(evp, &key[0], key.size(),
-           reinterpret_cast<const unsigned char *>(message.c_str()),
-           message.size(),
-           hmac,
-           &hmacLength);
+    ::HMAC(evp, 
+        &key[0],
+        (INT32)key.size(),
+        reinterpret_cast<const unsigned char *>(message.c_str()),
+        message.size(),
+        hmac,
+        &hmacLength);
     out.assign(hmac, hmac + hmacLength);
 }
 

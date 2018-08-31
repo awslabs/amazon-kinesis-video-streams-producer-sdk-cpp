@@ -597,7 +597,7 @@ CleanUp:
 /**
  * Gets the view's window item count and entire window item count (optionally)
  */
-STATUS contentViewGetWindowItemCount(PContentView pContentView, PUINT32 pCurrentItemCount, PUINT32 pWindowItemCount)
+STATUS contentViewGetWindowItemCount(PContentView pContentView, PUINT64 pCurrentItemCount, PUINT64 pWindowItemCount)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -697,7 +697,7 @@ CleanUp:
 PViewItem findViewItemWithTimestamp(PRollingContentView pView, PViewItem pOldest, PViewItem pNewest, UINT64 timestamp)
 {
     PViewItem pCurItem = pOldest;
-    UINT32 curIndex = 0, oldestIndex = pOldest->index, newestIndex = pNewest->index;
+    UINT64 curIndex = 0, oldestIndex = pOldest->index, newestIndex = pNewest->index;
 
     // We have to deal with indexes as the view can be sparse
     while (oldestIndex <= newestIndex) {

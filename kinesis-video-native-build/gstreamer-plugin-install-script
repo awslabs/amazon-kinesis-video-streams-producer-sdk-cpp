@@ -8,7 +8,9 @@ set -e
 
 # --------- create required directories ---------------------------------------
 
-KINESIS_VIDEO_ROOT=`pwd`
+if [ -z $KINESIS_VIDEO_ROOT ]; then
+  KINESIS_VIDEO_ROOT=`pwd`
+fi
 
 if [[ "$KINESIS_VIDEO_ROOT" == *\ * ]]; then
     echo "Current working path cannot have space in it !"
@@ -56,11 +58,10 @@ fi
 # --- Setting environment variables for cmake ---------------------------------
 export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
 export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
+export PKG_CONFIG_LIBDIR="$DOWNLOADS/local/lib/pkgconfig"
 
 # gstreamer-plugin-install-script will be run from
 # kinesis-video-native-build folder 
-export KINESIS_VIDEO_STREAMS_PRODUCER_SDK_SOURCE_DIR=../
-cd ../kinesis-video-gstreamer-plugin
 cmake CMakeLists.txt
 make gstkvssink
 make kvs_producer_plugin_demo

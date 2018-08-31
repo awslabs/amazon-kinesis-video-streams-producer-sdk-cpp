@@ -1,22 +1,25 @@
-#include "gtest/gtest.h"
-#include <com/amazonaws/kinesis/video/utils/Include.h>
+#include "UtilTestFixture.h"
 
-TEST(NegativeInvalidInput, StackQueueCreate)
+class StackQueueFunctionalityTest : public UtilTestBase {
+};
+
+
+TEST_F(StackQueueFunctionalityTest, NegativeInvalidInput_StackQueueCreate)
 {
     EXPECT_NE(STATUS_SUCCESS, stackQueueCreate(NULL));
 }
 
-TEST(PositiveIdempotentInvalidInput, StackQueueFree)
+TEST_F(StackQueueFunctionalityTest, PositiveIdempotentInvalidInput_StackQueueFree)
 {
     EXPECT_EQ(STATUS_SUCCESS, stackQueueFree(NULL));
 }
 
-TEST(NegativeInvalidInput, StackQueueClear)
+TEST_F(StackQueueFunctionalityTest, NegativeInvalidInput_StackQueueClear)
 {
     EXPECT_NE(STATUS_SUCCESS, stackQueueClear(NULL));
 }
 
-TEST(NegativeInvalidInput, StackQueueGetCount)
+TEST_F(StackQueueFunctionalityTest, NegativeInvalidInput_StackQueueGetCount)
 {
     PStackQueue pStackQueue = (PStackQueue) 1;
     UINT32 count;
@@ -25,7 +28,7 @@ TEST(NegativeInvalidInput, StackQueueGetCount)
     EXPECT_NE(STATUS_SUCCESS, stackQueueGetCount(pStackQueue, NULL));
 }
 
-TEST(NegativeInvalidInput, StackQueueIsEmpty)
+TEST_F(StackQueueFunctionalityTest, NegativeInvalidInput_StackQueueIsEmpty)
 {
     PStackQueue pStackQueue = (PStackQueue) 1;
     BOOL isEmpty;
@@ -34,13 +37,13 @@ TEST(NegativeInvalidInput, StackQueueIsEmpty)
     EXPECT_NE(STATUS_SUCCESS, stackQueueIsEmpty(pStackQueue, NULL));
 }
 
-TEST(NegativeInvalidInput, StackQueuePushEnqueue)
+TEST_F(StackQueueFunctionalityTest, NegativeInvalidInput_StackQueuePushEnqueue)
 {
     EXPECT_NE(STATUS_SUCCESS, stackQueuePush(NULL, 0));
     EXPECT_NE(STATUS_SUCCESS, stackQueueEnqueue(NULL, 0));
 }
 
-TEST(NegativeInvalidInput, StackQueuePopPeekDequeue)
+TEST_F(StackQueueFunctionalityTest, NegativeInvalidInput_StackQueuePopPeekDequeue)
 {
     PStackQueue pStackQueue;
     UINT64 item;
@@ -55,9 +58,11 @@ TEST(NegativeInvalidInput, StackQueuePopPeekDequeue)
 
     EXPECT_NE(STATUS_SUCCESS, stackQueueDequeue(NULL, &item));
     EXPECT_NE(STATUS_SUCCESS, stackQueueDequeue(pStackQueue, NULL));
+
+    EXPECT_EQ(STATUS_SUCCESS, stackQueueFree(pStackQueue));
 }
 
-TEST(FunctionalTest, StackQueueBasicOperations)
+TEST_F(StackQueueFunctionalityTest, StackQueueBasicOperations)
 {
     PStackQueue pStackQueue;
     UINT64 count = 100;
@@ -146,7 +151,7 @@ TEST(FunctionalTest, StackQueueBasicOperations)
     EXPECT_EQ(STATUS_SUCCESS, stackQueueFree(pStackQueue));
 }
 
-TEST(FunctionalTest, StackQueuePutGetRemoveOperations)
+TEST_F(StackQueueFunctionalityTest, StackQueuePutGetRemoveOperations)
 {
     PStackQueue pStackQueue;
     UINT64 count = 100;
@@ -180,7 +185,7 @@ TEST(FunctionalTest, StackQueuePutGetRemoveOperations)
 
     // Get at
     for (UINT64 i = 0; i < count; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, stackQueueGetAt(pStackQueue, i, &data));
+        EXPECT_EQ(STATUS_SUCCESS, stackQueueGetAt(pStackQueue, (UINT32)i, &data));
         EXPECT_EQ(count - i - 1, data);
         EXPECT_EQ(STATUS_SUCCESS, stackQueueGetIndexOf(pStackQueue, data, &index));
         EXPECT_EQ(i, index);
@@ -189,7 +194,7 @@ TEST(FunctionalTest, StackQueuePutGetRemoveOperations)
     // Remove at from the middle
     for (UINT64 i = 0; i < count / 2; i++) {
         // Peek first
-        EXPECT_EQ(STATUS_SUCCESS, stackQueueRemoveAt(pStackQueue, count / 2));
+        EXPECT_EQ(STATUS_SUCCESS, stackQueueRemoveAt(pStackQueue, (UINT32)(count / 2)));
     }
 
     // Validate the count
@@ -200,7 +205,7 @@ TEST(FunctionalTest, StackQueuePutGetRemoveOperations)
 
     // Validate the half
     for (UINT64 i = 0; i < count / 2; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, stackQueueGetAt(pStackQueue, i, &data));
+        EXPECT_EQ(STATUS_SUCCESS, stackQueueGetAt(pStackQueue, (UINT32)i, &data));
         EXPECT_EQ(count - i - 1, data);
     }
 
@@ -220,7 +225,7 @@ TEST(FunctionalTest, StackQueuePutGetRemoveOperations)
     EXPECT_EQ(STATUS_SUCCESS, stackQueueFree(pStackQueue));
 }
 
-TEST(FunctionalTest, StackQueuePutGetSetOperations)
+TEST_F(StackQueueFunctionalityTest, StackQueuePutGetSetOperations)
 {
     PStackQueue pStackQueue;
     UINT64 count = 100;
@@ -254,7 +259,7 @@ TEST(FunctionalTest, StackQueuePutGetSetOperations)
 
     // Get at
     for (UINT64 i = 0; i < count; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, stackQueueGetAt(pStackQueue, i, &data));
+        EXPECT_EQ(STATUS_SUCCESS, stackQueueGetAt(pStackQueue, (UINT32)i, &data));
         EXPECT_EQ(count - i - 1, data);
         EXPECT_EQ(STATUS_SUCCESS, stackQueueGetIndexOf(pStackQueue, data, &index));
         EXPECT_EQ(i, index);
@@ -262,12 +267,12 @@ TEST(FunctionalTest, StackQueuePutGetSetOperations)
 
     // Set at
     for (UINT64 i = 0; i < count; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, stackQueueSetAt(pStackQueue, i, 1000 + i));
+        EXPECT_EQ(STATUS_SUCCESS, stackQueueSetAt(pStackQueue, (UINT32)i, 1000 + i));
     }
 
     // Get at - verify
     for (UINT64 i = 0; i < count; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, stackQueueGetAt(pStackQueue, i, &data));
+        EXPECT_EQ(STATUS_SUCCESS, stackQueueGetAt(pStackQueue, (UINT32)i, &data));
         EXPECT_EQ(i + 1000, data);
         EXPECT_EQ(STATUS_SUCCESS, stackQueueGetIndexOf(pStackQueue, data, &index));
         EXPECT_EQ(i, index);
@@ -277,12 +282,11 @@ TEST(FunctionalTest, StackQueuePutGetSetOperations)
     EXPECT_EQ(STATUS_SUCCESS, stackQueueFree(pStackQueue));
 }
 
-TEST(FunctionalTest, StackQueuePutRemoveOperations)
+TEST_F(StackQueueFunctionalityTest, StackQueuePutRemoveOperations)
 {
     PStackQueue pStackQueue;
     UINT64 count = 100;
-    UINT64 data;
-    UINT32 retCount, index;
+    UINT32 retCount;
     BOOL isEmpty;
 
     // Create the list
@@ -322,7 +326,7 @@ TEST(FunctionalTest, StackQueuePutRemoveOperations)
     EXPECT_EQ(STATUS_SUCCESS, stackQueueFree(pStackQueue));
 }
 
-TEST(FunctionalTest, StackQueueIteratorOperations)
+TEST_F(StackQueueFunctionalityTest, StackQueueIteratorOperations)
 {
     PStackQueue pStackQueue;
     UINT64 count = 100, i = 0;

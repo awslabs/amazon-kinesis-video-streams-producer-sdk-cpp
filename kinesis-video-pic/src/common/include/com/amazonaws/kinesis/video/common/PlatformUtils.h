@@ -32,6 +32,8 @@ INLINE VOID defaultLogPrintFn(UINT32 level, PCHAR tag, PCHAR fmt, ...)
     va_end(valist);
 }
 
+extern logPrintFunc globalCustomLogPrintFn;
+
 #ifdef ANDROID_BUILD
 // Compiling with NDK
 #include <android/log.h>
@@ -43,8 +45,8 @@ INLINE VOID defaultLogPrintFn(UINT32 level, PCHAR tag, PCHAR fmt, ...)
 #include <stdlib.h>
 #include <assert.h>
 #define __ASSERT(p1, p2, p3, ...)  assert(p1)
-extern logPrintFunc globalCustomLogPrintFn;
 #define __LOG globalCustomLogPrintFn
+#endif // ANDROID_BUILD
 
 #define LOG_LEVEL_VERBOSE           1
 #define LOG_LEVEL_DEBUG             2
@@ -53,7 +55,6 @@ extern logPrintFunc globalCustomLogPrintFn;
 #define LOG_LEVEL_ERROR             5
 #define LOG_LEVEL_FATAL             6
 #define LOG_LEVEL_SILENT            7
-#endif // ANDROID_BUILD
 
 // Extra logging macros
 #ifndef DLOGE
@@ -95,7 +96,7 @@ extern logPrintFunc globalCustomLogPrintFn;
 #ifdef __GNUC__
 #define CONDITION(cond)     (__builtin_expect((cond) != 0, 0))
 #else
-#define CONDITION(cond)     (((cond) !=0 ) == 0)
+#define CONDITION(cond)     ((cond) == TRUE)
 #endif
 #endif
 #ifndef LOG_ALWAYS_FATAL_IF

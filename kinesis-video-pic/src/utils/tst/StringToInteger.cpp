@@ -1,7 +1,9 @@
-#include "gtest/gtest.h"
-#include <com/amazonaws/kinesis/video/utils/Include.h>
+#include "UtilTestFixture.h"
 
-TEST(NegativeInvalidInput, NullStrInput) {
+class StoIFunctionalityTest : public UtilTestBase {
+};
+
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_NullStrInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -12,7 +14,7 @@ TEST(NegativeInvalidInput, NullStrInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(NULL, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, NullRetInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_NullRetInput) {
     CHAR str[] = "123";
     EXPECT_NE(STATUS_SUCCESS, STRTOI64(str, NULL, 10, NULL));
     EXPECT_NE(STATUS_SUCCESS, STRTOUI64(str, NULL, 10, NULL));
@@ -20,7 +22,7 @@ TEST(NegativeInvalidInput, NullRetInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 10, NULL));
 }
 
-TEST(NegativeInvalidInput, EmptyStrInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_EmptyStrInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -32,7 +34,7 @@ TEST(NegativeInvalidInput, EmptyStrInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, WhitespaceStrInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_WhitespaceStrInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -44,7 +46,7 @@ TEST(NegativeInvalidInput, WhitespaceStrInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, WhitespaceStrAfterInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_WhitespaceStrAfterInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -56,7 +58,7 @@ TEST(NegativeInvalidInput, WhitespaceStrAfterInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, PlusSignOnlyStrInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_PlusSignOnlyStrInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -68,7 +70,7 @@ TEST(NegativeInvalidInput, PlusSignOnlyStrInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, MultiplePlusSignsStrInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_MultiplePlusSignsStrInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -80,7 +82,7 @@ TEST(NegativeInvalidInput, MultiplePlusSignsStrInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, MinusSignOnlyStrInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_MinusSignOnlyStrInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -92,7 +94,7 @@ TEST(NegativeInvalidInput, MinusSignOnlyStrInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, MultipleMinusSignsStrInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_MultipleMinusSignsStrInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -104,7 +106,7 @@ TEST(NegativeInvalidInput, MultipleMinusSignsStrInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, MinusInputWithUnsignedInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_MinusInputWithUnsignedInput) {
     UINT64 ui64;
     UINT32 ui32;
     CHAR str[] = "-123";
@@ -115,7 +117,7 @@ TEST(NegativeInvalidInput, MinusInputWithUnsignedInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(strZero, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, SignInStringInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_SignInStringInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -132,7 +134,7 @@ TEST(NegativeInvalidInput, SignInStringInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(strMinus, NULL, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, SameEndInputInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_SameEndInputInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -144,7 +146,7 @@ TEST(NegativeInvalidInput, SameEndInputInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, str, 10, &ui32));
 }
 
-TEST(NegativeInvalidInput, InvalidSmallBaseInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_InvalidSmallBaseInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -160,7 +162,7 @@ TEST(NegativeInvalidInput, InvalidSmallBaseInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 1, &ui32));
 }
 
-TEST(NegativeInvalidInput, InvalidBigBaseInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_InvalidBigBaseInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -172,7 +174,7 @@ TEST(NegativeInvalidInput, InvalidBigBaseInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str, NULL, 37, &ui32));
 }
 
-TEST(NegativeInvalidInput, InvalidDigitBaseInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_InvalidDigitBaseInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -189,7 +191,7 @@ TEST(NegativeInvalidInput, InvalidDigitBaseInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOUI32(str2, NULL, 2, &ui32));
 }
 
-TEST(NegativeInvalidInput, OverflowUnderflowInput) {
+TEST_F(StoIFunctionalityTest, NegativeInvalidInput_OverflowUnderflowInput) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -218,7 +220,7 @@ TEST(NegativeInvalidInput, OverflowUnderflowInput) {
     EXPECT_NE(STATUS_SUCCESS, STRTOI64(s7, NULL, 16, &i64));
 }
 
-TEST(ValidInput, PreceedingZeros) {
+TEST_F(StoIFunctionalityTest, PreceedingZeros) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -235,7 +237,7 @@ TEST(ValidInput, PreceedingZeros) {
     EXPECT_EQ(0, ui32);
 }
 
-TEST(ValidInput, UpperLowerCase) {
+TEST_F(StoIFunctionalityTest, UpperLowerCase) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -252,7 +254,7 @@ TEST(ValidInput, UpperLowerCase) {
     EXPECT_EQ(0xabcdef, ui32);
 }
 
-TEST(ValidInput, EndPointerBeforeStringEnd) {
+TEST_F(StoIFunctionalityTest, EndPointerBeforeStringEnd) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -269,7 +271,7 @@ TEST(ValidInput, EndPointerBeforeStringEnd) {
     EXPECT_EQ(1000000000, ui32);
 }
 
-TEST(ValidInput, EndOfStringBeforeEndPointer) {
+TEST_F(StoIFunctionalityTest, EndOfStringBeforeEndPointer) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -286,7 +288,7 @@ TEST(ValidInput, EndOfStringBeforeEndPointer) {
     EXPECT_EQ(1000000000, ui32);
 }
 
-TEST(ValidInput, PreceedingZerosWithSign) {
+TEST_F(StoIFunctionalityTest, PreceedingZerosWithSign) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -312,7 +314,7 @@ TEST(ValidInput, PreceedingZerosWithSign) {
     EXPECT_EQ(0, ui32);
 }
 
-TEST(ValidInput, CheckLimits) {
+TEST_F(StoIFunctionalityTest, CheckLimits) {
     UINT64 ui64;
     INT64 i64;
     UINT32 ui32;
@@ -329,7 +331,7 @@ TEST(ValidInput, CheckLimits) {
     EXPECT_EQ(STATUS_SUCCESS, STRTOI32(s2, NULL, 16, &i32));
     EXPECT_EQ(2147483647L, i32);
     EXPECT_EQ(STATUS_SUCCESS, STRTOI32(s3, NULL, 16, &i32));
-    EXPECT_EQ(-2147483648L, i32);
+    EXPECT_EQ(-2147483648LL, i32);
 
     EXPECT_EQ(STATUS_SUCCESS, STRTOUI64(s4, NULL, 16, &ui64));
     EXPECT_EQ(0xffffffffffffffffULL, ui64);

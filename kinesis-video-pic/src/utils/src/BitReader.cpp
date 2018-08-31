@@ -121,7 +121,7 @@ STATUS bitReaderReadExpGolombSe(PBitReader pBitReader, PINT32 pRead)
         retVal = (exGolomb + 1) / 2;
     }
     else {
-        retVal = -(exGolomb / 2);
+        retVal = -((INT64) (exGolomb / 2));
     }
 
     *pRead = retVal;

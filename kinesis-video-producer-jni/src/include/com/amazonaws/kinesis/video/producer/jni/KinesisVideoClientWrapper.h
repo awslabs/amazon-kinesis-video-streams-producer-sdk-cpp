@@ -14,7 +14,6 @@
 #include <jni.h>                  // Basic native API
 
 #define HAVE_PTHREADS 1           // Makes threads.h use pthreads
-#include <pthread.h>
 
 #include "SyncMutex.h"
 #include "TimedSemaphore.h"
@@ -59,7 +58,6 @@
 
 class KinesisVideoClientWrapper
 {
-    static const UINT32 END_OF_STREAM_INDICATOR = 0x80000000L;
     CLIENT_HANDLE mClientHandle;
     JavaVM *mJvm;
     jobject mGlobalJniObjRef;
@@ -120,7 +118,7 @@ class KinesisVideoClientWrapper
     static MUTEX createMutexFunc(UINT64, BOOL);
     static VOID lockMutexFunc(UINT64, MUTEX);
     static VOID unlockMutexFunc(UINT64, MUTEX);
-    static VOID tryLockMutexFunc(UINT64, MUTEX);
+    static BOOL tryLockMutexFunc(UINT64, MUTEX);
     static VOID freeMutexFunc(UINT64, MUTEX);
     static STATUS createStreamFunc(UINT64,
                                    PCHAR,
@@ -179,7 +177,9 @@ public:
     void getKinesisVideoMetrics(jobject kinesisVideoMetrics);
     void getKinesisVideoStreamMetrics(jlong streamHandle, jobject kinesisVideoStreamMetrics);
     void stopKinesisVideoStream(jlong streamHandle);
+    void freeKinesisVideoStream(jlong streamHandle);
     void putKinesisVideoFrame(jlong streamHandle, jobject kinesisVideoFrame);
+    void putKinesisVideoFragmentMetadata(jlong streamHandle, jstring metadataName, jstring metadataValue, jboolean persistent);
     void describeStreamResult(jlong streamHandle, jint httpStatusCode, jobject streamDescription);
     void kinesisVideoStreamTerminated(jlong streamHandle, jlong uploadHandle, jint httpStatusCode);
     void getStreamingEndpointResult(jlong streamHandle, jint httpStatusCode, jstring streamingEndpoint);

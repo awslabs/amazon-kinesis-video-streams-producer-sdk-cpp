@@ -237,7 +237,7 @@ STATUS getKinesisVideoMetrics(CLIENT_HANDLE clientHandle, PClientMetrics pKinesi
         if (NULL != pKinesisVideoClient->streams[i]) {
             CHK_STATUS(contentViewGetAllocationSize(pKinesisVideoClient->streams[i]->pView, &viewAllocationSize));
             pKinesisVideoMetrics->totalContentViewsSize += viewAllocationSize;
-            pKinesisVideoMetrics->totalFrameRate += pKinesisVideoClient->streams[i]->diagnostics.currentFrameRate;
+            pKinesisVideoMetrics->totalFrameRate += (UINT64)pKinesisVideoClient->streams[i]->diagnostics.currentFrameRate;
             pKinesisVideoMetrics->totalTransferRate += pKinesisVideoClient->streams[i]->diagnostics.currentTransferRate;
         }
     }
@@ -387,7 +387,26 @@ CleanUp:
 
     LEAVES();
     return retStatus;
+}
 
+/**
+ * Puts a metadata (key/value pair) into the Kinesis Video stream.
+ */
+STATUS putKinesisVideoFragmentMetadata(STREAM_HANDLE streamHandle, PCHAR name, PCHAR value, BOOL persistent)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
+
+    DLOGS("Put metadata into an Kinesis Video stream.");
+
+    CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
+
+    CHK_STATUS(putFragmentMetadata(pKinesisVideoStream, name, value, persistent));
+
+CleanUp:
+
+    LEAVES();
+    return retStatus;
 }
 
 /**
@@ -594,7 +613,7 @@ STATUS tagResourceResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult)
 
     DLOGI("Tag resource result event.");
 
-    CHK(customData != INVALID_HANDLE_VALUE, STATUS_NULL_ARG);
+    CHK(IS_VALID_HANDLE((HANDLE)customData), STATUS_NULL_ARG);
 
     objectIdentifier = KINESIS_VIDEO_OBJECT_IDENTIFIER_FROM_CUSTOM_DATA(customData);
 
@@ -710,6 +729,16 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
             // Remove the handle info from the queue
             deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
 
+            // If the upload session info is still in awaiting state then we need to trigger an error
+            if (pUploadHandleInfo->state == UPLOAD_HANDLE_STATE_AWAITING_ACK &&
+                    NULL != pKinesisVideoClient->clientCallbacks.streamErrorReportFn) {
+                pKinesisVideoClient->clientCallbacks.streamErrorReportFn(
+                        pKinesisVideoClient->clientCallbacks.customData,
+                        TO_STREAM_HANDLE(pKinesisVideoStream),
+                        pUploadHandleInfo->timestamp,
+                        STATUS_PERSISTED_ACK_TIMEOUT);
+            }
+
             // Rotate the index
             pKinesisVideoStream->curSessionIndex = pViewItem->index;
         }
@@ -757,19 +786,22 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
 
 CleanUp:
 
-    // Lock the client
-    pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
+    if (pKinesisVideoClient != NULL)
+    {
+        // Lock the client
+        pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
 
-    // Remove the item from the storage
-    heapFree(pKinesisVideoClient->pHeap, pViewItem->handle);
-    pViewItem->handle = INVALID_ALLOCATION_HANDLE_VALUE;
+        // Remove the item from the storage
+        heapFree(pKinesisVideoClient->pHeap, pViewItem->handle);
+        pViewItem->handle = INVALID_ALLOCATION_HANDLE_VALUE;
 
-    // Unlock the client
-    pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
+        // Unlock the client
+        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
 
-    if (streamLocked) {
-        // Unlock the stream lock
-        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
+        if (streamLocked) {
+            // Unlock the stream lock
+            pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
+        }
     }
 
     UNUSED_PARAM(retStatus);
@@ -801,5 +833,5 @@ VOID createRandomName(PCHAR pName, UINT32 maxChars, GetRandomNumberFunc randFn, 
     }
 
     // Null terminate the string - we should still have plenty of buffer space
-    pName[maxChars] = '\0';
+    pName[maxChars] = '\0';    
 }

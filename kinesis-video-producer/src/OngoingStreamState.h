@@ -10,6 +10,7 @@
 #include <curl/curl.h>
 #include <string>
 #include <mutex>
+#include <fstream>
 
 #include "Logger.h"
 #include "com/amazonaws/kinesis/video/client/Include.h"
@@ -30,12 +31,8 @@ public:
     OngoingStreamState(CallbackProvider* callback_provider,
                        UPLOAD_HANDLE upload_handle,
                        STREAM_HANDLE stream_handle,
-                       std::string stream_name)
-            : stream_handle_(stream_handle), duration_available_(0),
-              bytes_available_(0), stream_name_(stream_name),
-              end_of_stream_(false), shutdown_(false),
-              upload_handle_(upload_handle),
-              callback_provider_(callback_provider) {}
+                       std::string stream_name,
+                       bool debug_dump_file = false);
 
     ~OngoingStreamState() = default;
 
@@ -255,6 +252,21 @@ private:
      * Ongoing CURL response object
      */
     std::shared_ptr<Response> curl_response_;
+
+    /**
+     * Debug output to a file
+     */
+    std::ofstream debug_dump_file_stream_;
+
+    /**
+     * Whether the debug dump file is opened and needs to be closed.
+     */
+    bool debug_dump_file_;
+
+    /**
+     * Indicator to wait for the persisted ack
+     */
+    bool awaiting_persisted_ack_;
 };
 
 } // namespace video

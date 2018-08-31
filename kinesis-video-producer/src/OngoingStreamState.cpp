@@ -6,7 +6,27 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
+using namespace std;
 using std::string;
+
+OngoingStreamState::OngoingStreamState(CallbackProvider* callback_provider,
+                                       UPLOAD_HANDLE upload_handle,
+                                       STREAM_HANDLE stream_handle,
+                                       std::string stream_name,
+                                       bool debug_dump_file)
+        : stream_handle_(stream_handle), duration_available_(0),
+          bytes_available_(0), stream_name_(stream_name),
+          end_of_stream_(false), shutdown_(false),
+          upload_handle_(upload_handle),
+          debug_dump_file_(debug_dump_file),
+          awaiting_persisted_ack_(false),
+          callback_provider_(callback_provider) {
+    if (debug_dump_file) {
+        std::ostringstream dump_file_name;
+        dump_file_name << stream_name << "_" << upload_handle << ".mkv";
+        debug_dump_file_stream_.open(dump_file_name.str(), ios::out | ios::trunc | ios::binary);
+    }
+}
 
 void OngoingStreamState::noteDataAvailable(UINT64 duration_available, UINT64 size_available) {
     LOG_TRACE("Note data received: duration(100ns): "
@@ -38,7 +58,7 @@ size_t OngoingStreamState::awaitData(size_t read_size) {
         do {
             if (0 < bytes_available_ || isEndOfStream()) {
                 // Fast path - bytes are available so return immediately
-                size_t ret_size = bytes_available_;
+                size_t ret_size = (size_t)bytes_available_;
                 bytes_available_ -= MIN(read_size, bytes_available_);
                 return ret_size;
             }
@@ -62,6 +82,12 @@ size_t OngoingStreamState::postHeaderReadFunc(char *buffer, size_t item_size, si
 
 size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_size, size_t n_items) {
     LOG_TRACE("postBodyStreamingReadFunc (curl callback) invoked");
+
+    if (awaiting_persisted_ack_) {
+        // If we are awaiting for the persisted ACK then we need to pause the upload
+        LOG_TRACE("Awaiting the persisted ACK. Pausing the upload.");
+        return CURL_READFUNC_PAUSE;
+    }
 
     UPLOAD_HANDLE upload_handle = getUploadHandle();
 
@@ -92,13 +118,15 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
         }
 
         UINT64 client_stream_handle = 0;
+        UINT32 retrieved_size = 0;
         bytes_written = 0;
         STATUS retStatus = getKinesisVideoStreamData(
                 getStreamHandle(),
                 &client_stream_handle,
                 reinterpret_cast<PBYTE>(buffer),
-                buffer_size,
-                reinterpret_cast<PUINT32>(&bytes_written));
+                (UINT32)buffer_size,
+                &retrieved_size);
+        bytes_written = (size_t)retrieved_size;
 
         LOG_TRACE("Available bytes to read: " << available_bytes
                                               << " buffer size: "
@@ -166,6 +194,11 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
 
                 break;
 
+            case STATUS_AWAITING_PERSISTED_ACK:
+                // Send out the remaining bits and pause the upload
+                awaiting_persisted_ack_ = true;
+                break;
+
             default:
                 LOG_ERROR("Failed to get data from the stream with an error: " << retStatus);
 
@@ -175,6 +208,12 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
     }
 
     LOG_DEBUG("Wrote " << bytes_written << " bytes to Kinesis Video. Upload stream handle: " << upload_handle);
+
+    if (bytes_written != 0 &&
+        debug_dump_file_ &&
+        (bytes_written != CURL_READFUNC_ABORT || bytes_written != CURL_READFUNC_PAUSE)) {
+        debug_dump_file_stream_.write(buffer, bytes_written);
+    }
 
     return bytes_written;
 }
@@ -201,7 +240,7 @@ size_t OngoingStreamState::postBodyStreamingWriteFunc(char *buffer, size_t item_
     // we will need to re-implement this parsing logic. We will be stream parsing the data as it comes.
 
     if (!isShutdown()) {
-        status = kinesisVideoStreamParseFragmentAck(getStreamHandle(), getUploadHandle(), buffer, data_size);
+        status = kinesisVideoStreamParseFragmentAck(getStreamHandle(), getUploadHandle(), buffer, (UINT32)data_size);
         if (STATUS_FAILED(status)) {
             LOG_ERROR("Failed to submit ACK: "
                               << data_as_string

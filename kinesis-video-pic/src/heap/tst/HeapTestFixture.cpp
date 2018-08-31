@@ -47,7 +47,7 @@ VOID HeapTestBase::SetUpInternal()
     mVramUnlockCount = 0;
     mVramUninitCount = 0;
 
-    mDlOpen = (PVOID) MOCK_LIB_HANDLE;
+    mDlOpen = (PVOID)(UINT64)MOCK_LIB_HANDLE;
     mDlClose = 0;
     mDlSym = TRUE;
 
@@ -75,6 +75,8 @@ VOID HeapTestBase::SetUp()
 //
 PVOID HeapTestBase::mockDlOpen(PCHAR filename, UINT32 flag)
 {
+    UNUSED_PARAM(filename);
+    UNUSED_PARAM(flag);
     DLOGI("Calling mock dlOpen()");
     mDlOpenCount++;
     return mDlOpen;
@@ -82,6 +84,7 @@ PVOID HeapTestBase::mockDlOpen(PCHAR filename, UINT32 flag)
 
 INT32 HeapTestBase::mockDlClose(PVOID handle)
 {
+    UNUSED_PARAM(handle);
     DLOGI("Calling mock dlClose()");
     mDlCloseCount++;
     return mDlClose;
@@ -89,6 +92,7 @@ INT32 HeapTestBase::mockDlClose(PVOID handle)
 
 PVOID HeapTestBase::mockDlSym(PVOID handle, PCHAR symbol)
 {
+    UNUSED_PARAM(handle);
     DLOGI("Calling mock dlSym() with symbol %s", symbol);
     mDlSymCount++;
     if (!mDlSym) {
@@ -116,7 +120,7 @@ PCHAR HeapTestBase::mockDlError()
 {
     DLOGI("Calling mock dlError()");
     mDlErrorCount++;
-    return "Mock error from the dlError() function";
+    return (PCHAR) "Mock error from the dlError() function";
 }
 
 UINT32 HeapTestBase::mockVramInit()
@@ -125,26 +129,30 @@ UINT32 HeapTestBase::mockVramInit()
     return mVramInit;
 }
 
-UINT32 HeapTestBase::mockVramAlloc(UINT32)
+UINT32 HeapTestBase::mockVramAlloc(UINT32 size)
 {
+    UNUSED_PARAM(size);
     mVramAllocCount++;
     return mVramAlloc;
 }
 
-UINT32 HeapTestBase::mockVramFree(UINT32)
+UINT32 HeapTestBase::mockVramFree(UINT32 handle)
 {
+    UNUSED_PARAM(handle);
     mVramFreeCount++;
     return mVramFree;
 }
 
 PVOID HeapTestBase::mockVramLock(UINT32 alloc)
 {
+    UNUSED_PARAM(alloc);
     mVramLockCount++;
     return mVramLock;
 }
 
 UINT32 HeapTestBase::mockVramUnlock(UINT32 handle)
 {
+    UNUSED_PARAM(handle);
     mVramUnlockCount++;
     return mVramUnlock;
 }

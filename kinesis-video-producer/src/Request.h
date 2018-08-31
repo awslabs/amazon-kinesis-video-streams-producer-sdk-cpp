@@ -4,7 +4,6 @@
 #include <string>
 #include <memory>
 #include <chrono>
-#include <strings.h>
 #include <curl/curl.h>
 #include "com/amazonaws/kinesis/video/common/CommonDefs.h"
 #include "OngoingStreamState.h"
@@ -27,7 +26,7 @@ public:
     /// Used to sort header keys using case-insensitive comparisons.
     struct icase_less {
         bool operator()(const std::string &lhs, const std::string &rhs) const {
-            return strcasecmp(lhs.c_str(), rhs.c_str()) < 0;
+            return STRCMPI(lhs.c_str(), rhs.c_str()) < 0;
         }
     };
 
@@ -81,7 +80,8 @@ public:
     CurlWriteCallbackFn getPostWriteCallback() const;
 
 private:
-    Request();
+    // Hide the default constructor
+    Request() {};
 
     // noncopyable
     Request(const Request &);

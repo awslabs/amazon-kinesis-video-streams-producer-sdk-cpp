@@ -195,5 +195,46 @@ TEST_F(MkvgenApiTest, mkvgenGetMkvOverheadSize_PositiveAndNegativeTest)
 
     EXPECT_EQ(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(mMkvGenerator, MKV_STATE_START_BLOCK, &size));
     EXPECT_EQ(MKV_SIMPLE_BLOCK_OVERHEAD, size);
+}
 
+TEST_F(MkvgenApiTest, mkvgenGenerateTag_PositiveAndNegativeTest)
+{
+    PBYTE tempBuffer = NULL;
+    UINT32 size = 100000;
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN + 2];
+    CHAR tagValue[MKV_MAX_TAG_VALUE_LEN + 2];
+    STRCPY(tagName, "TestTagName");
+    STRCPY(tagValue, "TestTagValue");
+    tempBuffer = (PBYTE) MEMALLOC(size);
+
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(NULL, tempBuffer, tagName, tagValue, &size));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(mMkvGenerator, tempBuffer, NULL, tagValue, &size));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(mMkvGenerator, tempBuffer, tagName, NULL, &size));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(mMkvGenerator, tempBuffer, tagName, tagValue, NULL));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(NULL, tempBuffer, NULL, NULL, NULL));
+
+    // Check for a smaller size returned
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mMkvGenerator, NULL, tagName, tagValue, &size));
+    size--;
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(mMkvGenerator, tempBuffer, tagName, tagValue, &size));
+
+    // Larger tagName
+    MEMSET(tagName, 'A', SIZEOF(tagName));
+    tagName[MKV_MAX_TAG_NAME_LEN + 1] = '\0';
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(mMkvGenerator, tempBuffer, tagName, tagValue, &size));
+
+    // Larger tagValue
+    STRCPY(tagName, "TestTagName");
+    MEMSET(tagValue, 'B', SIZEOF(tagValue));
+    tagValue[MKV_MAX_TAG_VALUE_LEN + 1] = '\0';
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(mMkvGenerator, tempBuffer, tagName, tagValue, &size));
+
+    // Both are larger
+    MEMSET(tagName, 'A', SIZEOF(tagName));
+    tagName[MKV_MAX_TAG_NAME_LEN + 1] = '\0';
+    MEMSET(tagValue, 'B', SIZEOF(tagValue));
+    tagValue[MKV_MAX_TAG_VALUE_LEN + 1] = '\0';
+    EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateTag(mMkvGenerator, tempBuffer, tagName, tagValue, &size));
+
+    MEMFREE(tempBuffer);
 }

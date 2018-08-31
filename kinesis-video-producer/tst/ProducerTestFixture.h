@@ -1,4 +1,6 @@
+#if 0
 #pragma GCC diagnostic ignored "-Wwrite-strings"
+#endif
 
 #include "gtest/gtest.h"
 #include "KinesisVideoProducer.h"
@@ -21,7 +23,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
 #define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 
 #define FRAME_DURATION_IN_MICROS                            40000
-#define TEST_EXECUTION_DURATION_IN_SECONDS                  2 * 60
+#define TEST_EXECUTION_DURATION_IN_MICROS                   2 * 60 * 1000000ull
 #define TEST_STREAM_COUNT                                   1
 #define TEST_FRAME_SIZE                                     1000
 #define TEST_STREAMING_TOKEN_DURATION_IN_SECONDS            40
@@ -120,6 +122,7 @@ public:
     device_info_t getDeviceInfo() override {
         auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
         device_info.storageInfo.storageSize = TEST_STORAGE_SIZE_IN_BYTES;
+        device_info.streamCount = TEST_STREAM_COUNT;
         return device_info;
     }
 };
@@ -199,6 +202,10 @@ public:
 
     void freeStreams() {
         stop_producer_ = true;
+
+        // It's also easy to call kinesis_video_producer_->freeStreams();
+        // to free all streams instead of iterating over each one and freeing it.
+
         for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
             LOG_DEBUG("Freeing stream " << streams_[i]->getStreamName());
 
@@ -277,7 +284,7 @@ protected:
 
     bool access_key_set_;
 
-    pthread_t producer_thread_;
+    TID producer_thread_;
     volatile bool start_producer_;
     volatile bool stop_producer_;
 

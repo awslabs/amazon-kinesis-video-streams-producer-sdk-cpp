@@ -37,7 +37,7 @@ STATUS readFile(PCHAR filePath, BOOL binMode, PBYTE pBuffer, PUINT64 pSize)
 
     // Read the file into memory buffer
     FSEEK(fp, 0, SEEK_SET);
-    CHK(FREAD(pBuffer, (size_t) fileLen, 1, fp) == 1, STATUS_READ_FILE_FAILED);
+    CHK(FREAD(pBuffer, (SIZE_T) fileLen, 1, fp) == 1, STATUS_READ_FILE_FAILED);
 
 CleanUp:
 
@@ -66,6 +66,7 @@ STATUS readFileSegment(PCHAR filePath, BOOL binMode, PBYTE pBuffer, UINT64 offse
     UINT64 fileLen;
     STATUS retStatus = STATUS_SUCCESS;
     FILE *fp = NULL;
+    INT32 result = 0;
 
     CHK(filePath != NULL && pBuffer != NULL && readSize != 0, STATUS_NULL_ARG);
 
@@ -81,8 +82,8 @@ STATUS readFileSegment(PCHAR filePath, BOOL binMode, PBYTE pBuffer, UINT64 offse
     CHK(offset + readSize <= fileLen, STATUS_READ_FILE_FAILED);
 
     // Set the offset and read the file content
-    FSEEK(fp, (size_t) offset, SEEK_SET);
-    CHK(FREAD(pBuffer, (size_t) readSize, 1, fp) == 1, STATUS_READ_FILE_FAILED);
+    result = FSEEK(fp, (UINT32) offset, SEEK_SET);
+    CHK(result && (FREAD(pBuffer, (SIZE_T) readSize, 1, fp) == 1), STATUS_READ_FILE_FAILED);
 
 CleanUp:
 
@@ -115,7 +116,7 @@ STATUS writeFile(PCHAR filePath, BOOL binMode, PBYTE pBuffer, UINT64 size)
     CHK(fp != NULL, STATUS_OPEN_FILE_FAILED);
 
     // Write the buffer to the file
-    CHK(FWRITE(pBuffer, (size_t) size, 1, fp) == 1, STATUS_WRITE_TO_FILE_FAILED);
+    CHK(FWRITE(pBuffer, (SIZE_T) size, 1, fp) == 1, STATUS_WRITE_TO_FILE_FAILED);
 
 CleanUp:
 
@@ -186,7 +187,7 @@ STATUS createFile(PCHAR filePath, UINT64 size)
     CHK(fp != NULL, STATUS_OPEN_FILE_FAILED);
 
     if (size != 0) {
-        CHK(0 == FSEEK(fp, size - 1, SEEK_SET), STATUS_INVALID_OPERATION);
+        CHK(0 == FSEEK(fp, (UINT32) (size - 1), SEEK_SET), STATUS_INVALID_OPERATION);
         CHK(0 == FPUTC(0, fp), STATUS_INVALID_OPERATION);
     }
 

@@ -28,6 +28,27 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define SESSION_TOKEN_ENV_VAR "AWS_SESSION_TOKEN"
 #define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 
+#define DEFAULT_RETENTION_PERIOD_HOURS 2
+#define DEFAULT_KMS_KEY_ID ""
+#define DEFAULT_STREAMING_TYPE STREAMING_TYPE_REALTIME
+#define DEFAULT_CONTENT_TYPE "video/h264"
+#define DEFAULT_MAX_LATENCY_SECONDS 60
+#define DEFAULT_FRAGMENT_DURATION_MILLISECONDS 2000
+#define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
+#define DEFAULT_KEY_FRAME_FRAGMENTATION TRUE
+#define DEFAULT_FRAME_TIMECODES TRUE
+#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
+#define DEFAULT_FRAGMENT_ACKS TRUE
+#define DEFAULT_RESTART_ON_ERROR TRUE
+#define DEFAULT_RECALCULATE_METRICS TRUE
+#define DEFAULT_STREAM_FRAMERATE 25
+#define DEFAULT_AVG_BANDWIDTH_BPS (4 * 1024 * 1024)
+#define DEFAULT_BUFFER_DURATION_SECONDS 180
+#define DEFAULT_REPLAY_DURATION_SECONDS 40
+#define DEFAULT_CONNECTION_STALENESS_SECONDS 60
+#define DEFAULT_CODEC_ID "V_MPEG4/ISO/AVC"
+#define DEFAULT_TRACKNAME "kinesis_video"
+
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 class SampleClientCallbackProvider : public ClientCallbackProvider {
@@ -311,31 +332,31 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
     map<string, string> tags;
     char tag_name[MAX_TAG_NAME_LEN];
     char tag_val[MAX_TAG_VALUE_LEN];
-    sprintf(tag_name, "piTag");
-    sprintf(tag_val, "piValue");
+    SPRINTF(tag_name, "piTag");
+    SPRINTF(tag_val, "piValue");
     auto stream_definition = make_unique<StreamDefinition>(stream_name,
-                                                           hours(2),
+                                                           hours(DEFAULT_RETENTION_PERIOD_HOURS),
                                                            &tags,
-                                                           "",
-                                                           STREAMING_TYPE_REALTIME,
-                                                           "video/h264",
-                                                           milliseconds::zero(),
-                                                           seconds(2),
-                                                           milliseconds(1),
-                                                           true,//Construct a fragment at each key frame
-                                                           true,//Use provided frame timecode
-                                                           false,//Relative timecode
-                                                           true,//Ack on fragment is enabled
-                                                           true,//SDK will restart when error happens
-                                                           true,//recalculate_metrics
+                                                           DEFAULT_KMS_KEY_ID,
+                                                           DEFAULT_STREAMING_TYPE,
+                                                           DEFAULT_CONTENT_TYPE,
+                                                           duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
+                                                           milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
+                                                           milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
+                                                           DEFAULT_KEY_FRAME_FRAGMENTATION,
+                                                           DEFAULT_FRAME_TIMECODES,
+                                                           DEFAULT_ABSOLUTE_FRAGMENT_TIMES,
+                                                           DEFAULT_FRAGMENT_ACKS,
+                                                           DEFAULT_RESTART_ON_ERROR,
+                                                           DEFAULT_RECALCULATE_METRICS,
                                                            0,
-                                                           30,
-                                                           4 * 1024 * 1024,
-                                                           seconds(120),
-                                                           seconds(40),
-                                                           seconds(30),
-                                                           "V_MPEG4/ISO/AVC",
-                                                           "kinesis_video",
+                                                           DEFAULT_STREAM_FRAMERATE,
+                                                           DEFAULT_AVG_BANDWIDTH_BPS,
+                                                           seconds(DEFAULT_BUFFER_DURATION_SECONDS),
+                                                           seconds(DEFAULT_REPLAY_DURATION_SECONDS),
+                                                           seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
+                                                           DEFAULT_CODEC_ID,
+                                                           DEFAULT_TRACKNAME,
                                                            nullptr,
                                                            0);
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
@@ -364,47 +385,64 @@ int gstreamer_init(int argc, char* argv[]) {
     gst_init(&argc, &argv);
 
     /* init stream format */
-    int opt, width = 0, height = 0, framerate=30, bitrateInKBPS=512;
-    char *endptr;
-    while ((opt = getopt(argc, argv, "w:h:f:b:")) != -1) {
-        switch (opt) {
-        case 'w':
-            width = strtol(optarg, &endptr, 0);
-            if (*endptr != '\0') {
-                g_printerr("Invalid width value.\n");
-                return 1;
+    char stream_name[MAX_STREAM_NAME_LEN];
+    int width = 0, height = 0, framerate = 30, bitrateInKBPS = 512;
+    for (int i = 1; i < argc; i++) {
+        if (i < argc - 1) {
+            if ((0 == STRCMPI(argv[i], "-w")) ||
+                (0 == STRCMPI(argv[i], "/w")) ||
+                (0 == STRCMPI(argv[i], "--w"))) {
+                // process the width
+                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &width))) {
+                    return 1;
+                }
             }
-            break;
-        case 'h':
-            height = strtol(optarg, &endptr, 0);
-            if (*endptr != '\0') {
-                g_printerr("Invalid height value.\n");
-                return 1;
+            else if ((0 == STRCMPI(argv[i], "-h")) ||
+                     (0 == STRCMPI(argv[i], "/h")) ||
+                     (0 == STRCMPI(argv[i], "--h"))) {
+                // process the width
+                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &height))) {
+                    return 1;
+                }
             }
-            break;
-        case 'f':
-            framerate = strtol(optarg, &endptr, 0);
-            if (*endptr != '\0') {
-                g_printerr("Invalid framerate value.\n");
-                return 1;
+            else if ((0 == STRCMPI(argv[i], "-f")) ||
+                     (0 == STRCMPI(argv[i], "/f")) ||
+                     (0 == STRCMPI(argv[i], "--f"))) {
+                // process the width
+                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &framerate))) {
+                    return 1;
+                }
             }
-            break;
-        case 'b':
-            bitrateInKBPS = strtol(optarg, &endptr, 0);
-            if (*endptr != '\0') {
-                g_printerr("Invalid bitrate value.\n");
-                return 1;
+            else if ((0 == STRCMPI(argv[i], "-b")) ||
+                     (0 == STRCMPI(argv[i], "/b")) ||
+                     (0 == STRCMPI(argv[i], "--b"))) {
+                // process the width
+                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &bitrateInKBPS))) {
+                    return 1;
+                }
             }
-            break;
-        default: /* '?' */
+            // skip the index
+            i++;
+        }
+        else if (0 == STRCMPI(argv[i], "-?") ||
+                 0 == STRCMPI(argv[i], "--?") ||
+                 0 == STRCMPI(argv[i], "--help")) {
             g_printerr("Invalid arguments\n");
             return 1;
+        }
+        else if (argv[i][0] == '/' ||
+                 argv[i][0] == '-') {
+            // Unknown option
+            g_printerr("Invalid arguments\n");
+            return 1;
+        }
+        else {
+            // Assume it's the stream name
+            STRNCPY(stream_name, argv[i], MAX_STREAM_NAME_LEN);
         }
     }
 
     /* init Kinesis Video */
-    char stream_name[MAX_STREAM_NAME_LEN];
-    SNPRINTF(stream_name, MAX_STREAM_NAME_LEN, argv[optind]);
     kinesis_video_init(&data, stream_name);
 
     if ((width == 0 && height != 0) || (width != 0 && height == 0)) {
@@ -437,6 +475,9 @@ int gstreamer_init(int argc, char* argv[]) {
             isOnRpi = false;
         }
         data.source = gst_element_factory_make("v4l2src", "source");
+        if (!data.source) {
+            data.source = gst_element_factory_make("ksvideosrc", "source");
+        }
         vtenc = false;
     }
 
@@ -558,14 +599,14 @@ int gstreamer_init(int argc, char* argv[]) {
     if (!data.h264_stream_supported) {
         gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.video_convert, data.source_filter, data.encoder, data.h264parse, data.filter,
             data.appsink, NULL);
-        if (gst_element_link_many(data.source, data.video_convert, data.source_filter, data.encoder, data.h264parse, data.filter, data.appsink, NULL) != TRUE) {
+        if (!gst_element_link_many(data.source, data.video_convert, data.source_filter, data.encoder, data.h264parse, data.filter, data.appsink, NULL)) {
             g_printerr("Elements could not be linked.\n");
             gst_object_unref(data.pipeline);
             return 1;
         }
     } else {
         gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.source_filter, data.h264parse, data.filter, data.appsink, NULL);
-        if (gst_element_link_many(data.source, data.source_filter, data.h264parse, data.filter, data.appsink, NULL) != TRUE) {
+        if (!gst_element_link_many(data.source, data.source_filter, data.h264parse, data.filter, data.appsink, NULL)) {
             g_printerr("Elements could not be linked.\n");
             gst_object_unref(data.pipeline);
             return 1;

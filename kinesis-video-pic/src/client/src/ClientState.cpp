@@ -45,6 +45,7 @@ CleanUp:
 STATUS executeNewClientState(UINT64 customData, UINT64 time)
 {
     ENTERS();
+    UNUSED_PARAM(time);
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = CLIENT_FROM_CUSTOM_DATA(customData);
 
@@ -110,6 +111,7 @@ CleanUp:
 STATUS executeAuthClientState(UINT64 customData, UINT64 time)
 {
     ENTERS();
+    UNUSED_PARAM(time);
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = CLIENT_FROM_CUSTOM_DATA(customData);
 
@@ -172,6 +174,7 @@ CleanUp:
 STATUS executeProvisionClientState(UINT64 customData, UINT64 time)
 {
     ENTERS();
+    UNUSED_PARAM(time);
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = CLIENT_FROM_CUSTOM_DATA(customData);
 
@@ -388,6 +391,7 @@ CleanUp:
 STATUS executeReadyClientState(UINT64 customData, UINT64 time)
 {
     ENTERS();
+    UNUSED_PARAM(time);
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = CLIENT_FROM_CUSTOM_DATA(customData);
 

@@ -1,0 +1,179 @@
+#!/bin/bash
+#
+# Installs the open source dependencies
+# for Kinesis Video Sdk demo application
+# and builds the demo application
+#
+
+set -e
+
+# Install dependencies and toolchain first
+
+if [ ! -d ${MINGW_PREFIX}/lib/gstreamer-1.0 ]; then
+  pacman -S --needed --noconfirm base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain \
+                      git \
+                      mingw-w64-i686-cmake mingw-w64-x86_64-cmake \
+                      mingw-w64-i686-gstreamer mingw-w64-x86_64-gstreamer \
+                      mingw-w64-i686-gst-libav mingw-w64-x86_64-gst-libav \
+                      mingw-w64-i686-gst-plugins-bad mingw-w64-x86_64-gst-plugins-bad \
+                      mingw-w64-i686-gst-plugins-base mingw-w64-x86_64-gst-plugins-base \
+                      mingw-w64-i686-gst-plugins-good mingw-w64-x86_64-gst-plugins-good \
+                      mingw-w64-i686-gst-plugins-ugly mingw-w64-x86_64-gst-plugins-ugly \
+                      mingw-w64-i686-gtest mingw-w64-x86_64-gtest \
+                      mingw-w64-i686-curl mingw-w64-x86_64-curl
+fi
+
+if [ -z $KINESIS_VIDEO_ROOT ]; then
+  KINESIS_VIDEO_ROOT=`pwd`
+fi
+
+# Make confirmation optional for Docker builds
+# e.g. ./msys2-install-script -a
+user_confirmation='N'
+
+# if any cert issues in downloading the open source dependencies
+# run the install-script with -c option e.g. ./install-script -c
+# this will add the --cacert option for curl.
+addl_curl_args=""
+
+max_parallel=2
+do_cleanup=false
+
+while getopts ":a :c j: :d" opt; do
+  case $opt in
+    a)
+      user_confirmation='Y'
+      echo "Starting auto-build" >&2
+      ;;
+    c)
+      addl_curl_args="--cacert $KINESIS_VIDEO_ROOT/cacert.pem"
+      echo "using additional curl args " >&2
+      ;;
+    j)
+      max_parallel=$OPTARG
+      echo "passing -j $max_parallel to make"
+      ;;
+    d)
+      do_cleanup=true
+      echo "Cleaning up library installation files after finish"
+      ;;
+  esac
+done
+
+if [ "$user_confirmation" != "Y" ]; then
+  echo "
+      Y - Confirm to proceed with Producer SDK build
+      N - Exit Producer SDK build"
+  echo -n "Enter selection: "
+  read user_confirmation
+  echo ""
+fi
+
+if [[ "$user_confirmation" = "N" || "$user_confirmation" = "n" ]]; then
+    echo "Existing install"
+    exit
+fi
+# --------- install-script build options --------------------------------------
+echo "Additional curl options=" $addl_curl_args
+echo "Using mingw prefix ${MINGW_PREFIX}."
+# --------- create required directories ---------------------------------------
+
+
+if [[ "$KINESIS_VIDEO_ROOT" == *\ * ]]; then
+    echo "Current working path cannot have space in it !"
+    exit
+fi
+
+DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
+if [ ! -d "$DOWNLOADS" ]; then
+    mkdir "$DOWNLOADS"
+fi
+
+CERTS_FOLDER="$KINESIS_VIDEO_ROOT/certs"
+if [ ! -d "$CERTS_FOLDER" ]; then
+    mkdir "$CERTS_FOLDER"
+fi
+
+SYS_CURL=`which curl` || echo "Curl not found. Please install curl."
+if [ -z "$SYS_CURL" ]; then
+  exit
+fi
+
+LIB_DESTINATION_FOLDER_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib"
+
+# --------- check if cmake version is applicable ------------------------------
+CMAKE_VERSION_STRING=`cmake --version`
+echo $CMAKE_VERSION_STRING
+CMAKE_EXPECTED_MAJOR_VERSION=3
+VERSION_ARRAY=( $CMAKE_VERSION_STRING )
+CMAKE_VERSION=${VERSION_ARRAY[2]}
+CMAKE_MAJOR_VERSION=${CMAKE_VERSION:0:1}
+
+if [ "$CMAKE_MAJOR_VERSION" \< "$CMAKE_EXPECTED_MAJOR_VERSION" ]; then
+  echo "CMake 3.x or higher is required.  You are running $CMAKE_VERSION"
+  exit
+fi
+
+# -------- Check if cert.pem exists in the kinesis_video_native_buid/certs folder----------------
+CERT_PEM_FILE="$CERTS_FOLDER/cert.pem"
+
+if [ ! -f "$CERT_PEM_FILE" ];then
+  echo "cert.pem" file does not exist in the $KINESIS_VIDEO_ROOT directory
+  echo "Downloading the https://www.amazontrust.com/repository/SFSRootCAG2.pem to $CERTS_FOLDER/cert.pem"
+  $SYS_CURL -L "https://www.amazontrust.com/repository/SFSRootCAG2.pem" -o "$CERTS_FOLDER/cert.pem"
+fi
+
+PLATFORM='unknown'
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+   PLATFORM='linux'
+elif [[ "$unamestr" == 'FreeBSD' ]]; then
+   PLATFORM='freebsd'
+elif [[ "$unamestr" == 'Darwin' ]]; then
+   PLATFORM='mac'
+fi
+
+
+echo "Checking log4cplus at ${MINGW_PREFIX}/lib/liblog4cplus.dll.a"
+
+if [ ! -f ${MINGW_PREFIX}/lib/liblog4cplus.dll.a ]; then
+  echo "log4cplus lib not found. Installing"
+  if [ ! -f $DOWNLOADS/log4cplus-1.2.0.tar.xz ]; then
+    cd $DOWNLOADS
+    curl -L "https://sourceforge.net/projects/log4cplus/files/log4cplus-stable/1.2.0/log4cplus-1.2.0.tar.xz" -o "log4cplus-1.2.0.tar.xz"
+  fi
+  cd $DOWNLOADS
+  tar -xvf log4cplus-1.2.0.tar.xz
+  cd $DOWNLOADS/log4cplus-1.2.0
+  if [ "${MINGW_PREFIX}" = "/mingw32" ]; then
+    echo "Building 32 bit version of liblog4cplus.dll.a"
+    export CXXFLAGS="-m32"
+    export LDFLAGS="-m32"
+  fi
+  ./configure --prefix=${MINGW_PREFIX}
+  make
+  make install
+fi
+
+# ---Clean Up----------------------------------------------------------------------------------------------------------
+if [ "$do_cleanup" = true ]; then
+  cd $KINESIS_VIDEO_ROOT/downloads
+  rm -rf $(ls -I local)
+fi
+
+# remember to export this if running cmake in commandline.
+export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
+
+## --------- build kinesis video ---------
+cd $KINESIS_VIDEO_ROOT
+cmake -G "MSYS Makefiles" CMakeLists.txt
+make -j $max_parallel start 
+make -j $max_parallel kinesis_video_gstreamer_sample_app
+make -j $max_parallel kinesis_video_gstreamer_sample_rtsp_app
+make -j $max_parallel gstkvssink
+make -j $max_parallel kvs_producer_plugin_demo
+make -j $max_parallel kvs_producer_plugin_rtsp_demo
+
+echo "**********************************************************"
+echo Success!!!
+echo "**********************************************************"

@@ -21,7 +21,7 @@ extern "C" {
 #define AVCC_CPD_OVERHEAD       11
 
 /**
- * Avcc format CPD overhead size
+ * Hevc format CPD overhead size
  *
  * For more info on the format check out https://www.iso.org/standard/69660.html
  *

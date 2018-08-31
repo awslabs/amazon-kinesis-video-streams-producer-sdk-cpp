@@ -30,7 +30,7 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
         DLOGV("Producer waiting for stream %llu TID %016llx", streamId, GETTID());
 
         // Sleep a while
-        usleep(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
+        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
     }
 
     // Loop until cancelled
@@ -47,7 +47,7 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
         DLOGV("Producer for stream %llu TID %016llx", streamId, GETTID());
 
         // Key frame every 3rd
-        frame.flags = index % 3 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+        frame.flags = ((index % 3) == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &frame));
 
         // Return a put stream result on 5th
@@ -56,7 +56,7 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
         }
 
         // Sleep a while
-        usleep(TEST_PRODUCER_SLEEP_TIME_IN_MICROS);
+        THREAD_SLEEP(TEST_PRODUCER_SLEEP_TIME_IN_MICROS);
         timestamp += frame.duration;
     }
 
@@ -76,7 +76,7 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
         DLOGV("Consumer waiting for stream %llu TID %016llx", streamId, GETTID());
 
         // Sleep a while
-        usleep(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
+        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
     }
 
     // Loop until cancelled
@@ -95,7 +95,7 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
         }
 
         // Sleep a while
-        usleep(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
+        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
     }
 
     return NULL;
@@ -103,9 +103,7 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
 
 TEST_F(StreamParallelTest, putFrame_BasicParallelPutGet)
 {
-    UINT32 index, maxIteration;
-    BYTE tempBuffer[10000];
-    UINT64 timestamp;
+    UINT32 index;
     CHAR streamName[MAX_STREAM_NAME_LEN];
 
     mTerminate = FALSE;
@@ -119,7 +117,7 @@ TEST_F(StreamParallelTest, putFrame_BasicParallelPutGet)
 
     // Create and ready a stream
     for (mStreamCount = 0; mStreamCount < MAX_TEST_STREAM_COUNT; mStreamCount++) {
-        sprintf(streamName, "%s %d", TEST_STREAM_NAME, mStreamCount);
+        SPRINTF(streamName, "%s %d", TEST_STREAM_NAME, mStreamCount);
         STRCPY(mStreamInfo.name, streamName);
         EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &mStreamHandle)));
 
@@ -168,12 +166,12 @@ TEST_F(StreamParallelTest, putFrame_BasicParallelPutGet)
         DLOGV("Creating the producer and consumer threads");
 
         // Spin off the producer
-        EXPECT_EQ(0, pthread_create(&mProducerThreads[mStreamCount], NULL, staticProducerRoutine, (PVOID) (UINT64) mStreamCount));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&mProducerThreads[mStreamCount], staticProducerRoutine, (PVOID) (UINT64) mStreamCount));
 
         // Spin off the consumer
-        EXPECT_EQ(0, pthread_create(&mConsumerThreads[mStreamCount], NULL, staticConsumerRoutine, (PVOID) (UINT64) mStreamCount));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&mConsumerThreads[mStreamCount], staticConsumerRoutine, (PVOID) (UINT64) mStreamCount));
 
-        usleep(10);
+        THREAD_SLEEP(10000);
     }
 
     // Enable the threads
@@ -181,14 +179,14 @@ TEST_F(StreamParallelTest, putFrame_BasicParallelPutGet)
     mStartThreads = TRUE;
 
     // Wait for some time
-    sleep(TEST_SLEEP_TIME_IN_SECONDS);
+    THREAD_SLEEP(TEST_SLEEP_TIME_IN_MICROS);
 
     // Indicate the cancel for the threads
     mTerminate = TRUE;
 
     // Join the threads and wait to exit
     for (index = 0; index < MAX_TEST_STREAM_COUNT; index++) {
-        EXPECT_EQ(0, pthread_join(mProducerThreads[index], NULL));
-        EXPECT_EQ(0, pthread_join(mConsumerThreads[index], NULL));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_JOIN(mProducerThreads[index], NULL));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_JOIN(mConsumerThreads[index], NULL));
     }
 }

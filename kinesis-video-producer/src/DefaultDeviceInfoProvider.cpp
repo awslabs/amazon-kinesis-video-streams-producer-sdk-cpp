@@ -14,6 +14,11 @@ using std::string;
  */
 #define DEFAULT_STORAGE_SIZE            256 * 1024 * 1024
 
+/**
+ * Default max stream count
+ */
+#define DEFAULT_MAX_STREAM_COUNT        16
+
 DefaultDeviceInfoProvider::DefaultDeviceInfoProvider() {
     memset(&device_info_, 0, sizeof(device_info_));
     device_info_.version = DEVICE_INFO_CURRENT_VERSION;
@@ -39,7 +44,7 @@ DefaultDeviceInfoProvider::DefaultDeviceInfoProvider() {
     memcpy(&device_info_.storageInfo.rootDirectory, dir.c_str(), dir.size());
 
     // Set the max stream count
-    device_info_.streamCount = 16;
+    device_info_.streamCount = DEFAULT_MAX_STREAM_COUNT;
 }
 
 DeviceInfoProvider::device_info_t DefaultDeviceInfoProvider::getDeviceInfo() {

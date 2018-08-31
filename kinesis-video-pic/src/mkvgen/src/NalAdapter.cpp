@@ -132,7 +132,7 @@ CleanUp:
     if (STATUS_SUCCEEDED(retStatus) && pAdaptedFrameDataSize != NULL) {
         // NOTE: Due to EPB removal we could in fact make the adaptation buffer smaller than the original
         // We will require at least the original size buffer.
-        *pAdaptedFrameDataSize = MAX(frameDataSize, pAdaptedCurPnt - pAdaptedFrameData);
+        *pAdaptedFrameDataSize = MAX(frameDataSize, (UINT32)(pAdaptedCurPnt - pAdaptedFrameData));
     }
 
     return retStatus;
@@ -264,7 +264,7 @@ STATUS adaptH264CpdNalsFromAnnexBToAvcc(PBYTE pCpd,
     pCurPnt += ppsSize;
 
     // Precise adapted size
-    adaptedCpdSize = pCurPnt - pAdaptedCpd;
+    adaptedCpdSize = (UINT32)(pCurPnt - pAdaptedCpd);
 
 CleanUp:
 
@@ -320,7 +320,7 @@ STATUS adaptH265CpdNalsFromAnnexBToHvcc(PBYTE pCpd,
     // Get the NALu count and store the pointer to SPS
     // It should be VPS/SPS/PPS
     // In some cases the PPS might be missing
-    while(pSrcPnt - pAdaptedBits < adaptedRawSize) {
+    while((UINT32)(pSrcPnt - pAdaptedBits) < adaptedRawSize) {
         CHK(pSrcPnt - pAdaptedBits + SIZEOF(UINT32) <= adaptedRawSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
         naluSize = getInt32(*(PUINT32) pSrcPnt);
 
@@ -329,7 +329,7 @@ STATUS adaptH265CpdNalsFromAnnexBToHvcc(PBYTE pCpd,
         naluSizes[naluCount] = naluSize;
 
         pSrcPnt += SIZEOF(UINT32) + naluSize;
-        CHK(pSrcPnt - pAdaptedBits <= adaptedRawSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
+        CHK((UINT32)(pSrcPnt - pAdaptedBits) <= adaptedRawSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
         naluCount++;
     }
 

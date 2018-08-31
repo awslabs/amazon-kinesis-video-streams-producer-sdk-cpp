@@ -86,8 +86,8 @@ TEST_F(TraceApiFunctionalityTest, OverflowTest_StartOnly)
 TEST_F(TraceApiFunctionalityTest, OverflowTest_StartStopNoop)
 {
     TRACE_PROFILER_HANDLE handle;
-    TRACE_HANDLE traceHandle;
-    TRACE_HANDLE overflowHandle;
+    TRACE_HANDLE traceHandle = INVALID_TRACE_HANDLE_VALUE;
+    TRACE_HANDLE overflowHandle = INVALID_TRACE_HANDLE_VALUE;
     UINT32 traceCount = 200;
     UINT32 index;
 

@@ -12,6 +12,7 @@
 #include "StreamDefinition.h"
 #include "Logger.h"
 #include "Auth.h"
+#include "KinesisVideoProducerMetrics.h"
 
 #include <cstring>
 
@@ -58,7 +59,8 @@ public:
             std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
             std::unique_ptr<CredentialProvider> credential_provider,
             const std::string &region = DEFAULT_AWS_REGION,
-            const std::string &control_plane_uri = "");
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME);
 
     static std::unique_ptr<KinesisVideoProducer> create(
             std::unique_ptr<DeviceInfoProvider> device_info_provider,
@@ -70,7 +72,8 @@ public:
             std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
             std::unique_ptr<CredentialProvider> credential_provider,
             const std::string &region = DEFAULT_AWS_REGION,
-            const std::string &control_plane_uri = "");
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME);
 
     static std::unique_ptr<KinesisVideoProducer> createSync(
             std::unique_ptr<DeviceInfoProvider> device_info_provider,
@@ -107,10 +110,16 @@ public:
     void freeStream(std::shared_ptr<KinesisVideoStream> kinesis_video_stream);
 
     /**
-     * Gets the available storage size
-     * @return Available storage size in bytes
+     * Stops and frees the active streams
      */
-    uint64_t getAvailableStorageSize() const;
+    void freeStreams();
+
+    /**
+     * Gets the client metrics.
+     *
+     * @return producer metrics object to be filled with the current metrics data.
+     */
+    KinesisVideoProducerMetrics getMetrics() const;
 
     /**
      * Returns the raw client handle
@@ -136,7 +145,8 @@ protected:
      * Initializes an empty class. The real initialization happens through the static functions.
      */
     KinesisVideoProducer() : client_handle_(INVALID_CLIENT_HANDLE_VALUE),
-                             client_ready_(false) {
+                             client_ready_(false),
+                             stored_callbacks_({}) {
     }
 
     /**
@@ -148,6 +158,11 @@ protected:
      * Flag used to ensure idempotency of freeKinesisVideoClient().
      */
     std::once_flag free_kinesis_video_client_flag_;
+
+    /**
+     * Used in a lock for freeing streams
+     */
+    std::mutex free_client_mutex_;
 
     /**
      * We keep the reference to callback_provider_ as a field variable
@@ -177,6 +192,11 @@ protected:
     volatile bool client_ready_;
 
     /**
+     * Client metrics
+     */
+    KinesisVideoProducerMetrics client_metrics_;
+
+    /**
      * Map of the handle to stream object
      */
     ThreadSafeMap<STREAM_HANDLE, shared_ptr<KinesisVideoStream>> active_streams_;
@@ -190,7 +210,7 @@ protected:
                               MUTEX);
     static VOID unlockMutexFunc(UINT64,
                                 MUTEX);
-    static VOID tryLockMutexFunc(UINT64,
+    static BOOL tryLockMutexFunc(UINT64,
                                  MUTEX);
     static VOID freeMutexFunc(UINT64,
                               MUTEX);

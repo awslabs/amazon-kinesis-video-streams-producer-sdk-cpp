@@ -15,13 +15,15 @@ CurlCallManager &CurlCallManager::getInstance() {
 
 CurlCallManager::CurlGlobalInitializer::CurlGlobalInitializer() {
     LOG_INFO("Initializing curl.");
+    // There is no equivalent of SIGPIPE on Windows platforms
+#if !defined __WINDOWS_BUILD__
     signal(SIGPIPE, SIG_IGN);
+#endif
     curl_global_init(CURL_GLOBAL_ALL);
 }
 
 CurlCallManager::CurlGlobalInitializer::~CurlGlobalInitializer() {
     curl_global_cleanup();
-    LOG_INFO("Curl shutdown.");
 }
 
 CurlCallManager::CurlCallManager() {

@@ -16,14 +16,15 @@ TEST_F(StreamApiTest, createKinesisVideoStream_MaxStreams)
 {
     STREAM_HANDLE streamHandle;
     UINT32 i;
-
+    
     mStreamInfo.name[0] = '\0';
     for (i = 0; i < MAX_TEST_STREAM_COUNT; i++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+        THREAD_SLEEP(1000);
+        EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
     }
 
     // Ensure it fails now
-    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_NE(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 }
 
 TEST_F(StreamApiTest, createKinesisVideoStream_EmptyName)
@@ -59,23 +60,31 @@ TEST_F(StreamApiTest, createKinesisVideoStream_BufferReplayVariations)
 
     mStreamInfo.name[0] = '\0';
     mStreamInfo.streamCaps.bufferDuration = 0;
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    THREAD_SLEEP(1000);
 
     mStreamInfo.streamCaps.bufferDuration = 0;
     mStreamInfo.streamCaps.replayDuration = 0;
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    THREAD_SLEEP(1000);
 
     mStreamInfo.streamCaps.bufferDuration = TEST_BUFFER_DURATION;
     mStreamInfo.streamCaps.replayDuration = TEST_BUFFER_DURATION + 1;
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    THREAD_SLEEP(1000);
 
     mStreamInfo.streamCaps.bufferDuration = TEST_BUFFER_DURATION;
     mStreamInfo.streamCaps.replayDuration = 0;
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    THREAD_SLEEP(1000);
 
     mStreamInfo.streamCaps.bufferDuration = TEST_REPLAY_DURATION;
     mStreamInfo.streamCaps.replayDuration = TEST_REPLAY_DURATION;
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 }
 
 TEST_F(StreamApiTest, createKinesisVideoStream_DuplicateNames)
@@ -83,17 +92,32 @@ TEST_F(StreamApiTest, createKinesisVideoStream_DuplicateNames)
     STREAM_HANDLE streamHandle;
 
     STRCPY(mStreamInfo.name, "ABC");
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
     STRCPY(mStreamInfo.name, "DEF");
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
     STRCPY(mStreamInfo.name, "GHI");
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+    
     STRCPY(mStreamInfo.name, "ABC");
     EXPECT_EQ(STATUS_DUPLICATE_STREAM_NAME, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
     STRCPY(mStreamInfo.name, "DEF");
     EXPECT_EQ(STATUS_DUPLICATE_STREAM_NAME, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
     STRCPY(mStreamInfo.name, "GHI");
     EXPECT_EQ(STATUS_DUPLICATE_STREAM_NAME, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    STRCPY(mStreamInfo.name, "aBC");
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+    STRCPY(mStreamInfo.name, "def");
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+    STRCPY(mStreamInfo.name, "GHi");
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    STRCPY(mStreamInfo.name, "ABC ");
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+    STRCPY(mStreamInfo.name, " DEF");
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+    STRCPY(mStreamInfo.name, " GHI ");
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 }
 
 TEST_F(StreamApiTest, createKinesisVideoStream_ZeroFrameRate)
@@ -101,7 +125,7 @@ TEST_F(StreamApiTest, createKinesisVideoStream_ZeroFrameRate)
     STREAM_HANDLE streamHandle;
 
     mStreamInfo.streamCaps.frameRate = 0;
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 }
 
 TEST_F(StreamApiTest, createKinesisVideoStream_ZeroTimecodeScale)
@@ -110,10 +134,10 @@ TEST_F(StreamApiTest, createKinesisVideoStream_ZeroTimecodeScale)
 
     mStreamInfo.name[0] = '\0';
     mStreamInfo.streamCaps.timecodeScale = 0;
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
     mStreamInfo.streamCaps.timecodeScale = MAX_TIMECODE_SCALE;
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
     mStreamInfo.streamCaps.timecodeScale = MAX_TIMECODE_SCALE + 1;
     EXPECT_NE(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
@@ -128,7 +152,7 @@ TEST_F(StreamApiTest, createKinesisVideoStream_CodecPrivateData)
     mStreamInfo.name[0] = '\0';
     mStreamInfo.streamCaps.codecPrivateData = cpd;
     mStreamInfo.streamCaps.codecPrivateDataSize = SIZEOF(cpd);
-    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
     mStreamInfo.streamCaps.codecPrivateData = NULL;
     EXPECT_NE(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
@@ -179,6 +203,41 @@ TEST_F(StreamApiTest, kinesisVideoPutFrame_NULL_Invalid)
 
     EXPECT_TRUE(STATUS_FAILED(putKinesisVideoFrame(streamHandle, &frame)));
     EXPECT_TRUE(STATUS_FAILED(putKinesisVideoFrame(mStreamHandle, NULL)));
+}
+
+TEST_F(StreamApiTest, insertKinesisVideoTag_NULL_Invalid)
+{
+    STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN + 2];
+    MEMSET(tagName, 'a', MKV_MAX_TAG_NAME_LEN + 1);
+    tagName[MKV_MAX_TAG_NAME_LEN + 1] = '\0';
+
+    CHAR tagValue[MKV_MAX_TAG_VALUE_LEN + 2];
+    MEMSET(tagValue, 'b', MKV_MAX_TAG_VALUE_LEN + 1);
+    tagValue[MKV_MAX_TAG_VALUE_LEN + 1] = '\0';
+
+    // Create a stream
+    CreateStream();
+
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(streamHandle, "tagName", "tagValue", TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(streamHandle, "tagName", "tagValue", FALSE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, NULL, "tagValue", TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, NULL, "tagValue", FALSE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "", "tagValue", TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "", "tagValue", FALSE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", NULL, TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", NULL, FALSE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, NULL, NULL, TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, NULL, NULL, FALSE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(streamHandle, NULL, NULL, TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(streamHandle, NULL, NULL, FALSE));
+
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, "tagValue", TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, "tagValue", FALSE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", tagValue, TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", tagValue, FALSE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, tagValue, TRUE));
+    EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, tagValue, FALSE));
 }
 
 TEST_F(StreamApiTest, kinesisVideoGetData_NULL_Invalid)

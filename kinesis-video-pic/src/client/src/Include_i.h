@@ -102,7 +102,7 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
  * Macros to convert to and from handle
  */
 #define TO_CLIENT_HANDLE(p) ((CLIENT_HANDLE) (p))
-#define FROM_CLIENT_HANDLE(h) ((PKinesisVideoClient) (h))
+#define FROM_CLIENT_HANDLE(h) (IS_VALID_CLIENT_HANDLE(h) ? (PKinesisVideoClient) (h) : NULL)
 
 #define TO_STREAM_HANDLE(p) (toStreamHandle(p))
 #define FROM_STREAM_HANDLE(h) (fromStreamHandle(h))
@@ -127,7 +127,7 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
 /**
  * Calculates the next service call retry time
  */
-#define NEXT_SERVICE_CALL_RETRY_DELAY(r)        ((1 << (r)) * SERVICE_CALL_RETRY_TIMEOUT)
+#define NEXT_SERVICE_CALL_RETRY_DELAY(r)        (((UINT64)1 << (r)) * SERVICE_CALL_RETRY_TIMEOUT)
 
 /**
  * Checks whether the dropped connection can be due to host issues
@@ -178,6 +178,20 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
  * networking clients transfer buffer.
  */
 #define TRANSFER_RATE_MEASURING_INTERVAL_EPSILON               (DOUBLE) 0.2
+
+/*
+ * Definition that controls whether we enabled the persist ACK awaiting for the last cluster or not.
+ * This needs to be changed to TRUE when the backend processing is enabled or the value should be
+ * removed entirely from the WAIT_FOR_PERSISTED_ACK macro.
+ */
+#define AWAIT_FOR_PERSISTED_ACK                 FALSE
+
+/**
+ * Macro that checks whether to wait for the persistent ACK or not
+ */
+#define WAIT_FOR_PERSISTED_ACK(x)               (AWAIT_FOR_PERSISTED_ACK && \
+                                                    (x)->streamInfo.streamCaps.fragmentAcks && \
+                                                    (x)->streamInfo.retention != RETENTION_PERIOD_SENTINEL)
 
 /**
  * Kinesis Video client internal structure
@@ -266,7 +280,7 @@ UINT32 defaultGetRandomNumber(UINT64);
 MUTEX defaultCreateMutex(UINT64, BOOL);
 VOID defaultLockMutex(UINT64, MUTEX);
 VOID defaultUnlockMutex(UINT64, MUTEX);
-VOID defaultTryLockMutex(UINT64, MUTEX);
+BOOL defaultTryLockMutex(UINT64, MUTEX);
 VOID defaultFreeMutex(UINT64, MUTEX);
 STATUS defaultStreamReady(UINT64, STREAM_HANDLE);
 STATUS defaultEndOfStream(UINT64, STREAM_HANDLE, UPLOAD_HANDLE);

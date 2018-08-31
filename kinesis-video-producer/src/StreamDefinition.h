@@ -106,7 +106,7 @@ public:
         stream_info_.streamCaps.codecPrivateData = (PBYTE) codecPrivateData;
 
         // Set the tags
-        stream_info_.tagCount = tags_.count();
+        stream_info_.tagCount = (UINT32)tags_.count();
         stream_info_.tags = tags_.asPTag();
     }
 

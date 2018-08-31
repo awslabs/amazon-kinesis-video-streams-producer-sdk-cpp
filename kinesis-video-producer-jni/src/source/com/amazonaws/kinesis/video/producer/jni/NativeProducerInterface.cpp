@@ -12,7 +12,7 @@
 // IMPORTANT: This version number *must* be incremented every time a new library build is checked in.
 // We are seeing a very high incidence of runtime failures due to APKs being deployed with the wrong native libraries,
 // and they are much easier to diagnose when the numeric version check fails.
-#define NATIVE_LIBRARY_VERSION "1.5"
+#define NATIVE_LIBRARY_VERSION "1.8"
 
 // Used for serializing the access to functions
 static SyncMutex ACCESS_LOCK;
@@ -26,7 +26,7 @@ extern "C" {
     /**
      * Returns a hardcoded library version string.
      */
-    PUBLIC_API jstring Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getNativeLibraryVersion(JNIEnv* env, jobject thiz)
+    PUBLIC_API jstring JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getNativeLibraryVersion(JNIEnv* env, jobject thiz)
     {
         return env->NewStringUTF(NATIVE_LIBRARY_VERSION);
     }
@@ -34,7 +34,7 @@ extern "C" {
     /**
      * Returns a string representing the date and time when this code was compiled.
      */
-    PUBLIC_API jstring Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getNativeCodeCompileTime(JNIEnv* env, jobject thiz)
+    PUBLIC_API jstring JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getNativeCodeCompileTime(JNIEnv* env, jobject thiz)
     {
         return env->NewStringUTF(__DATE__ " " __TIME__);
     }
@@ -42,7 +42,7 @@ extern "C" {
     /**
      * Releases the kinesis video client object. All operations will fail from this moment on
      */
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_freeKinesisVideoClient(JNIEnv* env, jobject thiz, jlong handle)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_freeKinesisVideoClient(JNIEnv* env, jobject thiz, jlong handle)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -70,12 +70,12 @@ extern "C" {
     /**
      * Creates and initializes the kinesis video client
      */
-    PUBLIC_API jlong Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_createKinesisVideoClient(JNIEnv* env, jobject thiz, jobject deviceInfo)
+    PUBLIC_API jlong JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_createKinesisVideoClient(JNIEnv* env, jobject thiz, jobject deviceInfo)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
         KinesisVideoClientWrapper* pWrapper = NULL;
-        jlong retValue = (jlong) INVALID_HANDLE_VALUE;
+        jlong retValue = (jlong) NULL;
 
         DLOGI("Creating Kinesis Video client.");
         CHECK(env != NULL && thiz != NULL);
@@ -101,7 +101,7 @@ CleanUp:
     /**
      * Stops KinesisVideo streams
      */
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_stopKinesisVideoStreams(JNIEnv* env, jobject thiz, jlong handle)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_stopKinesisVideoStreams(JNIEnv* env, jobject thiz, jlong handle)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -118,9 +118,9 @@ CleanUp:
     }
 
     /**
-     * Stops an KinesisVideo stream
+     * Stops a KinesisVideo stream
      */
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_stopKinesisVideoStream(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_stopKinesisVideoStream(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -137,9 +137,28 @@ CleanUp:
     }
 
     /**
+     * Frees a KinesisVideo stream.
+     */
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_freeKinesisVideoStream(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle)
+    {
+        ENTER();
+        SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
+
+        DLOGI("Stopping Kinesis Video stream.");
+        CHECK(env != NULL && thiz != NULL);
+
+        KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
+        if (pWrapper != NULL) {
+            pWrapper->freeKinesisVideoStream(streamHandle);
+        }
+
+        LEAVE();
+    }
+
+    /**
      * Extracts the KinesisVideo client object metrics
      */
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoMetrics(JNIEnv* env, jobject thiz, jlong handle, jobject kinesisVideoMetrics)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoMetrics(JNIEnv* env, jobject thiz, jlong handle, jobject kinesisVideoMetrics)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -158,7 +177,7 @@ CleanUp:
     /**
      * Extracts the KinesisVideo client object metrics
      */
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamMetrics(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject kinesisVideoStreamMetrics)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamMetrics(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject kinesisVideoStreamMetrics)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -177,7 +196,7 @@ CleanUp:
      /**
      * Creates and initializes the kinesis video client
      */
-    PUBLIC_API jlong Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_createKinesisVideoStream(JNIEnv* env, jobject thiz, jlong handle, jobject streamInfo)
+    PUBLIC_API jlong JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_createKinesisVideoStream(JNIEnv* env, jobject thiz, jlong handle, jobject streamInfo)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -199,7 +218,7 @@ CleanUp:
     /**
      * Puts a frame in to the frame buffer
      */
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_putKinesisVideoFrame(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject kinesisVideoFrame)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_putKinesisVideoFrame(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject kinesisVideoFrame)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -215,7 +234,26 @@ CleanUp:
         LEAVES();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFragmentAck(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jobject fragmentAck)
+    /**
+     * Puts a metadata in to the frame buffer
+     */
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_putKinesisVideoFragmentMetadata(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jstring metadataName, jstring metadataValue, jboolean persistent)
+    {
+        ENTERS();
+        SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
+
+        DLOGS("Putting Kinesis Video metadata for stream 0x%016" PRIx64 ".", streamHandle);
+        CHECK(env != NULL && thiz != NULL);
+
+        KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
+        if (pWrapper != NULL) {
+            pWrapper->putKinesisVideoFragmentMetadata(streamHandle, metadataName, metadataValue, persistent);
+        }
+
+        LEAVES();
+    }
+
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFragmentAck(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jobject fragmentAck)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -231,7 +269,7 @@ CleanUp:
         LEAVES();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamParseFragmentAck(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jstring ack)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamParseFragmentAck(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jstring ack)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -247,7 +285,7 @@ CleanUp:
         LEAVES();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_describeStreamResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jobject streamDescription)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_describeStreamResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jobject streamDescription)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -263,7 +301,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getStreamingEndpointResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jstring streamingEndpoint)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getStreamingEndpointResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jstring streamingEndpoint)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -279,7 +317,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getStreamingTokenResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jobject streamingToken, jint tokenSize, jlong tokenExpiration)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getStreamingTokenResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jobject streamingToken, jint tokenSize, jlong tokenExpiration)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -295,7 +333,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_createStreamResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jstring streamArn)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_createStreamResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jstring streamArn)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -311,7 +349,7 @@ CleanUp:
         LEAVES();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_putStreamResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jlong clientStreamHandle)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_putStreamResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint httpStatusCode, jlong clientStreamHandle)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -327,7 +365,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_tagResourceResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong customData, jint httpStatusCode)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_tagResourceResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong customData, jint httpStatusCode)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -343,7 +381,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamData(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamData(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -360,7 +398,7 @@ CleanUp:
         LEAVES();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFormatChanged(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject codecPrivateData)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFormatChanged(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject codecPrivateData)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -376,7 +414,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_createDeviceResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong deviceHandle, jint httpStatusCode, jstring deviceArn)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_createDeviceResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong deviceHandle, jint httpStatusCode, jstring deviceArn)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -392,7 +430,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_deviceCertToTokenResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong deviceHandle, jint httpStatusCode, jobject token, jint tokenSize, jlong tokenExpiration)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_deviceCertToTokenResultEvent(JNIEnv* env, jobject thiz, jlong handle, jlong deviceHandle, jint httpStatusCode, jobject token, jint tokenSize, jlong tokenExpiration)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -408,7 +446,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamTerminated(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jint httpStatusCode)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamTerminated(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jint httpStatusCode)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
