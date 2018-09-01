@@ -26,12 +26,12 @@ There are few build-time tools/dependencies which need to be installed in order 
 
 Please follow the **installation instructions** applicable to your operating system.
 * Linux
-	* **[Install instructions for Ubuntu and Raspberry PI](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/install-instructions-linux.md)**
+	* **[Install instructions for Ubuntu and Raspberry PI](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/install-instructions-linux.md)**
 * Mac OS
-	* **[Install instructions for MacOS](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/install-instructions-mac.md)**
+	* **[Install instructions for MacOS](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/install-instructions-macos.md)**
 * Windows OS
-	* **[Install instructions for Windows using MinGW msys2](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/install-instructions-windows-msys2.md)**
-	* **[Install instructions for Windows using Microsoft Visual C++](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/install-instructions-windows-msvc.md)**
+	* **[Install instructions for Windows using MinGW msys2](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/install-instructions-windows-msys2.md)**
+	* **[Install instructions for Windows using Microsoft Visual C++](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/install-instructions-windows-msvc.md)**
 
 ----
 ### Documentation
