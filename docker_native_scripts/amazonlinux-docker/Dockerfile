@@ -63,7 +63,7 @@ RUN pwd
 
 #
 # Copy dynamic libraries into lib folder
-RUN cp /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-gstreamer-plugin/libgstkvssink.so /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib/
+RUN cp /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/libgstkvssink.so /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib/
 
 # Copy all demo sample application binaries kinesis-video-native-build
 RUN cp /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-gstreamer-plugin/kvs_producer_plugin* /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
