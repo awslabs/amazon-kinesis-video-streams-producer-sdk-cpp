@@ -36,7 +36,7 @@ RUN cp libproducer.so /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis
 ENV KINESIS_VIDEO_STREAMS_PRODUCER_SDK_SOURCE_DIR=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/
 ENV SDK_SOURCE_DIR=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/
 RUN ./java-install-script
-RUN cp /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-gstreamer-plugin/libgstkvssink.so /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib/
+RUN cp /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/libgstkvssink.so /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib/
 COPY start_rtsp_in_docker.sh /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
 ENV LD_LIBRARY_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$LD_LIBRARY_PATH
 ENV GST_PLUGIN_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib
