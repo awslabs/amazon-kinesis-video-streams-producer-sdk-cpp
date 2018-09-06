@@ -582,6 +582,11 @@ else()
           producer
           ${GST_DEMO_LIBRARIES})
 
+  add_executable(kinesis_video_gstreamer_sample_multistream_app ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_multistream_app.cpp)
+  target_link_libraries(kinesis_video_gstreamer_sample_multistream_app
+          producer
+          ${GST_DEMO_LIBRARIES})
+
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   target_link_libraries(gstkvssink
           ${KVSSINK_LIBRARIES}
