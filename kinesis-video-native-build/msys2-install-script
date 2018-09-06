@@ -167,12 +167,7 @@ export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
 ## --------- build kinesis video ---------
 cd $KINESIS_VIDEO_ROOT
 cmake -G "MSYS Makefiles" CMakeLists.txt
-make -j $max_parallel start 
-make -j $max_parallel kinesis_video_gstreamer_sample_app
-make -j $max_parallel kinesis_video_gstreamer_sample_rtsp_app
-make -j $max_parallel gstkvssink
-make -j $max_parallel kvs_producer_plugin_demo
-make -j $max_parallel kvs_producer_plugin_rtsp_demo
+make -j $max_parallel
 
 echo "**********************************************************"
 echo Success!!!
