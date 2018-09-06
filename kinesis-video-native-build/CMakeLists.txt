@@ -562,7 +562,7 @@ else()
           ${GTEST}
           ${GTEST_MAIN})
 
-  add_library(KinesisVideoProducerJNI SHARED ${PRODUCER_SOURCE_FILES_JNI} ${PIC_SOURCE_FILES})
+  add_library(KinesisVideoProducerJNI SHARED EXCLUDE_FROM_ALL ${PRODUCER_SOURCE_FILES_JNI} ${PIC_SOURCE_FILES})
   target_link_libraries(KinesisVideoProducerJNI)
 
   add_executable(start ${TST_PRODUCER_SOURCE_FILES})

@@ -181,8 +181,8 @@ typedef struct _CustomData {
     map<string, shared_ptr<KinesisVideoStream>> kinesis_video_stream_handles;
     vector<GstElement *> pipelines;
     map<string, bool> stream_started;
-    uint8_t *frame_data;
-    UINT32 frame_data_size;
+    map<string, uint8_t*> frame_data_map;
+    map<string, UINT32> frame_data_size_map;
 } CustomData;
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
@@ -223,13 +223,15 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     GstBuffer *buffer = gst_sample_get_buffer(sample);
     size_t buffer_size = gst_buffer_get_size(buffer);
 
-    if (data->frame_data_size < buffer_size) {
-        delete [] data->frame_data;
-        data->frame_data_size = data->frame_data_size * 2;
-        data->frame_data = new uint8_t[data->frame_data_size];
+    UINT32 frame_data_size = data->frame_data_size_map[stream_handle_key];
+    if (frame_data_size < buffer_size) {
+        frame_data_size = frame_data_size * 2;
+        delete [] data->frame_data_map[stream_handle_key];
+        data->frame_data_size_map[stream_handle_key] = frame_data_size;
+        data->frame_data_map[stream_handle_key] = new uint8_t[frame_data_size];
     }
 
-    gst_buffer_extract(buffer, 0, data->frame_data, buffer_size);
+    gst_buffer_extract(buffer, 0, data->frame_data_map[stream_handle_key], buffer_size);
 
     bool delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
     FRAME_FLAGS kinesis_video_flags;
@@ -247,7 +249,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         kinesis_video_flags = FRAME_FLAG_NONE;
     }
 
-    if (false == put_frame(data->kinesis_video_stream_handles[stream_handle_key], data->frame_data, buffer_size, std::chrono::nanoseconds(buffer->pts),
+    if (false == put_frame(data->kinesis_video_stream_handles[stream_handle_key], data->frame_data_map[stream_handle_key], buffer_size, std::chrono::nanoseconds(buffer->pts),
                            std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
         GST_WARNING("Dropped frame");
     }
@@ -347,6 +349,8 @@ void kinesis_stream_init(string stream_name, CustomData *data, string stream_han
                                                            0);
     auto kvs_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
     data->kinesis_video_stream_handles[stream_handle_key] = kvs_stream;
+    data->frame_data_size_map[stream_handle_key] = DEFAULT_BUFFER_SIZE;
+    data->frame_data_map[stream_handle_key] = new uint8_t[DEFAULT_BUFFER_SIZE];
     LOG_DEBUG("Stream is ready: " << stream_name);
 }
 
@@ -384,8 +388,8 @@ int gstreamer_init(int argc, char *argv[]) {
     data.kinesis_video_stream_handles = map<string, shared_ptr<KinesisVideoStream>>();
     data.stream_started = map<string, bool>();
     data.pipelines = vector<GstElement *>();
-    data.frame_data = new uint8_t[DEFAULT_BUFFER_SIZE];
-    data.frame_data_size = DEFAULT_BUFFER_SIZE;
+    data.frame_data_map = map<string, uint8_t*>();
+    data.frame_data_size_map = map<string, UINT32>();
 
     /* init GStreamer */
     gst_init(&argc, &argv);
@@ -489,7 +493,9 @@ CleanUp:
         gst_object_unref(pipeline);
     }
 
-    delete [] data.frame_data;
+    for (auto frame_data : data.frame_data_map) {
+        delete [] frame_data.second;
+    }
 
     return 0;
 }
@@ -497,4 +503,3 @@ CleanUp:
 int main(int argc, char *argv[]) {
     return gstreamer_init(argc, argv);
 }
-
