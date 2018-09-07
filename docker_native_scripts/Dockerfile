@@ -17,11 +17,6 @@ RUN apt-get install -y git && \
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64/
 WORKDIR /opt/
 
-# =================  HTTPS Certificate =====================================================================
-
-RUN wget https://www.amazontrust.com/repository/SFSRootCAG2.pem 
-RUN cp  SFSRootCAG2.pem /etc/ssl/cert.pem
-
 # ===== Git Checkout latest Kinesis Video Streams Producer SDK (CPP) =======================================
 
 RUN git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git
@@ -30,14 +25,9 @@ RUN git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-s
 
 WORKDIR /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
 RUN  chmod a+x ./install-script
-RUN chmod a+x ./gstreamer-plugin-install-script
-RUN ./install-script -a
-RUN cp libproducer.so /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib/
-ENV KINESIS_VIDEO_STREAMS_PRODUCER_SDK_SOURCE_DIR=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/
-ENV SDK_SOURCE_DIR=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/
-RUN ./gstreamer-plugin-install-script
+RUN ./install-script -a -j 4 -d
 RUN ./java-install-script
-RUN cp /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/libgstkvssink.so /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib/
+
 COPY start_rtsp_in_docker.sh /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
 ENV LD_LIBRARY_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$LD_LIBRARY_PATH
 ENV GST_PLUGIN_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib
@@ -48,12 +38,12 @@ RUN chmod a+x ./start_rtsp_in_docker.sh
 ENTRYPOINT ["/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/start_rtsp_in_docker.sh"]
 
 # ====  How to build docker image and run the container once its built =====================================
-# 
+#
 # ==== 1. build the docker image using the Dockerfile ======================================================
 # ==== Make sure the Dockerfile and start_rtsp_in_docker.sh is present in the current working directory =====
 #
 # $ docker build -t rtspdockertest .
-# 
+#
 # === List the docker images built ==================================================================================
 #
 # $ docker images
@@ -62,9 +52,6 @@ ENTRYPOINT ["/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-na
 #
 # === Start the container with credentials ===
 # $ docker run -it 54f0d65f69b2 <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <RTSP_URL> <STREAM_NAME>
-# 
 #
 #
-
-
-
+#
