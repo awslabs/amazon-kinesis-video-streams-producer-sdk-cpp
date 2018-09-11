@@ -119,6 +119,7 @@ struct _GstKvsSink {
     guint                       storage_size;
     gchar                       *credential_file_path;
     GstStructure                *iot_certificate;
+    GstStructure                *stream_tags;
 
     unique_ptr<Credentials> credentials_;
     shared_ptr<CustomData> data;

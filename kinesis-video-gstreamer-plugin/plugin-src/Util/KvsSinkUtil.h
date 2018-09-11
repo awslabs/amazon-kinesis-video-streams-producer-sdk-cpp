@@ -16,7 +16,10 @@
 
 namespace kvs_sink_util{
 
-    gboolean parse_gstructure(GstStructure *g_struct, std::map<std::string, std::string> &iot_cert_params);
+    gboolean gstructToMap(GstStructure *g_struct, std::map<std::string, std::string> *user_map);
+
+    gboolean parseIotCredentialGstructure(GstStructure *g_struct,
+                                             std::map<std::string, std::string> &iot_cert_params);
 
     bool parseTimeStr(std::string time_str, std::chrono::duration<uint64_t> &time_obj);
 }

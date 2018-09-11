@@ -7,7 +7,7 @@
 #define CURL_ERROR_SIZE 256
 #define HTTP_OK 200
 #define SERVICE_CALL_PREFIX "https://"
-#define ROLE_ALIASES "/role-aliases"
+#define ROLE_ALIASES_PATH "/role-aliases"
 #define CREDENTIAL_SERVICE "/credentials"
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
@@ -43,7 +43,7 @@ void KvsSinkIotCertCredentialProvider::updateCredentials(Credentials &credential
     error_buffer[0] = '\0';
     const std::string service_url = SERVICE_CALL_PREFIX +
                                     iot_get_credential_endpoint_ +
-                                    ROLE_ALIASES + '/' +
+                                    ROLE_ALIASES_PATH + '/' +
                                     role_alias_ +
                                     CREDENTIAL_SERVICE;
 
