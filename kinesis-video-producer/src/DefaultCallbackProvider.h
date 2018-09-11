@@ -32,7 +32,7 @@ const std::string KINESIS_VIDEO_SERVICE_NAME = "kinesisvideo";
 const std::string DEFAULT_CONTROL_PLANE_URI = "https://kinesisvideo.us-west-2.amazonaws.com";
 const std::string CONTROL_PLANE_URI_PREFIX = "https://";
 const std::string CONTROL_PLANE_URI_POSTFIX = ".amazonaws.com";
-const std::string DEFAULT_USER_AGENT_NAME = "AWS-SDK-KVS-PRODUCER";
+const std::string DEFAULT_USER_AGENT_NAME = "AWS-SDK-KVS";
 }
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {

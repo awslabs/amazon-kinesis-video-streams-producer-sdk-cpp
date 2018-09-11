@@ -14,8 +14,9 @@ static const time_t time_point = std::time(NULL);
 static const long timezone_offset =
         static_cast<long> (std::mktime(std::gmtime(&time_point)) - std::mktime(std::localtime(&time_point)));
 
-static gboolean set_params(GQuark field_id, const GValue *value, gpointer user_data) {
-    std::map<std::string, std::string> &iot_cert_params = *(std::map<std::string, std::string> *)user_data;
+
+gboolean setParams(GQuark field_id, const GValue *value, gpointer g_ptr_user_map) {
+    std::map<std::string, std::string> *target_map = reinterpret_cast<std::map<std::string, std::string> *>(g_ptr_user_map);
     std::string field_str = std::string(g_quark_to_string (field_id));
     std::string value_str;
     gboolean ret = TRUE;
@@ -28,33 +29,41 @@ static gboolean set_params(GQuark field_id, const GValue *value, gpointer user_d
 
     value_str = std::string(g_value_get_string(value));
 
-    if (iot_param_set.count(field_str) == 0 || value_str.empty()) {
-        LOG_ERROR("Invalid field: " << field_str << " , value: " << value_str);
+    if (value_str.empty() || field_str.empty()) {
+        LOG_ERROR("Field and value should not be empty. field: " << field_str << " , value: " << value_str);
         ret = FALSE;
         goto CleanUp;
     }
 
-    iot_cert_params[field_str] = value_str;
+    target_map->insert(std::pair<std::string,std::string>(field_str, value_str));
 
 CleanUp:
     return ret;
 }
 
-
 namespace kvs_sink_util {
 
-gboolean parse_gstructure(GstStructure *g_struct, std::map<std::string, std::string> &iot_cert_params) {
+gboolean gstructToMap(GstStructure *g_struct, std::map<std::string, std::string> *user_map) {
+    std::map<std::string, std::string> temp;
+    gboolean ret = gst_structure_foreach (g_struct, setParams, user_map);
+    if (ret) { // if conversion failed, user_map will be unchanged
+        user_map->insert(temp.begin(), temp.end());
+    }
+    return ret;
+}
+
+gboolean parseIotCredentialGstructure(GstStructure *g_struct, std::map<std::string, std::string> &iot_cert_params) {
     gboolean ret;
     std::set<std::string> params_key_set;
 
-    ret = gst_structure_foreach (g_struct, set_params, &iot_cert_params);
+    ret = gstructToMap(g_struct, &iot_cert_params);
 
     if (ret == FALSE) {
         goto CleanUp;
     }
 
     for(std::map<std::string, std::string>::iterator it = iot_cert_params.begin(); it != iot_cert_params.end();
-            ++it) {
+        ++it) {
         params_key_set.insert(it->first);
     }
     if (params_key_set != iot_param_set) {
@@ -73,12 +82,12 @@ bool parseTimeStr(std::string time_str, std::chrono::duration<uint64_t> &time_ob
     bool res = true;
     std::tm timeinfo = std::tm();
 
-    #if defined(__GNUC__) && (__GNUC__ < 5) && !defined(__APPLE__)
-        res = strptime(time_str.c_str(), "%Y-%m-%dT%H:%M:%SZ", &timeinfo) != NULL ? true : false;
-    #else
-        std::istringstream iss(time_str);
-        res = iss >> std::get_time(&timeinfo, "%Y-%m-%dT%H:%M:%SZ") ? true : false;
-    #endif
+#if defined(__GNUC__) && (__GNUC__ < 5) && !defined(__APPLE__)
+    res = strptime(time_str.c_str(), "%Y-%m-%dT%H:%M:%SZ", &timeinfo) != NULL ? true : false;
+#else
+    std::istringstream iss(time_str);
+    res = iss >> std::get_time(&timeinfo, "%Y-%m-%dT%H:%M:%SZ") ? true : false;
+#endif
 
     if (res) {
         std::time_t tt = std::mktime(&timeinfo);

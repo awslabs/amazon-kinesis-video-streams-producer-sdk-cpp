@@ -155,6 +155,7 @@ enum {
 #define KVS_ADD_METADATA_NAME "name"
 #define KVS_ADD_METADATA_VALUE "value"
 #define KVS_ADD_METADATA_PERSISTENT "persist"
+#define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CLIENT"
 
 enum {
     PROP_0,
@@ -195,7 +196,8 @@ enum {
     PROP_FRAME_TIMESTAMP,
     PROP_STORAGE_SIZE,
     PROP_CREDENTIAL_FILE_PATH,
-    PROP_IOT_CERTIFICATE
+    PROP_IOT_CERTIFICATE,
+    PROP_STREAM_TAGS
 };
 
 #define GST_TYPE_KVS_SINK_FRAME_TIMESTAMP_TYPE (gst_kvs_sink_frame_timestamp_type_get_type())
@@ -325,7 +327,7 @@ void kinesis_video_producer_init(GstKvsSink *sink) {
         credential_provider = make_unique<KvsSinkStaticCredentialProvider>(*sink->credentials_, sink->rotation_period);
     } else if (sink->iot_certificate) {
         std::map<std::string, std::string> iot_cert_params;
-        gboolean ret = kvs_sink_util::parse_gstructure(sink->iot_certificate, iot_cert_params);
+        gboolean ret = kvs_sink_util::parseIotCredentialGstructure(sink->iot_certificate, iot_cert_params);
         g_assert_true(ret);
         credential_provider = make_unique<KvsSinkIotCertCredentialProvider>(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
                                                                             iot_cert_params[CERTIFICATE_PATH],
@@ -340,14 +342,28 @@ void kinesis_video_producer_init(GstKvsSink *sink) {
                                                                     move(client_callback_provider),
                                                                     move(stream_callback_provider),
                                                                     move(credential_provider),
-                                                                    region_str);
+                                                                    region_str,
+                                                                    "",
+                                                                    KVS_CLIENT_USER_AGENT_NAME);
 }
 
 void create_kinesis_video_stream(GstKvsSink *sink) {
     auto data = sink->data;
+
+    map<string, string> *p_stream_tags = nullptr;
+    map<string, string> stream_tags;
+    if (sink->stream_tags) {
+        gboolean ret;
+        ret = kvs_sink_util::gstructToMap(sink->stream_tags, &stream_tags);
+        if (!ret) {
+            LOG_WARN("Failed to parse stream tags");
+        } else {
+            p_stream_tags = &stream_tags;
+        }
+    }
     auto stream_definition = make_unique<StreamDefinition>(sink->stream_name,
                                                            hours(sink->retention_period_hours),
-                                                           nullptr,
+                                                           p_stream_tags,
                                                            sink->kms_key_id,
                                                            sink->streaming_type,
                                                            sink->content_type,
@@ -608,6 +624,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                          "Use aws iot certificate to obtain credentials",
                                                          GST_TYPE_STRUCTURE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_STREAM_TAGS,
+                                     g_param_spec_boxed ("stream-tags", "Stream Tags",
+                                                         "key-value pair that you can define and assign to each stream",
+                                                         GST_TYPE_STRUCTURE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
 
     /**
      * GstKvsSink::handoff:
@@ -718,6 +739,9 @@ gst_kvs_sink_finalize(GObject *object) {
     g_free(sink->access_key);
     if (sink->iot_certificate) {
         gst_structure_free (sink->iot_certificate);
+    }
+    if (sink->stream_tags) {
+        gst_structure_free (sink->stream_tags);
     }
     delete [] sink->frame_data;
     G_OBJECT_CLASS (parent_class)->finalize(object);
@@ -842,10 +866,19 @@ static void gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_IOT_CERTIFICATE: {
             const GstStructure *s = gst_value_get_structure(value);
 
-            if (sink->iot_certificate)
+            if (sink->iot_certificate) {
                 gst_structure_free(sink->iot_certificate);
-
+            }
             sink->iot_certificate = s ? gst_structure_copy(s) : NULL;
+            break;
+        }
+        case PROP_STREAM_TAGS: {
+            const GstStructure *s = gst_value_get_structure(value);
+
+            if (sink->stream_tags) {
+                gst_structure_free(sink->stream_tags);
+            }
+            sink->stream_tags = s ? gst_structure_copy(s) : NULL;
             break;
         }
         default:
@@ -970,6 +1003,9 @@ static void gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *va
             break;
         case PROP_IOT_CERTIFICATE:
             gst_value_set_structure (value, sink->iot_certificate);
+            break;
+        case PROP_STREAM_TAGS:
+            gst_value_set_structure (value, sink->stream_tags);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);

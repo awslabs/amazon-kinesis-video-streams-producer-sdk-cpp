@@ -13,9 +13,10 @@ PVOID staticProducerRoutine(PVOID arg)
 }
 
 PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_stream) {
-    UINT32 index = 0;
+    UINT32 index = 0, persistentMetadataIndex = 0;
     UINT64 timestamp = 0;
     Frame frame;
+    std::string metadataNameStr;
 
     // Loop until cancelled
     frame.duration = FRAME_DURATION_IN_MICROS * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
@@ -51,18 +52,32 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
                                                << ", Dts: " << frame.decodingTs
                                                << ", Pts: " << frame.presentationTs);
 
-        // Apply some metadata every 20th frame
+        // Apply some non-persistent metadata every few frames
         if (frame.index % 20 == 0) {
-            std::ostringstream metadataName;
+            std::ostringstream metadataName, metadataValue;
             metadataName << "MetadataNameForFrame_" << frame.index;
-            std::ostringstream metadataValue;
             metadataValue << "MetadataValueForFrame_" << frame.index;
             EXPECT_TRUE(kinesis_video_stream->putFragmentMetadata(metadataName.str(), metadataValue.str(), false));
+        }
 
-            // Set or clear persistent metadata
-            metadataName << "PersistentMetadataNameForFrame_" << frame.index;
-            metadataValue << "PersistentMetadataValueForFrame_" << frame.index;
-            EXPECT_TRUE(kinesis_video_stream->putFragmentMetadata(metadataName.str(), (frame.index % 2 == 0) ? metadataValue.str() : std::string(), true));
+        // Apply some persistent metadata on a larger intervals to span fragments
+        if (frame.index % 60 == 0) {
+            std::ostringstream metadataName, metadataValue;
+            std::string metadataValueStr;
+
+            metadataName << "PersistentMetadataName_" << persistentMetadataIndex;
+            metadataValue << "PersistentMetadataValue_" << persistentMetadataIndex;
+
+            // Set or clear persistent metadata every other time.
+            if (persistentMetadataIndex % 2 == 0) {
+                metadataNameStr = metadataName.str();
+                metadataValueStr = metadataValue.str();
+            } else {
+                metadataValueStr = std::string();
+            }
+
+            persistentMetadataIndex++;
+            EXPECT_TRUE(kinesis_video_stream->putFragmentMetadata(metadataNameStr, metadataValueStr, true));
         }
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
