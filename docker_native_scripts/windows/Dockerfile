@@ -4,6 +4,10 @@
 FROM microsoft/windowsservercore
 WORKDIR /opt/
 
+# ================= Install Git ============================================================================
+RUN @powershell iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1')) 
+RUN cinst -y git
+
 # =================  HTTPS Certificate =====================================================================
 
 #RUN wget https://www.amazontrust.com/repository/SFSRootCAG2.pem 
@@ -34,7 +38,7 @@ ENTRYPOINT ["/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-na
 #
 # > docker images
 #   REPOSITORY                  TAG                 IMAGE ID            CREATED              SIZE
-# windowsdockerrtsptest         latest              02181afc49f9        4 seconds ago       14.1GB
+# windowsdockerrtsptest         latest              02181afc49f9        4 seconds ago       15GB
 #
 # ===== Step 3. Start the container with credentials ==========================================================
 # > docker run -it 02181afc49f9 <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <RTSP_URL> <STREAM_NAME>
