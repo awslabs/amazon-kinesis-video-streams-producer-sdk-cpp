@@ -222,7 +222,7 @@ $ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! h264parse ! vide
 ###### Running the `gst-launch-1.0` command to start streaming from camera source in **Raspberry-PI**.
 
 ```
-$ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! omxh264enc control-rate=1 target-bitrate=5120000 periodicity-idr=45 inline-header=FALSE ! h264parse ! video/x-h264,stream-format=avc,alignment=au,width=640,height=480,framerate=30/1 ! kvssink stream-name=YourStreamName frame-timestamp=dts-only access-key=YourAccessKey secret-key=YourSecretKey
+$ gst-launch-1.0 v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! omxh264enc control-rate=1 target-bitrate=5120000 periodicty-idr=45 inline-header=FALSE ! h264parse ! video/x-h264,stream-format=avc,alignment=au,width=640,height=480,framerate=30/1 ! kvssink stream-name=YourStreamName frame-timestamp=dts-only access-key=YourAccessKey secret-key=YourSecretKey
 ```
 
 **Note:**  Raspberry PI camera module requires `frame-timestamp=dts-only` . If USB camera is used for streaming then this property is optional.
