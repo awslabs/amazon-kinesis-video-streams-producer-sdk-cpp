@@ -238,6 +238,95 @@ TEST_F(StreamApiTest, insertKinesisVideoTag_NULL_Invalid)
     EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", tagValue, FALSE));
     EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, tagValue, TRUE));
     EXPECT_NE(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, tagValue, FALSE));
+
+    // Validate the negative case with state
+    EXPECT_EQ(STATUS_INVALID_STREAM_STATE, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", "tagValue", TRUE));
+    EXPECT_EQ(STATUS_INVALID_STREAM_STATE, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", "tagValue", FALSE));
+}
+
+
+TEST_F(StreamApiTest, insertKinesisVideoTag_Invalid_Name)
+{
+    // Create and ready stream
+    ReadyStream();
+
+    EXPECT_EQ(STATUS_INVALID_METADATA_NAME, putKinesisVideoFragmentMetadata(mStreamHandle, "AWS", "Tag Value", FALSE));
+    EXPECT_EQ(STATUS_INVALID_METADATA_NAME, putKinesisVideoFragmentMetadata(mStreamHandle, "AWS", "Tag Value", TRUE));
+    EXPECT_EQ(STATUS_INVALID_METADATA_NAME, putKinesisVideoFragmentMetadata(mStreamHandle, "AWS ", "Tag Value", FALSE));
+    EXPECT_EQ(STATUS_INVALID_METADATA_NAME, putKinesisVideoFragmentMetadata(mStreamHandle, "AWS ", "Tag Value", TRUE));
+    EXPECT_EQ(STATUS_INVALID_METADATA_NAME, putKinesisVideoFragmentMetadata(mStreamHandle, "AWSTag", "Tag Value", FALSE));
+    EXPECT_EQ(STATUS_INVALID_METADATA_NAME, putKinesisVideoFragmentMetadata(mStreamHandle, "AWSTag", "Tag Value", TRUE));
+    EXPECT_EQ(STATUS_INVALID_METADATA_NAME, putKinesisVideoFragmentMetadata(mStreamHandle, "AWS:", "Tag Value", FALSE));
+    EXPECT_EQ(STATUS_INVALID_METADATA_NAME, putKinesisVideoFragmentMetadata(mStreamHandle, "AWS:", "Tag Value", TRUE));
+
+    EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "aWS", "Tag Value", FALSE));
+    EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "aWS", "Tag Value", TRUE));
+    EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "aws", "Tag Value", FALSE));
+    EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "aws", "Tag Value", TRUE));
+}
+
+TEST_F(StreamApiTest, insertKinesisVideoTag_Stream_State_Error) {
+    // Create the stream which is not yet in ready state
+    CreateStream();
+
+    // Should throw stream state error
+    EXPECT_EQ(STATUS_INVALID_STREAM_STATE, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", "tagValue", TRUE));
+    EXPECT_EQ(STATUS_INVALID_STREAM_STATE, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", "tagValue", FALSE));
+}
+
+TEST_F(StreamApiTest, insertKinesisVideoTag_Non_Persistent_Count) {
+    UINT32 i;
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN + 1];
+    CHAR tagValue[MKV_MAX_TAG_VALUE_LEN + 1];
+
+    // Create and ready a stream
+    ReadyStream();
+
+    for (i = 0; i < MAX_FRAGMENT_METADATA_COUNT; i++) {
+        SPRINTF(tagName, "tagName_%d", i);
+        SPRINTF(tagValue, "tagValue_%d", i);
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, tagValue, FALSE));
+    }
+
+    // Adding one more will cause a limit error
+    EXPECT_EQ(STATUS_MAX_FRAGMENT_METADATA_COUNT, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", "tagValue", FALSE));
+}
+
+TEST_F(StreamApiTest, insertKinesisVideoTag_Persistent_Count) {
+    UINT32 i;
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN + 1];
+    CHAR tagValue[MKV_MAX_TAG_VALUE_LEN + 1];
+
+    // Create and ready a stream
+    ReadyStream();
+
+    for (i = 0; i < MAX_FRAGMENT_METADATA_COUNT; i++) {
+        SPRINTF(tagName, "tagName_%d", i);
+        SPRINTF(tagValue, "tagValue_%d", i);
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, tagValue, TRUE));
+    }
+
+    // Adding one more will cause a limit error
+    EXPECT_EQ(STATUS_MAX_FRAGMENT_METADATA_COUNT, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", "tagValue", TRUE));
+}
+
+TEST_F(StreamApiTest, insertKinesisVideoTag_Mixed_Count) {
+    UINT32 i;
+    CHAR tagName[MKV_MAX_TAG_NAME_LEN + 1];
+    CHAR tagValue[MKV_MAX_TAG_VALUE_LEN + 1];
+
+    // Create and ready a stream
+    ReadyStream();
+
+    for (i = 0; i < MAX_FRAGMENT_METADATA_COUNT; i++) {
+        SPRINTF(tagName, "tagName_%d", i);
+        SPRINTF(tagValue, "tagValue_%d", i);
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, tagName, tagValue, i % 2 == 0));
+    }
+
+    // Adding one more will cause a limit error
+    EXPECT_EQ(STATUS_MAX_FRAGMENT_METADATA_COUNT, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", "tagValue", TRUE));
+    EXPECT_EQ(STATUS_MAX_FRAGMENT_METADATA_COUNT, putKinesisVideoFragmentMetadata(mStreamHandle, "tagName", "tagValue", FALSE));
 }
 
 TEST_F(StreamApiTest, kinesisVideoGetData_NULL_Invalid)

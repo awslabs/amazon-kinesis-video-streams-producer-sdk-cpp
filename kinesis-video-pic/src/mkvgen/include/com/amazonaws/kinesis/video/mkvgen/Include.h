@@ -88,12 +88,12 @@ extern "C" {
 /**
  * Max tag name length
  */
-#define MKV_MAX_TAG_NAME_LEN                1024
+#define MKV_MAX_TAG_NAME_LEN                128
 
 /**
  * Max tag string value length
  */
-#define MKV_MAX_TAG_VALUE_LEN               10 * 1024
+#define MKV_MAX_TAG_VALUE_LEN               256
 
 /**
  * Minimal and Maximal cluster durations sanity values

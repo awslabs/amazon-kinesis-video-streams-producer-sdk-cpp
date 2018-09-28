@@ -386,7 +386,7 @@ int gstreamer_init(int argc, char* argv[]) {
 
     /* init stream format */
     char stream_name[MAX_STREAM_NAME_LEN];
-    int width = 0, height = 0, framerate = 30, bitrateInKBPS = 512;
+    int width = 0, height = 0, framerate = 25, bitrateInKBPS = 512;
     for (int i = 1; i < argc; i++) {
         if (i < argc - 1) {
             if ((0 == STRCMPI(argv[i], "-w")) ||
@@ -521,12 +521,19 @@ int gstreamer_init(int argc, char* argv[]) {
     } else {
         vector<int> res_width = {640, 1280, 1920};
         vector<int> res_height = {480, 720, 1080};
+        vector<int> fps = {30, 25, 20};
         bool found_resolution = false;
         for (int i = 0; i < res_width.size(); i++) {
             width = res_width[i];
             height = res_height[i];
-            if (resolution_supported(src_caps, query_caps_raw, query_caps_h264, data, width, height, framerate)) {
-                found_resolution = true;
+            for (int j = 0; j < fps.size(); j++) {
+                framerate = fps[j];
+                if (resolution_supported(src_caps, query_caps_raw, query_caps_h264, data, width, height, framerate)) {
+                    found_resolution = true;
+                    break;
+                }
+            }
+            if (found_resolution) {
                 break;
             }
         }
