@@ -71,7 +71,12 @@ typedef __FragmentAckParser* PFragmentAckParser;
 /**
  * End-of-stream metadata name
  */
-#define EOS_METADATA_NAME                    "aws:KVS_END_OF_SESSION"
+#define EOS_METADATA_NAME                    "AWS_KINESISVIDEO_END_OF_SESSION"
+
+/**
+ * Internal AWS metadata prefix
+ */
+#define AWS_INTERNAL_METADATA_PREFIX         "AWS"
 
 /**
  * Max packaged size for the EOS metadata including EOS metadata name len, max stream name + delta for packaging

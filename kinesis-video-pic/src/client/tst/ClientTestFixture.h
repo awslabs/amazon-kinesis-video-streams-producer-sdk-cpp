@@ -10,7 +10,7 @@
 
 #define TEST_DEVICE_NAME                "Test device name"
 #define MAX_TEST_STREAM_COUNT           10
-#define TEST_DEVICE_STORAGE_SIZE        MIN_STORAGE_ALLOCATION_SIZE
+#define TEST_DEVICE_STORAGE_SIZE        ((UINT64) 10 * 1024 * 1024)
 
 #define TEST_CLIENT_MAGIC_NUMBER        0x1234567890ULL
 

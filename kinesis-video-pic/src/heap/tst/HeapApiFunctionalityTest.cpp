@@ -376,7 +376,8 @@ TEST_F(HeapApiFunctionalityTest, MultipleMapUnmapByteAlloc)
 TEST_F(HeapApiFunctionalityTest, randomAllocFreeWindowedPerf)
 {
     PHeap pHeap;
-    UINT64 time, endTime, duration, iterationDuration, durationSystem, iterationDurationSystem;
+    UINT64 time, endTime, duration, durationSystem;
+    DOUBLE iterationDuration, iterationDurationSystem;
 
     EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap));
     time = GETTIME();
@@ -385,8 +386,8 @@ TEST_F(HeapApiFunctionalityTest, randomAllocFreeWindowedPerf)
     heapRelease(pHeap);
 
     durationSystem = endTime - time;
-    iterationDurationSystem = durationSystem / HEAP_PERF_TEST_ITERATION_COUNT;
-    DLOGI("System Allocator perf time: %llu, time per iteration: %llu", durationSystem, iterationDurationSystem);
+    iterationDurationSystem = (DOUBLE) durationSystem / HEAP_PERF_TEST_ITERATION_COUNT;
+    DLOGI("System Allocator perf time: %llu, time per iteration: %lf", durationSystem, iterationDurationSystem);
 
     EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap));
     time = GETTIME();
@@ -395,8 +396,8 @@ TEST_F(HeapApiFunctionalityTest, randomAllocFreeWindowedPerf)
     heapRelease(pHeap);
 
     duration = endTime - time;
-    iterationDuration = duration / HEAP_PERF_TEST_ITERATION_COUNT;
-    DLOGI("Allocator perf time: %llu, time per iteration: %llu", duration, iterationDuration);
+    iterationDuration = (DOUBLE) duration / HEAP_PERF_TEST_ITERATION_COUNT;
+    DLOGI("Allocator perf time: %llu, time per iteration: %lf", duration, iterationDuration);
 
     // Ensure we are within 20% of the system heap speed
     EXPECT_TRUE(duration <= durationSystem * 1.2);
@@ -406,7 +407,8 @@ TEST_F(HeapApiFunctionalityTest, randomAllocFreeWindowedPerf)
 TEST_F(HeapApiFunctionalityTest, randomAllocFreeMultiStreamWindowedPerf)
 {
     PHeap pHeap;
-    UINT64 time, endTime, duration, iterationDuration, durationSystem, iterationDurationSystem;
+    UINT64 time, endTime, duration, durationSystem;
+    DOUBLE iterationDuration, iterationDurationSystem;
 
     EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap));
     time = GETTIME();
@@ -415,8 +417,8 @@ TEST_F(HeapApiFunctionalityTest, randomAllocFreeMultiStreamWindowedPerf)
     heapRelease(pHeap);
 
     durationSystem = endTime - time;
-    iterationDurationSystem = durationSystem / HEAP_PERF_TEST_ITERATION_COUNT;
-    DLOGI("System Allocator perf time: %llu, time per iteration: %llu", durationSystem, iterationDurationSystem);
+    iterationDurationSystem = (DOUBLE) durationSystem / HEAP_PERF_TEST_ITERATION_COUNT;
+    DLOGI("System Allocator perf time: %llu, time per iteration: %lf", durationSystem, iterationDurationSystem);
 
     EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap));
     time = GETTIME();
@@ -425,8 +427,8 @@ TEST_F(HeapApiFunctionalityTest, randomAllocFreeMultiStreamWindowedPerf)
     heapRelease(pHeap);
 
     duration = endTime - time;
-    iterationDuration = duration / HEAP_PERF_TEST_ITERATION_COUNT;
-    DLOGI("Allocator perf time: %llu, time per iteration: %llu", duration, iterationDuration);
+    iterationDuration = (DOUBLE) duration / HEAP_PERF_TEST_ITERATION_COUNT;
+    DLOGI("Allocator perf time: %llu, time per iteration: %lf", duration, iterationDuration);
 
     // Ensure we are within 20% of the system heap speed
     EXPECT_TRUE(duration <= durationSystem * 1.2);
@@ -436,7 +438,8 @@ TEST_F(HeapApiFunctionalityTest, randomAllocFreeMultiStreamWindowedPerf)
 TEST_F(HeapApiFunctionalityTest, singleAllocFreePerf)
 {
     PHeap pHeap;
-    UINT64 time, endTime, duration, iterationDuration, durationSystem, iterationDurationSystem;
+    UINT64 time, endTime, duration, durationSystem;
+    DOUBLE iterationDuration, iterationDurationSystem;
 
     EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap));
     time = GETTIME();
@@ -445,8 +448,8 @@ TEST_F(HeapApiFunctionalityTest, singleAllocFreePerf)
     heapRelease(pHeap);
 
     durationSystem = endTime - time;
-    iterationDurationSystem = durationSystem / HEAP_PERF_TEST_ITERATION_COUNT;
-    DLOGI("System Allocator perf time: %llu, time per iteration: %llu", durationSystem, iterationDurationSystem);
+    iterationDurationSystem = (DOUBLE) durationSystem / HEAP_PERF_TEST_ITERATION_COUNT;
+    DLOGI("System Allocator perf time: %llu, time per iteration: %lf", durationSystem, iterationDurationSystem);
 
     EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap));
     time = GETTIME();
@@ -455,8 +458,8 @@ TEST_F(HeapApiFunctionalityTest, singleAllocFreePerf)
     heapRelease(pHeap);
 
     duration = endTime - time;
-    iterationDuration = duration / HEAP_PERF_TEST_ITERATION_COUNT;
-    DLOGI("Allocator perf time: %llu, time per iteration: %llu", duration, iterationDuration);
+    iterationDuration = (DOUBLE) duration / HEAP_PERF_TEST_ITERATION_COUNT;
+    DLOGI("Allocator perf time: %llu, time per iteration: %lf", duration, iterationDuration);
 
     // Ensure we are within 20% of the system heap speed
     EXPECT_TRUE(duration <= durationSystem * 1.2);

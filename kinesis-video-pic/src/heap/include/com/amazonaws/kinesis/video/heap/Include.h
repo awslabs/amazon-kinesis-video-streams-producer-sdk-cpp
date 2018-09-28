@@ -14,14 +14,14 @@ extern "C" {
 #pragma pack(push, include, 1) // for byte alignment
 
 /**
- * We define minimal heap size as 10 MB
+ * We define minimal heap size as 1 MB
  */
-#define MIN_HEAP_SIZE ((UINT64) 10 * 1024 * 1024)
+#define MIN_HEAP_SIZE ((UINT64) 1 * 1024 * 1024)
 
 /**
- * We define maximal heap size as 4GB
+ * We define maximal heap size as 1TB
  */
-#define MAX_HEAP_SIZE 0xFFFFFFFFULL
+#define MAX_HEAP_SIZE ((UINT64) 1 * 1024 * 1024 * 1024 * 1024)
 
 /**
  * We define maximal heap size for file based allocations as 2^63 GB

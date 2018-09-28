@@ -166,6 +166,10 @@ extern "C" {
 #define STATUS_INVALID_ACK_SEGMENT_LEN                                              STATUS_CLIENT_BASE + 0x00000071
 #define STATUS_AWAITING_PERSISTED_ACK                                               STATUS_CLIENT_BASE + 0x00000072
 #define STATUS_PERSISTED_ACK_TIMEOUT                                                STATUS_CLIENT_BASE + 0x00000073
+#define STATUS_MAX_FRAGMENT_METADATA_COUNT                                          STATUS_CLIENT_BASE + 0x00000074
+#define STATUS_ACK_ERR_FRAGMENT_METADATA_LIMIT_REACHED                              STATUS_CLIENT_BASE + 0x00000075
+#define STATUS_BLOCKING_PUT_INTERRUPTED_STREAM_TERMINATED                           STATUS_CLIENT_BASE + 0x00000076
+#define STATUS_INVALID_METADATA_NAME                                                STATUS_CLIENT_BASE + 0x00000077
 
 ////////////////////////////////////////////////////
 // Main defines
@@ -239,6 +243,11 @@ extern "C" {
  * Minimal valid retention period
  */
 #define MIN_RETENTION_PERIOD                     (1 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
+
+/**
+ * Maximal size of the metadata queue for a fragment
+ */
+#define MAX_FRAGMENT_METADATA_COUNT              10
 
 /**
  * Max length of the fragment sequence number
@@ -599,6 +608,9 @@ typedef enum {
 
     // Inactive stream
     SERVICE_CALL_RESULT_STREAM_NOT_ACTIVE = 4008,
+
+    // Fragment metadata name/value/count limit reached
+    SERVICE_CALL_RESULT_FRAGMENT_METADATA_LIMIT_REACHED = 4009,
 
     // KMS specific error - KMS access denied while encrypting data
     SERVICE_CALL_RESULT_KMS_KEY_ACCESS_DENIED = 4500,

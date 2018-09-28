@@ -1214,7 +1214,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
 {
     UINT32 i, filledSize;
     BYTE tempBuffer[100];
-    BYTE getDataBuffer[500000];
+    PBYTE getDataBuffer = NULL;
+    UINT32 getDataBufferSize = 500000;
     UINT64 timestamp, clientStreamHandle;
     Frame frame;
     STATUS retStatus;
@@ -1224,6 +1225,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
 
     // Create and ready a stream
     ReadyStream();
+
+    getDataBuffer = (PBYTE) MEMALLOC(getDataBufferSize);
 
     // Produce frames
     frame.duration = TEST_LONG_FRAME_DURATION;
@@ -1250,7 +1253,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
     }
 
     // Consume frames on the boundary and validate
-    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer), &filledSize);
+    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
@@ -1258,13 +1261,16 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile("test_put_get_tags.mkv", TRUE, getDataBuffer, filledSize));
+    MEMFREE(getDataBuffer);
 }
 
 TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
 {
     UINT32 i, filledSize;
     BYTE tempBuffer[100];
-    BYTE getDataBuffer[500000];
+    PBYTE getDataBuffer = NULL;
+    UINT32 getDataBufferSize = 500000;
+
     UINT64 timestamp, clientStreamHandle;
     Frame frame;
     STATUS retStatus;
@@ -1274,6 +1280,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
 
     // Create and ready a stream
     ReadyStream();
+
+    getDataBuffer = (PBYTE) MEMALLOC(getDataBufferSize);
 
     // Produce frames
     frame.duration = TEST_LONG_FRAME_DURATION;
@@ -1287,13 +1295,21 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
         // Set the frame bits
         MEMSET(frame.frameData, (BYTE) i, SIZEOF(tempBuffer));
 
-        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "preTagName", "preTagValue", FALSE)) << i;
+        // Add tag every 3rd frame
+        if (i % 3 == 0) {
+            EXPECT_EQ(STATUS_SUCCESS,
+                      putKinesisVideoFragmentMetadata(mStreamHandle, "preTagName", "preTagValue", FALSE)) << i;
+        }
 
         // Key frame every 10th
         frame.flags = i % 10 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame)) << "Iteration " << i;
 
-        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "postTagName", "postTagValue", FALSE)) << i;
+        // Add tag every 3rd frame
+        if (i % 3 == 0) {
+            EXPECT_EQ(STATUS_SUCCESS,
+                      putKinesisVideoFragmentMetadata(mStreamHandle, "postTagName", "postTagValue", FALSE)) << i;
+        }
 
         // Return a put stream result on 20th
         if (i == 20) {
@@ -1302,21 +1318,24 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
     }
 
     // Consume frames on the boundary and validate
-    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer), &filledSize);
+    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(25117, filledSize);
+    EXPECT_EQ(16237, filledSize);
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile("test_put_get_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
+
+    MEMFREE(getDataBuffer);
 }
 
 TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
 {
     UINT32 i, filledSize;
     BYTE tempBuffer[100];
-    BYTE getDataBuffer[500000];
+    PBYTE getDataBuffer = NULL;
+    UINT32 getDataBufferSize = 500000;
     UINT64 timestamp, clientStreamHandle;
     Frame frame;
     STATUS retStatus;
@@ -1326,6 +1345,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
 
     // Create and ready a stream
     ReadyStream();
+
+    getDataBuffer = (PBYTE) MEMALLOC(getDataBufferSize);
 
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
 
@@ -1354,14 +1375,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
                       putFragmentMetadata(pKinesisVideoStream, "AppendTagName1", "AppendTagValue1", FALSE)) << i;
             EXPECT_EQ(STATUS_SUCCESS,
                       putFragmentMetadata(pKinesisVideoStream, "AppendTagName2", "AppendTagValue2", FALSE)) << i;
-            EXPECT_EQ(STATUS_SUCCESS,
-                      putFragmentMetadata(pKinesisVideoStream, "AppendTagName3", "AppendTagValue3", FALSE)) << i;
         }
 
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame)) << "Iteration " << i;
         EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "PrependTagName1", "PrependTagValue1", FALSE)) << i;
-        EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "PrependTagName2", "PrependTagValue2", FALSE)) << i;
-        EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "PrependTagName3", "PrependTagValue3", FALSE)) << i;
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "postTagName", "postTagValue", FALSE)) << i;
 
         // Return a put stream result on 10th
@@ -1374,21 +1391,24 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
     EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "Should not appear", "Should not appear", FALSE));
 
     // Consume frames on the boundary and validate
-    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer), &filledSize);
+    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(10252, filledSize);
+    EXPECT_EQ(6697, filledSize);
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile("test_insert_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
+
+    MEMFREE(getDataBuffer);
 }
 
 TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
 {
     UINT32 i, filledSize;
     BYTE tempBuffer[100];
-    BYTE getDataBuffer[500000];
+    PBYTE getDataBuffer = NULL;
+    UINT32 getDataBufferSize = 500000;
     CHAR tagValue[1000];
     UINT64 timestamp, clientStreamHandle;
     Frame frame;
@@ -1399,6 +1419,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
 
     // Create and ready a stream
     ReadyStream();
+
+    getDataBuffer = (PBYTE) MEMALLOC(getDataBufferSize);
 
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
 
@@ -1455,7 +1477,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
     EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "Should not appear", "Should not appear", FALSE));
 
     // Consume frames on the boundary and validate
-    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer), &filledSize);
+    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
@@ -1463,4 +1485,6 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile("test_insert_persistent_tags.mkv", TRUE, getDataBuffer, filledSize));
+
+    MEMFREE(getDataBuffer);
 }

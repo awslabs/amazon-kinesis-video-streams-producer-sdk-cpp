@@ -1119,7 +1119,7 @@ STATUS putFragmentMetadata(PKinesisVideoStream pKinesisVideoStream, PCHAR name, 
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = NULL;
     BOOL streamLocked = FALSE;
-    UINT32 packagedSize = 0, metadataNameSize, metadataValueSize;
+    UINT32 packagedSize = 0, metadataNameSize, metadataValueSize, metadataQueueSize;
     PSerializedMetadata pSerializedMetadata = NULL, pExistingSerializedMetadata;
     StackQueueIterator iterator;
     UINT64 data;
@@ -1147,6 +1147,10 @@ STATUS putFragmentMetadata(PKinesisVideoStream pKinesisVideoStream, PCHAR name, 
                                            STREAM_STATE_STOPPED));
     }
 
+    // Validate if the customer is not attempting to add an internal metadata
+    CHK(0 != STRNCMP(AWS_INTERNAL_METADATA_PREFIX, name, (SIZEOF(AWS_INTERNAL_METADATA_PREFIX) - 1) / SIZEOF(CHAR)),
+        STATUS_INVALID_METADATA_NAME);
+
     // Check whether we are OK to package the metadata but do not package.
     CHK_STATUS(mkvgenGenerateTag(pKinesisVideoStream->pMkvGenerator,
                                  NULL,
@@ -1160,7 +1164,7 @@ STATUS putFragmentMetadata(PKinesisVideoStream pKinesisVideoStream, PCHAR name, 
 
     // Check if the metadata exists in case of persistent metadata
     if (persistent) {
-        // Iterate linearly and find the first ready state handle
+        // Iterate linearly and see if we have a match with the name
         CHK_STATUS(stackQueueGetIterator(pKinesisVideoStream->pMetadataQueue, &iterator));
         while (IS_VALID_ITERATOR(iterator)) {
             CHK_STATUS(stackQueueIteratorGetItem(iterator, &data));
@@ -1187,6 +1191,10 @@ STATUS putFragmentMetadata(PKinesisVideoStream pKinesisVideoStream, PCHAR name, 
             CHK_STATUS(stackQueueIteratorNext(&iterator));
         }
     }
+
+    // Ensure we don't have more than MAX size of the metadata queue
+    CHK_STATUS(stackQueueGetCount(pKinesisVideoStream->pMetadataQueue, &metadataQueueSize));
+    CHK(metadataQueueSize < MAX_FRAGMENT_METADATA_COUNT, STATUS_MAX_FRAGMENT_METADATA_COUNT);
 
     // Allocate and store the data in sized allocation.
     // NOTE: We add NULL terminator for both name and value

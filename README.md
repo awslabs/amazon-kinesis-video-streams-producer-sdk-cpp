@@ -44,6 +44,10 @@ This library is licensed under the Amazon Software License.
 
 ----
 ### Release notes
+#### Release 1.5.1 (24th Aug 2018)
+* Fragment Metadata Support for Producer SDK
+* Add fallback frame rate to avoid negotiation issue on certain machines like macbook air
+
 #### Release 1.5.0 (24th Aug 2018)
 * Windows Support for Producer SDK
 * Intermittent producer support
