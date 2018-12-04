@@ -112,9 +112,9 @@ STATUS createDirStruct()
     removeDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH);
 
 #if defined __WINDOWS_BUILD__
-    system("del /q /s " TEMP_TEST_DIRECTORY_PATH);
+    system((PCHAR) "del /q /s " TEMP_TEST_DIRECTORY_PATH);
 #else
-    system("rm -rf " TEMP_TEST_DIRECTORY_PATH);
+    system((PCHAR) "rm -rf " TEMP_TEST_DIRECTORY_PATH);
 #endif
 
     // Start creating
@@ -134,16 +134,16 @@ TEST_F(DirectoryFunctionalityTest, NegativeInvalidInput_DirectoryTraverseRemoveG
     EXPECT_NE(STATUS_SUCCESS, traverseDirectory(NULL, 0, TRUE, NULL));
     EXPECT_NE(STATUS_SUCCESS, traverseDirectory(NULL, 0, TRUE, printDirInfo));
     EXPECT_NE(STATUS_SUCCESS, traverseDirectory(tempBuf, 0, TRUE, printDirInfo));
-    EXPECT_NE(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH, 0, TRUE, NULL));
+    EXPECT_NE(STATUS_SUCCESS, traverseDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH, 0, TRUE, NULL));
     EXPECT_NE(STATUS_SUCCESS, traverseDirectory(NULL, 0, FALSE, NULL));
     EXPECT_NE(STATUS_SUCCESS, traverseDirectory(NULL, 0, FALSE, printDirInfo));
     EXPECT_NE(STATUS_SUCCESS, traverseDirectory(tempBuf, 0, FALSE, printDirInfo));
-    EXPECT_NE(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH, 0, FALSE, NULL));
+    EXPECT_NE(STATUS_SUCCESS, traverseDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH, 0, FALSE, NULL));
 
     EXPECT_NE(STATUS_SUCCESS, removeDirectory(NULL));
     EXPECT_NE(STATUS_SUCCESS, removeDirectory(tempBuf));
     EXPECT_NE(STATUS_SUCCESS, getDirectorySize(NULL, &size));
-    EXPECT_NE(STATUS_SUCCESS, getDirectorySize("/data/data", NULL));
+    EXPECT_NE(STATUS_SUCCESS, getDirectorySize((PCHAR) "/data/data", NULL));
     EXPECT_NE(STATUS_SUCCESS, getDirectorySize(tempBuf, &size));
     EXPECT_NE(STATUS_SUCCESS, getDirectorySize(tempBuf, NULL));
 }
@@ -154,43 +154,43 @@ TEST_F(DirectoryFunctionalityTest, CreateTraverseRemoveDirs)
     EXPECT_EQ(STATUS_SUCCESS, createDirStruct());
 
     count = 0;
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH, (UINT64) &count, TRUE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH, (UINT64) &count, TRUE, printDirInfo));
     EXPECT_EQ((3 + 3 + 3 * (3 + 3  + 3 * (3 + 3))), count);
 
     count = 0;
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH, (UINT64) &count, FALSE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH, (UINT64) &count, FALSE, printDirInfo));
     EXPECT_EQ(3 + 3, count);
 
-    EXPECT_EQ(STATUS_SUCCESS, removeDirectory(TEMP_TEST_DIRECTORY_PATH));
+    EXPECT_EQ(STATUS_SUCCESS, removeDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH));
 
     // Perform the same with the ending separator
     EXPECT_EQ(STATUS_SUCCESS, createDirStruct());
 
     count = 0;
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR, (UINT64) &count, TRUE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory((PCHAR) (TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR), (UINT64) &count, TRUE, printDirInfo));
     EXPECT_EQ((3 + 3 + 3 * (3 + 3  + 3 * (3 + 3))), count);
 
     count = 0;
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR, (UINT64) &count, FALSE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory((PCHAR) (TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR), (UINT64) &count, FALSE, printDirInfo));
     EXPECT_EQ(3 + 3, count);
 
-    EXPECT_EQ(STATUS_SUCCESS, removeDirectory(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR));
+    EXPECT_EQ(STATUS_SUCCESS, removeDirectory((PCHAR) (TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR)));
 }
 
 TEST_F(DirectoryFunctionalityTest, CreateTraverseGetDirSize)
 {
     UINT64 size;
     EXPECT_EQ(STATUS_SUCCESS, createDirStruct());
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH, (UINT64) &size, TRUE, printDirInfo));
-    EXPECT_EQ(STATUS_SUCCESS, getDirectorySize(TEMP_TEST_DIRECTORY_PATH, &size));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH, (UINT64) &size, TRUE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, getDirectorySize((PCHAR) TEMP_TEST_DIRECTORY_PATH, &size));
     EXPECT_EQ((((100 * 3) * 3 + 3 * 100) * 3) + 3 * 100, size);
 
     // Perform the same with the ending separator
     EXPECT_EQ(STATUS_SUCCESS, createDirStruct());
-    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR, (UINT64) &size, TRUE, printDirInfo));
-    EXPECT_EQ(STATUS_SUCCESS, getDirectorySize(TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR, &size));
+    EXPECT_EQ(STATUS_SUCCESS, traverseDirectory((PCHAR) (TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR), (UINT64) &size, TRUE, printDirInfo));
+    EXPECT_EQ(STATUS_SUCCESS, getDirectorySize((PCHAR) (TEMP_TEST_DIRECTORY_PATH FPATHSEPARATOR_STR), &size));
     EXPECT_EQ((((100 * 3) * 3 + 3 * 100) * 3) + 3 * 100, size);
 
     // Remove the directories
-    EXPECT_EQ(STATUS_SUCCESS, removeDirectory(TEMP_TEST_DIRECTORY_PATH));
+    EXPECT_EQ(STATUS_SUCCESS, removeDirectory((PCHAR) TEMP_TEST_DIRECTORY_PATH));
 }

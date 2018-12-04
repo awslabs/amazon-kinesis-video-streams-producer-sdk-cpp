@@ -100,14 +100,16 @@ STATUS createKinesisVideoClient(PDeviceInfo pDeviceInfo, PClientCallbacks pClien
         pKinesisVideoClient->deviceInfo.tags[i].version = pDeviceInfo->tags[i].version;
         // Fix-up the pointers first
         pKinesisVideoClient->deviceInfo.tags[i].name = pCurPnt;
-        pCurPnt += MAX_TAG_NAME_LEN;
+        pCurPnt += MAX_TAG_NAME_LEN + 1;
 
         pKinesisVideoClient->deviceInfo.tags[i].value = pCurPnt;
-        pCurPnt += MAX_TAG_VALUE_LEN;
+        pCurPnt += MAX_TAG_VALUE_LEN + 1;
 
         // Copy the strings
         STRNCPY(pKinesisVideoClient->deviceInfo.tags[i].name, pDeviceInfo->tags[i].name, MAX_TAG_NAME_LEN);
+        pKinesisVideoClient->deviceInfo.tags[i].name[MAX_TAG_NAME_LEN] = '\0';
         STRNCPY(pKinesisVideoClient->deviceInfo.tags[i].value, pDeviceInfo->tags[i].value, MAX_TAG_VALUE_LEN);
+        pKinesisVideoClient->deviceInfo.tags[i].value[MAX_TAG_VALUE_LEN] = '\0';
     }
 
     // Create the lock

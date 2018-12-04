@@ -1,14 +1,15 @@
-#include "KvsSinkRotatingCredentialProvider.h"
+#include "RotatingCredentialProvider.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "Util/KvsSinkUtil.h"
+#include "CredentialProviderUtil.h"
 
-LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
+LOGGER_TAG("com.amazonaws.kinesis.video");
 
 using namespace com::amazonaws::kinesis::video;
+using namespace std;
 
-void KvsSinkRotatingCredentialProvider::updateCredentials(Credentials &credentials) {
+void RotatingCredentialProvider::updateCredentials(Credentials &credentials) {
 
     std::chrono::duration<uint64_t> expiration;
     string word, access_key, expiration_string, secret_key, session_token;
@@ -16,7 +17,7 @@ void KvsSinkRotatingCredentialProvider::updateCredentials(Credentials &credentia
     const int ACCESS_KEY_AND_SECRET_KEY = 3;
     const int ACCESS_KEY_AND_EXPIRATION_AND_SECRET_KEY_AND_SESSION_TOKEN = 5;
 
-    ifstream credential_file (data->kvsSink->credential_file_path);
+    ifstream credential_file (credential_file_path_);
     if (!credential_file.is_open()) {
         LOG_ERROR("Failed to open credential file");
         goto CleanUp;
@@ -55,7 +56,7 @@ void KvsSinkRotatingCredentialProvider::updateCredentials(Credentials &credentia
         auto now_time = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::system_clock::now().time_since_epoch());
         expiration = now_time + ROTATION_PERIOD;
-    } else if (kvs_sink_util::parseTimeStr(expiration_string, expiration) == false) {
+    } else if (credential_provider_util::parseTimeStr(expiration_string, expiration) == false) {
         LOG_ERROR("Failed to parse AWS_TOKEN_EXPIRATION.");
         goto CleanUp;
     }

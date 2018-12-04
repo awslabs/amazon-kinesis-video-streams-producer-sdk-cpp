@@ -27,7 +27,8 @@ using std::async;
 using std::launch;
 using Json::FastWriter;
 
-#define CURL_CLOSE_HANDLE_DELAY_IN_MILLIS 10
+#define CURL_CLOSE_HANDLE_DELAY_IN_MILLIS               10
+#define MAX_CUSTOM_USER_AGENT_STRING_LENGTH            128
 
 /**
 * As we store the credentials provider in the object itself we will return the pointer in the buffer
@@ -58,7 +59,7 @@ STATUS DefaultCallbackProvider::getSecurityTokenHandler(UINT64 custom_data, PBYT
 
 UINT64 DefaultCallbackProvider::getCurrentTimeHandler(UINT64 custom_data) {
     UNUSED_PARAM(custom_data);
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch())
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(systemCurrentTime().time_since_epoch())
             .count() / DEFAULT_TIME_UNIT_IN_NANOS;
 }
 
@@ -136,7 +137,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
         auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> (call_after_time);
-        std::this_thread::sleep_until(time_point);
+        sleepUntilWithTimeCallback(time_point);
 
         // Perform a sync call
         shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
@@ -223,7 +224,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
         auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> (call_after_time);
-        std::this_thread::sleep_until(time_point);
+        sleepUntilWithTimeCallback(time_point);
 
         // Perform a sync call
         shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
@@ -287,7 +288,7 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
         auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> (call_after_time);
-        std::this_thread::sleep_until(time_point);
+        sleepUntilWithTimeCallback(time_point);
 
         // Perform a sync call
         shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
@@ -414,7 +415,7 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
         auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> (call_after_time);
-        std::this_thread::sleep_until(time_point);
+        sleepUntilWithTimeCallback(time_point);
 
         // Perform a sync call
         shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
@@ -564,7 +565,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
         // Wait for the specified amount of time before calling
         auto call_after_time = std::chrono::nanoseconds(service_call_ctx->callAfter * DEFAULT_TIME_UNIT_IN_NANOS);
         auto time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(call_after_time);
-        std::this_thread::sleep_until(time_point);
+        sleepUntilWithTimeCallback(time_point);
 
         LOG_INFO("Creating new connection for Kinesis Video stream: " << stream_name_str);
 
@@ -924,31 +925,24 @@ void DefaultCallbackProvider::notifyResult(STATUS status, STREAM_HANDLE stream_h
     }
 }
 
-static std::string computeUserAgentString(std::string user_agent_name) {
-    std::stringstream ss;
-    ss << user_agent_name << "/" << getProducerSDKVersion() << " " << getCompilerVersion() << " "
-       << getOSVersion() << " " << getPlatformName();
-    return ss.str();
-}
-
 DefaultCallbackProvider::DefaultCallbackProvider(
         unique_ptr <ClientCallbackProvider> client_callback_provider,
         unique_ptr <StreamCallbackProvider> stream_callback_provider,
         unique_ptr <CredentialProvider> credentials_provider,
         const string& region,
         const string& control_plane_uri,
-        const std::string &user_agent_name)
+        const std::string &user_agent)
         : ccm_(CurlCallManager::getInstance()),
           region_(region),
           current_upload_handle_(0),
           service_(KINESIS_VIDEO_SERVICE_NAME),
           control_plane_uri_(control_plane_uri),
           debug_dump_file_(false),
-          security_token_(nullptr) {
+          security_token_(nullptr),
+          user_agent_(user_agent) {
     client_callback_provider_ = move(client_callback_provider);
     stream_callback_provider_ = move(stream_callback_provider);
     credentials_provider_ = move(credentials_provider);
-    user_agent_ = computeUserAgentString(user_agent_name);
 
     if (control_plane_uri_.empty()) {
         // Create a fully qualified URI
@@ -963,6 +957,14 @@ DefaultCallbackProvider::DefaultCallbackProvider(
     // Set the debug if compiled with debug file flags
     debug_dump_file_ = true;
 #endif
+}
+
+void DefaultCallbackProvider::sleepUntilWithTimeCallback(const std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>& time_point) {
+    auto callTime = time_point.time_since_epoch().count();
+    auto currentTime = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(systemCurrentTime()).time_since_epoch().count();
+    if (callTime > currentTime) {
+        std::this_thread::sleep_for(std::chrono::nanoseconds(callTime - currentTime));
+    }
 }
 
 void DefaultCallbackProvider::safeFreeBuffer(uint8_t** ppBuffer) {

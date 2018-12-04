@@ -176,11 +176,11 @@ TEST_F(ClientApiTest, createKinesisVideoClient_ValiateDeviceInfo)
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     mDeviceInfo.storageInfo.spillRatio = 0;
 
-    MEMSET(mDeviceInfo.storageInfo.rootDirectory, 'a', MAX_PATH_LEN * SIZEOF(CHAR));
+    MEMSET(mDeviceInfo.storageInfo.rootDirectory, 'a', (MAX_PATH_LEN + 1) * SIZEOF(CHAR));
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     mDeviceInfo.storageInfo.rootDirectory[0] = '\0';
 
-    MEMSET(mDeviceInfo.name, 'a', MAX_DEVICE_NAME_LEN * SIZEOF(CHAR));
+    MEMSET(mDeviceInfo.name, 'a', (MAX_DEVICE_NAME_LEN + 1) * SIZEOF(CHAR));
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     STRCPY(mDeviceInfo.name, TEST_DEVICE_NAME);
 

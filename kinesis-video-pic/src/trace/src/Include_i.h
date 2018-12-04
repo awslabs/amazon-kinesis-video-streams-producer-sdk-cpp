@@ -50,7 +50,7 @@ typedef struct
     /**
      * Null terminated thread name.
      */
-    CHAR threadName[MAX_THREAD_NAME];
+    CHAR threadName[MAX_THREAD_NAME + 1];
 
     /**
      * Trace level which will be either included or excluded based upon the perf trace level
@@ -60,7 +60,7 @@ typedef struct
     /**
      * Trace name - user specified.
      */
-    CHAR traceName[MAX_TRACE_NAME];
+    CHAR traceName[MAX_TRACE_NAME + 1];
 
     /**
      * Current trace count

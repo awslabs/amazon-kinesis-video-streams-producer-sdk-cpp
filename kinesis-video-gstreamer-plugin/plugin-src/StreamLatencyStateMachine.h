@@ -27,6 +27,9 @@ public:
     StreamLatencyStateMachine(std::shared_ptr<CustomData> data, STREAM_HANDLE stream_handle): current_state(StreamLatencyHandlingState::NORMAL_STATE),
                                                                               data(data), stream_handle(stream_handle) {}
     void handleStreamLatency();
+
+    ~StreamLatencyStateMachine();
+
 private:
     void toResetConnectionState();
     void toThrottlePipelineState();

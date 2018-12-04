@@ -1,6 +1,7 @@
 #pragma once
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
+#include <string>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -24,6 +25,14 @@ public:
      * @return  A device_info_t struct with the fields above initialized.
      */
     virtual device_info_t getDeviceInfo() = 0;
+
+    /**
+     * Return user's custom user agent string which will be appended to the default user agent string
+     *
+     */
+    virtual const std::string getCustomUserAgent() {
+        return "";
+    }
 };
 
 } // namespace video

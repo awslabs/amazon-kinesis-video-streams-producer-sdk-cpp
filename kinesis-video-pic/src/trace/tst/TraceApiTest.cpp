@@ -100,9 +100,9 @@ TEST_F(TraceApiTest, InvalidInputSetLevel_InvalidInputTraceStartStop) {
     EXPECT_TRUE(STATUS_SUCCEEDED(setProfilerLevel(handle, TRACE_LEVEL_INFO)));
 
     // Invalid handle
-    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, "Test trace name", TRACE_LEVEL_INFO, &traceHandle)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, "Test trace name", TRACE_LEVEL_CRITICAL, &traceHandle)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, "Test trace name", TRACE_LEVEL_VERBOSE, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, TEST_TRACE_NAME, TRACE_LEVEL_INFO, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, TEST_TRACE_NAME, TRACE_LEVEL_CRITICAL, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, TEST_TRACE_NAME, TRACE_LEVEL_VERBOSE, &traceHandle)));
 
     // Null trace name
     EXPECT_TRUE(STATUS_FAILED(traceStart(handle, NULL, TRACE_LEVEL_INFO, &traceHandle)));
@@ -110,14 +110,14 @@ TEST_F(TraceApiTest, InvalidInputSetLevel_InvalidInputTraceStartStop) {
     EXPECT_TRUE(STATUS_FAILED(traceStart(handle, NULL, TRACE_LEVEL_VERBOSE, &traceHandle)));
 
     // Empty trace name
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "", TRACE_LEVEL_INFO, &traceHandle)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "", TRACE_LEVEL_CRITICAL, &traceHandle)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "", TRACE_LEVEL_VERBOSE, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, (PCHAR) "", TRACE_LEVEL_INFO, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, (PCHAR) "", TRACE_LEVEL_CRITICAL, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, (PCHAR) "", TRACE_LEVEL_VERBOSE, &traceHandle)));
 
     // Null trace handle
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "Test trace name", TRACE_LEVEL_INFO, NULL)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "Test trace name", TRACE_LEVEL_CRITICAL, NULL)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "Test trace name", TRACE_LEVEL_VERBOSE, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_INFO, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_CRITICAL, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_VERBOSE, NULL)));
 
     // Invalid profiler handle
     EXPECT_TRUE(STATUS_FAILED(traceStop(INVALID_TRACE_PROFILER_HANDLE, traceHandle)));
@@ -131,9 +131,9 @@ TEST_F(TraceApiTest, InvalidInputSetLevel_InvalidInputTraceStartStop) {
     EXPECT_TRUE(STATUS_SUCCEEDED(setProfilerLevel(handle, TRACE_LEVEL_DISABLED)));
 
     // Invalid handle
-    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, "Test trace name", TRACE_LEVEL_INFO, &traceHandle)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, "Test trace name", TRACE_LEVEL_CRITICAL, &traceHandle)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, "Test trace name", TRACE_LEVEL_VERBOSE, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, TEST_TRACE_NAME, TRACE_LEVEL_INFO, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, TEST_TRACE_NAME, TRACE_LEVEL_CRITICAL, &traceHandle)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(INVALID_TRACE_PROFILER_HANDLE, TEST_TRACE_NAME, TRACE_LEVEL_VERBOSE, &traceHandle)));
 
     // Null trace name - succeeds because the handler is the stub handler
     EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, NULL, TRACE_LEVEL_INFO, &traceHandle)));
@@ -141,14 +141,14 @@ TEST_F(TraceApiTest, InvalidInputSetLevel_InvalidInputTraceStartStop) {
     EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, NULL, TRACE_LEVEL_VERBOSE, &traceHandle)));
 
     // Empty trace name - succeeds because the handler is the stub handler
-    EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "", TRACE_LEVEL_INFO, &traceHandle)));
-    EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "", TRACE_LEVEL_CRITICAL, &traceHandle)));
-    EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "", TRACE_LEVEL_VERBOSE, &traceHandle)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, (PCHAR) "", TRACE_LEVEL_INFO, &traceHandle)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, (PCHAR) "", TRACE_LEVEL_CRITICAL, &traceHandle)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, (PCHAR) "", TRACE_LEVEL_VERBOSE, &traceHandle)));
 
     // Null trace handle - fails as even with the stub handler we still need to return the trace handle
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "Test trace name", TRACE_LEVEL_INFO, NULL)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "Test trace name", TRACE_LEVEL_CRITICAL, NULL)));
-    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, "Test trace name", TRACE_LEVEL_VERBOSE, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_INFO, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_CRITICAL, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_VERBOSE, NULL)));
 
     // Invalid profiler handle
     EXPECT_TRUE(STATUS_FAILED(traceStop(INVALID_TRACE_PROFILER_HANDLE, traceHandle)));

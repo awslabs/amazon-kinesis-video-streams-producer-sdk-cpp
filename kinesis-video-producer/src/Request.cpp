@@ -1,11 +1,12 @@
 #include "Request.h"
+#include "GetTime.h"
 
 using namespace std;
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 Request::Request(Verb verb, const string &url)
-        : creation_time_(std::chrono::system_clock::now()),
+        : creation_time_(systemCurrentTime()),
           verb_(verb),
           url_(url),
           request_completion_timeout_(std::chrono::duration<double, std::milli>::zero()),
@@ -16,7 +17,7 @@ Request::Request(Verb verb, const string &url)
 Request::Request(Request::Verb verb,
                  const std::string &url,
                  shared_ptr<OngoingStreamState> stream_state)
-        : creation_time_(std::chrono::system_clock::now()),
+        : creation_time_(systemCurrentTime()),
           verb_(verb),
           url_(url),
           request_completion_timeout_(std::chrono::duration<double, std::milli>::zero()),

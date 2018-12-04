@@ -127,8 +127,9 @@ STATUS provisionKinesisVideoProducer(PKinesisVideoClient pKinesisVideoClient)
     // Validate the length if we got valid device fingerprint
     if (pDeviceFingerprint != NULL && pDeviceFingerprint[0] != '\0') {
         // Validate and store
-        CHK(STRNLEN(pDeviceFingerprint, MAX_DEVICE_FINGERPRINT_LENGTH) < MAX_DEVICE_FINGERPRINT_LENGTH, STATUS_DEVICE_FINGERPRINT_LENGTH);
+        CHK(STRNLEN(pDeviceFingerprint, MAX_DEVICE_FINGERPRINT_LENGTH + 1) <= MAX_DEVICE_FINGERPRINT_LENGTH, STATUS_DEVICE_FINGERPRINT_LENGTH);
         STRNCPY(pKinesisVideoClient->deviceFingerprint, pDeviceFingerprint, MAX_DEVICE_FINGERPRINT_LENGTH);
+        pKinesisVideoClient->deviceFingerprint[MAX_DEVICE_FINGERPRINT_LENGTH] = '\0';
     } else {
         // Generate one
         createRandomName(pKinesisVideoClient->deviceFingerprint,

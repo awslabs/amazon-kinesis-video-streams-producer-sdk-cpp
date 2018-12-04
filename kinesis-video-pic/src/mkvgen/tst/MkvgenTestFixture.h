@@ -16,9 +16,9 @@
 
 #define MKV_TEST_BEHAVIOR_FLAGS         (MKV_GEN_KEY_FRAME_PROCESSING | MKV_GEN_IN_STREAM_TIME)
 
-#define MKV_TEST_CONTENT_TYPE           "video/teststream"
-#define MKV_TEST_CODEC_ID               "TEST_CODEC_ID"
-#define MKV_TEST_TRACK_NAME             "test track"
+#define MKV_TEST_CONTENT_TYPE           ((PCHAR) "video/teststream")
+#define MKV_TEST_CODEC_ID               ((PCHAR) "TEST_CODEC_ID")
+#define MKV_TEST_TRACK_NAME             ((PCHAR) "test track")
 
 #define MKV_TEST_CUSTOM_DATA            0x12345
 

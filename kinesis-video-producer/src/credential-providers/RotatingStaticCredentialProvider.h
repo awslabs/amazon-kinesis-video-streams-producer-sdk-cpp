@@ -1,14 +1,14 @@
-#ifndef __KVS_SINK_STATIC_CREDENTIAL_PROVIDER_H__
-#define __KVS_SINK_STATIC_CREDENTIAL_PROVIDER_H__
+#ifndef __ROTATING_STATIC_CREDENTIAL_PROVIDER_H__
+#define __ROTATING_STATIC_CREDENTIAL_PROVIDER_H__
 
-#include "gstkvssink.h"
+#include "Auth.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-    class KvsSinkStaticCredentialProvider : public StaticCredentialProvider {
+    class RotatingStaticCredentialProvider : public StaticCredentialProvider {
         const std::chrono::duration<uint64_t> ROTATION_PERIOD;
     public:
-        KvsSinkStaticCredentialProvider(Credentials &credentials, uint64_t rotation_period_seconds) :
+        RotatingStaticCredentialProvider(Credentials &credentials, uint64_t rotation_period_seconds) :
                 StaticCredentialProvider(credentials), ROTATION_PERIOD(std::chrono::seconds(rotation_period_seconds)) {}
 
         void updateCredentials(Credentials &credentials) override;
@@ -18,4 +18,4 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 }
 }
 
-#endif //__KVS_SINK_STATIC_CREDENTIAL_PROVIDER_H__
+#endif //__ROTATING_STATIC_CREDENTIAL_PROVIDER_H__

@@ -136,7 +136,7 @@ int gstreamer_init(int argc, char *argv[]) {
         return 1;
     }
 
-    g_object_set(G_OBJECT (data.kvsproducer), "stream-name", stream_name, "storage-size", 512, NULL);
+    g_object_set(G_OBJECT (data.kvsproducer), "stream-name", stream_name, "storage-size", 128, NULL);
 
 
     g_object_set(G_OBJECT (data.source),

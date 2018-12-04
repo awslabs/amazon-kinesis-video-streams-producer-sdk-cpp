@@ -62,14 +62,14 @@
 #include "gstkvssink.h"
 #include <chrono>
 #include <Logger.h>
-#include "KvsSinkRotatingCredentialProvider.h"
-#include "KvsSinkStaticCredentialProvider.h"
+#include <RotatingCredentialProvider.h>
 #include "KvsSinkStreamCallbackProvider.h"
 #include "KvsSinkClientCallbackProvider.h"
 #include "KvsSinkDeviceInfoProvider.h"
 #include "StreamLatencyStateMachine.h"
 #include "ConnectionStaleStateMachine.h"
-#include "KvsSinkIotCertCredentialProvider.h"
+#include <IotCertCredentialProvider.h>
+#include <RotatingStaticCredentialProvider.h>
 #include "Util/KvsSinkUtil.h"
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
@@ -122,13 +122,13 @@ enum {
 #define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
 #define DEFAULT_KEY_FRAME_FRAGMENTATION TRUE
 #define DEFAULT_FRAME_TIMECODES TRUE
-#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
+#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES FALSE
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
 #define DEFAULT_STREAM_FRAMERATE 25
 #define DEFAULT_AVG_BANDWIDTH_BPS (4 * 1024 * 1024)
-#define DEFAULT_BUFFER_DURATION_SECONDS 180
+#define DEFAULT_BUFFER_DURATION_SECONDS 120
 #define DEFAULT_REPLAY_DURATION_SECONDS 40
 #define DEFAULT_CONNECTION_STALENESS_SECONDS 60
 #define DEFAULT_CODEC_ID "V_MPEG4/ISO/AVC"
@@ -324,18 +324,19 @@ void kinesis_video_producer_init(GstKvsSink *sink) {
                                                       secret_key_str,
                                                       "",
                                                       std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS));
-        credential_provider = make_unique<KvsSinkStaticCredentialProvider>(*sink->credentials_, sink->rotation_period);
+        credential_provider = make_unique<RotatingStaticCredentialProvider>(*sink->credentials_, sink->rotation_period);
     } else if (sink->iot_certificate) {
         std::map<std::string, std::string> iot_cert_params;
         gboolean ret = kvs_sink_util::parseIotCredentialGstructure(sink->iot_certificate, iot_cert_params);
         g_assert_true(ret);
-        credential_provider = make_unique<KvsSinkIotCertCredentialProvider>(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
-                                                                            iot_cert_params[CERTIFICATE_PATH],
-                                                                            iot_cert_params[PRIVATE_KEY_PATH],
-                                                                            iot_cert_params[ROLE_ALIASES],
-                                                                            iot_cert_params[CA_CERT_PATH]);
+        credential_provider = make_unique<IotCertCredentialProvider>(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
+                                                                     iot_cert_params[CERTIFICATE_PATH],
+                                                                     iot_cert_params[PRIVATE_KEY_PATH],
+                                                                     iot_cert_params[ROLE_ALIASES],
+                                                                     iot_cert_params[CA_CERT_PATH],
+                                                                     sink->stream_name);
     } else {
-        credential_provider = make_unique<KvsSinkRotatingCredentialProvider>(data);
+        credential_provider = make_unique<RotatingCredentialProvider>(sink->credential_file_path);
     }
 
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
@@ -1141,10 +1142,7 @@ static GstFlowReturn gst_kvs_sink_preroll(GstBaseSink *bsink, GstBuffer *buffer)
 void recreate_kvs_stream(GstKvsSink *sink) {
     auto data = sink->data;
 
-    {
-        std::lock_guard<std::mutex> lk(data->stream_recreation_status_mtx);
-        data->stream_recreation_status = STREAM_RECREATION_STATUS_IN_PROGRESS;
-    }
+    data->stream_recreation_in_progress = true;
 
     string err_msg;
     // retry forever until success
@@ -1153,8 +1151,7 @@ void recreate_kvs_stream(GstKvsSink *sink) {
         succeeded = kinesis_video_stream_init(sink, err_msg) && kinesis_video_stream_start(sink, err_msg);
     } while (!succeeded);
 
-    std::lock_guard<std::mutex> lk(data->stream_recreation_status_mtx);
-    data->stream_recreation_status = STREAM_RECREATION_STATUS_NONE;
+    data->stream_recreation_in_progress = false;
 }
 
 /*
@@ -1182,6 +1179,7 @@ static GstFlowReturn gst_kvs_sink_prepare(GstBaseSink *bsink, GstBuffer *buffer)
                     continue;
                 }
                 recreate_stream = true;
+
                 data->kinesis_video_producer->freeStream(stream);
                 data->kinesis_video_stream_map.remove(handle);
                 data->callback_state_machine_map.remove(handle);
@@ -1223,6 +1221,8 @@ static GstFlowReturn gst_kvs_sink_render(GstBaseSink *bsink, GstBuffer *buf) {
     auto data = sink->data;
     string err_msg;
     GstFlowReturn ret = GST_FLOW_OK;
+    bool isDroppable = false;
+    STATUS stream_status = data->stream_status.load();
 
     if (sink->dump) {
         GstMapInfo info;
@@ -1233,29 +1233,25 @@ static GstFlowReturn gst_kvs_sink_render(GstBaseSink *bsink, GstBuffer *buf) {
         }
     }
 
-    bool isDroppable =  GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
-                        GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY);
+    if (STATUS_FAILED(stream_status)) {
+        GST_ELEMENT_ERROR (sink, STREAM, FAILED, (NULL),
+                           ("Stream error occurred. Status: 0x%08x", stream_status));
+        ret = GST_FLOW_ERROR;
+        goto CleanUp;
+    }
 
     /*
-     * IN_PROGRESS:     In progress of creating new kvs stream. Thus there is no kvs stream available. Therefore skip current
-     *                  frame.
-     * NONE:            Do nothing.
+     * If in progress of creating new kvs stream. Thus there is no kvs stream available. Therefore skip current
+     * frame.
      */
-    {
-        std::lock_guard<std::mutex> lk(data->stream_recreation_status_mtx);
-        switch (data->stream_recreation_status) {
-            case STREAM_RECREATION_STATUS_IN_PROGRESS:
-                isDroppable = true;
-            case STREAM_RECREATION_STATUS_NONE:
-                break;
-        }
-    }
+    isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
+                    GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
+                    data->stream_recreation_in_progress.load();
 
     if (!isDroppable) {
         bool isHeader = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER);
         // drop if buffer contains header only and has invalid timestamp
         if (!(isHeader && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)))) {
-
             switch (sink->frame_timestamp) {
                 case KVS_SINK_TIMESTAMP_PTS_ONLY:
                     if (!GST_BUFFER_PTS_IS_VALID(buf)) {
@@ -1295,7 +1291,6 @@ static GstFlowReturn gst_kvs_sink_render(GstBaseSink *bsink, GstBuffer *buf) {
             bool delta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
             FRAME_FLAGS kinesis_video_flags;
             if(!delta) {
-                buf->pts = buf->dts;
                 kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
             } else {
                 kinesis_video_flags = FRAME_FLAG_NONE;
@@ -1437,7 +1432,6 @@ static gboolean gst_kvs_sink_start (GstBaseSink * bsink)
     }
 
 CleanUp:
-
     return ret;
 }
 

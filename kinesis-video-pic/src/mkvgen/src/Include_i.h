@@ -33,16 +33,16 @@ extern "C" {
 /**
  * Content type prefixes
  */
-#define MKV_CONTENT_TYPE_PREFIX_AUDIO       "audio/"
-#define MKV_CONTENT_TYPE_PREFIX_VIDEO       "video/"
+#define MKV_CONTENT_TYPE_PREFIX_AUDIO       ((PCHAR) "audio/")
+#define MKV_CONTENT_TYPE_PREFIX_VIDEO       ((PCHAR) "video/")
 
 /**
  * Special processing for the types
  */
-#define MKV_H264_CONTENT_TYPE               "video/h264"
-#define MKV_H265_CONTENT_TYPE               "video/h265"
-#define MKV_X_MKV_CONTENT_TYPE              "video/x-matroska"
-#define MKV_FOURCC_CODEC_ID                 "V_MS/VFW/FOURCC"
+#define MKV_H264_CONTENT_TYPE               ((PCHAR) "video/h264")
+#define MKV_H265_CONTENT_TYPE               ((PCHAR) "video/h265")
+#define MKV_X_MKV_CONTENT_TYPE              ((PCHAR) "video/x-matroska")
+#define MKV_FOURCC_CODEC_ID                 ((PCHAR) "V_MS/VFW/FOURCC")
 
 /**
  * Generate a random byte

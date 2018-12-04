@@ -7,6 +7,7 @@
 #include <curl/curl.h>
 #include "com/amazonaws/kinesis/video/common/CommonDefs.h"
 #include "OngoingStreamState.h"
+#include "GetTime.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 

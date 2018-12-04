@@ -126,18 +126,25 @@ endif()
 
 if(NOT BUILD_JNI_ONLY AND (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules (GLIB2        REQUIRED   glib-2.0)
+
   pkg_check_modules (CRYPTO       REQUIRED   libcrypto)
   pkg_check_modules (CURL         REQUIRED   libcurl)
-  pkg_check_modules (GST          REQUIRED   gstreamer-1.0)
-  pkg_check_modules (GST_APP      REQUIRED   gstreamer-app-1.0)
   pkg_check_modules (LOG4CPLUS    REQUIRED   log4cplus=1.2.0)
-  pkg_check_modules (GOBJ2        REQUIRED   gobject-2.0)
   pkg_check_modules (SSL          REQUIRED   libssl)
-  pkg_check_modules (GST_CHECK    REQUIRED   gstreamer-check-1.0)
-  pkg_check_modules (GST_BASE     REQUIRED   gstreamer-base-1.0)
-  find_library(GTEST NAMES gtest REQUIRED HINTS ${LIBRARY_PATH} PATH_SUFFIXES lib)
-  find_library(GTEST_MAIN NAMES gtest_main REQUIRED HINTS ${LIBRARY_PATH} PATH_SUFFIXES lib)
+
+  if (NOT BUILD_PRODUCER_ONLY)
+    pkg_check_modules (GLIB2        REQUIRED   glib-2.0)
+    pkg_check_modules (GST          REQUIRED   gstreamer-1.0)
+    pkg_check_modules (GST_APP      REQUIRED   gstreamer-app-1.0)
+    pkg_check_modules (GOBJ2        REQUIRED   gobject-2.0)
+    pkg_check_modules (GST_CHECK    REQUIRED   gstreamer-check-1.0)
+    pkg_check_modules (GST_BASE     REQUIRED   gstreamer-base-1.0)
+  endif()
+
+  if (NOT NO_UNIT_TEST)
+    find_library(GTEST NAMES gtest REQUIRED HINTS ${LIBRARY_PATH} PATH_SUFFIXES lib)
+    find_library(GTEST_MAIN NAMES gtest_main REQUIRED HINTS ${LIBRARY_PATH} PATH_SUFFIXES lib)
+  endif()
 
   set(OPEN_SRC_INCLUDE_DIRS
           ${GLIB2_INCLUDE_DIRS}
@@ -303,6 +310,16 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/ThreadSafeMap.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/Version.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/Version.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/GetTime.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/GetTime.cpp
+	${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/CredentialProviderUtil.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/CredentialProviderUtil.cpp
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/IotCertCredentialProvider.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/IotCertCredentialProvider.cpp
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/RotatingCredentialProvider.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/RotatingCredentialProvider.cpp
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/RotatingStaticCredentialProvider.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/RotatingStaticCredentialProvider.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/opensource/jsoncpp/jsoncpp.cpp)
 
 set(TST_PRODUCER_SOURCE_FILES
@@ -377,8 +394,6 @@ set(RTSP_DEMO_APP
 set(GST_PLUGIN_SOURCE_FILES
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/gstkvssink.cpp
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/gstkvssink.h
-        ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkRotatingCredentialProvider.h
-        ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkRotatingCredentialProvider.cpp
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkStreamCallbackProvider.h
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkStreamCallbackProvider.cpp
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkClientCallbackProvider.h
@@ -389,12 +404,8 @@ set(GST_PLUGIN_SOURCE_FILES
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/StreamLatencyStateMachine.cpp
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/ConnectionStaleStateMachine.h
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/ConnectionStaleStateMachine.cpp
-        ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkStaticCredentialProvider.h
-        ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkStaticCredentialProvider.cpp
-	      ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkIotCertCredentialProvider.h
-        ${KINESIS_VIDEO_GST_PLUGIN_SRC}/KvsSinkIotCertCredentialProvider.cpp
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/Util/KvsSinkUtil.h
-	      ${KINESIS_VIDEO_GST_PLUGIN_SRC}/Util/KvsSinkUtil.cpp)
+	${KINESIS_VIDEO_GST_PLUGIN_SRC}/Util/KvsSinkUtil.cpp)
 
 include_directories(${KINESIS_VIDEO_PIC_SRC})
 include_directories(${KINESIS_VIDEO_PIC_SRC}/src/client/include)
@@ -421,6 +432,7 @@ include_directories(${KINESIS_VIDEO_PIC_SRC}/src/utils/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/opensource/jsoncpp)
 include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/tst)
+include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_JNI_SRC}/src/include/)
 include_directories(${OPEN_SRC_INCLUDE_DIRS})
 include_directories(/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers)

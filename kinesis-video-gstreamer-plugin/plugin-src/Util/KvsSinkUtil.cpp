@@ -77,28 +77,4 @@ gboolean parseIotCredentialGstructure(GstStructure *g_struct, std::map<std::stri
 CleanUp:
     return ret;
 }
-
-bool parseTimeStr(std::string time_str, std::chrono::duration<uint64_t> &time_obj){
-    bool res = true;
-    std::tm timeinfo = std::tm();
-
-#if defined(__GNUC__) && (__GNUC__ < 5) && !defined(__APPLE__)
-    res = strptime(time_str.c_str(), "%Y-%m-%dT%H:%M:%SZ", &timeinfo) != NULL ? true : false;
-#else
-    std::istringstream iss(time_str);
-    res = iss >> std::get_time(&timeinfo, "%Y-%m-%dT%H:%M:%SZ") ? true : false;
-#endif
-
-    if (res) {
-        std::time_t tt = std::mktime(&timeinfo);
-        // the expiration string from aws credential is in UTC, but get interpreted as local time when mktime.
-        // Thus minus timezone to convert back to UTC.
-        tt -= timezone_offset;
-        std::chrono::system_clock::time_point tp = std::chrono::system_clock::from_time_t (tt);
-        time_obj = std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch());
-        LOG_DEBUG("Credential expiration epoch: " << time_obj.count() << " seconds");
-    }
-
-    return res;
-}
 }

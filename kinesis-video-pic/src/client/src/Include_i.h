@@ -120,9 +120,10 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
 #define FILE_BASED_HEAP_FLAGS       (FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_FILE_HEAP)
 
 /**
- * Defines the full tag structure length when the pointers to the strings are allocated after the struct
+ * Defines the full tag structure length when the pointers to the strings are allocated after the
+ * main struct. We will add 2 for NULL terminators
  */
-#define TAG_FULL_LENGTH             (SIZEOF(Tag) + (MAX_TAG_NAME_LEN + MAX_TAG_VALUE_LEN) * SIZEOF(CHAR))
+#define TAG_FULL_LENGTH             (SIZEOF(Tag) + (MAX_TAG_NAME_LEN + MAX_TAG_VALUE_LEN + 2) * SIZEOF(CHAR))
 
 /**
  * Calculates the next service call retry time

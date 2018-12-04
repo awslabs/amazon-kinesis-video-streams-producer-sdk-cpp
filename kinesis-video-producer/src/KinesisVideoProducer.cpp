@@ -1,8 +1,28 @@
 #include "KinesisVideoProducer.h"
+#include "Version.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
+#define MAX_CUSTOM_USER_AGENT_STRING_LENGTH            128
+
 LOGGER_TAG("com.amazonaws.kinesis.video");
+
+static std::string computeUserAgentString(const std::string user_agent_name, const std::string custom_useragent) {
+    std::stringstream ss;
+    ss << user_agent_name << "/" << getProducerSDKVersion() << " " << getCompilerVersion() << " "
+       << getOSVersion() << " " << getPlatformName();
+
+    if (!custom_useragent.empty()){
+        if (custom_useragent.size() < MAX_CUSTOM_USER_AGENT_STRING_LENGTH) {
+            ss << " " << custom_useragent;
+        } else {
+            LOG_WARN("dropping custom useragent because it execeeded maximum length of "
+                << MAX_CUSTOM_USER_AGENT_STRING_LENGTH);
+        }
+    }
+
+    return ss.str();
+}
 
 unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
         unique_ptr<DeviceInfoProvider> device_info_provider,
@@ -18,7 +38,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
                                                                   move(credential_provider),
                                                                   region,
                                                                   control_plane_uri,
-                                                                  user_agent_name);
+                                                                  computeUserAgentString(user_agent_name, device_info_provider->getCustomUserAgent()));
 
     return KinesisVideoProducer::create(move(device_info_provider), move(callback_provider));
 }
@@ -101,7 +121,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
                                                                   move(credential_provider),
                                                                   region,
                                                                   control_plane_uri,
-                                                                  user_agent_name);
+                                                                  computeUserAgentString(user_agent_name, device_info_provider->getCustomUserAgent()));
 
     return KinesisVideoProducer::createSync(move(device_info_provider), move(callback_provider));
 }

@@ -305,8 +305,8 @@ STATUS traceStartInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR
     STRNCPY(pTrace->traceName, traceName, MAX_TRACE_NAME);
 
     // Null terminate just in case
-    pTrace->traceName[MAX_TRACE_NAME - 1] = '\0';
-    pTrace->threadName[MAX_THREAD_NAME - 1] = '\0';
+    pTrace->traceName[MAX_TRACE_NAME] = '\0';
+    pTrace->threadName[MAX_THREAD_NAME] = '\0';
 
     // Increment the next trace pointer and the counter
     // IMPORTANT FAILSAFE!!! From this point on nothing should fail as we had already 'allocated' the trace

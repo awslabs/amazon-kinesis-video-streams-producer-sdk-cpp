@@ -50,7 +50,7 @@ STATUS createDeviceResult(PKinesisVideoClient pKinesisVideoClient, SERVICE_CALL_
         CHK(deviceArn != NULL, STATUS_INVALID_CREATE_DEVICE_RESPONSE);
 
         // Validate and store the data
-        CHK(deviceArn != NULL && STRNLEN(deviceArn, MAX_ARN_LEN) < MAX_ARN_LEN, STATUS_INVALID_CREATE_DEVICE_RESPONSE);
+        CHK(deviceArn != NULL && STRNLEN(deviceArn, MAX_ARN_LEN + 1) <= MAX_ARN_LEN, STATUS_INVALID_CREATE_DEVICE_RESPONSE);
         STRNCPY(pKinesisVideoClient->base.arn, deviceArn, MAX_ARN_LEN);
         pKinesisVideoClient->base.arn[MAX_ARN_LEN] = '\0';
     }

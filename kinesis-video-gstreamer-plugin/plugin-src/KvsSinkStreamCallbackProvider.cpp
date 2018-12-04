@@ -24,9 +24,12 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STRE
                                                            UINT64 errored_timecode, STATUS status_code) {
     LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: 0x" << std::hex << status_code);
     auto customDataObj = reinterpret_cast<CustomData*>(custom_data);
-    if (status_code == static_cast<UINT32>(STATUS_DESCRIBE_STREAM_CALL_FAILED)) {
+    if (status_code == STATUS_DESCRIBE_STREAM_CALL_FAILED ||
+        status_code == STATUS_GET_STREAMING_ENDPOINT_CALL_FAILED) {
         std::lock_guard<std::mutex> lk(customDataObj->closing_stream_handles_queue_mtx);
         customDataObj->closing_stream_handles_queue.push(stream_handle);
+    } else {
+        customDataObj->stream_status = status_code;
     }
 
     return STATUS_SUCCESS;

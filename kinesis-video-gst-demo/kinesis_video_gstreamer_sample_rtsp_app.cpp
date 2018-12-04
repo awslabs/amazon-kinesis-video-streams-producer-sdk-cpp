@@ -42,7 +42,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_RECALCULATE_METRICS TRUE
 #define DEFAULT_STREAM_FRAMERATE 25
 #define DEFAULT_AVG_BANDWIDTH_BPS (4 * 1024 * 1024)
-#define DEFAULT_BUFFER_DURATION_SECONDS 180
+#define DEFAULT_BUFFER_DURATION_SECONDS 120
 #define DEFAULT_REPLAY_DURATION_SECONDS 40
 #define DEFAULT_CONNECTION_STALENESS_SECONDS 60
 #define DEFAULT_CODEC_ID "V_MPEG4/ISO/AVC"
@@ -113,7 +113,7 @@ namespace com {
 
                         // Update only the expiration
                         auto now_time = std::chrono::duration_cast<std::chrono::seconds>(
-                                std::chrono::system_clock::now().time_since_epoch());
+                                systemCurrentTime().time_since_epoch());
                         auto expiration_seconds = now_time + ROTATION_PERIOD;
                         credentials.setExpiration(std::chrono::seconds(expiration_seconds.count()));
                         LOG_INFO("New credentials expiration is " << credentials.getExpiration().count());
@@ -124,8 +124,8 @@ namespace com {
                 public:
                     device_info_t getDeviceInfo() override {
                         auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
-                        // Set the storage size to 512MB
-                        device_info.storageInfo.storageSize = 512 * 1024 * 1024;
+                        // Set the storage size to 128MB
+                        device_info.storageInfo.storageSize = 128 * 1024 * 1024;
                         return device_info;
                     }
                 };

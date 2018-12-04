@@ -37,13 +37,13 @@ BOOL setDeviceInfo(JNIEnv *env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pDeviceInfo->name, retChars, MAX_DEVICE_NAME_LEN);
+            STRNCPY(pDeviceInfo->name, retChars, MAX_DEVICE_NAME_LEN + 1);
 
             // Ensure we null terminate it
-            pDeviceInfo->name[MAX_DEVICE_NAME_LEN - 1] = '\0';
+            pDeviceInfo->name[MAX_DEVICE_NAME_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pDeviceInfo->name[0]= '\0';
+            pDeviceInfo->name[0] = '\0';
         }
     }
 
@@ -96,11 +96,11 @@ BOOL setDeviceInfo(JNIEnv *env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pDeviceInfo->storageInfo.rootDirectory, retChars, MAX_PATH_LEN);
-            pDeviceInfo->storageInfo.rootDirectory[MAX_PATH_LEN - 1] = '\0';
+            STRNCPY(pDeviceInfo->storageInfo.rootDirectory, retChars, MAX_PATH_LEN + 1);
+            pDeviceInfo->storageInfo.rootDirectory[MAX_PATH_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pDeviceInfo->storageInfo.rootDirectory[0]= '\0';
+            pDeviceInfo->storageInfo.rootDirectory[0] = '\0';
         }
     }
 
@@ -144,8 +144,9 @@ BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount
     tagCount = (UINT32) env->GetArrayLength(tagArray);
     CHK_JVM_EXCEPTION(env);
 
-    // Allocate enough memory
-    CHK(NULL != (pTags = (PTag) MEMCALLOC(tagCount, SIZEOF(Tag) + MAX_TAG_NAME_LEN * SIZEOF(CHAR) + MAX_TAG_VALUE_LEN * SIZEOF(CHAR))), STATUS_NOT_ENOUGH_MEMORY);
+    // Allocate enough memory.
+    // NOTE: We need to add two NULL terminators for tag name and tag value
+    CHK(NULL != (pTags = (PTag) MEMCALLOC(tagCount, SIZEOF(Tag) + (MAX_TAG_NAME_LEN +  MAX_TAG_VALUE_LEN + 2) * SIZEOF(CHAR))), STATUS_NOT_ENOUGH_MEMORY);
 
     // Iterate over and set the values. NOTE: the actual storage for the strings will follow the array
     pCurPtr = (PCHAR) (pTags + tagCount);
@@ -171,8 +172,8 @@ BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount
 
         // Extract the chars and copy
         retChars = env->GetStringUTFChars(retString, NULL);
-        STRNCPY(pCurPtr, retChars, MAX_TAG_NAME_LEN);
-        pCurPtr[MAX_TAG_NAME_LEN - 1] = '\0';
+        STRNCPY(pCurPtr, retChars, MAX_TAG_NAME_LEN + 1);
+        pCurPtr[MAX_TAG_NAME_LEN] = '\0';
         env->ReleaseStringUTFChars(retString, retChars);
 
         // Set the tag pointer and increment the current pointer
@@ -185,8 +186,8 @@ BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount
 
         // Extract the chars and copy
         retChars = env->GetStringUTFChars(retString, NULL);
-        STRNCPY(pCurPtr, retChars, MAX_TAG_VALUE_LEN);
-        pCurPtr[MAX_TAG_VALUE_LEN - 1] = '\0';
+        STRNCPY(pCurPtr, retChars, MAX_TAG_VALUE_LEN + 1);
+        pCurPtr[MAX_TAG_VALUE_LEN] = '\0';
         env->ReleaseStringUTFChars(retString, retChars);
 
         // Set the tag pointer and increment the current pointer
@@ -251,14 +252,14 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamInfo->name, retChars, MAX_STREAM_NAME_LEN);
+            STRNCPY(pStreamInfo->name, retChars, MAX_STREAM_NAME_LEN + 1);
 
             // Just in case - null terminate the copied string
-            pStreamInfo->name[MAX_STREAM_NAME_LEN - 1] = '\0';
+            pStreamInfo->name[MAX_STREAM_NAME_LEN] = '\0';
 
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamInfo->name[0]= '\0';
+            pStreamInfo->name[0] = '\0';
         }
     }
 
@@ -279,11 +280,11 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamInfo->streamCaps.contentType, retChars, MAX_CONTENT_TYPE_LEN);
-            pStreamInfo->streamCaps.contentType[MAX_CONTENT_TYPE_LEN - 1] = '\0';
+            STRNCPY(pStreamInfo->streamCaps.contentType, retChars, MAX_CONTENT_TYPE_LEN + 1);
+            pStreamInfo->streamCaps.contentType[MAX_CONTENT_TYPE_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamInfo->streamCaps.contentType[0]= '\0';
+            pStreamInfo->streamCaps.contentType[0] = '\0';
         }
     }
 
@@ -296,11 +297,11 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamInfo->kmsKeyId, retChars, MAX_ARN_LEN);
-            pStreamInfo->kmsKeyId[MAX_ARN_LEN - 1] = '\0';
+            STRNCPY(pStreamInfo->kmsKeyId, retChars, MAX_ARN_LEN + 1);
+            pStreamInfo->kmsKeyId[MAX_ARN_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamInfo->kmsKeyId[0]= '\0';
+            pStreamInfo->kmsKeyId[0] = '\0';
         }
     }
 
@@ -401,11 +402,11 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamInfo->streamCaps.codecId, retChars, MKV_MAX_CODEC_ID_LEN);
-            pStreamInfo->streamCaps.codecId[MKV_MAX_CODEC_ID_LEN - 1] = '\0';
+            STRNCPY(pStreamInfo->streamCaps.codecId, retChars, MKV_MAX_CODEC_ID_LEN + 1);
+            pStreamInfo->streamCaps.codecId[MKV_MAX_CODEC_ID_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamInfo->streamCaps.codecId[0]= '\0';
+            pStreamInfo->streamCaps.codecId[0] = '\0';
         }
     }
 
@@ -418,11 +419,11 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamInfo->streamCaps.trackName, retChars, MKV_MAX_TRACK_NAME_LEN);
-            pStreamInfo->streamCaps.trackName[MKV_MAX_TRACK_NAME_LEN - 1] = '\0';
+            STRNCPY(pStreamInfo->streamCaps.trackName, retChars, MKV_MAX_TRACK_NAME_LEN + 1);
+            pStreamInfo->streamCaps.trackName[MKV_MAX_TRACK_NAME_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamInfo->streamCaps.trackName[0]= '\0';
+            pStreamInfo->streamCaps.trackName[0] = '\0';
         }
     }
 
@@ -643,11 +644,11 @@ BOOL setFragmentAck(JNIEnv* env, jobject fragmentAck, PFragmentAck pFragmentAck)
 
         if (retString != NULL) {
             const char* retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pFragmentAck->sequenceNumber, retChars, MAX_FRAGMENT_SEQUENCE_NUMBER);
-            pFragmentAck->sequenceNumber[MAX_FRAGMENT_SEQUENCE_NUMBER - 1] = '\0';
+            STRNCPY(pFragmentAck->sequenceNumber, retChars, MAX_FRAGMENT_SEQUENCE_NUMBER + 1);
+            pFragmentAck->sequenceNumber[MAX_FRAGMENT_SEQUENCE_NUMBER] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pFragmentAck->sequenceNumber[0]= '\0';
+            pFragmentAck->sequenceNumber[0] = '\0';
         }
     }
 
@@ -696,11 +697,11 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamDesc->deviceName, retChars, MAX_DEVICE_NAME_LEN);
-            pStreamDesc->deviceName[MAX_DEVICE_NAME_LEN - 1] = '\0';
+            STRNCPY(pStreamDesc->deviceName, retChars, MAX_DEVICE_NAME_LEN + 1);
+            pStreamDesc->deviceName[MAX_DEVICE_NAME_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamDesc->deviceName[0]= '\0';
+            pStreamDesc->deviceName[0] = '\0';
         }
     }
 
@@ -713,11 +714,11 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamDesc->streamName, retChars, MAX_STREAM_NAME_LEN);
-            pStreamDesc->streamName[MAX_STREAM_NAME_LEN - 1] = '\0';
+            STRNCPY(pStreamDesc->streamName, retChars, MAX_STREAM_NAME_LEN + 1);
+            pStreamDesc->streamName[MAX_STREAM_NAME_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamDesc->streamName[0]= '\0';
+            pStreamDesc->streamName[0] = '\0';
         }
     }
 
@@ -730,11 +731,11 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamDesc->contentType, retChars, MAX_CONTENT_TYPE_LEN);
-            pStreamDesc->contentType[MAX_CONTENT_TYPE_LEN - 1] = '\0';
+            STRNCPY(pStreamDesc->contentType, retChars, MAX_CONTENT_TYPE_LEN + 1);
+            pStreamDesc->contentType[MAX_CONTENT_TYPE_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamDesc->contentType[0]= '\0';
+            pStreamDesc->contentType[0] = '\0';
         }
     }
 
@@ -747,11 +748,11 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamDesc->updateVersion, retChars, MAX_UPDATE_VERSION_LEN);
-            pStreamDesc->updateVersion[MAX_UPDATE_VERSION_LEN - 1] = '\0';
+            STRNCPY(pStreamDesc->updateVersion, retChars, MAX_UPDATE_VERSION_LEN + 1);
+            pStreamDesc->updateVersion[MAX_UPDATE_VERSION_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamDesc->updateVersion[0]= '\0';
+            pStreamDesc->updateVersion[0] = '\0';
         }
     }
 
@@ -764,11 +765,11 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
 
         if (retString != NULL) {
             retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamDesc->streamArn, retChars, MAX_ARN_LEN);
-            pStreamDesc->streamArn[MAX_ARN_LEN - 1] = '\0';
+            STRNCPY(pStreamDesc->streamArn, retChars, MAX_ARN_LEN + 1);
+            pStreamDesc->streamArn[MAX_ARN_LEN] = '\0';
             env->ReleaseStringUTFChars(retString, retChars);
         } else {
-            pStreamDesc->streamArn[0]= '\0';
+            pStreamDesc->streamArn[0] = '\0';
         }
     }
 
@@ -797,8 +798,8 @@ BOOL setStreamingEndpoint(JNIEnv* env, jstring streamingEndpoint, PCHAR pEndpoin
     CHECK(env != NULL && streamingEndpoint != NULL && pEndpoint != NULL);
 
     const char *endpointChars = env->GetStringUTFChars(streamingEndpoint, NULL);
-    STRNCPY(pEndpoint, endpointChars, MAX_URI_CHAR_LEN);
-    pEndpoint[MAX_URI_CHAR_LEN - 1] = '\0';
+    STRNCPY(pEndpoint, endpointChars, MAX_URI_CHAR_LEN + 1);
+    pEndpoint[MAX_URI_CHAR_LEN] = '\0';
     env->ReleaseStringUTFChars(streamingEndpoint, endpointChars);
 
     return TRUE;

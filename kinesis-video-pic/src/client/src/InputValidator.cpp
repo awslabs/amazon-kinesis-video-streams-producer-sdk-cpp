@@ -107,8 +107,8 @@ STATUS validateDeviceInfo(PDeviceInfo pDeviceInfo)
                 pDeviceInfo->storageInfo.storageSize <= MAX_STORAGE_ALLOCATION_SIZE,
         STATUS_INVALID_STORAGE_SIZE);
     CHK(pDeviceInfo->storageInfo.spillRatio <= 100, STATUS_INVALID_SPILL_RATIO);
-    CHK(STRNLEN(pDeviceInfo->storageInfo.rootDirectory, MAX_PATH_LEN) < MAX_PATH_LEN, STATUS_INVALID_ROOT_DIRECTORY_LENGTH);
-    CHK(STRNLEN(pDeviceInfo->name, MAX_DEVICE_NAME_LEN) < MAX_DEVICE_NAME_LEN, STATUS_INVALID_DEVICE_NAME_LENGTH);
+    CHK(STRNLEN(pDeviceInfo->storageInfo.rootDirectory, MAX_PATH_LEN + 1) <= MAX_PATH_LEN, STATUS_INVALID_ROOT_DIRECTORY_LENGTH);
+    CHK(STRNLEN(pDeviceInfo->name, MAX_DEVICE_NAME_LEN + 1) <= MAX_DEVICE_NAME_LEN, STATUS_INVALID_DEVICE_NAME_LENGTH);
 
     // Validate the tags
     CHK_STATUS(validateTags(pDeviceInfo->tagCount, pDeviceInfo->tags));
@@ -139,10 +139,10 @@ STATUS validateTags(UINT32 tagCount, PTag tags)
         CHK(tags[i].version <= TAG_CURRENT_VERSION, STATUS_INVALID_TAG_VERSION);
 
         // Validate the tag name
-        CHK(STRNLEN(tags[i].name, MAX_TAG_NAME_LEN) < MAX_TAG_NAME_LEN, STATUS_INVALID_TAG_NAME_LEN);
+        CHK(STRNLEN(tags[i].name, MAX_TAG_NAME_LEN + 1) <= MAX_TAG_NAME_LEN, STATUS_INVALID_TAG_NAME_LEN);
 
         // Validate the tag value
-        CHK(STRNLEN(tags[i].value, MAX_TAG_VALUE_LEN) < MAX_TAG_VALUE_LEN, STATUS_INVALID_TAG_VALUE_LEN);
+        CHK(STRNLEN(tags[i].value, MAX_TAG_VALUE_LEN + 1) <= MAX_TAG_VALUE_LEN, STATUS_INVALID_TAG_VALUE_LEN);
     }
 
 CleanUp:
@@ -164,7 +164,7 @@ STATUS validateStreamInfo(PStreamInfo pStreamInfo, PClientCallbacks pClientCallb
     // Validate the stream info struct
     CHK(pStreamInfo != NULL, STATUS_NULL_ARG);
     CHK(pStreamInfo->version <= STREAM_INFO_CURRENT_VERSION, STATUS_INVALID_STREAM_INFO_VERSION);
-    CHK(STRNLEN(pStreamInfo->name, MAX_STREAM_NAME_LEN) < MAX_STREAM_NAME_LEN, STATUS_INVALID_STREAM_NAME_LENGTH);
+    CHK(STRNLEN(pStreamInfo->name, MAX_STREAM_NAME_LEN + 1) <= MAX_STREAM_NAME_LEN, STATUS_INVALID_STREAM_NAME_LENGTH);
 
     // Validate the retention period.
     // NOTE: 0 has is a sentinel value indicating no retention
