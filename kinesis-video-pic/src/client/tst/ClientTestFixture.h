@@ -8,7 +8,7 @@
 #include "src/client/src/Include_i.h"
 #include "src/mkvgen/src/Include_i.h"
 
-#define TEST_DEVICE_NAME                "Test device name"
+#define TEST_DEVICE_NAME                ((PCHAR) "Test device name")
 #define MAX_TEST_STREAM_COUNT           10
 #define TEST_DEVICE_STORAGE_SIZE        ((UINT64) 10 * 1024 * 1024)
 
@@ -16,20 +16,20 @@
 
 #define TEST_CERTIFICATE_BITS           "Test certificate bits"
 #define TEST_TOKEN_BITS                 "Test token bits"
-#define TEST_DEVICE_FINGERPRINT         "Test device fingerprint"
+#define TEST_DEVICE_FINGERPRINT         ((PCHAR) "Test device fingerprint")
 
-#define TEST_STREAM_NAME                "Test stream name"
-#define TEST_CONTENT_TYPE               "TestType"
-#define TEST_CODEC_ID                   "TestCodec"
-#define TEST_TRACK_NAME                 "TestTrack"
+#define TEST_STREAM_NAME                ((PCHAR) "Test stream name")
+#define TEST_CONTENT_TYPE               ((PCHAR) "TestContentType")
+#define TEST_CODEC_ID                   ((PCHAR) "TestCodec")
+#define TEST_TRACK_NAME                 ((PCHAR) "TestTrack")
 
-#define TEST_DEVICE_ARN                 "TestDeviceARN"
+#define TEST_DEVICE_ARN                 ((PCHAR) "TestDeviceARN")
 
-#define TEST_STREAM_ARN                 "TestStreamARN"
+#define TEST_STREAM_ARN                 ((PCHAR) "TestStreamARN")
 
-#define TEST_STREAMING_ENDPOINT         "http://test.com/test_endpoint"
+#define TEST_STREAMING_ENDPOINT         ((PCHAR) "http://test.com/test_endpoint")
 
-#define TEST_UPDATE_VERSION             "TestUpdateVer"
+#define TEST_UPDATE_VERSION             ((PCHAR) "TestUpdateVer")
 
 #define TEST_STREAMING_TOKEN            "TestStreamingToken"
 

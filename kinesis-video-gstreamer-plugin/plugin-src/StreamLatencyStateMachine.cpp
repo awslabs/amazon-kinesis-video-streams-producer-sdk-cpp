@@ -58,7 +58,7 @@ void StreamLatencyStateMachine::doInfiniteRetry() {
 
 void StreamLatencyStateMachine::handleStreamLatency() {
     curr_time = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch());
+            systemCurrentTime().time_since_epoch());
     LOG_INFO("curr_time: " << curr_time.count() << ", quiet_time: " << quiet_time.count()
                            << ", back_to_normal_time: " << back_to_normal_time.count());
     if (curr_time > back_to_normal_time) {
@@ -84,5 +84,11 @@ void StreamLatencyStateMachine::handleStreamLatency() {
                 doInfiniteRetry();
                 break;
         }
+    }
+}
+
+StreamLatencyStateMachine::~StreamLatencyStateMachine() {
+    if (undo_throttle.joinable()){
+        undo_throttle.join();
     }
 }

@@ -1,10 +1,10 @@
-#include "KvsSinkStaticCredentialProvider.h"
+#include "RotatingStaticCredentialProvider.h"
 
-LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
+LOGGER_TAG("com.amazonaws.kinesis.video");
 
 using namespace com::amazonaws::kinesis::video;
 
-void KvsSinkStaticCredentialProvider::updateCredentials(Credentials &credentials) {
+void RotatingStaticCredentialProvider::updateCredentials(Credentials &credentials) {
     // Copy the stored creds forward
     credentials = credentials_;
 

@@ -8,17 +8,17 @@ class MkvgenApiTest : public MkvgenTestBase {
 TEST_F(MkvgenApiTest, createMkvGenerator_InvalidInput)
 {
     PMkvGenerator pMkvGenerator = NULL;
-    CHAR contentType[MAX_CONTENT_TYPE_LEN + 1];
-    MEMSET(contentType, 'a', MAX_CONTENT_TYPE_LEN);
-    contentType[MAX_CONTENT_TYPE_LEN] = '\0';
+    CHAR contentType[MAX_CONTENT_TYPE_LEN + 2];
+    MEMSET(contentType, 'a', MAX_CONTENT_TYPE_LEN + 1);
+    contentType[MAX_CONTENT_TYPE_LEN + 1] = '\0';
 
-    CHAR codecId[MKV_MAX_CODEC_ID_LEN + 1];
-    MEMSET(codecId, 'a', MKV_MAX_CODEC_ID_LEN);
-    codecId[MKV_MAX_CODEC_ID_LEN] = '\0';
+    CHAR codecId[MKV_MAX_CODEC_ID_LEN + 2];
+    MEMSET(codecId, 'a', MKV_MAX_CODEC_ID_LEN + 1);
+    codecId[MKV_MAX_CODEC_ID_LEN + 1] = '\0';
 
-    CHAR trackName[MKV_MAX_TRACK_NAME_LEN + 1];
-    MEMSET(trackName, 'a', MKV_MAX_TRACK_NAME_LEN);
-    trackName[MKV_MAX_TRACK_NAME_LEN] = '\0';
+    CHAR trackName[MKV_MAX_TRACK_NAME_LEN + 2];
+    MEMSET(trackName, 'a', MKV_MAX_TRACK_NAME_LEN + 1);
+    trackName[MKV_MAX_TRACK_NAME_LEN + 1] = '\0';
 
     EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(contentType, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, MKV_TEST_CODEC_ID, MKV_TEST_TRACK_NAME, NULL, 0, NULL, 0, &pMkvGenerator)));
     EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(contentType, MKV_TEST_BEHAVIOR_FLAGS, MIN_TIMECODE_SCALE - 1, MKV_TEST_CLUSTER_DURATION, MKV_TEST_CODEC_ID, MKV_TEST_TRACK_NAME, NULL, 0, NULL, 0, &pMkvGenerator)));

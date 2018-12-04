@@ -18,7 +18,7 @@ TEST_F(TraceApiFunctionalityTest, OverflowTest_StartStop)
     EXPECT_TRUE(STATUS_SUCCEEDED(setProfilerLevel(handle, TRACE_LEVEL_INFO)));
 
     for (index = 0; index < traceCount + 1; index++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "Test trace name", TRACE_LEVEL_CRITICAL, &traceHandle)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_CRITICAL, &traceHandle)));
         EXPECT_TRUE(traceHandle != INVALID_TRACE_HANDLE_VALUE);
         // EXPECT_TRUE(STATUS_SUCCEEDED(traceStop(handle, traceHandle)));
     }
@@ -31,7 +31,7 @@ TEST_F(TraceApiFunctionalityTest, OverflowTest_StartStop)
     // Lower priority trace
     //
     for (index = 0; index < traceCount + 1; index++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "Test trace name", TRACE_LEVEL_VERBOSE, &traceHandle)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_VERBOSE, &traceHandle)));
         EXPECT_TRUE(traceHandle == INVALID_TRACE_HANDLE_VALUE);
         EXPECT_TRUE(STATUS_SUCCEEDED(traceStop(handle, traceHandle)));
     }
@@ -59,7 +59,7 @@ TEST_F(TraceApiFunctionalityTest, OverflowTest_StartOnly)
     EXPECT_TRUE(STATUS_SUCCEEDED(setProfilerLevel(handle, TRACE_LEVEL_INFO)));
 
     for (index = 0; index < traceCount + 1; index++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "Test trace name", TRACE_LEVEL_CRITICAL, &traceHandle)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_CRITICAL, &traceHandle)));
         EXPECT_TRUE(traceHandle != INVALID_TRACE_HANDLE_VALUE);
     }
 
@@ -71,7 +71,7 @@ TEST_F(TraceApiFunctionalityTest, OverflowTest_StartOnly)
     // Lower priority trace
     //
     for (index = 0; index < traceCount + 1; index++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "Test trace name", TRACE_LEVEL_VERBOSE, &traceHandle)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_VERBOSE, &traceHandle)));
         EXPECT_TRUE(traceHandle == INVALID_TRACE_HANDLE_VALUE);
     }
 
@@ -99,7 +99,7 @@ TEST_F(TraceApiFunctionalityTest, OverflowTest_StartStopNoop)
     EXPECT_TRUE(STATUS_SUCCEEDED(setProfilerLevel(handle, TRACE_LEVEL_INFO)));
 
     for (index = 0; index < traceCount + 1; index++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "Test trace name", TRACE_LEVEL_CRITICAL, &traceHandle)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_CRITICAL, &traceHandle)));
         EXPECT_TRUE(traceHandle != INVALID_TRACE_HANDLE_VALUE);
         if (index == 0) {
             // Store the first handle
@@ -120,7 +120,7 @@ TEST_F(TraceApiFunctionalityTest, OverflowTest_StartStopNoop)
     // Lower priority trace
     //
     for (index = 0; index < traceCount + 1; index++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, "Test trace name", TRACE_LEVEL_VERBOSE, &traceHandle)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(traceStart(handle, TEST_TRACE_NAME, TRACE_LEVEL_VERBOSE, &traceHandle)));
         EXPECT_TRUE(traceHandle == INVALID_TRACE_HANDLE_VALUE);
         if (index == 0) {
             // Store the first handle
@@ -160,7 +160,7 @@ TEST_F(TraceApiFunctionalityTest, GetFormattedBuffer)
     EXPECT_TRUE(STATUS_SUCCEEDED(setProfilerLevel(handle, TRACE_LEVEL_INFO)));
 
     for (index = 0; index < traceCount + overflowCount; index++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(traceStartInternalWorker(handle, "Test trace name", TRACE_LEVEL_CRITICAL, &traceHandle, 100 + index, "ThreadName", currentTime)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(traceStartInternalWorker(handle, TEST_TRACE_NAME, TRACE_LEVEL_CRITICAL, &traceHandle, 100 + index, (PCHAR) "ThreadName", currentTime)));
         EXPECT_TRUE(traceHandle != INVALID_TRACE_HANDLE_VALUE);
         currentTime += 200000;
         EXPECT_TRUE(STATUS_SUCCEEDED(traceStopInternalWorker(handle, traceHandle, currentTime)));
@@ -170,7 +170,7 @@ TEST_F(TraceApiFunctionalityTest, GetFormattedBuffer)
         if (index == traceCount / 2) {
             EXPECT_TRUE(STATUS_SUCCEEDED(getFormattedTraceBuffer(handle, &pBuffer, &bufferSize)));
             EXPECT_TRUE(pBuffer != NULL && bufferSize != 0);
-            EXPECT_TRUE(0 == STRNCMP("trace,Test trace name,ThreadName,100,1000000,20", pBuffer, 46));
+            EXPECT_TRUE(0 == STRNCMP((PCHAR) "trace,Test trace name,ThreadName,100,1000000,20", pBuffer, 46));
             printf("%s\n", pBuffer);
             EXPECT_TRUE(STATUS_SUCCEEDED(freeTraceBuffer(pBuffer)));
         }
@@ -182,7 +182,7 @@ TEST_F(TraceApiFunctionalityTest, GetFormattedBuffer)
     EXPECT_TRUE(STATUS_SUCCEEDED(getFormattedTraceBuffer(handle, &pBuffer, &bufferSize)));
     EXPECT_TRUE(pBuffer != NULL && bufferSize != 0);
     printf("%s\n", pBuffer);
-    EXPECT_TRUE(0 == STRNCMP("trace,Test trace name,ThreadName,150,1001500,20", pBuffer, 46));
+    EXPECT_TRUE(0 == STRNCMP((PCHAR) "trace,Test trace name,ThreadName,150,1001500,20", pBuffer, 46));
     EXPECT_TRUE(STATUS_SUCCEEDED(freeTraceBuffer(pBuffer)));
 
     // release the profiler
@@ -197,7 +197,7 @@ TEST_F(TraceApiFunctionalityTest, GetFormattedBuffer)
     // Lower priority trace
     //
     for (index = 0; index < traceCount + overflowCount; index++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(traceStartInternalWorker(handle, "Test trace name", TRACE_LEVEL_VERBOSE, &traceHandle, 100 + index, "ThreadName", currentTime)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(traceStartInternalWorker(handle, TEST_TRACE_NAME, TRACE_LEVEL_VERBOSE, &traceHandle, 100 + index, (PCHAR) "ThreadName", currentTime)));
         EXPECT_TRUE(traceHandle == INVALID_TRACE_HANDLE_VALUE);
         currentTime += 200000;
         EXPECT_TRUE(STATUS_SUCCEEDED(traceStopInternalWorker(handle, traceHandle, currentTime)));

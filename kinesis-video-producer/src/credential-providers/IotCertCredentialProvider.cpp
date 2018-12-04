@@ -1,7 +1,7 @@
-#include "KvsSinkIotCertCredentialProvider.h"
+#include "IotCertCredentialProvider.h"
 #include <json/json.h>
 #include <iomanip>
-#include "Util/KvsSinkUtil.h"
+#include "CredentialProviderUtil.h"
 
 #define REQUEST_COMPLETION_TIMEOUT_MS 3000
 #define CURL_ERROR_SIZE 256
@@ -10,7 +10,7 @@
 #define ROLE_ALIASES_PATH "/role-aliases"
 #define CREDENTIAL_SERVICE "/credentials"
 
-LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
+LOGGER_TAG("com.amazonaws.kinesis.video");
 
 using namespace com::amazonaws::kinesis::video;
 
@@ -21,7 +21,7 @@ size_t write_response_callback(void *ptr, size_t size, size_t nmemb, void *userp
     return dataSize;
 }
 
-void KvsSinkIotCertCredentialProvider::dumpCurlEasyInfo(CURL *curl_easy) {
+void IotCertCredentialProvider::dumpCurlEasyInfo(CURL *curl_easy) {
     double time_in_seconds;
     CURLcode ret;
 
@@ -33,7 +33,7 @@ void KvsSinkIotCertCredentialProvider::dumpCurlEasyInfo(CURL *curl_easy) {
     }
 }
 
-void KvsSinkIotCertCredentialProvider::updateCredentials(Credentials &credentials) {
+void IotCertCredentialProvider::updateCredentials(Credentials &credentials) {
 
     CURL *curl;
     CURLcode res;
@@ -54,6 +54,11 @@ void KvsSinkIotCertCredentialProvider::updateCredentials(Credentials &credential
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
+
+    struct curl_slist *header_list_ = NULL;
+    std::string thing_name = "x-amzn-iot-thingname: " + stream_name_;
+    header_list_ = curl_slist_append(header_list_, thing_name.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list_);
 
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
     curl_easy_setopt(curl, CURLOPT_URL, service_url.c_str());
@@ -112,7 +117,7 @@ void KvsSinkIotCertCredentialProvider::updateCredentials(Credentials &credential
 
 
 
-    if (kvs_sink_util::parseTimeStr(expiration_str, expiration) == false) {
+    if (credential_provider_util::parseTimeStr(expiration_str, expiration) == false) {
         LOG_ERROR("Failed to parse AWS_TOKEN_EXPIRATION. \nResponse: " << response_data);
         goto CleanUp;
     }
@@ -125,6 +130,7 @@ void KvsSinkIotCertCredentialProvider::updateCredentials(Credentials &credential
     credentials.setExpiration(expiration);
 
 CleanUp:
+    curl_slist_free_all(header_list_);
     curl_easy_cleanup(curl);
     return;
 }

@@ -1244,7 +1244,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
         frame.flags = i % 10 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame)) << "Iteration " << i;
 
-        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "postTagName", "postTagValue", FALSE)) << i;
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, (PCHAR) "postTagName", (PCHAR) "postTagValue", FALSE)) << i;
 
         // Return a put stream result on 20th
         if (i == 20) {
@@ -1260,7 +1260,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
     EXPECT_EQ(18474, filledSize);
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_put_get_tags.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_tags.mkv", TRUE, getDataBuffer, filledSize));
     MEMFREE(getDataBuffer);
 }
 
@@ -1298,7 +1298,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
         // Add tag every 3rd frame
         if (i % 3 == 0) {
             EXPECT_EQ(STATUS_SUCCESS,
-                      putKinesisVideoFragmentMetadata(mStreamHandle, "preTagName", "preTagValue", FALSE)) << i;
+                      putKinesisVideoFragmentMetadata(mStreamHandle, (PCHAR) "preTagName", (PCHAR) "preTagValue", FALSE)) << i;
         }
 
         // Key frame every 10th
@@ -1308,7 +1308,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
         // Add tag every 3rd frame
         if (i % 3 == 0) {
             EXPECT_EQ(STATUS_SUCCESS,
-                      putKinesisVideoFragmentMetadata(mStreamHandle, "postTagName", "postTagValue", FALSE)) << i;
+                      putKinesisVideoFragmentMetadata(mStreamHandle, (PCHAR) "postTagName", (PCHAR) "postTagValue", FALSE)) << i;
         }
 
         // Return a put stream result on 20th
@@ -1325,7 +1325,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
     EXPECT_EQ(16237, filledSize);
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_put_get_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
 
     MEMFREE(getDataBuffer);
 }
@@ -1352,7 +1352,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
 
     // Insert a tag first - these should just accumulate
     EXPECT_EQ(STATUS_SUCCESS,
-              putFragmentMetadata(pKinesisVideoStream, "prePrependTagName1", "prePrependTagValue1", FALSE));
+              putFragmentMetadata(pKinesisVideoStream, (PCHAR) "prePrependTagName1", (PCHAR) "prePrependTagValue1", FALSE));
 
     // Produce frames
     frame.duration = TEST_LONG_FRAME_DURATION;
@@ -1372,14 +1372,14 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
         // Insert before a key frame
         if ((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) {
             EXPECT_EQ(STATUS_SUCCESS,
-                      putFragmentMetadata(pKinesisVideoStream, "AppendTagName1", "AppendTagValue1", FALSE)) << i;
+                      putFragmentMetadata(pKinesisVideoStream, (PCHAR) "AppendTagName1", (PCHAR) "AppendTagValue1", FALSE)) << i;
             EXPECT_EQ(STATUS_SUCCESS,
-                      putFragmentMetadata(pKinesisVideoStream, "AppendTagName2", "AppendTagValue2", FALSE)) << i;
+                      putFragmentMetadata(pKinesisVideoStream, (PCHAR) "AppendTagName2", (PCHAR) "AppendTagValue2", FALSE)) << i;
         }
 
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame)) << "Iteration " << i;
-        EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "PrependTagName1", "PrependTagValue1", FALSE)) << i;
-        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, "postTagName", "postTagValue", FALSE)) << i;
+        EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "PrependTagName1", (PCHAR) "PrependTagValue1", FALSE)) << i;
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFragmentMetadata(mStreamHandle, (PCHAR) "postTagName", (PCHAR) "postTagValue", FALSE)) << i;
 
         // Return a put stream result on 10th
         if (i == 10) {
@@ -1388,7 +1388,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
     }
 
     // Append a tag
-    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "Should not appear", "Should not appear", FALSE));
+    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "Should not appear", (PCHAR) "Should not appear", FALSE));
 
     // Consume frames on the boundary and validate
     retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
@@ -1398,7 +1398,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
     EXPECT_EQ(6697, filledSize);
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_insert_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
 
     MEMFREE(getDataBuffer);
 }
@@ -1425,10 +1425,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
 
     // put a persistent tag multiple times and a non-persistent one - should have two
-    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "tagName0", "tagValue0", TRUE));
-    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "tagName0", "tagValue0", TRUE));
-    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "tagName0", "tagValue0", TRUE));
-    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "tagName0", "tagValue0", FALSE));
+    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "tagName0", (PCHAR) "tagValue0", TRUE));
+    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "tagName0", (PCHAR) "tagValue0", TRUE));
+    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "tagName0", (PCHAR) "tagValue0", TRUE));
+    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "tagName0", (PCHAR) "tagValue0", FALSE));
 
     // Produce frames
     frame.duration = TEST_LONG_FRAME_DURATION;
@@ -1450,21 +1450,21 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
         if ((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) {
             // Modify the name of a tag
             sprintf(tagValue, "persistentValue%d", frame.index);
-            EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "persistentName", tagValue, TRUE)) << i;
+            EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "persistentName", (PCHAR) tagValue, TRUE)) << i;
         }
 
         if (frame.index % 9 == 0) {
             sprintf(tagValue, "tagValue%d", frame.index);
             EXPECT_EQ(STATUS_SUCCESS,
-                      putFragmentMetadata(pKinesisVideoStream, "tagName1", "nonPersistentTagValue", FALSE)) << i;
-            EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "tagName1", tagValue, TRUE)) << i;
+                      putFragmentMetadata(pKinesisVideoStream, (PCHAR) "tagName1", (PCHAR) "nonPersistentTagValue", FALSE)) << i;
+            EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "tagName1", tagValue, TRUE)) << i;
 
-            EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "tagName2", tagValue, TRUE)) << i;
+            EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "tagName2", tagValue, TRUE)) << i;
         }
 
         // Remove the tag
         if (frame.index == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "tagName2", "", TRUE)) << i;
+            EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "tagName2", (PCHAR) "", TRUE)) << i;
         }
 
         // Return a put stream result on 10th
@@ -1474,7 +1474,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
     }
 
     // Append a tag
-    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, "Should not appear", "Should not appear", FALSE));
+    EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "Should not appear", (PCHAR) "Should not appear", FALSE));
 
     // Consume frames on the boundary and validate
     retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
@@ -1484,7 +1484,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
     EXPECT_EQ(6394, filledSize);
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_insert_persistent_tags.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_persistent_tags.mkv", TRUE, getDataBuffer, filledSize));
 
     MEMFREE(getDataBuffer);
 }

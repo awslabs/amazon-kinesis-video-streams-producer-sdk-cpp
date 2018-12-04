@@ -45,12 +45,12 @@ TEST_F(StreamDeviceTagsTest, createDeviceTagsLongNameInvalid)
 
     for(i = 0; i < tagCount; i++) {
         tags[i].version = TAG_CURRENT_VERSION;
-        tags[i].name = (PCHAR) MEMALLOC(MAX_TAG_NAME_LEN + 1);
-        MEMSET(tags[i].name, 'A', MAX_TAG_NAME_LEN);
-        tags[i].name[MAX_TAG_NAME_LEN] = '\0';
+        tags[i].name = (PCHAR) MEMALLOC(MAX_TAG_NAME_LEN + 2);
+        MEMSET(tags[i].name, 'A', MAX_TAG_NAME_LEN + 1);
+        tags[i].name[MAX_TAG_NAME_LEN + 1] = '\0';
         tags[i].value = (PCHAR) MEMALLOC(MAX_TAG_VALUE_LEN + 1);
         MEMSET(tags[i].value, 'B', MAX_TAG_VALUE_LEN);
-        tags[i].value[MAX_TAG_VALUE_LEN - 1] = '\0';
+        tags[i].value[MAX_TAG_VALUE_LEN] = '\0';
     }
 
     mDeviceInfo.tags = tags;
@@ -80,10 +80,10 @@ TEST_F(StreamDeviceTagsTest, createDeviceTagsLongValueInvalid)
         tags[i].version = TAG_CURRENT_VERSION;
         tags[i].name = (PCHAR) MEMALLOC(MAX_TAG_NAME_LEN + 1);
         MEMSET(tags[i].name, 'A', MAX_TAG_NAME_LEN);
-        tags[i].name[MAX_TAG_NAME_LEN - 1] = '\0';
-        tags[i].value = (PCHAR) MEMALLOC(MAX_TAG_VALUE_LEN + 1);
-        MEMSET(tags[i].value, 'B', MAX_TAG_VALUE_LEN);
-        tags[i].value[MAX_TAG_VALUE_LEN] = '\0';
+        tags[i].name[MAX_TAG_NAME_LEN] = '\0';
+        tags[i].value = (PCHAR) MEMALLOC(MAX_TAG_VALUE_LEN + 2);
+        MEMSET(tags[i].value, 'B', MAX_TAG_VALUE_LEN + 1);
+        tags[i].value[MAX_TAG_VALUE_LEN + 1] = '\0';
     }
 
     mDeviceInfo.tags = tags;
@@ -156,9 +156,9 @@ TEST_F(StreamDeviceTagsTest, createStreamTagsLongNameInvalid)
     PTag tags = (PTag) MEMALLOC(SIZEOF(Tag) * tagCount);
     for(i = 0; i < tagCount; i++) {
         tags[i].version = TAG_CURRENT_VERSION;
-        tags[i].name = (PCHAR) MEMALLOC(MAX_TAG_NAME_LEN + 1);
-        MEMSET(tags[i].name, 'A', MAX_TAG_NAME_LEN);
-        tags[i].name[MAX_TAG_NAME_LEN - 1] = '\0';
+        tags[i].name = (PCHAR) MEMALLOC(MAX_TAG_NAME_LEN + 2);
+        MEMSET(tags[i].name, 'A', MAX_TAG_NAME_LEN + 1);
+        tags[i].name[MAX_TAG_NAME_LEN + 1] = '\0';
         tags[i].value = (PCHAR) MEMALLOC(MAX_TAG_VALUE_LEN + 1);
         MEMSET(tags[i].value, 'B', MAX_TAG_VALUE_LEN);
         tags[i].value[MAX_TAG_VALUE_LEN] = '\0';
@@ -196,10 +196,10 @@ TEST_F(StreamDeviceTagsTest, createStreamTagsLongValueInvalid)
         tags[i].version = TAG_CURRENT_VERSION;
         tags[i].name = (PCHAR) MEMALLOC(MAX_TAG_NAME_LEN + 1);
         MEMSET(tags[i].name, 'A', MAX_TAG_NAME_LEN);
-        tags[i].name[MAX_TAG_NAME_LEN - 1] = '\0';
-        tags[i].value = (PCHAR) MEMALLOC(MAX_TAG_VALUE_LEN + 1);
-        MEMSET(tags[i].value, 'B', MAX_TAG_VALUE_LEN);
-        tags[i].value[MAX_TAG_VALUE_LEN] = '\0';
+        tags[i].name[MAX_TAG_NAME_LEN] = '\0';
+        tags[i].value = (PCHAR) MEMALLOC(MAX_TAG_VALUE_LEN + 2);
+        MEMSET(tags[i].value, 'B', MAX_TAG_VALUE_LEN + 1);
+        tags[i].value[MAX_TAG_VALUE_LEN + 1] = '\0';
     }
 
     mStreamInfo.tags = tags;

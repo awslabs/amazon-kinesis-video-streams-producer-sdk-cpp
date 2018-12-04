@@ -102,10 +102,10 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsH2
     cpdSize = SIZEOF(cpd);
     // Pretend it's h264 to enforce the video width and height inclusion in the track info
     EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_H264_CONTENT_TYPE, MKV_GEN_IN_STREAM_TIME, MKV_TEST_TIMECODE_SCALE,
-            2 * HUNDREDS_OF_NANOS_IN_A_SECOND, "V_MJPEG", MKV_TEST_TRACK_NAME, cpd, cpdSize, NULL, 0, &mkvGenerator));
+            2 * HUNDREDS_OF_NANOS_IN_A_SECOND, (PCHAR) "V_MJPEG", MKV_TEST_TRACK_NAME, cpd, cpdSize, NULL, 0, &mkvGenerator));
     
     for (i = 0, index = 0; i < 100; i++) {
-        SPRINTF(fileName, "samples" FPATHSEPARATOR_STR "gif%03d.jpg", i);
+        SPRINTF(fileName, (PCHAR) "samples" FPATHSEPARATOR_STR "gif%03d.jpg", i);
         fileSize = MKV_TEST_BUFFER_SIZE;
     
         if (STATUS_FAILED(readFile(fileName, TRUE, NULL, &fileSize))) {
@@ -142,7 +142,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsH2
         size -= packagedSize;
     }
 
-    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_h264_jpg.mkv", TRUE, mkvBuffer, index));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_h264_jpg.mkv", TRUE, mkvBuffer, index));
     MEMFREE(mkvBuffer);
     MEMFREE(frameBuf);
 }
@@ -174,7 +174,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFo
                                                  MKV_TEST_TRACK_NAME, cpd, cpdSize, NULL, 0, &mkvGenerator));
 
     for (i = 0, index = 0; i < 100; i++) {
-        SPRINTF(fileName, "samples" FPATHSEPARATOR_STR "gif%03d.jpg", i);
+        SPRINTF(fileName, (PCHAR) "samples" FPATHSEPARATOR_STR "gif%03d.jpg", i);
         fileSize = MKV_TEST_BUFFER_SIZE;
         if (STATUS_FAILED(readFile(fileName, TRUE, NULL, &fileSize))) {
             break;
@@ -197,8 +197,8 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFo
     // Add tags
     for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
         packagedSize = size;
-        SPRINTF(tagName, "testTag_%d", i);
-        SPRINTF(tagVal, "testTag_%d_Value", i);
+        SPRINTF(tagName, (PCHAR) "testTag_%d", i);
+        SPRINTF(tagVal, (PCHAR) "testTag_%d_Value", i);
         EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
                                                     mkvBuffer + index,
                                                     tagName,
@@ -208,7 +208,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFo
         size -= packagedSize;
     }
 
-    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_jpeg.mkv", TRUE, mkvBuffer, index));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_jpeg.mkv", TRUE, mkvBuffer, index));
     MEMFREE(mkvBuffer);
     MEMFREE(frameBuf);
 }
@@ -227,7 +227,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvTagsOnly)
                                                  MKV_GEN_IN_STREAM_TIME,
                                                  MKV_TEST_TIMECODE_SCALE,
                                                  2 * HUNDREDS_OF_NANOS_IN_A_SECOND,
-                                                 "V_MJPEG",
+                                                 (PCHAR) "V_MJPEG",
                                                  MKV_TEST_TRACK_NAME,
                                                  NULL,
                                                  0,
@@ -238,8 +238,8 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvTagsOnly)
     // Add tags
     for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
         packagedSize = size;
-        SPRINTF(tagName, "testTag_%d", i);
-        SPRINTF(tagVal, "testTag_%d_Value", i);
+        SPRINTF(tagName, (PCHAR) "testTag_%d", i);
+        SPRINTF(tagVal, (PCHAR) "testTag_%d_Value", i);
         EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
                                                     mkvBuffer + index,
                                                     tagName,
@@ -249,7 +249,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvTagsOnly)
         size -= packagedSize;
     }
 
-    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_tags.mkv", TRUE, mkvBuffer, index));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_tags.mkv", TRUE, mkvBuffer, index));
     MEMFREE(mkvBuffer);
 }
 
@@ -288,8 +288,8 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvMixedTags) {
         if ((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) {
             for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
                 packagedSize = size;
-                SPRINTF(tagName, "testTag_%d", i);
-                SPRINTF(tagVal, "testTag_%d_Value", i);
+                SPRINTF(tagName, (PCHAR) "testTag_%d", i);
+                SPRINTF(tagVal, "(PCHAR) testTag_%d_Value", i);
                 EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
                                                             mkvBuffer + index,
                                                             tagName,
@@ -319,8 +319,8 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvMixedTags) {
     // Insert tags after the last cluster
     for (i = 0; i < MKV_TEST_TAG_COUNT; i++) {
         packagedSize = size;
-        SPRINTF(tagName, "testTag_%d", i);
-        SPRINTF(tagVal, "testTag_%d_Value", i);
+        SPRINTF(tagName, (PCHAR) "testTag_%d", i);
+        SPRINTF(tagVal, (PCHAR) "testTag_%d_Value", i);
         EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateTag(mkvGenerator,
                                                     mkvBuffer + index,
                                                     tagName,
@@ -330,7 +330,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvMixedTags) {
         size -= packagedSize;
     }
 
-    EXPECT_EQ(STATUS_SUCCESS, writeFile("test_mixed_tags.mkv", TRUE, mkvBuffer, index));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_mixed_tags.mkv", TRUE, mkvBuffer, index));
     MEMFREE(mkvBuffer);
 }
 

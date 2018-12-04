@@ -792,7 +792,7 @@ void KinesisVideoClientWrapper::getStreamingEndpointResult(jlong streamHandle, j
         return;
     }
 
-    CHAR pEndpoint[MAX_URI_CHAR_LEN];
+    CHAR pEndpoint[MAX_URI_CHAR_LEN + 1];
     if (!setStreamingEndpoint(env, streamingEndpoint, pEndpoint))
     {
         DLOGE("Failed converting streaming endpoint object.");

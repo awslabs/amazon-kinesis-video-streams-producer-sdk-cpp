@@ -703,7 +703,7 @@ struct __FragmentAck {
     UINT64 timestamp;
 
     // Fragment sequence number
-    CHAR sequenceNumber[MAX_FRAGMENT_SEQUENCE_NUMBER];
+    CHAR sequenceNumber[MAX_FRAGMENT_SEQUENCE_NUMBER + 1];
 
     // Reporting the ack error type. For non-error acks this is ignored but should be set to SERVICE_CALL_RESULT_OK
     SERVICE_CALL_RESULT result;
@@ -762,8 +762,8 @@ struct __StreamCaps {
     // Streaming type
     STREAMING_TYPE streamingType;
 
-    // Stream content type - nul terminated.
-    CHAR contentType[MAX_CONTENT_TYPE_LEN];
+    // Stream content type - null terminated.
+    CHAR contentType[MAX_CONTENT_TYPE_LEN + 1];
 
     // Whether the bitrate can change in mid-stream.
     BOOL adaptive;
@@ -793,10 +793,10 @@ struct __StreamCaps {
     UINT32 nalAdaptationFlags;
 
     // Codec ID of the stream. Null terminated.
-    CHAR codecId[MKV_MAX_CODEC_ID_LEN];
+    CHAR codecId[MKV_MAX_CODEC_ID_LEN + 1];
 
     // Human readable track name. Null terminated.
-    CHAR trackName[MKV_MAX_TRACK_NAME_LEN];
+    CHAR trackName[MKV_MAX_TRACK_NAME_LEN + 1];
 
     // Average stream bandwidth requirement in bits per second
     UINT32 avgBandwidthBps;
@@ -850,7 +850,7 @@ struct __StreamInfo {
 
     // Stream name - human readable. Null terminated.
     // Should be unique per AWS account.
-    CHAR name[MAX_STREAM_NAME_LEN];
+    CHAR name[MAX_STREAM_NAME_LEN + 1];
 
     // Number of tags associated with the stream
     UINT32 tagCount;
@@ -863,7 +863,7 @@ struct __StreamInfo {
     UINT64 retention;
 
     // KMS key id ARN
-    CHAR kmsKeyId[MAX_ARN_LEN];
+    CHAR kmsKeyId[MAX_ARN_LEN + 1];
 
     // Stream capabilities
     StreamCaps streamCaps;
@@ -889,7 +889,7 @@ struct __StorageInfo {
     UINT32 spillRatio;
 
     // File location in case of the file based storage
-    CHAR rootDirectory[MAX_PATH_LEN];
+    CHAR rootDirectory[MAX_PATH_LEN + 1];
 };
 
 typedef __StorageInfo* PStorageInfo;
@@ -904,7 +904,7 @@ struct __DeviceInfo {
 
     // Device name - human readable. Null terminated.
     // Should be unique per AWS account.
-    CHAR name[MAX_DEVICE_NAME_LEN];
+    CHAR name[MAX_DEVICE_NAME_LEN + 1];
 
     // Number of tags associated with the device.
     UINT32 tagCount;
@@ -1032,20 +1032,20 @@ struct __StreamDescription {
 
     // Device name - human readable. Null terminated.
     // Should be unique per AWS account.
-    CHAR deviceName[MAX_DEVICE_NAME_LEN];
+    CHAR deviceName[MAX_DEVICE_NAME_LEN + 1];
 
     // Stream name - human readable. Null terminated.
     // Should be unique per AWS account.
-    CHAR streamName[MAX_STREAM_NAME_LEN];
+    CHAR streamName[MAX_STREAM_NAME_LEN + 1];
 
     // Stream content type - nul terminated.
-    CHAR contentType[MAX_CONTENT_TYPE_LEN];
+    CHAR contentType[MAX_CONTENT_TYPE_LEN + 1];
 
     // Update version.
-    CHAR updateVersion[MAX_UPDATE_VERSION_LEN];
+    CHAR updateVersion[MAX_UPDATE_VERSION_LEN + 1];
 
     // Stream ARN
-    CHAR streamArn[MAX_ARN_LEN];
+    CHAR streamArn[MAX_ARN_LEN + 1];
 
     // Current stream status
     STREAM_STATUS streamStatus;

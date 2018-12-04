@@ -159,14 +159,16 @@ STATUS createStream(PKinesisVideoClient pKinesisVideoClient, PStreamInfo pStream
         pKinesisVideoStream->streamInfo.tags[i].version = pStreamInfo->tags[i].version;
         // Fix-up the pointers first
         pKinesisVideoStream->streamInfo.tags[i].name = pCurPnt;
-        pCurPnt += MAX_TAG_NAME_LEN;
+        pCurPnt += MAX_TAG_NAME_LEN + 1;
 
         pKinesisVideoStream->streamInfo.tags[i].value = pCurPnt;
-        pCurPnt += MAX_TAG_VALUE_LEN;
+        pCurPnt += MAX_TAG_VALUE_LEN + 1;
 
         // Copy the strings
         STRNCPY(pKinesisVideoStream->streamInfo.tags[i].name, pStreamInfo->tags[i].name, MAX_TAG_NAME_LEN);
+        pKinesisVideoStream->streamInfo.tags[i].name[MAX_TAG_NAME_LEN] = '\0';
         STRNCPY(pKinesisVideoStream->streamInfo.tags[i].value, pStreamInfo->tags[i].value, MAX_TAG_VALUE_LEN);
+        pKinesisVideoStream->streamInfo.tags[i].value[MAX_TAG_VALUE_LEN] = '\0';
     }
 
     // Calculate the max items in the view

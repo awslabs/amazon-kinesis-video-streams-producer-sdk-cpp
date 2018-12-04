@@ -11,6 +11,7 @@
 #include "StreamCallbackProvider.h"
 #include "ThreadSafeMap.h"
 #include "OngoingStreamState.h"
+#include "GetTime.h"
 
 #include "json/json.h"
 
@@ -46,7 +47,7 @@ public:
                 std::make_unique<EmptyCredentialProvider>(),
             const std::string &region = DEFAULT_AWS_REGION,
             const std::string &control_plane_uri = "",
-            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME);
+            const std::string &user_agent = "");
 
     virtual ~DefaultCallbackProvider();
 
@@ -582,6 +583,12 @@ protected:
      *
      */
     ThreadSafeMap<UPLOAD_HANDLE, std::shared_ptr<OngoingStreamState>> active_streams_;
+
+    /**
+     * Sleep until given time based on current time provided in callback
+     * @param time_point
+     */
+    static void sleepUntilWithTimeCallback(const std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>& time_point);
 };
 
 } // namespace video

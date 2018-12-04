@@ -19,7 +19,8 @@ using std::string;
  */
 #define DEFAULT_MAX_STREAM_COUNT        16
 
-DefaultDeviceInfoProvider::DefaultDeviceInfoProvider() {
+DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_useragent)
+        : custom_useragent_(custom_useragent) {
     memset(&device_info_, 0, sizeof(device_info_));
     device_info_.version = DEVICE_INFO_CURRENT_VERSION;
 
@@ -49,6 +50,10 @@ DefaultDeviceInfoProvider::DefaultDeviceInfoProvider() {
 
 DeviceInfoProvider::device_info_t DefaultDeviceInfoProvider::getDeviceInfo() {
     return device_info_;
+}
+
+const string DefaultDeviceInfoProvider::getCustomUserAgent() {
+    return custom_useragent_;
 }
 
 } // namespace video

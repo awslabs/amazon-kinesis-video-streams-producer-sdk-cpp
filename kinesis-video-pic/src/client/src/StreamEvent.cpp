@@ -171,7 +171,8 @@ STATUS describeStreamResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_CAL
         CHK(pStreamDescription->version <= STREAM_DESCRIPTION_CURRENT_VERSION, STATUS_INVALID_STREAM_DESCRIPTION_VERSION);
 
         // Check and store the ARN
-        CHK(pStreamDescription->streamArn != NULL && STRNLEN(pStreamDescription->streamArn, MAX_ARN_LEN) < MAX_ARN_LEN, STATUS_INVALID_DESCRIBE_STREAM_RESPONSE);
+        CHK(pStreamDescription->streamArn != NULL &&
+            STRNLEN(pStreamDescription->streamArn, MAX_ARN_LEN + 1) <= MAX_ARN_LEN, STATUS_INVALID_DESCRIBE_STREAM_RESPONSE);
         STRNCPY(pKinesisVideoStream->base.arn, pStreamDescription->streamArn, MAX_ARN_LEN);
         pKinesisVideoStream->base.arn[MAX_ARN_LEN] = '\0';
 
@@ -232,7 +233,8 @@ STATUS createStreamResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_CALL_
     // store the info
     if (callResult == SERVICE_CALL_RESULT_OK) {
         // Should have the stream arn
-        CHK(streamArn != NULL && STRNLEN(streamArn, MAX_ARN_LEN) < MAX_ARN_LEN, STATUS_INVALID_CREATE_STREAM_RESPONSE);
+        CHK(streamArn != NULL &&
+            STRNLEN(streamArn, MAX_ARN_LEN + 1) <= MAX_ARN_LEN, STATUS_INVALID_CREATE_STREAM_RESPONSE);
         STRNCPY(pKinesisVideoStream->base.arn, streamArn, MAX_ARN_LEN);
         pKinesisVideoStream->base.arn[MAX_ARN_LEN] = '\0';
     }
@@ -368,7 +370,7 @@ STATUS getStreamingEndpointResult(PKinesisVideoStream pKinesisVideoStream, SERVI
     // store the info
     if (callResult == SERVICE_CALL_RESULT_OK) {
         // We are good now to proceed - store the data and set the state
-        CHK(STRNLEN(pEndpoint, MAX_URI_CHAR_LEN) < MAX_URI_CHAR_LEN, STATUS_INVALID_URI_LEN);
+        CHK(STRNLEN(pEndpoint, MAX_URI_CHAR_LEN + 1) <= MAX_URI_CHAR_LEN, STATUS_INVALID_URI_LEN);
         STRNCPY(pKinesisVideoStream->streamingEndpoint, pEndpoint, MAX_URI_CHAR_LEN);
         pKinesisVideoStream->streamingEndpoint[MAX_URI_CHAR_LEN] = '\0';
     }

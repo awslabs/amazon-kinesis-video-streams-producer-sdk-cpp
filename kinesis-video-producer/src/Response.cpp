@@ -167,7 +167,7 @@ Response::Response()
           http_status_code_(0),
           terminated_(false),
           service_call_result_(SERVICE_CALL_RESULT_OK),
-          start_time_(std::chrono::system_clock::now()) {
+          start_time_(systemCurrentTime()) {
 }
 
 Response::~Response() {
@@ -197,7 +197,7 @@ void Response::completeSync() {
         }
     }
 
-    end_time_ = std::chrono::system_clock::now();
+    end_time_ = systemCurrentTime();
 
     // warn and log request/response info if there was an error return code
     if (OK != http_status_code_) {

@@ -25,8 +25,8 @@ TEST_F(StreamApiFunctionalityTest, putFrame_DescribeStreamDeleted)
 
 TEST_F(StreamApiFunctionalityTest, putFrame_DescribeStreamNotExisting)
 {
-    CHAR testArn[MAX_ARN_LEN + 1];
-    MEMSET(testArn, 'A', MAX_ARN_LEN);
+    CHAR testArn[MAX_ARN_LEN + 2];
+    MEMSET(testArn, 'A', MAX_ARN_LEN + 1);
 
     CreateStream();
     // Ensure the describe called
