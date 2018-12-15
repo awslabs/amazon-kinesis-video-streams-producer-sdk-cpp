@@ -22,7 +22,7 @@ PVOID testThreadRoutine(PVOID arg)
     gThreadVisited[index] = TRUE;
 
     // Just sleep for some time
-    THREAD_SLEEP(index * 1000);
+    THREAD_SLEEP(index * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
 
     // Mark as cleared
     gThreadCleared[index] = TRUE;

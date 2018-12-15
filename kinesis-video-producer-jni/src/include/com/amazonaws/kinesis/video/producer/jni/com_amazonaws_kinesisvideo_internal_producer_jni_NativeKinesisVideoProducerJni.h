@@ -181,10 +181,10 @@ JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_Nat
 /*
  * Class:     com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni
  * Method:    kinesisVideoStreamFormatChanged
- * Signature: (JJ[B)V
+ * Signature: (JJ[BJ)V
  */
 JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFormatChanged
-  (JNIEnv *, jobject, jlong, jlong, jobject);
+  (JNIEnv *, jobject, jlong, jlong, jobject, jlong);
 
 /*
  * Class:     com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni

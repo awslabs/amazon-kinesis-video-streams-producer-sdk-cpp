@@ -41,7 +41,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
                                      UINT64 last_buffering_ack);
 
         static STATUS
-        streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 errored_timecode,
+        streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
                                  STATUS status_code);
 
         static STATUS

@@ -312,7 +312,7 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/Version.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/GetTime.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/GetTime.cpp
-	${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/CredentialProviderUtil.h
+	    ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/CredentialProviderUtil.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/CredentialProviderUtil.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/IotCertCredentialProvider.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/IotCertCredentialProvider.cpp
@@ -320,6 +320,8 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/RotatingCredentialProvider.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/RotatingStaticCredentialProvider.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/RotatingStaticCredentialProvider.cpp
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/common/PutFrameHelper.cpp
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/common/PutFrameHelper.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/opensource/jsoncpp/jsoncpp.cpp)
 
 set(TST_PRODUCER_SOURCE_FILES
@@ -377,7 +379,10 @@ set(TST_PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/tst/ProducerTestFixture.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/tst/ProducerTestFixture.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/tst/main.cpp
-        ${KINESIS_VIDEO_PRODUCER_SRC}/tst/ProducerApiTest.cpp)
+        ${KINESIS_VIDEO_PRODUCER_SRC}/tst/ProducerApiTest.cpp
+        ${KINESIS_VIDEO_PRODUCER_SRC}/tst/ProducerFunctionalityTest.cpp
+        ${KINESIS_VIDEO_PRODUCER_SRC}/tst/TestDefaultCallbackProvider.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/tst/TestDefaultCallbackProvider.cpp)
 
 set(PRODUCER_SOURCE_FILES_JNI
         ${KINESIS_VIDEO_PRODUCER_JNI_SRC}/src/source/com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.cpp
@@ -433,6 +438,7 @@ include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/opensource/jsoncpp)
 include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/tst)
 include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers)
+include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_JNI_SRC}/src/include/)
 include_directories(${OPEN_SRC_INCLUDE_DIRS})
 include_directories(/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers)
@@ -596,6 +602,11 @@ else()
 
   add_executable(kinesis_video_gstreamer_sample_multistream_app ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_multistream_app.cpp)
   target_link_libraries(kinesis_video_gstreamer_sample_multistream_app
+          producer
+          ${GST_DEMO_LIBRARIES})
+
+  add_executable(kinesis_video_gstreamer_audio_video_sample_app ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_audio_video_sample_app.cpp)
+  target_link_libraries(kinesis_video_gstreamer_audio_video_sample_app
           producer
           ${GST_DEMO_LIBRARIES})
 

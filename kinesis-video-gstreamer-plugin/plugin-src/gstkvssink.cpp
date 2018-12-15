@@ -140,6 +140,7 @@ enum {
 #define DEFAULT_ROTATION_PERIOD_SECONDS 2400
 #define DEFAULT_LOG_FILE_PATH "./kvs_log_configuration"
 #define DEFAULT_FRAME_TIMESTAMP KVS_SINK_TIMESTAMP_DEFAULT
+#define DEFAULT_FILE_START_TIME 0
 // default size is 2250MB
 #define DEFRAGMENTATION_FACTOR 1.2
 #define ESTIMATED_AVG_BUFFER_SIZE_BYTE 3 * 1024 // for 720p 25 fps stream
@@ -149,6 +150,7 @@ enum {
         DEFAULT_BUFFER_DURATION_SECONDS * \
         DEFRAGMENTATION_FACTOR / (1024 * 1024))
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
+#define DEFAULT_FRAME_DURATION_MS 2
 
 #define FRAME_DATA_ALLOCATION_MULTIPLIER 1.5
 #define KVS_ADD_METADATA_G_STRUCT_NAME "kvs-add-metadata"
@@ -197,7 +199,8 @@ enum {
     PROP_STORAGE_SIZE,
     PROP_CREDENTIAL_FILE_PATH,
     PROP_IOT_CERTIFICATE,
-    PROP_STREAM_TAGS
+    PROP_STREAM_TAGS,
+    PROP_FILE_START_TIME
 };
 
 #define GST_TYPE_KVS_SINK_FRAME_TIMESTAMP_TYPE (gst_kvs_sink_frame_timestamp_type_get_type())
@@ -225,9 +228,9 @@ gst_kvs_sink_streaming_type_get_type (void)
 {
     static GType kvssink_streaming_type_type = 0;
     static const GEnumValue kvssink_streaming_type[] = {
-            {STREAMING_TYPE_REALTIME, "streaming type realtime", "streaming type realtime"},
-            {STREAMING_TYPE_NEAR_REALTIME, "streaming type near realtime", "streaming type near realtime"},
-            {STREAMING_TYPE_OFFLINE, "streaming type offline", "streaming type offline"},
+            {STREAMING_TYPE_REALTIME, "streaming type realtime", "realtime"},
+            {STREAMING_TYPE_NEAR_REALTIME, "streaming type near realtime", "near-realtime"},
+            {STREAMING_TYPE_OFFLINE, "streaming type offline", "offline"},
             {0, NULL, NULL},
     };
 
@@ -362,6 +365,16 @@ void create_kinesis_video_stream(GstKvsSink *sink) {
             p_stream_tags = &stream_tags;
         }
     }
+
+    // If doing offline mode file uploading, and the user wants to use a specific file start time,
+    // then switch to use abosolute fragment time. Since we will be adding the file_start_time to the timestamp
+    // of each frame to make each frame's timestamp absolute. Assuming each frame's timestamp is relative
+    // (i.e. starting from 0)
+    if (sink->streaming_type == STREAMING_TYPE_OFFLINE && sink->file_start_time != 0) {
+        sink->absolute_fragment_times = TRUE;
+        data->pts_base = duration_cast<nanoseconds>(seconds(sink->file_start_time)).count();
+    }
+
     auto stream_definition = make_unique<StreamDefinition>(sink->stream_name,
                                                            hours(sink->retention_period_hours),
                                                            p_stream_tags,
@@ -630,6 +643,10 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                          "key-value pair that you can define and assign to each stream",
                                                          GST_TYPE_STRUCTURE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_FILE_START_TIME,
+                                     g_param_spec_ulong ("file-start-time", "File Start Time",
+                                                        "Epoch time that the file starts in kinesis video stream. By default, current time is used. Unit: Seconds",
+                                                         0, G_MAXULONG, 0, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     /**
      * GstKvsSink::handoff:
@@ -719,13 +736,13 @@ static void  gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->frame_timestamp = DEFAULT_FRAME_TIMESTAMP;
     kvssink->storage_size = DEFAULT_STORAGE_SIZE_MB;
     kvssink->credential_file_path = g_strdup (DEFAULT_CREDENTIAL_FILE_PATH);
+    kvssink->file_start_time = DEFAULT_FILE_START_TIME;
 
     gst_base_sink_set_sync(GST_BASE_SINK (kvssink), DEFAULT_SYNC);
 
     kvssink->data = make_shared<CustomData>();
     LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
     LOG_CONFIGURE_STDOUT("DEBUG")
-
 }
 
 static void
@@ -882,6 +899,9 @@ static void gst_kvs_sink_set_property(GObject *object, guint prop_id,
             sink->stream_tags = s ? gst_structure_copy(s) : NULL;
             break;
         }
+        case PROP_FILE_START_TIME:
+            sink->file_start_time = g_value_get_ulong (value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -1008,6 +1028,9 @@ static void gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *va
         case PROP_STREAM_TAGS:
             gst_value_set_structure (value, sink->stream_tags);
             break;
+        case PROP_FILE_START_TIME:
+            g_value_set_ulong (value, sink->file_start_time);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -1102,6 +1125,12 @@ static gboolean gst_kvs_sink_event(GstBaseSink *bsink, GstEvent *event) {
             if (false == result) {
                 LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
             }
+        }
+    } else if (GST_EVENT_TYPE (event) == GST_EVENT_EOS) {
+        this_thread::sleep_for(seconds(20)); // hack before waiting for last ack
+        for (auto stream : data->kinesis_video_stream_map.getMap()) {
+            stream.second->stopSync();
+            data->kinesis_video_producer->freeStream(stream.second);
         }
     }
 
@@ -1202,10 +1231,11 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
     frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-    frame->duration = 10 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame->duration = DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(frame_data);
     frame->index = 0;
+    frame->trackId = DEFAULT_TRACK_ID;
 }
 
 bool
@@ -1272,12 +1302,25 @@ static GstFlowReturn gst_kvs_sink_render(GstBaseSink *bsink, GstBuffer *buf) {
                     buf->pts = buf->dts;
                     break;
                 case KVS_SINK_TIMESTAMP_DEFAULT:
-                    if (GST_BUFFER_PTS_IS_VALID(buf) && !GST_BUFFER_DTS_IS_VALID(buf)) {
-                        buf->dts = buf->pts;
+                    if (!GST_BUFFER_PTS_IS_VALID(buf)) {
+                        GST_ELEMENT_ERROR (sink, STREAM, FAILED, (NULL),
+                                           ("frame pts is invalid"));
+                        ret = GST_FLOW_ERROR;
+                        goto CleanUp;
                     }
-                    else if (!GST_BUFFER_PTS_IS_VALID(buf) && GST_BUFFER_DTS_IS_VALID(buf)){
-                        buf->pts = buf->dts;
+
+                    // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
+                    // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
+                    // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
+                    if (IS_OFFLINE_STREAMING_MODE(sink->streaming_type)) {
+                        buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
+                        buf->pts += data->pts_base;
+                    } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
+                        buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
                     }
+
+                    data->last_dts = buf->dts;
+                    break;
             }
 
             size_t buffer_size = gst_buffer_get_size(buf);

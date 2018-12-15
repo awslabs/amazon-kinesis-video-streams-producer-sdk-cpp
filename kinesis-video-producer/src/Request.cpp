@@ -5,10 +5,11 @@ using namespace std;
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-Request::Request(Verb verb, const string &url)
+Request::Request(Verb verb, const string &url, const STREAM_HANDLE stream_handle)
         : creation_time_(systemCurrentTime()),
           verb_(verb),
           url_(url),
+          stream_handle_(stream_handle),
           request_completion_timeout_(std::chrono::duration<double, std::milli>::zero()),
           connection_timeout_(std::chrono::duration<double, std::milli>::zero()),
           is_streaming_(false) {
@@ -16,10 +17,12 @@ Request::Request(Verb verb, const string &url)
 
 Request::Request(Request::Verb verb,
                  const std::string &url,
+                 const STREAM_HANDLE stream_handle,
                  shared_ptr<OngoingStreamState> stream_state)
         : creation_time_(systemCurrentTime()),
           verb_(verb),
           url_(url),
+          stream_handle_(stream_handle),
           request_completion_timeout_(std::chrono::duration<double, std::milli>::zero()),
           connection_timeout_(std::chrono::duration<double, std::milli>::zero()),
           is_streaming_(true),
@@ -85,7 +88,7 @@ const std::chrono::duration<double, std::milli> Request::getConnectionTimeout() 
     return connection_timeout_;
 }
 
-const string &Request::get_url() const {
+const string &Request::getUrl() const {
     return url_;
 }
 
@@ -93,8 +96,12 @@ Request::Verb Request::getVerb() const {
     return verb_;
 }
 
+STREAM_HANDLE Request::getStreamHandle() const {
+    return stream_handle_;
+}
+
 string Request::getScheme() const {
-    const string &url = get_url();
+    const string &url = getUrl();
     size_t scheme_delim = url.find("://");
     if (scheme_delim == string::npos) {
         throw runtime_error("unable to find URI scheme delimiter");
@@ -103,7 +110,7 @@ string Request::getScheme() const {
 }
 
 string Request::getHost() const {
-    const string &url = get_url();
+    const string &url = getUrl();
 
     // find the start of the host name
     size_t begin_delim = url.find("://");
@@ -120,7 +127,7 @@ string Request::getHost() const {
 }
 
 string Request::getPath() const {
-    const string &url = get_url();
+    const string &url = getUrl();
     // find the start of the path
     size_t begin_delim = url.find("://");
     if (begin_delim == string::npos) {
@@ -137,7 +144,7 @@ string Request::getPath() const {
 }
 
 string Request::getQuery() const {
-    const string &url = get_url();
+    const string &url = getUrl();
     size_t query_delim = url.find('?');
     if (query_delim == string::npos) {
         return string();

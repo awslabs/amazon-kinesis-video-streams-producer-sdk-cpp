@@ -2,6 +2,7 @@
  * Implementation of Kinesis Video parameters conversion
  */
 #define LOG_CLASS "KinesisVideoParametersConversion"
+
 #include "com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.h"
 
 BOOL setDeviceInfo(JNIEnv *env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
@@ -223,6 +224,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     jbyteArray byteArray = NULL;
     jbyte* bufferPtr = NULL;
     jsize arrayLen = 0;
+    UINT32 trackInfoCount = 0;
     const char *retChars;
 
     CHECK(env != NULL && streamInfo != NULL && pStreamInfo != NULL);
@@ -393,37 +395,105 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
         CHK_JVM_EXCEPTION(env);
     }
 
-    methodId = env->GetMethodID(cls, "getCodecId", "()Ljava/lang/String;");
+    methodId = env->GetMethodID(cls, "getTrackInfoCount", "()I");
     if (methodId == NULL) {
-        DLOGW("Couldn't find method id getCodecId");
+        DLOGW("Couldn't find method id getTrackInfoCount");
     } else {
-        jstring retString = (jstring) env->CallObjectMethod(streamInfo, methodId);
+        trackInfoCount = (UINT32) env->CallIntMethod(streamInfo, methodId);
         CHK_JVM_EXCEPTION(env);
-
-        if (retString != NULL) {
-            retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamInfo->streamCaps.codecId, retChars, MKV_MAX_CODEC_ID_LEN + 1);
-            pStreamInfo->streamCaps.codecId[MKV_MAX_CODEC_ID_LEN] = '\0';
-            env->ReleaseStringUTFChars(retString, retChars);
-        } else {
-            pStreamInfo->streamCaps.codecId[0] = '\0';
-        }
     }
 
-    methodId = env->GetMethodID(cls, "getTrackName", "()Ljava/lang/String;");
+    CHECK_EXT(trackInfoCount > 0, "TrackInfo count should be greater than 0");
+    pStreamInfo->streamCaps.trackInfoCount = trackInfoCount;
+    pStreamInfo->streamCaps.trackInfoList = (PTrackInfo) MEMALLOC(trackInfoCount * SIZEOF(TrackInfo));
+    MEMSET(pStreamInfo->streamCaps.trackInfoList, 0, SIZEOF(TrackInfo) * trackInfoCount);
+    CHK(pStreamInfo->streamCaps.trackInfoList != NULL, STATUS_NOT_ENOUGH_MEMORY);
+
+    methodId = env->GetMethodID(cls, "getTrackName", "(I)Ljava/lang/String;");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getTrackName");
     } else {
-        jstring retString = (jstring) env->CallObjectMethod(streamInfo, methodId);
-        CHK_JVM_EXCEPTION(env);
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
+            jstring retString = (jstring) env->CallObjectMethod(streamInfo, methodId, i);
+            CHK_JVM_EXCEPTION(env);
 
-        if (retString != NULL) {
-            retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamInfo->streamCaps.trackName, retChars, MKV_MAX_TRACK_NAME_LEN + 1);
-            pStreamInfo->streamCaps.trackName[MKV_MAX_TRACK_NAME_LEN] = '\0';
-            env->ReleaseStringUTFChars(retString, retChars);
-        } else {
-            pStreamInfo->streamCaps.trackName[0] = '\0';
+            if (retString != NULL) {
+                retChars = env->GetStringUTFChars(retString, NULL);
+                STRNCPY(pStreamInfo->streamCaps.trackInfoList[i].trackName, retChars, MKV_MAX_TRACK_NAME_LEN + 1);
+                pStreamInfo->streamCaps.trackInfoList[i].trackName[MKV_MAX_TRACK_NAME_LEN] = '\0';
+                env->ReleaseStringUTFChars(retString, retChars);
+            } else {
+                pStreamInfo->streamCaps.trackInfoList[i].trackName[0] = '\0';
+            }
+        }
+    }
+
+    methodId = env->GetMethodID(cls, "getCodecId", "(I)Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getCodecId");
+    } else {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
+            jstring retString = (jstring) env->CallObjectMethod(streamInfo, methodId, i);
+            CHK_JVM_EXCEPTION(env);
+
+            if (retString != NULL) {
+                retChars = env->GetStringUTFChars(retString, NULL);
+                STRNCPY(pStreamInfo->streamCaps.trackInfoList[i].codecId, retChars, MKV_MAX_CODEC_ID_LEN + 1);
+                pStreamInfo->streamCaps.trackInfoList[i].codecId[MKV_MAX_CODEC_ID_LEN] = '\0';
+                env->ReleaseStringUTFChars(retString, retChars);
+            } else {
+                pStreamInfo->streamCaps.trackInfoList[i].codecId[0] = '\0';
+            }
+        }
+    }
+
+    methodId = env->GetMethodID(cls, "getCodecPrivateData", "(I)[B");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getCodecPrivateData");
+    } else {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
+            byteArray = (jbyteArray) env->CallObjectMethod(streamInfo, methodId, i);
+            CHK_JVM_EXCEPTION(env);
+
+            if (byteArray != NULL) {
+                // Extract the bits from the byte buffer
+                bufferPtr = env->GetByteArrayElements(byteArray, NULL);
+                arrayLen = env->GetArrayLength(byteArray);
+
+                // Allocate a temp storage
+                pStreamInfo->streamCaps.trackInfoList[i].codecPrivateDataSize = (UINT32) arrayLen;
+                pStreamInfo->streamCaps.trackInfoList[i].codecPrivateData = (PBYTE) MEMALLOC(arrayLen);
+                CHK(pStreamInfo->streamCaps.trackInfoList[i].codecPrivateData != NULL, STATUS_NOT_ENOUGH_MEMORY);
+
+                // Copy the bits
+                MEMCPY(pStreamInfo->streamCaps.trackInfoList[i].codecPrivateData, bufferPtr, arrayLen);
+
+                // Release the buffer
+                env->ReleaseByteArrayElements(byteArray, bufferPtr, JNI_ABORT);
+            } else {
+                pStreamInfo->streamCaps.trackInfoList[i].codecPrivateDataSize = 0;
+                pStreamInfo->streamCaps.trackInfoList[i].codecPrivateData = NULL;
+            }
+        }
+    }
+
+    methodId = env->GetMethodID(cls, "getTrackInfoType", "(I)I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getTrackInfoType");
+    } else {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
+            pStreamInfo->streamCaps.trackInfoList[i].trackType = (MKV_TRACK_INFO_TYPE) env->CallIntMethod(streamInfo, methodId, i);
+            CHK_JVM_EXCEPTION(env);
+        }
+    }
+
+    methodId = env->GetMethodID(cls, "getTrackId", "(I)J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getTrackId");
+    } else {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
+            pStreamInfo->streamCaps.trackInfoList[i].trackId = (UINT64) env->CallIntMethod(streamInfo, methodId, i);
+            CHK_JVM_EXCEPTION(env);
         }
     }
 
@@ -475,34 +545,6 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
         CHK_JVM_EXCEPTION(env);
     }
 
-    methodId = env->GetMethodID(cls, "getCodecPrivateData", "()[B");
-    if (methodId == NULL) {
-        DLOGW("Couldn't find method id getCodecPrivateData");
-    } else {
-        byteArray = (jbyteArray) env->CallObjectMethod(streamInfo, methodId);
-        CHK_JVM_EXCEPTION(env);
-
-        if (byteArray != NULL) {
-            // Extract the bits from the byte buffer
-            bufferPtr = env->GetByteArrayElements(byteArray, NULL);
-            arrayLen = env->GetArrayLength(byteArray);
-
-            // Allocate a temp storage
-            pStreamInfo->streamCaps.codecPrivateDataSize = arrayLen;
-            pStreamInfo->streamCaps.codecPrivateData = (PBYTE) MEMALLOC(arrayLen);
-            CHK(pStreamInfo->streamCaps.codecPrivateData != NULL, STATUS_NOT_ENOUGH_MEMORY);
-
-            // Copy the bits
-            MEMCPY(pStreamInfo->streamCaps.codecPrivateData, bufferPtr, arrayLen);
-
-            // Release the buffer
-            env->ReleaseByteArrayElements(byteArray, bufferPtr, JNI_ABORT);
-        } else {
-            pStreamInfo->streamCaps.codecPrivateDataSize = 0;
-            pStreamInfo->streamCaps.codecPrivateData = NULL;
-        }
-    }
-
     // Set the tags to empty first
     pStreamInfo->tagCount = 0;
     pStreamInfo->tags = NULL;
@@ -541,6 +583,14 @@ BOOL setFrame(JNIEnv* env, jobject kinesisVideoFrame, PFrame pFrame)
         DLOGW("Couldn't find method id getIndex");
     } else {
         pFrame->index = env->CallIntMethod(kinesisVideoFrame, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getTrackId", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getTrackId");
+    } else {
+        pFrame->trackId = env->CallIntMethod(kinesisVideoFrame, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 

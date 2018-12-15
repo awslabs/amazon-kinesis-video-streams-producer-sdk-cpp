@@ -61,7 +61,7 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
     return true;
 }
 
-bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData) {
+bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, uint64_t trackId) {
     // Hex-decode the string
     const char* pStrCpd = hexEncodedCodecPrivateData.c_str();
     UINT32 size = 0;
@@ -87,7 +87,7 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData) {
     }
 
     // Start the stream with the binary codec private data buffer
-    bool retVal = start(reinterpret_cast<unsigned char*> (pBuffer), size);
+    bool retVal = start(reinterpret_cast<unsigned char*> (pBuffer), size, trackId);
 
     // Free the allocated buffer before returning
     ::free(pBuffer);
@@ -95,11 +95,11 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData) {
     return retVal;
 }
 
-bool KinesisVideoStream::start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize) {
+bool KinesisVideoStream::start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize, uint64_t trackId) {
     STATUS status = STATUS_SUCCESS;
 
-    if (STATUS_FAILED(status = kinesisVideoStreamFormatChanged(stream_handle_, (UINT32)codecPrivateDataSize,
-                                                               (PBYTE) codecPrivateData))) {
+    if (STATUS_FAILED(status = kinesisVideoStreamFormatChanged(stream_handle_, (UINT32) codecPrivateDataSize,
+                                                               (PBYTE) codecPrivateData, (UINT64) trackId))) {
         LOG_ERROR("Failed to set the codec private data with: " << status);
         return false;
     }
@@ -182,6 +182,12 @@ bool KinesisVideoStream::stopSync() {
                 break;
             }
         } while (true);
+    }
+
+    if (ret_val) {
+        // Await for the callback to finalize. The default callback provider will time the call
+        // for the CURL to timeout and exit before calling the client callback function
+        std::this_thread::sleep_for(std::chrono::milliseconds(CLIENT_STREAM_CLOSED_CALLBACK_AWAIT_TIME_MILLIS));
     }
 
     return ret_val;

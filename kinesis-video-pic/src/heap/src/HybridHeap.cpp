@@ -257,7 +257,7 @@ DEFINE_HEAP_ALLOC(hybridHeapAlloc)
     PALLOCATION_HEADER pHeader = NULL;
 
     // overall allocation size
-    UINT32 allocationSize = size + VRAM_ALLOCATION_HEADER_SIZE + VRAM_ALLOCATION_FOOTER_SIZE;
+    UINT64 allocationSize = size + VRAM_ALLOCATION_HEADER_SIZE + VRAM_ALLOCATION_FOOTER_SIZE;
     PVOID pAlloc = NULL;
     UINT32 handle = 0;
     ALLOCATION_HANDLE retHandle;
@@ -290,7 +290,9 @@ DEFINE_HEAP_ALLOC(hybridHeapAlloc)
     // Now, we are going to try to allocate from VRAM
     // We are not going to fail here as 0 is going to indicate a no-alloc
     // Need to map and add the metadata
-    CHK_ERR(INVALID_VRAM_HANDLE != (handle = pHybridHeap->vramAlloc(allocationSize)),
+    // Validate that the allocation is not greater than 32 bit max
+    CHK_ERR(allocationSize < MAX_UINT32, STATUS_HEAP_VRAM_ALLOC_FAILED, "Can not allocate more than 4G from VRAM");
+    CHK_ERR(INVALID_VRAM_HANDLE != (handle = pHybridHeap->vramAlloc((UINT32) allocationSize)),
             STATUS_HEAP_VRAM_ALLOC_FAILED,
             "Failed to allocate %u bytes from VRAM",
             allocationSize);
@@ -308,7 +310,7 @@ DEFINE_HEAP_ALLOC(hybridHeapAlloc)
     // Guard-band the allocation
 #ifdef HEAP_DEBUG
     // Null the memory in debug mode
-    MEMSET(pAlloc, 0x00, allocationSize);
+    MEMSET(pAlloc, 0x00, (UINT32) allocationSize);
 #endif
     // Set up the header and footer
     pHeader = (PALLOCATION_HEADER) pAlloc;
@@ -366,8 +368,9 @@ DEFINE_HEAP_FREE(hybridHeapFree)
     vramHandle = TO_VRAM_HANDLE(handle);
     CHK_ERR(0 == (ret = pHybridHeap->vramFree(vramHandle)),
             STATUS_HEAP_VRAM_FREE_FAILED,
-            "Failed to free VRAM handle %08x",
-            vramHandle);
+            "Failed to free VRAM handle %08x with %lu",
+            vramHandle,
+            ret);
 
 CleanUp:
     LEAVES();

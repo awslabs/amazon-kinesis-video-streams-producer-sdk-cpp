@@ -63,6 +63,11 @@ UINT64 DefaultCallbackProvider::getCurrentTimeHandler(UINT64 custom_data) {
             .count() / DEFAULT_TIME_UNIT_IN_NANOS;
 }
 
+void DefaultCallbackProvider::setResponse(STREAM_HANDLE stream_handle, std::shared_ptr<Response> response) {
+    std::unique_lock<std::recursive_mutex> lock(ongoing_responses_mutex_);
+    ongoing_responses_.put(stream_handle, response);
+}
+
 STATUS DefaultCallbackProvider::createDeviceHandler(
         UINT64 custom_data, PCHAR device_name, PServiceCallContext service_call_ctx) {
     UNUSED_PARAM(custom_data);
@@ -118,7 +123,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
 
     auto endpoint = this_obj->getControlPlaneUri();
     auto url = endpoint + "/createStream";
-    unique_ptr<Request> request = make_unique<Request>(Request::POST, url);
+    unique_ptr<Request> request = make_unique<Request>(Request::POST, url, (STREAM_HANDLE) service_call_ctx->customData);
     request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", endpoint);
     request->setHeader("content-type", "application/json");
@@ -127,7 +132,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
 
     LOG_DEBUG("createStreamHandler post body: " << post_body);
 
-    auto async_call = [](const DefaultCallbackProvider* this_obj,
+    auto async_call = [](DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_name_str,
@@ -140,31 +145,41 @@ STATUS DefaultCallbackProvider::createStreamHandler(
         sleepUntilWithTimeCallback(time_point);
 
         // Perform a sync call
-        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer), this_obj);
 
-        SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
+        // Remove the response from the active response map
+        {
+            std::unique_lock<std::recursive_mutex> lock(this_obj->ongoing_responses_mutex_);
+            this_obj->ongoing_responses_.remove((STREAM_HANDLE) service_call_ctx->customData);
+        }
 
         LOG_DEBUG("createStream response: " << response->getData());
+        if (!response->terminated()) {
 
-        if (HTTP_OK != response->getStatusCode()) {
-            LOG_AND_THROW("Creation of stream: " << stream_name_str << " failed. "
-                                                 << "Status code: " << response->getStatusCode()
-                                                 << "Response body: " << response->getData());
+            SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
+            PCHAR stream_arn = nullptr;
+
+            if (HTTP_OK != response->getStatusCode()) {
+                LOG_ERROR("Creation of stream: " << stream_name_str << " failed. "
+                                                     << "Status code: " << response->getStatusCode()
+                                                     << "Response body: " << response->getData());
+            } else {
+                Json::Reader reader;
+                Json::Value json_response = Json::nullValue;
+                if (!reader.parse(response->getData(), json_response)) {
+                    LOG_AND_THROW("Unable to parse response from kinesis video create stream call as json. Data: " +
+                                  string(response->getData()));
+                }
+
+                string stream_arn_str(json_response["StreamARN"].asString());
+                stream_arn = const_cast<PCHAR>(stream_arn_str.c_str());
+                LOG_INFO("Created new Kinesis Video stream: " << stream_arn);
+            }
+
+            STATUS status = createStreamResultEvent(custom_data, service_call_result, stream_arn);
+
+            this_obj->notifyResult(status, custom_data);
         }
-
-        Json::Reader reader;
-        Json::Value json_response = Json::nullValue;
-        if (!reader.parse(response->getData(), json_response)) {
-            LOG_AND_THROW("Unable to parse response from kinesis video create stream call as json. Data: " +
-                          string(response->getData()));
-        }
-
-        string stream_arn(json_response["StreamARN"].asString());
-        LOG_INFO("Created new Kinesis Video stream: " << stream_arn);
-        STATUS status = createStreamResultEvent(custom_data, service_call_result,
-                                                const_cast<PCHAR>(stream_arn.c_str()));
-
-        this_obj->notifyResult(status, custom_data);
     };
 
     thread worker(async_call, this_obj, move(request), move(request_signer), stream_name_str, service_call_ctx);
@@ -204,7 +219,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
 
     auto endpoint = this_obj->getControlPlaneUri();
     auto url = endpoint + "/tagStream";
-    unique_ptr<Request> request = make_unique<Request>(Request::POST, url);
+    unique_ptr<Request> request = make_unique<Request>(Request::POST, url, (STREAM_HANDLE) service_call_ctx->customData);
     request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", endpoint);
     request->setHeader("content-type", "application/json");
@@ -213,7 +228,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
 
     LOG_DEBUG("tagResourceHandler post body: " << post_body);
 
-    auto async_call = [](const DefaultCallbackProvider* this_obj,
+    auto async_call = [](DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_arn_str,
@@ -227,19 +242,27 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
         sleepUntilWithTimeCallback(time_point);
 
         // Perform a sync call
-        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer), this_obj);
 
-        if (HTTP_OK != response->getStatusCode()) {
-            LOG_ERROR("Failed to set tags on Kinesis Video stream: " << string(stream_arn_str)
-                                                              << " status: " << response->getStatusCode()
-                                                              << " response: "
-                                                              << string(response->getData()));
+        // Remove the response from the active response map
+        {
+            std::unique_lock<std::recursive_mutex> lock(this_obj->ongoing_responses_mutex_);
+            this_obj->ongoing_responses_.remove((STREAM_HANDLE) service_call_ctx->customData);
         }
 
-        SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
-        STATUS status = tagResourceResultEvent(custom_data, service_call_result);
+        if (!response->terminated()) {
+            if (HTTP_OK != response->getStatusCode()) {
+                LOG_ERROR("Failed to set tags on Kinesis Video stream: " << string(stream_arn_str)
+                                                                         << " status: " << response->getStatusCode()
+                                                                         << " response: "
+                                                                         << string(response->getData()));
+            }
 
-        this_obj->notifyResult(status, custom_data);
+            SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
+            STATUS status = tagResourceResultEvent(custom_data, service_call_result);
+
+            this_obj->notifyResult(status, custom_data);
+        }
     };
 
     thread worker(async_call, this_obj, move(request), move(request_signer), stream_arn_str, service_call_ctx);
@@ -271,14 +294,14 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
 
     auto endpoint = this_obj->getControlPlaneUri();
     auto url = endpoint + "/describeStream";
-    unique_ptr<Request> request = make_unique<Request>(Request::POST, url);
+    unique_ptr<Request> request = make_unique<Request>(Request::POST, url, (STREAM_HANDLE) service_call_ctx->customData);
     request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", endpoint);
     request->setHeader("content-type", "application/json");
     request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
 
-    auto async_call = [](const DefaultCallbackProvider* this_obj,
+    auto async_call = [](DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_name_str,
@@ -291,82 +314,91 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
         sleepUntilWithTimeCallback(time_point);
 
         // Perform a sync call
-        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer), this_obj);
 
-        LOG_DEBUG("describeStream response: " << response->getData());
-        StreamDescription stream_description;
-        PStreamDescription stream_description_ptr = nullptr;
-        if (HTTP_OK == response->getStatusCode()) {
-            Json::Reader reader;
-            Json::Value json_response = Json::nullValue;
-            if (!reader.parse(response->getData(), json_response)) {
-                LOG_AND_THROW("Unable to parse response from Kinesis Video describe stream call as json. Data: " +
-                              string(response->getData()));
-            }
-
-            stream_description.version = STREAM_DESCRIPTION_CURRENT_VERSION;
-
-            // set the device name
-            const string device_name(json_response["StreamInfo"]["DeviceName"].asString());
-            assert(MAX_DEVICE_NAME_LEN > device_name.size());
-            std::memcpy(&(stream_description.deviceName), device_name.c_str(), device_name.size());
-            stream_description.deviceName[device_name.size()] = '\0';
-
-            // set the stream name
-            const string stream_name(json_response["StreamInfo"]["StreamName"].asString());
-            assert(MAX_STREAM_NAME_LEN > stream_name.size());
-            std::memcpy(&(stream_description.streamName), stream_name.c_str(), stream_name.size());
-            stream_description.streamName[stream_name.size()] = '\0';
-
-            // Set the content type
-            const string mime_type(json_response["StreamInfo"]["MimeType"].asString());
-            assert(MAX_CONTENT_TYPE_LEN > mime_type.size());
-            std::memcpy(&(stream_description.contentType), mime_type.c_str(), mime_type.size());
-            stream_description.contentType[mime_type.size()] = '\0';
-
-            // Set the update version
-            const string update_version(json_response["StreamInfo"]["Version"].asString());
-            assert(MAX_UPDATE_VERSION_LEN > update_version.size());
-            std::memcpy(&(stream_description.updateVersion), update_version.c_str(), update_version.size());
-            stream_description.updateVersion[update_version.size()] = '\0';
-
-            // Set the ARN
-            const string stream_arn(json_response["StreamInfo"]["StreamARN"].asString());
-            LOG_INFO("Discovered existing Kinesis Video stream: " << stream_arn);
-            assert(MAX_ARN_LEN > stream_arn.size());
-            std::memcpy(&(stream_description.streamArn), stream_arn.c_str(), stream_arn.size());
-            stream_description.streamArn[stream_arn.size()] = '\0';
-
-            LOG_INFO("stream arn in stream_info struct: "
-                             << string(reinterpret_cast<char *>(&(stream_description
-                                     .streamArn))));
-
-            stream_description.streamStatus = getStreamStatusFromString(
-                    json_response["StreamInfo"]["Status"].asString());
-
-            // Set the creation time
-            DOUBLE creation_time = json_response["StreamInfo"]["CreationTime"].asDouble();
-            UINT64 seconds = (UINT64) creation_time;
-            DOUBLE fraction = creation_time - seconds;
-
-            // Use only micros precision - chop the rest
-            UINT64 micros = (UINT64) (fraction * 1000000);
-            stream_description.creationTime = seconds * HUNDREDS_OF_NANOS_IN_A_SECOND +
-                    micros * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
-
-            // set the pointer
-            stream_description_ptr = &stream_description;
-        } else {
-            LOG_INFO("Describe stream did not find the stream " << stream_name_str
-                                                                << " in Kinesis Video (stream will be created)");
+        // Remove the response from the active response map
+        {
+            std::unique_lock<std::recursive_mutex> lock(this_obj->ongoing_responses_mutex_);
+            this_obj->ongoing_responses_.remove((STREAM_HANDLE) service_call_ctx->customData);
         }
 
-        SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
-        STATUS status = describeStreamResultEvent(custom_data,
-                                                  service_call_result,
-                                                  stream_description_ptr);
+        LOG_DEBUG("describeStream response: " << response->getData());
 
-        this_obj->notifyResult(status, custom_data);
+        if (!response->terminated()) {
+            StreamDescription stream_description;
+            PStreamDescription stream_description_ptr = nullptr;
+            if (HTTP_OK == response->getStatusCode()) {
+                Json::Reader reader;
+                Json::Value json_response = Json::nullValue;
+                if (!reader.parse(response->getData(), json_response)) {
+                    LOG_AND_THROW("Unable to parse response from Kinesis Video describe stream call as json. Data: " +
+                                  string(response->getData()));
+                }
+
+                stream_description.version = STREAM_DESCRIPTION_CURRENT_VERSION;
+
+                // set the device name
+                const string device_name(json_response["StreamInfo"]["DeviceName"].asString());
+                assert(MAX_DEVICE_NAME_LEN > device_name.size());
+                std::memcpy(&(stream_description.deviceName), device_name.c_str(), device_name.size());
+                stream_description.deviceName[device_name.size()] = '\0';
+
+                // set the stream name
+                const string stream_name(json_response["StreamInfo"]["StreamName"].asString());
+                assert(MAX_STREAM_NAME_LEN > stream_name.size());
+                std::memcpy(&(stream_description.streamName), stream_name.c_str(), stream_name.size());
+                stream_description.streamName[stream_name.size()] = '\0';
+
+                // Set the content type
+                const string mime_type(json_response["StreamInfo"]["MimeType"].asString());
+                assert(MAX_CONTENT_TYPE_LEN > mime_type.size());
+                std::memcpy(&(stream_description.contentType), mime_type.c_str(), mime_type.size());
+                stream_description.contentType[mime_type.size()] = '\0';
+
+                // Set the update version
+                const string update_version(json_response["StreamInfo"]["Version"].asString());
+                assert(MAX_UPDATE_VERSION_LEN > update_version.size());
+                std::memcpy(&(stream_description.updateVersion), update_version.c_str(), update_version.size());
+                stream_description.updateVersion[update_version.size()] = '\0';
+
+                // Set the ARN
+                const string stream_arn(json_response["StreamInfo"]["StreamARN"].asString());
+                LOG_INFO("Discovered existing Kinesis Video stream: " << stream_arn);
+                assert(MAX_ARN_LEN > stream_arn.size());
+                std::memcpy(&(stream_description.streamArn), stream_arn.c_str(), stream_arn.size());
+                stream_description.streamArn[stream_arn.size()] = '\0';
+
+                LOG_INFO("stream arn in stream_info struct: "
+                                 << string(reinterpret_cast<char *>(&(stream_description
+                                         .streamArn))));
+
+                stream_description.streamStatus = getStreamStatusFromString(
+                        json_response["StreamInfo"]["Status"].asString());
+
+                // Set the creation time
+                DOUBLE creation_time = json_response["StreamInfo"]["CreationTime"].asDouble();
+                UINT64 seconds = (UINT64) creation_time;
+                DOUBLE fraction = creation_time - seconds;
+
+                // Use only micros precision - chop the rest
+                UINT64 micros = (UINT64) (fraction * 1000000);
+                stream_description.creationTime = seconds * HUNDREDS_OF_NANOS_IN_A_SECOND +
+                                                  micros * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
+
+                // set the pointer
+                stream_description_ptr = &stream_description;
+            } else {
+                LOG_INFO("Describe stream did not find the stream " << stream_name_str
+                                                                    << " in Kinesis Video (stream will be created)");
+            }
+
+            SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
+            STATUS status = describeStreamResultEvent(custom_data,
+                                                      service_call_result,
+                                                      stream_description_ptr);
+
+            this_obj->notifyResult(status, custom_data);
+        }
     };
 
     thread worker(async_call, this_obj, move(request), move(request_signer), stream_name_str, service_call_ctx);
@@ -399,13 +431,13 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
 
     string endpoint = this_obj->getControlPlaneUri();
     string url = endpoint + "/getDataEndpoint";
-    unique_ptr<Request> request = make_unique<Request>(Request::POST, url);
+    unique_ptr<Request> request = make_unique<Request>(Request::POST, url, (STREAM_HANDLE) service_call_ctx->customData);
     request->setConnectionTimeout(std::chrono::milliseconds(service_call_ctx->timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
     request->setHeader("host", endpoint);
     request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
 
-    auto async_call = [](const DefaultCallbackProvider* this_obj,
+    auto async_call = [](DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
                          std::unique_ptr<const RequestSigner> request_signer,
                          string stream_name_str,
@@ -418,34 +450,42 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
         sleepUntilWithTimeCallback(time_point);
 
         // Perform a sync call
-        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer));
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer), this_obj);
 
-        LOG_DEBUG("getStreamingEndpoint response: " << response->getData());
-
-        char streaming_endpoint_chars[MAX_URI_CHAR_LEN];
-        streaming_endpoint_chars[0] = '\0';
-        if (HTTP_OK == response->getStatusCode()) {
-            Json::Reader reader;
-            Json::Value json_response = Json::nullValue;
-            if (!reader.parse(response->getData(), json_response)) {
-                LOG_AND_THROW("Unable to parse response from kinesis video get streaming endpoint call as json. Data: " +
-                              string(response->getData()));
-            }
-
-            // set the device name
-            const string streaming_endpoint(json_response["DataEndpoint"].asString());
-            assert(MAX_URI_CHAR_LEN > streaming_endpoint.size());
-            strcpy(streaming_endpoint_chars, const_cast<PCHAR>(streaming_endpoint.c_str()));
-
-            LOG_INFO("streaming to endpoint: " << string(reinterpret_cast<char *>(streaming_endpoint_chars)));
+        // Remove the response from the active response map
+        {
+            std::unique_lock<std::recursive_mutex> lock(this_obj->ongoing_responses_mutex_);
+            this_obj->ongoing_responses_.remove((STREAM_HANDLE) service_call_ctx->customData);
         }
 
-        SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
-        STATUS status = getStreamingEndpointResultEvent(custom_data,
-                                                        service_call_result,
-                                                        streaming_endpoint_chars);
+        LOG_DEBUG("getStreamingEndpoint response: " << response->getData());
+        if (!response->terminated()) {
+            char streaming_endpoint_chars[MAX_URI_CHAR_LEN];
+            streaming_endpoint_chars[0] = '\0';
+            if (HTTP_OK == response->getStatusCode()) {
+                Json::Reader reader;
+                Json::Value json_response = Json::nullValue;
+                if (!reader.parse(response->getData(), json_response)) {
+                    LOG_AND_THROW(
+                            "Unable to parse response from kinesis video get streaming endpoint call as json. Data: " +
+                            string(response->getData()));
+                }
 
-        this_obj->notifyResult(status, custom_data);
+                // set the device name
+                const string streaming_endpoint(json_response["DataEndpoint"].asString());
+                assert(MAX_URI_CHAR_LEN > streaming_endpoint.size());
+                strcpy(streaming_endpoint_chars, const_cast<PCHAR>(streaming_endpoint.c_str()));
+
+                LOG_INFO("streaming to endpoint: " << string(reinterpret_cast<char *>(streaming_endpoint_chars)));
+            }
+
+            SERVICE_CALL_RESULT service_call_result = response->getServiceCallResult();
+            STATUS status = getStreamingEndpointResultEvent(custom_data,
+                                                            service_call_result,
+                                                            streaming_endpoint_chars);
+
+            this_obj->notifyResult(status, custom_data);
+        }
     };
 
     thread worker(async_call, this_obj, move(request), move(request_signer), stream_name_str, service_call_ctx);
@@ -517,7 +557,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     // Create a new state
     auto state = make_shared<OngoingStreamState>(this_obj,
                                                  upload_handle,
-                                                 service_call_ctx->customData,
+                                                 (STREAM_HANDLE) service_call_ctx->customData,
                                                  stream_name_str,
                                                  this_obj->debug_dump_file_);
 
@@ -537,6 +577,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     // the return of this async_call exits.
     unique_ptr<Request> request = make_unique<Request>(Request::POST,
                                                        put_media_endpoint,
+                                                       (STREAM_HANDLE) service_call_ctx->customData,
                                                        state);
     LOG_DEBUG("Created a new PutMedia request with stream upload handle: " << upload_handle);
 
@@ -570,7 +611,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
         LOG_INFO("Creating new connection for Kinesis Video stream: " << stream_name_str);
 
         // Perform a sync call
-        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer), state);
+        shared_ptr<Response> response = this_obj->ccm_.call(move(request), move(request_signer), state.get());
 
         LOG_DEBUG("Connection for Kinesis Video stream: " << stream_name_str << " closed.");
 
@@ -587,6 +628,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
         if (state->isShutdown()) {
             LOG_INFO("Streaming session terminated");
         } else {
+
             // Remove the state from the active list
             {
                 // Interlock the operation
@@ -618,28 +660,44 @@ STATUS DefaultCallbackProvider::putStreamHandler(
 }
 
 void DefaultCallbackProvider::shutdownStream(STREAM_HANDLE stream_handle) {
-    std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
-
-    // Iterate over the map and make sure to shutdown all the ongoing states
-    auto map = active_streams_.getMap();
-    for (std::map<UINT64, std::shared_ptr<OngoingStreamState>>::iterator iter = map.begin();
-         iter != map.end();
-         iter++) {
-        auto state = iter->second;
-        LOG_DEBUG("Shutting down stream: "
-                          << state->getStreamName()
-                          << ", upload handle: "
-                          << state->getUploadHandle()
-                          << ", is EOS: "
-                          << state->isEndOfStream()
-                          << ", is in Shutdown: "
-                          << state->isShutdown());
-        if (nullptr != state && stream_handle == state->getStreamHandle()) {
-            state->shutdown();
-
-            auto response = state->getResponse();
-            if (nullptr != response) {
+    {
+        // Remove active ongoing responses
+        std::unique_lock<std::recursive_mutex> lock(ongoing_responses_mutex_);
+        auto map = ongoing_responses_.getMap();
+        for (std::map<STREAM_HANDLE, std::shared_ptr<Response>>::iterator iter = map.begin();
+             iter != map.end();
+             iter++) {
+            auto response = iter->second;
+            if (nullptr != response && stream_handle == iter->first) {
                 response->terminate();
+            }
+        }
+    }
+
+    {
+        std::unique_lock<std::recursive_mutex> lock(active_streams_mutex_);
+
+        // Iterate over the map and make sure to shutdown all the ongoing states
+        auto map = active_streams_.getMap();
+        for (std::map<STREAM_HANDLE, std::shared_ptr<OngoingStreamState>>::iterator iter = map.begin();
+             iter != map.end();
+             iter++) {
+            auto state = iter->second;
+            LOG_DEBUG("Shutting down stream: "
+                              << state->getStreamName()
+                              << ", upload handle: "
+                              << state->getUploadHandle()
+                              << ", is EOS: "
+                              << state->isEndOfStream()
+                              << ", is in Shutdown: "
+                              << state->isShutdown());
+            if (nullptr != state && stream_handle == state->getStreamHandle()) {
+                state->shutdown();
+
+                auto response = state->getResponse();
+                if (nullptr != response) {
+                    response->terminate();
+                }
             }
         }
     }
@@ -717,10 +775,6 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
                              UINT64 custom_data,
                              STREAM_HANDLE stream_handle,
                              UPLOAD_HANDLE stream_upload_handle) -> auto {
-            // Wait for the specified amount of time before calling the provided callback
-            // NOTE: We will add an extra time for curl handle to settle and close the stream.
-            std::this_thread::sleep_for(std::chrono::milliseconds(TIMEOUT_AFTER_STREAM_STOPPED +
-                                                                  CURL_CLOSE_HANDLE_DELAY_IN_MILLIS));
 
             STATUS status = stream_eos_callback(custom_data, stream_handle, stream_upload_handle);
             if (STATUS_FAILED(status)) {
@@ -745,12 +799,14 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
  *
  * @param custom_data Custom handle passed by the caller (this class)
  * @param STREAM_HANDLE stream handle for the stream
+ * @param UPLOAD_HANDLE the current stream upload handle
  * @param UINT64 errored fragment timecode
  * @param STATUS status code of the failure
  * @return Status of the callback
  */
 STATUS DefaultCallbackProvider::streamErrorHandler(UINT64 custom_data,
                                                    STREAM_HANDLE stream_handle,
+                                                   UPLOAD_HANDLE upload_handle,
                                                    UINT64 fragment_timecode,
                                                    STATUS status) {
     LOG_DEBUG("streamErrorHandler invoked");
@@ -759,7 +815,7 @@ STATUS DefaultCallbackProvider::streamErrorHandler(UINT64 custom_data,
     // Terminate the existing stream if any
     {
         std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
-        auto existingState = this_obj->active_streams_.get(stream_handle);
+        auto existingState = this_obj->active_streams_.get(upload_handle);
         if (existingState != nullptr) {
             existingState->endOfStream();
         }
@@ -770,6 +826,7 @@ STATUS DefaultCallbackProvider::streamErrorHandler(UINT64 custom_data,
     if (nullptr != stream_error_callback) {
         return stream_error_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
                                      stream_handle,
+                                     upload_handle,
                                      fragment_timecode,
                                      status);
     } else {
@@ -867,6 +924,23 @@ STATUS DefaultCallbackProvider::droppedFragmentReportHandler(UINT64 custom_data,
     }
 }
 
+STATUS DefaultCallbackProvider::bufferDurationOverflowPressureHandler(UINT64 custom_data,
+                                                                      STREAM_HANDLE stream_handle,
+                                                                      UINT64 remaining_duration) {
+    LOG_DEBUG("bufferDurationOverflowPressureHandler invoked");
+    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Call the client callback if any specified
+    auto buffer_duration_overflow_pressure_callback = this_obj->stream_callback_provider_->getBufferDurationOverflowPressureCallback();
+    if (nullptr != buffer_duration_overflow_pressure_callback) {
+        return buffer_duration_overflow_pressure_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                                          stream_handle,
+                                                          remaining_duration);
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
 STATUS DefaultCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
                                                              STREAM_HANDLE stream_handle,
                                                              UINT64 last_ack_duration) {
@@ -899,15 +973,32 @@ STATUS DefaultCallbackProvider::streamReadyHandler(UINT64 custom_data, STREAM_HA
 
 STATUS DefaultCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
                                                            STREAM_HANDLE stream_handle,
+                                                           UPLOAD_HANDLE uploadHandle,
                                                            PFragmentAck fragment_ack) {
     LOG_DEBUG("fragmentAckReceivedHandler invoked");
     auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+
+    // Check if we need to unpause the upload
+    if (fragment_ack->ackType == FRAGMENT_ACK_TYPE_PERSISTED) {
+        // Find the right ongoing state handler
+        std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
+        auto existingState = this_obj->active_streams_.get(uploadHandle);
+
+        if (existingState != nullptr) {
+            if (existingState->unPause()) {
+                LOG_DEBUG("Curl read resumed");
+            } else {
+                LOG_WARN("Failed to resume curl read");
+            }
+        }
+    }
 
     // Call the client callback if any specified
     auto fragment_ack_callback = this_obj->stream_callback_provider_->getFragmentAckReceivedCallback();
     if (nullptr != fragment_ack_callback) {
         return fragment_ack_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
                                      stream_handle,
+                                     uploadHandle,
                                      fragment_ack);
     } else {
         return STATUS_SUCCESS;
@@ -920,9 +1011,26 @@ void DefaultCallbackProvider::notifyResult(STATUS status, STREAM_HANDLE stream_h
         LOG_ERROR("Submitting event result for stream: " << stream_handle << " failed with: " << status);
         auto stream_error_callback = stream_callback_provider_->getStreamErrorReportCallback();
         if (nullptr != stream_error_callback) {
-            stream_error_callback(stream_callback_provider_->getCallbackCustomData(), stream_handle, 0, status);
+            stream_error_callback(stream_callback_provider_->getCallbackCustomData(), stream_handle, INVALID_UPLOAD_HANDLE_VALUE, 0, status);
         }
     }
+}
+
+static std::string computeUserAgentString(const std::string user_agent_name, const std::string custom_useragent) {
+    std::stringstream ss;
+    ss << user_agent_name << "/" << getProducerSDKVersion() << " " << getCompilerVersion() << " "
+       << getOSVersion() << " " << getPlatformName();
+
+    if (!custom_useragent.empty()){
+        if (custom_useragent.size() < MAX_CUSTOM_USER_AGENT_STRING_LENGTH) {
+            ss << " " << custom_useragent;
+        } else {
+            LOG_WARN("dropping custom useragent because it execeeded maximum length of "
+                             << MAX_CUSTOM_USER_AGENT_STRING_LENGTH);
+        }
+    }
+
+    return ss.str();
 }
 
 DefaultCallbackProvider::DefaultCallbackProvider(
@@ -931,18 +1039,19 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         unique_ptr <CredentialProvider> credentials_provider,
         const string& region,
         const string& control_plane_uri,
-        const std::string &user_agent)
+        const std::string &user_agent_name,
+        const std::string &custom_user_agent)
         : ccm_(CurlCallManager::getInstance()),
           region_(region),
           current_upload_handle_(0),
           service_(KINESIS_VIDEO_SERVICE_NAME),
           control_plane_uri_(control_plane_uri),
           debug_dump_file_(false),
-          security_token_(nullptr),
-          user_agent_(user_agent) {
+          security_token_(nullptr) {
     client_callback_provider_ = move(client_callback_provider);
     stream_callback_provider_ = move(stream_callback_provider);
     credentials_provider_ = move(credentials_provider);
+    user_agent_ = computeUserAgentString(user_agent_name, custom_user_agent);
 
     if (control_plane_uri_.empty()) {
         // Create a fully qualified URI
@@ -992,6 +1101,10 @@ GetCurrentTimeFunc DefaultCallbackProvider::getCurrentTimeCallback() {
 
 DroppedFragmentReportFunc DefaultCallbackProvider::getDroppedFragmentReportCallback() {
     return droppedFragmentReportHandler;
+}
+
+BufferDurationOverflowPressureFunc DefaultCallbackProvider::getBufferDurationOverflowPressureCallback(){
+    return bufferDurationOverflowPressureHandler;
 }
 
 StreamReadyFunc DefaultCallbackProvider::getStreamReadyCallback() {

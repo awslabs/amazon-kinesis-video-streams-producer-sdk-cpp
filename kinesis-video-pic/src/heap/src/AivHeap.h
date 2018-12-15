@@ -23,7 +23,7 @@ extern "C" {
 typedef struct AIV_ALLOCATION_HEADER
 {
     ALLOCATION_HEADER header;
-    UINT32 allocSize;
+    UINT64 allocSize;
     BYTE state;
     AIV_ALLOCATION_HEADER* pNext;
     AIV_ALLOCATION_HEADER* pPrev;
@@ -38,8 +38,9 @@ typedef struct
 } AIV_ALLOCATION_FOOTER, *PAIV_ALLOCATION_FOOTER;
 
 // Macros to convert to and from handle
-#define TO_AIV_HANDLE(pAiv, p) (ALLOCATION_HANDLE)((UINT64)((UINT32)((PBYTE)(p) - (PBYTE)((pAiv)->pAllocation))) << 32)
-#define FROM_AIV_HANDLE(pAiv, h) ((PVOID)((PBYTE)((pAiv)->pAllocation) + (UINT32)((UINT64)(h) >> 32)))
+#define AIV_HANDLE_SHIFT_BITS 2
+#define TO_AIV_HANDLE(pAiv, p) (ALLOCATION_HANDLE)((UINT64)(((PBYTE)(p) - (PBYTE)((pAiv)->pAllocation))) << AIV_HANDLE_SHIFT_BITS)
+#define FROM_AIV_HANDLE(pAiv, h) ((PVOID)((PBYTE)((pAiv)->pAllocation) + ((UINT64)(h) >> AIV_HANDLE_SHIFT_BITS)))
 
 /**
  * Minimal free allocation size - if we end up with a free block of lesser size we will coalesce this to the allocated block
@@ -124,8 +125,8 @@ DEFINE_HEAP_LIMITS(aivGetHeapLimits);
 /**
  * AIV Heap specific functions
  */
-PAIV_ALLOCATION_HEADER getFreeBlock(PAivHeap, UINT32);
-VOID splitFreeBlock(PAivHeap, PAIV_ALLOCATION_HEADER, UINT32);
+PAIV_ALLOCATION_HEADER getFreeBlock(PAivHeap, UINT64);
+VOID splitFreeBlock(PAivHeap, PAIV_ALLOCATION_HEADER, UINT64);
 VOID addAllocatedBlock(PAivHeap, PAIV_ALLOCATION_HEADER);
 VOID removeAllocatedBlock(PAivHeap, PAIV_ALLOCATION_HEADER);
 VOID addFreeBlock(PAivHeap, PAIV_ALLOCATION_HEADER);

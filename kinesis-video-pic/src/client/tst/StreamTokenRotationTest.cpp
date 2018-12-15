@@ -104,6 +104,7 @@ TEST_F(StreamTokenRotationTest, basicTokenRotationNonPersistAwait)
         frame.presentationTs = timestamp;
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
+        frame.trackId = TEST_TRACKID;
         frame.frameData = tempBuffer;
 
         // Update the timer

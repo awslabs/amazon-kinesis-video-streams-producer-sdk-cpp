@@ -17,7 +17,7 @@ extern "C" {
 
 typedef struct
 {
-    UINT32 size;
+    UINT64 size;
     UINT32 type;
     UINT32 handle;
 #ifdef HEAP_DEBUG
@@ -81,12 +81,12 @@ DEFINE_HEAP_CHK(commonHeapDebugCheckAllocator);
 /**
  * Increment the allocations/count
  */
-VOID incrementUsage(PHeap, UINT32);
+VOID incrementUsage(PHeap, UINT64);
 
 /**
  * Decrenents the allocations/count
  */
-VOID decrementUsage(PHeap, UINT32);
+VOID decrementUsage(PHeap, UINT64);
 
 /**
  * Creates the heap object itself

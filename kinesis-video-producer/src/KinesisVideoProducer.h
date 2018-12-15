@@ -35,6 +35,12 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 #define STREAM_READY_TIMEOUT_DURATION_IN_SECONDS 30
 
 /**
+ * Default time in millis to await for the client callback to finish before proceeding with unlocking
+ * We will add extra 10 milliseconds to account for thread scheduling to ensure the callback is complete.
+ */
+#define CLIENT_STREAM_CLOSED_CALLBACK_AWAIT_TIME_MILLIS (10 + TIMEOUT_AFTER_STREAM_STOPPED + CURL_CLOSE_HANDLE_DELAY_IN_MILLIS)
+
+/**
 * Kinesis Video client interface for real time streaming. The structure of this class is that each instance of type <T,U>
 * is a singleton where T is the implementation of the DeviceInfoProvider interface and U is the implementation of the
 * CallbackProvider interface. The reason for using the singleton is that Kinesis Video client has logic that benefits
@@ -214,6 +220,17 @@ protected:
                                  MUTEX);
     static VOID freeMutexFunc(UINT64,
                               MUTEX);
+    static CVAR createConditionVariableFunc(UINT64);
+    static STATUS signalConditionVariableFunc(UINT64,
+                                              CVAR);
+    static STATUS broadcastConditionVariableFunc(UINT64,
+                                                 CVAR);
+    static STATUS waitConditionVariableFunc(UINT64,
+                                            CVAR,
+                                            MUTEX,
+                                            UINT64);
+    static VOID freeConditionVariableFunc(UINT64,
+                                          CVAR);
     static UINT64 getCurrentTimeFunc(UINT64);
     static UINT32 getRandomNumberFunc(UINT64);
     static VOID logPrintFunc(UINT32, PCHAR, PCHAR, ...);
@@ -242,6 +259,7 @@ protected:
                                             UINT64);
     static STATUS streamErrorReportFunc(UINT64,
                                         STREAM_HANDLE,
+                                        UPLOAD_HANDLE,
                                         UINT64,
                                         STATUS);
     static STATUS streamReadyFunc(UINT64,
@@ -299,7 +317,11 @@ protected:
                                             UINT64);
     static STATUS fragmentAckReceivedFunc(UINT64,
                                           STREAM_HANDLE,
+                                          UPLOAD_HANDLE,
                                           PFragmentAck);
+    static STATUS bufferDurationOverflowPressureFunc(UINT64,
+                                                     STREAM_HANDLE,
+                                                     UINT64);
 };
 
 } // namespace video

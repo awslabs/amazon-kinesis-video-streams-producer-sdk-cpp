@@ -33,19 +33,14 @@ CurlCallManager::~CurlCallManager() {
 }
 
 shared_ptr<Response> CurlCallManager::call(unique_ptr<Request> request,
-                                           unique_ptr<const RequestSigner> request_signer) const {
-    return call(move(request), move(request_signer), nullptr);
-}
-
-shared_ptr<Response> CurlCallManager::call(unique_ptr<Request> request,
                                            unique_ptr<const RequestSigner> request_signer,
-                                           std::shared_ptr<OngoingStreamState> ongoing_state) const {
+                                           ResponseAcceptor* response_acceptor) const {
     move(request_signer)->signRequest(*request);
     shared_ptr<Response> response = Response::create(*request);
 
-    // Set the response object on state
-    if (nullptr != ongoing_state) {
-        ongoing_state->setResponse(response);
+    // Set the response object on the acceptor
+    if (response_acceptor != nullptr) {
+        response_acceptor->setResponse(request->getStreamHandle(), response);
     }
 
     // Perform sync call

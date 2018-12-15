@@ -323,7 +323,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamUnmapError)
 {
     PHeap pHeap;
     ALLOCATION_HANDLE handle;
-    UINT32 retSize;
+    UINT64 retSize;
     PVOID pAlloc;
     UINT32 memHeapLimit;
     UINT32 vramHeapLimit;
@@ -376,7 +376,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamFreeError)
 {
     PHeap pHeap;
     ALLOCATION_HANDLE handle;
-    UINT32 retSize;
+    UINT64 retSize;
     PVOID pAlloc;
     UINT32 memHeapLimit;
     UINT32 vramHeapLimit;

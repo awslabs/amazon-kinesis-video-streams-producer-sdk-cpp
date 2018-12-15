@@ -190,6 +190,19 @@ STATUS ClientTestBase::droppedFrameReportFunc(UINT64 customData, STREAM_HANDLE s
     return STATUS_SUCCESS;
 }
 
+STATUS ClientTestBase::bufferDurationOverflowPressureFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 remainingDuration){
+    DLOGV("TID 0x%016llx bufferDurationOverflowPressureFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mBufferDurationOverflowPrssureFuncCount++;
+
+    pClient->mRemainingDuration = remainingDuration;
+
+    return STATUS_SUCCESS;
+}
+
 STATUS ClientTestBase::droppedFragmentReportFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 fragmentTimecode)
 {
     DLOGV("TID 0x%016llx droppedFragmentReportFunc called.", GETTID());
@@ -261,6 +274,7 @@ STATUS ClientTestBase::streamDataAvailableFunc(UINT64 customData,
 
 STATUS ClientTestBase::streamErrorReportFunc(UINT64 customData,
                                              STREAM_HANDLE streamHandle,
+                                             UPLOAD_HANDLE upload_handle,
                                              UINT64 timecode,
                                              STATUS status)
 {
@@ -297,6 +311,7 @@ STATUS ClientTestBase::streamConnectionStaleFunc(UINT64 customData,
 
 STATUS ClientTestBase::fragmentAckReceivedFunc(UINT64 customData,
                                                STREAM_HANDLE streamHandle,
+                                               UPLOAD_HANDLE upload_handle,
                                                PFragmentAck pFragmentAck)
 {
     DLOGV("TID 0x%016llx fragmentAckReceivedFunc called.", GETTID());
@@ -385,6 +400,69 @@ VOID ClientTestBase::freeMutexFunc(UINT64 customData, MUTEX mutex)
     pClient->mFreeMutexFuncCount++;
 
     return MUTEX_FREE(mutex);
+}
+
+CVAR ClientTestBase::createConditionVariableFunc(UINT64 customData)
+{
+    DLOGV("TID 0x%016llx createConditionVariableFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mCreateConditionVariableFuncCount++;
+
+    return CVAR_CREATE();
+}
+
+STATUS ClientTestBase::signalConditionVariableFunc(UINT64 customData, CVAR cvar)
+{
+    DLOGV("TID 0x%016llx signalConditionVariableFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mSignalConditionVariableFuncCount++;
+
+    return CVAR_SIGNAL(cvar);
+}
+
+STATUS ClientTestBase::broadcastConditionVariableFunc(UINT64 customData, CVAR cvar)
+{
+    DLOGV("TID 0x%016llx broadcastConditionVariableFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mBroadcastConditionVariableFuncCount++;
+
+    return CVAR_BROADCAST(cvar);
+}
+
+STATUS ClientTestBase::waitConditionVariableFunc(UINT64 customData,
+                                                 CVAR cvar,
+                                                 MUTEX mutex,
+                                                 UINT64 timeout)
+{
+    DLOGV("TID 0x%016llx waitConditionVariableFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mWaitConditionVariableFuncCount++;
+
+    return CVAR_WAIT(cvar, mutex, timeout);
+}
+
+VOID ClientTestBase::freeConditionVariableFunc(UINT64 customData, CVAR cvar)
+{
+    DLOGV("TID 0x%016llx freeConditionVariableFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mFreeConditionVariableFuncCount++;
+
+    return CVAR_FREE(cvar);
 }
 
 STATUS ClientTestBase::createStreamFunc(UINT64 customData,

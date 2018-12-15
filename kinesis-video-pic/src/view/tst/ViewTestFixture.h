@@ -11,6 +11,7 @@
 #define MAX_VIEW_ITEM_COUNT                         100
 #define MAX_VIEW_BUFFER_DURATION                    1000
 #define VIEW_NOTIFICATION_CALLBACK_CUSTOM_DATA      1122
+#define CHECK_AGAINST_ACKTIMESTAMP                   TRUE
 
 extern PContentView gContentView;
 extern UINT64 gCustomData;

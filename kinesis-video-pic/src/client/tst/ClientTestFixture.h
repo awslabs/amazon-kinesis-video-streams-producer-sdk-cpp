@@ -22,6 +22,7 @@
 #define TEST_CONTENT_TYPE               ((PCHAR) "TestContentType")
 #define TEST_CODEC_ID                   ((PCHAR) "TestCodec")
 #define TEST_TRACK_NAME                 ((PCHAR) "TestTrack")
+#define TEST_TRACKID                    0
 
 #define TEST_DEVICE_ARN                 ((PCHAR) "TestDeviceARN")
 
@@ -41,11 +42,12 @@
 #define TEST_FRAME_DURATION             (20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 #define TEST_LONG_FRAME_DURATION        (400 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
-#define TEST_SLEEP_TIME_IN_MICROS                   1000000
-#define TEST_PRODUCER_SLEEP_TIME_IN_MICROS          20000
-#define TEST_CONSUMER_SLEEP_TIME_IN_MICROS          50000
+#define TEST_SLEEP_TIME                 (1000 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define TEST_PRODUCER_SLEEP_TIME        (20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define TEST_CONSUMER_SLEEP_TIME        (50 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 #define TEST_AUTH_EXPIRATION            (UINT64)(-1LL)
+#define TEST_TRACK_COUNT                1
 
 //
 // Default allocator functions
@@ -126,6 +128,7 @@ public:
                       mStreamStartTime(0),
                       mAckRequired(FALSE),
                       mRemainingSize(0),
+                      mRemainingDuration(0),
                       mRetention(0),
                       mTerminate(FALSE),
                       mTagCount(0),
@@ -143,6 +146,7 @@ public:
                       mStorageOverflowPressureFuncCount(0),
                       mStreamLatencyPressureFuncCount(0),
                       mDroppedFrameReportFuncCount(0),
+                      mBufferDurationOverflowPrssureFuncCount(0),
                       mDroppedFragmentReportFuncCount(0),
                       mStreamReadyFuncCount(0),
                       mStreamClosedFuncCount(0),
@@ -151,6 +155,11 @@ public:
                       mUnlockMutexFuncCount(0),
                       mTryLockMutexFuncCount(0),
                       mFreeMutexFuncCount(0),
+                      mCreateConditionVariableFuncCount(0),
+                      mSignalConditionVariableFuncCount(0),
+                      mBroadcastConditionVariableFuncCount(0),
+                      mWaitConditionVariableFuncCount(0),
+                      mFreeConditionVariableFuncCount(0),
                       mCreateStreamFuncCount(0),
                       mDescribeStreamFuncCount(0),
                       mGetStreamingEndpointFuncCount(0),
@@ -212,6 +221,7 @@ public:
         mClientCallbacks.storageOverflowPressureFn = storageOverflowPressureFunc;
         mClientCallbacks.streamLatencyPressureFn = streamLatencyPressureFunc;
         mClientCallbacks.droppedFrameReportFn = droppedFrameReportFunc;
+        mClientCallbacks.bufferDurationOverflowPressureFn = bufferDurationOverflowPressureFunc;
         mClientCallbacks.droppedFragmentReportFn = droppedFragmentReportFunc;
         mClientCallbacks.streamReadyFn = streamReadyFunc;
         mClientCallbacks.streamClosedFn = streamClosedFunc;
@@ -220,6 +230,11 @@ public:
         mClientCallbacks.unlockMutexFn = unlockMutexFunc;
         mClientCallbacks.tryLockMutexFn = tryLockMutexFunc;
         mClientCallbacks.freeMutexFn = freeMutexFunc;
+        mClientCallbacks.createConditionVariableFn = createConditionVariableFunc;
+        mClientCallbacks.signalConditionVariableFn = signalConditionVariableFunc;
+        mClientCallbacks.broadcastConditionVariableFn = broadcastConditionVariableFunc;
+        mClientCallbacks.waitConditionVariableFn = waitConditionVariableFunc;
+        mClientCallbacks.freeConditionVariableFn = freeConditionVariableFunc;
         mClientCallbacks.createStreamFn = createStreamFunc;
         mClientCallbacks.describeStreamFn = describeStreamFunc;
         mClientCallbacks.getStreamingEndpointFn = getStreamingEndpointFunc;
@@ -265,15 +280,19 @@ public:
         mStreamInfo.streamCaps.fragmentAcks = TRUE;
         mStreamInfo.streamCaps.recoverOnError = FALSE;
         mStreamInfo.streamCaps.recalculateMetrics = TRUE;
-        STRCPY(mStreamInfo.streamCaps.codecId, TEST_CODEC_ID);
-        STRCPY(mStreamInfo.streamCaps.trackName, TEST_TRACK_NAME);
         mStreamInfo.streamCaps.avgBandwidthBps = 15 * 1000000;
         mStreamInfo.streamCaps.frameRate = 24;
         mStreamInfo.streamCaps.bufferDuration = TEST_BUFFER_DURATION;
         mStreamInfo.streamCaps.replayDuration = TEST_REPLAY_DURATION;
         mStreamInfo.streamCaps.timecodeScale = 0;
-        mStreamInfo.streamCaps.codecPrivateData = NULL;
-        mStreamInfo.streamCaps.codecPrivateDataSize = 0;
+        mStreamInfo.streamCaps.trackInfoCount = 1;
+        trackInfo.trackId = TEST_TRACKID;
+        trackInfo.codecPrivateDataSize = 0;
+        trackInfo.codecPrivateData = NULL;
+        STRCPY(trackInfo.codecId, TEST_CODEC_ID);
+        STRCPY(trackInfo.trackName, TEST_TRACK_NAME);
+        trackInfo.trackType = MKV_TRACK_INFO_TYPE_VIDEO;
+        mStreamInfo.streamCaps.trackInfoList = &trackInfo;
     }
 
     PVOID basicProducerRoutine(UINT64);
@@ -309,6 +328,7 @@ protected:
     StreamInfo mStreamInfo;
     ServiceCallContext mCallContext;
     UINT64 mRemainingSize;
+    UINT64 mRemainingDuration;
     UINT64 mDataReadyDuration;
     UINT64 mDataReadySize;
     StreamDescription mStreamDescription;
@@ -321,6 +341,7 @@ protected:
     UINT32 mTagCount;
     CHAR mResourceArn[MAX_ARN_LEN];
     UINT64 mStreamUploadHandle;
+    TrackInfo trackInfo;
 
     // Callback function count
     volatile UINT32 mGetCurrentTimeFuncCount;
@@ -332,6 +353,7 @@ protected:
     volatile UINT32 mStorageOverflowPressureFuncCount;
     volatile UINT32 mStreamLatencyPressureFuncCount;
     volatile UINT32 mDroppedFrameReportFuncCount;
+    volatile UINT32 mBufferDurationOverflowPrssureFuncCount;
     volatile UINT32 mDroppedFragmentReportFuncCount;
     volatile UINT32 mStreamReadyFuncCount;
     volatile UINT32 mStreamClosedFuncCount;
@@ -340,6 +362,11 @@ protected:
     volatile UINT32 mUnlockMutexFuncCount;
     volatile UINT32 mTryLockMutexFuncCount;
     volatile UINT32 mFreeMutexFuncCount;
+    volatile UINT32 mCreateConditionVariableFuncCount;
+    volatile UINT32 mSignalConditionVariableFuncCount;
+    volatile UINT32 mBroadcastConditionVariableFuncCount;
+    volatile UINT32 mWaitConditionVariableFuncCount;
+    volatile UINT32 mFreeConditionVariableFuncCount;
     volatile UINT32 mCreateStreamFuncCount;
     volatile UINT32 mDescribeStreamFuncCount;
     volatile UINT32 mGetStreamingEndpointFuncCount;
@@ -506,6 +533,7 @@ protected:
     virtual void TearDown()
     {
         DLOGI("\nTearing down test: %s\n", GetTestName());
+
         if (IS_VALID_CLIENT_HANDLE(mClientHandle)) {
             freeKinesisVideoClient(&mClientHandle);
         }
@@ -549,6 +577,7 @@ protected:
     static STATUS storageOverflowPressureFunc(UINT64, UINT64);
     static STATUS streamLatencyPressureFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS droppedFrameReportFunc(UINT64, STREAM_HANDLE, UINT64);
+    static STATUS bufferDurationOverflowPressureFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS droppedFragmentReportFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS streamReadyFunc(UINT64, STREAM_HANDLE);
     static STATUS streamClosedFunc(UINT64, STREAM_HANDLE, UINT64);
@@ -557,6 +586,17 @@ protected:
     static VOID unlockMutexFunc(UINT64, MUTEX);
     static BOOL tryLockMutexFunc(UINT64, MUTEX);
     static VOID freeMutexFunc(UINT64, MUTEX);
+    static CVAR createConditionVariableFunc(UINT64);
+    static STATUS signalConditionVariableFunc(UINT64,
+                                              CVAR);
+    static STATUS broadcastConditionVariableFunc(UINT64,
+                                                 CVAR);
+    static STATUS waitConditionVariableFunc(UINT64,
+                                            CVAR,
+                                            MUTEX,
+                                            UINT64);
+    static VOID freeConditionVariableFunc(UINT64,
+                                          CVAR);
     static STATUS createStreamFunc(UINT64,
                                    PCHAR,
                                    PCHAR,
@@ -610,6 +650,7 @@ protected:
 
     static STATUS streamErrorReportFunc(UINT64,
                                         STREAM_HANDLE,
+                                        UPLOAD_HANDLE,
                                         UINT64,
                                         STATUS);
 
@@ -619,6 +660,7 @@ protected:
 
     static STATUS fragmentAckReceivedFunc(UINT64,
                                           STREAM_HANDLE,
+                                          UPLOAD_HANDLE,
                                           PFragmentAck);
 
 

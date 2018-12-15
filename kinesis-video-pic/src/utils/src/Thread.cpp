@@ -68,9 +68,9 @@ CleanUp:
     return retStatus;
 }
 
-INLINE VOID defaultThreadSleep(UINT64 uSeconds)
+INLINE VOID defaultThreadSleep(UINT64 time)
 {
-    Sleep((UINT32) (uSeconds / 1000));
+    Sleep((UINT32) (time / HUNDREDS_OF_NANOS_IN_A_MILLISECOND));
 }
 
 #else
@@ -157,9 +157,9 @@ CleanUp:
     return retStatus;
 }
 
-INLINE VOID defaultThreadSleep(UINT64 uSeconds)
+INLINE VOID defaultThreadSleep(UINT64 time)
 {
-    usleep(uSeconds);
+    usleep(time / HUNDREDS_OF_NANOS_IN_A_MICROSECOND);
 }
 
 #endif

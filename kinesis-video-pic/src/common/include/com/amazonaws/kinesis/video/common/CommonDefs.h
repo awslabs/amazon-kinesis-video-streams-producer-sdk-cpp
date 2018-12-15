@@ -331,13 +331,20 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 //
 // Infinite time
 //
-#define INFINITE_TIME_VALUE                                 (MAX_UINT64)
+#define INFINITE_TIME_VALUE                                 (1000000000ULL)
 
 //
 // Some standard definitions/macros
 //
 #ifndef SIZEOF
 #define SIZEOF(x) (sizeof(x))
+#endif
+
+//
+// Check for 32/64 bit
+//
+#ifndef CHECK_64_BIT
+    #define CHECK_64_BIT    (SIZEOF(SIZE_T) == 8)
 #endif
 
 #ifndef UNUSED_PARAM

@@ -63,6 +63,7 @@ extern "C" {
 #define ITEM_FLAG_FRAGMENT_START                     (0x1 << 1)
 #define ITEM_FLAG_BUFFERING_ACK                      (0x1 << 2)
 #define ITEM_FLAG_RECEIVED_ACK                       (0x1 << 3)
+#define ITEM_FLAG_FRAGMENT_END                       (0x1 << 4)
 
 /**
  * Macros for checking/setting/clearing for various flags
@@ -71,16 +72,19 @@ extern "C" {
 #define CHECK_ITEM_BUFFERING_ACK(f)                 (((f) & ITEM_FLAG_BUFFERING_ACK) != ITEM_FLAG_NONE)
 #define CHECK_ITEM_RECEIVED_ACK(f)                  (((f) & ITEM_FLAG_RECEIVED_ACK) != ITEM_FLAG_NONE)
 #define CHECK_ITEM_STREAM_START(f)                  (((f) & ITEM_FLAG_STREAM_START) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_FRAGMENT_END(f)                  (((f) & ITEM_FLAG_FRAGMENT_END) != ITEM_FLAG_NONE)
 
 #define SET_ITEM_FRAGMENT_START(f)                  ((f) |= ITEM_FLAG_FRAGMENT_START)
 #define SET_ITEM_BUFFERING_ACK(f)                   ((f) |= ITEM_FLAG_BUFFERING_ACK)
 #define SET_ITEM_RECEIVED_ACK(f)                    ((f) |= ITEM_FLAG_RECEIVED_ACK)
 #define SET_ITEM_STREAM_START(f)                    ((f) |= ITEM_FLAG_STREAM_START)
+#define SET_ITEM_FRAGMENT_END(f)                    ((f) |= ITEM_FLAG_FRAGMENT_END)
 
 #define CLEAR_ITEM_FRAGMENT_START(f)                ((f) &= ~ITEM_FLAG_FRAGMENT_START)
 #define CLEAR_ITEM_BUFFERING_ACK(f)                 ((f) &= ~ITEM_FLAG_BUFFERING_ACK)
 #define CLEAR_ITEM_RECEIVED_ACK(f)                  ((f) &= ~ITEM_FLAG_RECEIVED_ACK)
 #define CLEAR_ITEM_STREAM_START(f)                  ((f) &= ~ITEM_FLAG_STREAM_START)
+#define CLEAR_ITEM_FRAGMENT_END(f)                  ((f) &= ~ITEM_FLAG_FRAGMENT_END)
 
 #define GET_ITEM_DATA_OFFSET(f)                     ((UINT16) ((f) >> 16))
 #define SET_ITEM_DATA_OFFSET(f, o)                  (((f) &= 0x0000ffff) |= (((UINT16) (o)) << 16))
@@ -104,6 +108,9 @@ typedef struct {
 
     // The timestamp of the item
     UINT64 timestamp;
+
+    // The timestamp used to map acks from backend
+    UINT64 ackTimestamp;
 
     // The duration of the item
     UINT64 duration;
@@ -186,10 +193,11 @@ PUBLIC_API STATUS contentViewItemExists(PContentView, UINT64, PBOOL);
  *
  * PContentView - Content view
  * UINT64 - item timestamp
+ * BOOL - whether check against ackTimestamp or contentView timestamp
  * PBOOL - whether the item exists
  *
  */
-PUBLIC_API STATUS contentViewTimestampInRange(PContentView, UINT64, PBOOL);
+PUBLIC_API STATUS contentViewTimestampInRange(PContentView, UINT64, BOOL, PBOOL);
 
 /**
  * Gets an item from the current index and advances the index. Iterates to the next item.
@@ -215,10 +223,11 @@ PUBLIC_API STATUS contentViewGetItemAt(PContentView, UINT64, PViewItem*);
  *
  * PContentView - Content view
  * UINT64 - the index of the item
+ * BOOL - whether check against ackTimestamp or contentView timestamp
  * PViewItem* - The current item pointer
  *
  */
-PUBLIC_API STATUS contentViewGetItemWithTimestamp(PContentView, UINT64, PViewItem*);
+PUBLIC_API STATUS contentViewGetItemWithTimestamp(PContentView, UINT64, BOOL, PViewItem*);
 
 /**
  * Gets the current index
@@ -289,7 +298,8 @@ PUBLIC_API STATUS contentViewGetAllocationSize(PContentView, PUINT32);
  * Adds an item to the head of the view
  *
  * PContentView - Content view
- * UINT64 - item timestamp
+ * UINT64 - item timestamp (decoding timestamp)
+ * UINT64 - item presentation timestamp
  * UINT64 - item duration
  * ALLOCATION_HANDLE - Allocation handle
  * UINT32 - Byte offset of the data from the beginning of the allocation
@@ -297,7 +307,7 @@ PUBLIC_API STATUS contentViewGetAllocationSize(PContentView, PUINT32);
  * UINT32 - Item flags.
  *
  */
-PUBLIC_API STATUS contentViewAddItem(PContentView, UINT64, UINT64, ALLOCATION_HANDLE, UINT32, UINT32, UINT32);
+PUBLIC_API STATUS contentViewAddItem(PContentView, UINT64, UINT64, UINT64, ALLOCATION_HANDLE, UINT32, UINT32, UINT32);
 
 /**
  * Gets the view's temporal window duration
@@ -344,6 +354,16 @@ PUBLIC_API STATUS contentViewTrimTail(PContentView, UINT64);
  * PContentView - Content view
  */
 PUBLIC_API STATUS contentViewRemoveAll(PContentView);
+
+/**
+ * Checks whether there is an available slot both temporary and depth-wise
+ * in the content view without evicting a tail item.
+ *
+ * PContentView - Content view
+ * PBOOL - OUT - Whether there is available space to put an item without current being evicted.
+ * PBOOL - OUT OPT - Whether there is available space to put an item without tail eviction.
+ */
+PUBLIC_API STATUS contentViewCheckAvailability(PContentView, PBOOL, PBOOL);
 
 #pragma pack(pop, include)
 

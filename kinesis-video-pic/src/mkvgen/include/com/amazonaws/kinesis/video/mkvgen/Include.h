@@ -60,6 +60,10 @@ extern "C" {
 #define STATUS_MKV_INVALID_TAG_NAME_LENGTH                                          STATUS_MKVGEN_BASE + 0x00000020
 #define STATUS_MKV_INVALID_TAG_VALUE_LENGTH                                         STATUS_MKVGEN_BASE + 0x00000021
 #define STATUS_MKV_INVALID_GENERATOR_STATE_TAGS                                     STATUS_MKVGEN_BASE + 0x00000022
+#define STATUS_MKV_INVALID_AAC_CPD_SAMPLING_FREQUENCY_INDEX                         STATUS_MKVGEN_BASE + 0x00000023
+#define STATUS_MKV_INVALID_AAC_CPD_CHANNEL_CONFIG                                   STATUS_MKVGEN_BASE + 0x00000024
+#define STATUS_MKV_INVALID_AAC_CPD                                                  STATUS_MKVGEN_BASE + 0x00000025
+#define STATUS_MKV_TRACK_INFO_NOT_FOUND                                             STATUS_MKVGEN_BASE + 0x00000026
 
 ////////////////////////////////////////////////////
 // Main structure declarations
@@ -138,6 +142,11 @@ typedef enum {
      * The frame is invisible for rendering
      */
     FRAME_FLAG_INVISIBLE_FRAME          = (1 << 2),
+
+    /**
+     * The frame is an explicit marker for the end-of-fragment
+     */
+    FRAME_FLAG_END_OF_FRAGMENT          = (1 << 3),
 } FRAME_FLAGS;
 
 /**
@@ -149,12 +158,18 @@ typedef enum {
     MKV_STATE_START_BLOCK,
 } MKV_STREAM_STATE, *PMKV_STREAM_STATE;
 
+typedef enum {
+    MKV_TRACK_INFO_TYPE_VIDEO,
+    MKV_TRACK_INFO_TYPE_AUDIO,
+} MKV_TRACK_INFO_TYPE, *PMKV_TRACK_INFO_TYPE;
+
 /**
  * Macros checking for the frame flags
  */
 #define CHECK_FRAME_FLAG_KEY_FRAME(f)                          (((f) & FRAME_FLAG_KEY_FRAME) != FRAME_FLAG_NONE)
 #define CHECK_FRAME_FLAG_DISCARDABLE_FRAME(f)                  (((f) & FRAME_FLAG_DISCARDABLE_FRAME) != FRAME_FLAG_NONE)
 #define CHECK_FRAME_FLAG_INVISIBLE_FRAME(f)                    (((f) & FRAME_FLAG_INVISIBLE_FRAME) != FRAME_FLAG_NONE)
+#define CHECK_FRAME_FLAG_END_OF_FRAGMENT(f)                    (((f) & FRAME_FLAG_END_OF_FRAGMENT) != FRAME_FLAG_NONE)
 
 /**
  * Frame types enum
@@ -212,7 +227,7 @@ typedef struct {
     // The presentation timestamp of the frame in 100ns precision
     UINT64 presentationTs;
 
-    // The duration of the frame in 100ns precision
+    // The duration of the frame in 100ns precision. Can be 0.
     UINT64 duration;
 
     // Size of the frame data in bytes
@@ -220,7 +235,67 @@ typedef struct {
 
     // The frame bits
     PBYTE frameData;
+
+    // Id of the track this frame belong to
+    UINT64 trackId;
 } Frame, *PFrame;
+
+/*
+ * End-of-Fragment frame initializer. This is used to easier initialize a local variable in a form of
+ * Frame eofr = EOFR_FRAME_INITIALIZER;
+ * putKinesisVideoFrame(&eofr));
+ *
+ * The initializer will zero all the fields and set the EoFr flag in flags.
+ */
+#define EOFR_FRAME_INITIALIZER {0, FRAME_FLAG_END_OF_FRAGMENT, 0, 0, 0, 0, NULL, 0}
+
+/**
+ * The representation of mkv video element
+ */
+typedef struct {
+    UINT16 videoWidth;
+    UINT16 videoHeight;
+} TrackVideoConfig, *PTrackVideoConfig;
+
+/**
+ * The representation of mkv audio element
+ */
+typedef struct {
+    DOUBLE samplingFrequency;
+    UINT16 channelConfig;
+} TrackAudioConfig, *PTrackAudioConfig;
+
+/**
+ * Store custom information depending on whether if track is audio or video
+ */
+typedef union {
+    TrackAudioConfig trackAudioConfig;
+    TrackVideoConfig trackVideoConfig;
+} TrackCustomData, *PTrackCustomData;
+
+typedef struct {
+    // Unique Identifier for TrackInfo
+    UINT64 trackId;
+
+    // Codec ID of the stream. Null terminated.
+    CHAR codecId[MKV_MAX_CODEC_ID_LEN + 1];
+
+    // Human readable track name. Null terminated.
+    CHAR trackName[MKV_MAX_TRACK_NAME_LEN + 1];
+
+    // Size of the codec private data in bytes. Can be 0 if no CPD is used.
+    UINT32 codecPrivateDataSize;
+
+    // Codec private data. Can be NULL if no CPD is used. Allocated in heap.
+    PBYTE codecPrivateData;
+
+    // Track's content type.
+    MKV_TRACK_INFO_TYPE trackType;
+
+    // Track type specific data.
+    TrackCustomData trackCustomData;
+
+} TrackInfo, *PTrackInfo;
 
 /**
  * The representation of the packaged frame information
@@ -230,13 +305,19 @@ typedef struct {
     UINT64 streamStartTs;
 
     // Cluster timestamp adjusted with the timecode scale and the generator properties.
-    UINT64 clusterTs;
+    UINT64 clusterPts;
+
+    // Frame decoding timestamp of first frame in the cluster adjusted with the timecode scale.
+    UINT64 clusterDts;
 
     // Frame presentation timestamp adjusted with the timecode scale.
     UINT64 framePts;
 
     // Frame decoding timestamp adjusted with the timecode scale.
     UINT64 frameDts;
+
+    // Frame duration adjusted with the timecode scale.
+    UINT64 duration;
 
     // The offset where the original/adapted frame data begins
     UINT16 dataOffset;
@@ -290,7 +371,7 @@ typedef UINT64 (*GetCurrentTimeFunc)(UINT64);
  *
  * @return - STATUS code of the execution
  */
-PUBLIC_API STATUS createMkvGenerator(PCHAR, UINT32, UINT64, UINT64, PCHAR, PCHAR, PBYTE, UINT32, GetCurrentTimeFunc, UINT64, PMkvGenerator*);
+PUBLIC_API STATUS createMkvGenerator(PCHAR, UINT32, UINT64, UINT64, PTrackInfo, UINT32, GetCurrentTimeFunc, UINT64, PMkvGenerator*);
 
 /**
  * Frees and de-allocates the memory of the MkvGenerator and it's sub-objects
@@ -371,6 +452,18 @@ PUBLIC_API STATUS mkvgenTimecodeToTimestamp(PMkvGenerator, UINT64, PUINT64);
  * @return - STATUS code of the execution
  */
 PUBLIC_API STATUS mkvgenGetMkvOverheadSize(PMkvGenerator, MKV_STREAM_STATE, PUINT32);
+
+/**
+ * Gets the current generator timestamps
+ *
+ * @PMkvGenerator - The generator object
+ * PUINT64 - OUT - MKV stream start timestamp
+ * PUINT64 - OUT - MKV cluster start timestamp
+ * PUINT64 - OUT - Decoding timestamp of the first frame of the cluster
+ *
+ * @return - STATUS code of the execution
+ */
+PUBLIC_API STATUS mkvgenGetCurrentTimestamps(PMkvGenerator, PUINT64, PUINT64, PUINT64);
 
 #pragma pack(pop, include)
 

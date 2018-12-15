@@ -121,6 +121,7 @@ struct _GstKvsSink {
     gchar                       *credential_file_path;
     GstStructure                *iot_certificate;
     GstStructure                *stream_tags;
+    gulong                      file_start_time;
 
     unique_ptr<Credentials> credentials_;
     shared_ptr<CustomData> data;
@@ -154,7 +155,9 @@ typedef struct _CustomData {
             cpd(""),
             stream_created(false),
             stream_recreation_in_progress(false),
-            stream_status(STATUS_SUCCESS) {}
+            stream_status(STATUS_SUCCESS),
+            last_dts(0),
+            pts_base(0) {}
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     ThreadSafeMap<STREAM_HANDLE, shared_ptr<KinesisVideoStream>> kinesis_video_stream_map;
     ThreadSafeMap<STREAM_HANDLE, shared_ptr<CallbackStateMachine>> callback_state_machine_map;
@@ -167,6 +170,8 @@ typedef struct _CustomData {
     atomic_uint stream_status;
 
     std::mutex closing_stream_handles_queue_mtx;
+    uint64_t last_dts;
+    uint64_t pts_base;
 } CustomData;
 
 #define ACCESS_KEY_ENV_VAR "AWS_ACCESS_KEY_ID"

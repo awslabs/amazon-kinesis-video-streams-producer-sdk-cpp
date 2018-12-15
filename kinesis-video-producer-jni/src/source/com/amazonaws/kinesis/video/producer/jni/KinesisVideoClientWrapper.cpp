@@ -2,6 +2,7 @@
  * Implementation of Kinesis Video Producer client wrapper
  */
 #define LOG_CLASS "KinesisVideoClientWrapper"
+
 #include "com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.h"
 
 KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
@@ -280,6 +281,7 @@ STREAM_HANDLE KinesisVideoClientWrapper::createKinesisVideoStream(jobject stream
 {
     STATUS retStatus = STATUS_SUCCESS;
     STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
+    UINT32 i;
     JNIEnv *env;
     StreamInfo kinesisVideoStreamInfo;
     mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
@@ -310,8 +312,17 @@ STREAM_HANDLE KinesisVideoClientWrapper::createKinesisVideoStream(jobject stream
 CleanUp:
 
     // Release the temporary memory allocated for cpd
-    if (kinesisVideoStreamInfo.streamCaps.codecPrivateData != NULL) {
-        MEMFREE(kinesisVideoStreamInfo.streamCaps.codecPrivateData);
+    for (i = 0; i < kinesisVideoStreamInfo.streamCaps.trackInfoCount; ++i) {
+        if (kinesisVideoStreamInfo.streamCaps.trackInfoList[i].codecPrivateData != NULL) {
+            MEMFREE(kinesisVideoStreamInfo.streamCaps.trackInfoList[i].codecPrivateData);
+            kinesisVideoStreamInfo.streamCaps.trackInfoList[i].codecPrivateData = NULL;
+            kinesisVideoStreamInfo.streamCaps.trackInfoList[i].codecPrivateDataSize = 0;
+        }
+    }
+    if (kinesisVideoStreamInfo.streamCaps.trackInfoList != NULL) {
+        MEMFREE(kinesisVideoStreamInfo.streamCaps.trackInfoList);
+        kinesisVideoStreamInfo.streamCaps.trackInfoList = NULL;
+        kinesisVideoStreamInfo.streamCaps.trackInfoCount = 0;
     }
 
     releaseTags(kinesisVideoStreamInfo.tags);
@@ -593,7 +604,7 @@ void KinesisVideoClientWrapper::kinesisVideoStreamParseFragmentAck(jlong streamH
     }
 }
 
-void KinesisVideoClientWrapper::streamFormatChanged(jlong streamHandle, jobject codecPrivateData)
+void KinesisVideoClientWrapper::streamFormatChanged(jlong streamHandle, jobject codecPrivateData, jlong trackId)
 {
     STATUS retStatus = STATUS_SUCCESS;
     JNIEnv *env;
@@ -633,7 +644,7 @@ void KinesisVideoClientWrapper::streamFormatChanged(jlong streamHandle, jobject 
         bufferSize = 0;
     }
 
-    if (STATUS_FAILED(retStatus = ::kinesisVideoStreamFormatChanged(streamHandle, bufferSize, pBuffer)))
+    if (STATUS_FAILED(retStatus = ::kinesisVideoStreamFormatChanged(streamHandle, bufferSize, pBuffer, trackId)))
     {
         DLOGE("Failed to set the stream format with status code 0x%08x", retStatus);
         throwNativeException(env, EXCEPTION_NAME, "Failed to set the stream format.", retStatus);
@@ -927,6 +938,11 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mClientCallbacks.unlockMutexFn = unlockMutexFunc;
     mClientCallbacks.tryLockMutexFn = tryLockMutexFunc;
     mClientCallbacks.freeMutexFn = freeMutexFunc;
+    mClientCallbacks.createConditionVariableFn = createConditionVariableFunc;
+    mClientCallbacks.signalConditionVariableFn = signalConditionVariableFunc;
+    mClientCallbacks.broadcastConditionVariableFn = broadcastConditionVariableFunc;
+    mClientCallbacks.waitConditionVariableFn = waitConditionVariableFunc;
+    mClientCallbacks.freeConditionVariableFn = freeConditionVariableFunc;
     mClientCallbacks.getDeviceCertificateFn = getDeviceCertificateFunc;
     mClientCallbacks.getSecurityTokenFn = getSecurityTokenFunc;
     mClientCallbacks.getDeviceFingerprintFn = getDeviceFingerprintFunc;
@@ -936,6 +952,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mClientCallbacks.streamConnectionStaleFn = streamConnectionStaleFunc;
     mClientCallbacks.fragmentAckReceivedFn = fragmentAckReceivedFunc;
     mClientCallbacks.droppedFrameReportFn = droppedFrameReportFunc;
+    mClientCallbacks.bufferDurationOverflowPressureFn = bufferDurationOverflowPressureFunc;
     mClientCallbacks.droppedFragmentReportFn = droppedFragmentReportFunc;
     mClientCallbacks.streamErrorReportFn = streamErrorReportFunc;
     mClientCallbacks.streamDataAvailableFn = streamDataAvailableFunc;
@@ -1013,7 +1030,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
         return FALSE;
     }
 
-    mFragmentAckReceivedMethodId = env->GetMethodID(thizCls, "fragmentAckReceived", "(JLcom/amazonaws/kinesisvideo/producer/KinesisVideoFragmentAck;)V");
+    mFragmentAckReceivedMethodId = env->GetMethodID(thizCls, "fragmentAckReceived", "(JJLcom/amazonaws/kinesisvideo/producer/KinesisVideoFragmentAck;)V");
     if (mFragmentAckReceivedMethodId == NULL) {
         DLOGE("Couldn't find method id fragmentAckReceived");
         return FALSE;
@@ -1025,13 +1042,19 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
         return FALSE;
     }
 
+    mBufferDurationOverflowPressureMethodId = env->GetMethodID(thizCls, "bufferDurationOverflowPressure", "(JJ)V");
+    if (mBufferDurationOverflowPressureMethodId == NULL) {
+        DLOGE("Couldn't find method id bufferDurationOverflowPressure");
+        return FALSE;
+    }
+
     mDroppedFragmentReportMethodId = env->GetMethodID(thizCls, "droppedFragmentReport", "(JJ)V");
     if (mDroppedFragmentReportMethodId == NULL) {
         DLOGE("Couldn't find method id droppedFragmentReport");
         return FALSE;
     }
 
-    mStreamErrorReportMethodId = env->GetMethodID(thizCls, "streamErrorReport", "(JJJ)V");
+    mStreamErrorReportMethodId = env->GetMethodID(thizCls, "streamErrorReport", "(JJJJ)V");
     if (mStreamErrorReportMethodId == NULL) {
         DLOGE("Couldn't find method id streamErrorReport");
         return FALSE;
@@ -1163,6 +1186,41 @@ VOID KinesisVideoClientWrapper::freeMutexFunc(UINT64 customData, MUTEX mutex)
     DLOGS("TID 0x%016" PRIx64 " freeMutexFunc called.", GETTID());
     UNUSED_PARAM(customData);
     return MUTEX_FREE(mutex);
+}
+
+CVAR KinesisVideoClientWrapper::createConditionVariableFunc(UINT64 customData)
+{
+    DLOGS("TID 0x%016" PRIx64 " createConditionVariableFunc called.", GETTID());
+    UNUSED_PARAM(customData);
+    return CVAR_CREATE();
+}
+
+STATUS KinesisVideoClientWrapper::signalConditionVariableFunc(UINT64 customData, CVAR cvar)
+{
+    DLOGS("TID 0x%016" PRIx64 " signalConditionVariableFunc called.", GETTID());
+    UNUSED_PARAM(customData);
+    return CVAR_SIGNAL(cvar);
+}
+
+STATUS KinesisVideoClientWrapper::broadcastConditionVariableFunc(UINT64 customData, CVAR cvar)
+{
+    DLOGS("TID 0x%016" PRIx64 " broadcastConditionVariableFunc called.", GETTID());
+    UNUSED_PARAM(customData);
+    return CVAR_BROADCAST(cvar);
+}
+
+STATUS KinesisVideoClientWrapper::waitConditionVariableFunc(UINT64 customData, CVAR cvar, MUTEX mutex, UINT64 timeout)
+{
+    DLOGS("TID 0x%016" PRIx64 " waitConditionVariableFunc called.", GETTID());
+    UNUSED_PARAM(customData);
+    return CVAR_WAIT(cvar, mutex, timeout);
+}
+
+VOID KinesisVideoClientWrapper::freeConditionVariableFunc(UINT64 customData, CVAR cvar)
+{
+    DLOGS("TID 0x%016" PRIx64 " freeConditionVariableFunc called.", GETTID());
+    UNUSED_PARAM(customData);
+    return CVAR_FREE(cvar);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1389,7 +1447,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS KinesisVideoClientWrapper::fragmentAckReceivedFunc(UINT64 customData, STREAM_HANDLE streamHandle, PFragmentAck pFragmentAck)
+STATUS KinesisVideoClientWrapper::fragmentAckReceivedFunc(UINT64 customData, STREAM_HANDLE streamHandle,
+                                                          UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck)
 {
     DLOGS("TID 0x%016" PRIx64 " fragmentAckReceivedFunc called.", GETTID());
 
@@ -1434,7 +1493,7 @@ STATUS KinesisVideoClientWrapper::fragmentAckReceivedFunc(UINT64 customData, STR
     CHK(ack != NULL, STATUS_NOT_ENOUGH_MEMORY);
 
     // Call the Java func
-    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mFragmentAckReceivedMethodId, streamHandle, ack);
+    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mFragmentAckReceivedMethodId, streamHandle, upload_handle, ack);
     CHK_JVM_EXCEPTION(env);
 
 CleanUp:
@@ -1481,6 +1540,39 @@ CleanUp:
     return retStatus;
 }
 
+STATUS KinesisVideoClientWrapper::bufferDurationOverflowPressureFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 remainingDuration){
+    DLOGS("TID 0x%016" PRIx64 " bufferDurationOverflowPressureFunc called.", GETTID());
+
+    KinesisVideoClientWrapper *pWrapper = FROM_WRAPPER_HANDLE(customData);
+    CHECK(pWrapper != NULL);
+
+    // Get the ENV from the JavaVM
+    JNIEnv *env;
+    BOOL detached = FALSE;
+    STATUS retStatus = STATUS_SUCCESS;
+
+    INT32 envState = pWrapper->mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+    if (envState == JNI_EDETACHED) {
+        ATTACH_CURRENT_THREAD_TO_JVM(env);
+
+        // Store the detached so we can detach the thread after the call
+        detached = TRUE;
+    }
+
+    // Call the Java func
+    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mBufferDurationOverflowPressureMethodId, streamHandle, remainingDuration);
+    CHK_JVM_EXCEPTION(env);
+
+CleanUp:
+
+    // Detach the thread if we have attached it to JVM
+    if (detached) {
+        pWrapper->mJvm->DetachCurrentThread();
+    }
+
+    return retStatus;
+}
+
 STATUS KinesisVideoClientWrapper::droppedFragmentReportFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 fragmentTimecode)
 {
     DLOGS("TID 0x%016" PRIx64 " droppedFragmentReportFunc called.", GETTID());
@@ -1515,7 +1607,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS KinesisVideoClientWrapper::streamErrorReportFunc(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 fragmentTimecode, STATUS statusCode)
+STATUS KinesisVideoClientWrapper::streamErrorReportFunc(UINT64 customData, STREAM_HANDLE streamHandle,
+                                                        UPLOAD_HANDLE upload_handle, UINT64 fragmentTimecode, STATUS statusCode)
 {
     DLOGS("TID 0x%016" PRIx64 " streamErrorReportFunc called.", GETTID());
 
@@ -1536,7 +1629,8 @@ STATUS KinesisVideoClientWrapper::streamErrorReportFunc(UINT64 customData, STREA
     }
 
     // Call the Java func
-    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamErrorReportMethodId, streamHandle, fragmentTimecode, statusCode);
+    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamErrorReportMethodId, streamHandle, upload_handle,
+                        fragmentTimecode, statusCode);
     CHK_JVM_EXCEPTION(env);
 
     CleanUp:
