@@ -62,6 +62,11 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 *     getUnlockMutexCallback();
 *     getTryLockMutexCallback();
 *     getFreeMutexCallback();
+*     getCreateConditionVariableCallback();
+*     getSignalConditionVariableCallback();
+*     getBroadcastConditionVariableCallback();
+*     getWaitConditionVariableCallback();
+*     getFreeConditionVariableCallback();
 *     getCurrentTimeCallback();
 *     getRandomNumberCallback();
 *     getLogPrintCallback();
@@ -113,6 +118,31 @@ public:
      * @return Kinesis Video client default implementation
      */
     virtual FreeMutexFunc getFreeMutexCallback();
+
+    /**
+     * @return Kinesis Video client default implementation
+     */
+    virtual CreateConditionVariableFunc getCreateConditionVariableCallback();
+
+    /**
+     * @return Kinesis Video client default implementation
+     */
+    virtual SignalConditionVariableFunc getSignalConditionVariableCallback();
+
+    /**
+     * @return Kinesis Video client default implementation
+     */
+    virtual BroadcastConditionVariableFunc getBroadcastConditionVariableCallback();
+
+    /**
+     * @return Kinesis Video client default implementation
+     */
+    virtual WaitConditionVariableFunc getWaitConditionVariableCallback();
+
+    /**
+     * @return Kinesis Video client default implementation
+     */
+    virtual FreeConditionVariableFunc getFreeConditionVariableCallback();
 
     /**
      * @return Kinesis Video client default implementation
@@ -245,6 +275,20 @@ public:
      *  @return a function pointer conforming to the description above.
      */
     virtual DroppedFrameReportFunc getDroppedFrameReportCallback();
+
+    /**
+     * The function returned by this callback takes two arguments:
+     * - UINT64 custom_data: A handle to this class.
+     * - UINT64 remaining_duration: duration remaining in buffer in 100ns.
+     *
+     * Optional Callback.
+     *
+     * The callback returned shall take the appropriate action (decided by the implementor) to handle buffer duration
+     * overflow
+     *
+     *  @return a function pointer conforming to the description above.
+     */
+    virtual BufferDurationOverflowPressureFunc getBufferDurationOverflowPressureCallback();
 
     /**
      * The function returned by this callback takes three arguments:

@@ -16,10 +16,10 @@ TEST_F(StreamApiTest, createKinesisVideoStream_MaxStreams)
 {
     STREAM_HANDLE streamHandle;
     UINT32 i;
-    
+
     mStreamInfo.name[0] = '\0';
     for (i = 0; i < MAX_TEST_STREAM_COUNT; i++) {
-        THREAD_SLEEP(1000);
+        THREAD_SLEEP(HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
         EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
     }
 
@@ -62,25 +62,25 @@ TEST_F(StreamApiTest, createKinesisVideoStream_BufferReplayVariations)
     mStreamInfo.streamCaps.bufferDuration = 0;
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
-    THREAD_SLEEP(1000);
+    THREAD_SLEEP(HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
 
     mStreamInfo.streamCaps.bufferDuration = 0;
     mStreamInfo.streamCaps.replayDuration = 0;
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
-    THREAD_SLEEP(1000);
+    THREAD_SLEEP(HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
 
     mStreamInfo.streamCaps.bufferDuration = TEST_BUFFER_DURATION;
     mStreamInfo.streamCaps.replayDuration = TEST_BUFFER_DURATION + 1;
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
-    THREAD_SLEEP(1000);
+    THREAD_SLEEP(HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
 
     mStreamInfo.streamCaps.bufferDuration = TEST_BUFFER_DURATION;
     mStreamInfo.streamCaps.replayDuration = 0;
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
-    THREAD_SLEEP(1000);
+    THREAD_SLEEP(HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
 
     mStreamInfo.streamCaps.bufferDuration = TEST_REPLAY_DURATION;
     mStreamInfo.streamCaps.replayDuration = TEST_REPLAY_DURATION;
@@ -97,7 +97,7 @@ TEST_F(StreamApiTest, createKinesisVideoStream_DuplicateNames)
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
     STRCPY(mStreamInfo.name, "GHI");
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
-    
+
     STRCPY(mStreamInfo.name, "ABC");
     EXPECT_EQ(STATUS_DUPLICATE_STREAM_NAME, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
     STRCPY(mStreamInfo.name, "DEF");
@@ -150,17 +150,17 @@ TEST_F(StreamApiTest, createKinesisVideoStream_CodecPrivateData)
     PBYTE tempBuff = (PBYTE) MEMCALLOC(1, MKV_MAX_CODEC_PRIVATE_LEN + 1);
 
     mStreamInfo.name[0] = '\0';
-    mStreamInfo.streamCaps.codecPrivateData = cpd;
-    mStreamInfo.streamCaps.codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = cpd;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = SIZEOF(cpd);
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
-    mStreamInfo.streamCaps.codecPrivateData = NULL;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = NULL;
     EXPECT_NE(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
-    mStreamInfo.streamCaps.codecPrivateData = tempBuff;
-    mStreamInfo.streamCaps.codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = tempBuff;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN;
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
-    mStreamInfo.streamCaps.codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN + 1;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN + 1;
     EXPECT_NE(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
     MEMFREE(tempBuff);
@@ -178,6 +178,22 @@ TEST_F(StreamApiTest, createKinesisVideoStream_InvalidInput)
     MEMSET(mStreamInfo.name, 'a', (MAX_STREAM_NAME_LEN + 1) * SIZEOF(CHAR));
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle)));
     STRCPY(mStreamInfo.name, TEST_STREAM_NAME);
+}
+
+TEST_F(StreamApiTest, createKinesisVideoStream_InvalidTrackInfoInput)
+{
+    STREAM_HANDLE streamHandle;
+
+    // Set various callbacks to null and check the behavior
+    mStreamInfo.streamCaps.trackInfoCount = MAX_SUPPORTED_TRACK_COUNT_PER_STREAM + 1;
+    EXPECT_EQ(STATUS_MAX_TRACK_COUNT_EXCEEDED, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    mStreamInfo.streamCaps.trackInfoCount = 0;
+    EXPECT_EQ(STATUS_TRACK_INFO_MISSING, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    mStreamInfo.streamCaps.trackInfoCount = 1;
+    mStreamInfo.streamCaps.trackInfoList = NULL;
+    EXPECT_EQ(STATUS_TRACK_INFO_MISSING, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 }
 
 TEST_F(StreamApiTest, freeKinesisVideoStream_NULL_Invalid)
@@ -203,6 +219,27 @@ TEST_F(StreamApiTest, kinesisVideoPutFrame_NULL_Invalid)
 
     EXPECT_TRUE(STATUS_FAILED(putKinesisVideoFrame(streamHandle, &frame)));
     EXPECT_TRUE(STATUS_FAILED(putKinesisVideoFrame(mStreamHandle, NULL)));
+}
+
+TEST_F(StreamApiTest, kinesisVideoPutFrame_InvalidTrackId)
+{
+    BYTE tempBuffer[10000];
+    UINT64 timestamp = 100;
+    Frame frame;
+
+    // Create and ready a stream
+    ReadyStream();
+
+    frame.index = 0;
+    frame.decodingTs = timestamp;
+    frame.presentationTs = timestamp;
+    frame.duration = TEST_FRAME_DURATION;
+    frame.size = SIZEOF(tempBuffer);
+    frame.trackId = 1; // invalid trackId
+    frame.frameData = tempBuffer;
+    frame.flags = FRAME_FLAG_KEY_FRAME;
+
+    EXPECT_EQ(STATUS_MKV_TRACK_INFO_NOT_FOUND, putKinesisVideoFrame(mStreamHandle, &frame));
 }
 
 TEST_F(StreamApiTest, insertKinesisVideoTag_NULL_Invalid)
@@ -354,13 +391,14 @@ TEST_F(StreamApiTest, kinesisVideoStreamFormatChanged_NULL_Invalid)
     STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
     UINT32 bufferSize = MKV_MAX_CODEC_PRIVATE_LEN;
     PBYTE pBuffer = (PBYTE) MEMALLOC(bufferSize);
+    UINT32 trackId = TEST_TRACKID;
 
     // Create a stream
     CreateStream();
 
-    EXPECT_TRUE(STATUS_FAILED(kinesisVideoStreamFormatChanged(streamHandle, MKV_MAX_CODEC_PRIVATE_LEN, pBuffer)));
-    EXPECT_TRUE(STATUS_FAILED(kinesisVideoStreamFormatChanged(mStreamHandle, 1, NULL)));
-    EXPECT_TRUE(STATUS_FAILED(kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN + 1, pBuffer)));
+    EXPECT_TRUE(STATUS_FAILED(kinesisVideoStreamFormatChanged(streamHandle, MKV_MAX_CODEC_PRIVATE_LEN, pBuffer, trackId)));
+    EXPECT_TRUE(STATUS_FAILED(kinesisVideoStreamFormatChanged(mStreamHandle, 1, NULL, trackId)));
+    EXPECT_TRUE(STATUS_FAILED(kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN + 1, pBuffer, trackId)));
 
     MEMFREE(pBuffer);
 }
@@ -369,24 +407,25 @@ TEST_F(StreamApiTest, kinesisVideoStreamFormatChanged_Valid)
 {
     UINT32 bufferSize = MKV_MAX_CODEC_PRIVATE_LEN;
     PBYTE pBuffer = (PBYTE) MEMALLOC(bufferSize);
+    UINT32 trackId = TEST_TRACKID;
 
     // Create a stream
     CreateStream();
 
     // First time it will not free the previous allocation
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN / 2, pBuffer));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN / 2, pBuffer, trackId));
 
     // Second and consecutive times it will
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN, pBuffer));
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN, pBuffer));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN, pBuffer, trackId));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN, pBuffer, trackId));
 
     // Ensure we can Zero it out
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, 0, NULL));
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, 0, pBuffer));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, 0, NULL, trackId));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, 0, pBuffer, trackId));
 
     // Set it again a couple of times to free the previous allocations
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, 1, pBuffer));
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN, pBuffer));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, 1, pBuffer, trackId));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, MKV_MAX_CODEC_PRIVATE_LEN, pBuffer, trackId));
 
     MEMFREE(pBuffer);
 }

@@ -26,6 +26,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     memMetrics.version = CLIENT_METRICS_CURRENT_VERSION;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
@@ -72,7 +73,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = MKV_HEADER_OVERHEAD;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -123,6 +124,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     k = 0;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
@@ -160,7 +162,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
 
         // The first frame will have the cluster and MKV overhead
         if (k == 0) {
-            offset = MKV_HEADER_OVERHEAD;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
         } else if (k % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -221,6 +223,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     k = 0;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
@@ -255,7 +258,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = MKV_HEADER_OVERHEAD;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -271,7 +274,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
             // Catch-up with the head and continue
             for (k = 0; k < i; k++) {
                 getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
-                                          SIZEOF(tempBuffer) + MKV_HEADER_OVERHEAD, &filledSize);
+                                          SIZEOF(tempBuffer) + GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT), &filledSize);
             }
         } else {
             retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
@@ -332,6 +335,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -366,7 +370,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = MKV_HEADER_OVERHEAD;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -382,7 +386,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
             // Catch-up with the head and continue
             for (k = 0; k < i; k++) {
                 getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
-                                          SIZEOF(tempBuffer) + MKV_HEADER_OVERHEAD, &filledSize);
+                                          SIZEOF(tempBuffer) + GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT), &filledSize);
             }
         } else {
             retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
@@ -432,6 +436,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBuffer)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -469,7 +474,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBuffer)
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = MKV_HEADER_OVERHEAD;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -529,6 +534,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -564,7 +570,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = MKV_HEADER_OVERHEAD;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -586,7 +592,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
             // Catch-up with the head and continue
             for (k = 0; k < i; k++) {
                 getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
-                                          SIZEOF(tempBuffer) + MKV_HEADER_OVERHEAD, &filledSize);
+                                          SIZEOF(tempBuffer) + GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT), &filledSize);
             }
         } else {
             if (i > putStreamResultCount) {
@@ -653,6 +659,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetDoubleBuffer)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -690,7 +697,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetDoubleBuffer)
 
         // The first two frames will have the simple block, cluster and MKV overhead
         if (i == 0) {
-            offset1 = MKV_HEADER_OVERHEAD;
+            offset1 = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
             offset2 = MKV_SIMPLE_BLOCK_OVERHEAD;
         } else if (i % 10 == 0) {
             // Cluster start will have simple block and cluster overhead
@@ -752,6 +759,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonBoundaryBuffer)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -788,7 +796,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonBoundaryBuffer)
         clientStreamHandle = 0;
 
         if (i == 0) {
-            offset = MKV_HEADER_OVERHEAD;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
         } else if (i % 10 == 0) {
             // Cluster start
             offset = MKV_CLUSTER_OVERHEAD;
@@ -867,6 +875,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -904,7 +913,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = MKV_HEADER_OVERHEAD;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -948,8 +957,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
 
     // Set a CPD
-    mStreamInfo.streamCaps.codecPrivateData = cpd;
-    mStreamInfo.streamCaps.codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = cpd;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = SIZEOF(cpd);
 
     // Create and ready a stream
     ReadyStream();
@@ -958,6 +967,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -996,7 +1006,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = MKV_HEADER_OVERHEAD + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 1;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT) + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 1;
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1040,8 +1050,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
 
     // Set a CPD
-    mStreamInfo.streamCaps.codecPrivateData = cpd;
-    mStreamInfo.streamCaps.codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = cpd;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = SIZEOF(cpd);
 
     // Create and ready a stream
     ReadyStream();
@@ -1050,6 +1060,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -1088,7 +1099,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = MKV_HEADER_OVERHEAD + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 2;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT) + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 2;
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1132,8 +1143,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
 
     // Set a CPD
-    mStreamInfo.streamCaps.codecPrivateData = cpd;
-    mStreamInfo.streamCaps.codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = cpd;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = SIZEOF(cpd);
 
     // Create and ready a stream
     ReadyStream();
@@ -1142,6 +1153,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -1180,7 +1192,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = MKV_HEADER_OVERHEAD + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 3;
+            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT) + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 3;
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1232,6 +1244,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; i < 100; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -1287,6 +1300,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; i < 100; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -1358,6 +1372,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; i < 20; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -1434,6 +1449,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; i < 30; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i + 1;
         frame.decodingTs = timestamp;

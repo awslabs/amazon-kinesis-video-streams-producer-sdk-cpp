@@ -36,7 +36,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
 #define DEFAULT_KEY_FRAME_FRAGMENTATION TRUE
 #define DEFAULT_FRAME_TIMECODES TRUE
-#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
+#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES FALSE
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
@@ -92,7 +92,7 @@ namespace com {
                                                  UINT64 last_buffering_ack);
 
                     static STATUS
-                    streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 errored_timecode,
+                    streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
                                              STATUS status_code);
 
                     static STATUS
@@ -146,7 +146,7 @@ namespace com {
 
                 STATUS
                 SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                                                       UINT64 errored_timecode, STATUS status_code) {
+                                                                       UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status_code) {
                     LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: "
                                                                            << status_code);
                     return STATUS_SUCCESS;
@@ -184,6 +184,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->duration = 20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(data);
+    frame->trackId = DEFAULT_TRACK_ID;
 }
 
 bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts,
@@ -218,19 +219,11 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     bool delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
     FRAME_FLAGS kinesis_video_flags;
 
-    if (GST_BUFFER_PTS_IS_VALID(buffer)) {
-         buffer->dts = buffer->pts;
-    }
-    else {
-         buffer->pts = buffer->dts;
-    }
-
     if (!delta) {
         kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
     } else {
         kinesis_video_flags = FRAME_FLAG_NONE;
     }
-    LOG_INFO("kinesis_video_flags=" << kinesis_video_flags << ", pts=" << buffer->pts << ", dts=" << buffer->dts);
 
     if (false == put_frame(data->kinesis_video_stream, frame_data, buffer_size, std::chrono::nanoseconds(buffer->pts),
                            std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
@@ -355,7 +348,7 @@ int gstreamer_init(int argc, char *argv[]) {
 
     if (argc < 3) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app rtsp-url my-stream-name");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_rtsp_app rtsp-url my-stream-name");
         return 1;
     }
 

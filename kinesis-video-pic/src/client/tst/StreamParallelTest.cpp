@@ -30,13 +30,14 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
         DLOGV("Producer waiting for stream %llu TID %016llx", streamId, GETTID());
 
         // Sleep a while
-        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
+        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME);
     }
 
     // Loop until cancelled
-    frame.duration = TEST_PRODUCER_SLEEP_TIME_IN_MICROS * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
+    frame.duration = TEST_PRODUCER_SLEEP_TIME;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = 0;
 
     while(!mTerminate) {
         // Produce frames
@@ -56,7 +57,7 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
         }
 
         // Sleep a while
-        THREAD_SLEEP(TEST_PRODUCER_SLEEP_TIME_IN_MICROS);
+        THREAD_SLEEP(TEST_PRODUCER_SLEEP_TIME);
         timestamp += frame.duration;
     }
 
@@ -76,7 +77,7 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
         DLOGV("Consumer waiting for stream %llu TID %016llx", streamId, GETTID());
 
         // Sleep a while
-        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
+        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME);
     }
 
     // Loop until cancelled
@@ -95,7 +96,7 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
         }
 
         // Sleep a while
-        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME_IN_MICROS);
+        THREAD_SLEEP(TEST_CONSUMER_SLEEP_TIME);
     }
 
     return NULL;
@@ -171,7 +172,7 @@ TEST_F(StreamParallelTest, putFrame_BasicParallelPutGet)
         // Spin off the consumer
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&mConsumerThreads[mStreamCount], staticConsumerRoutine, (PVOID) (UINT64) mStreamCount));
 
-        THREAD_SLEEP(10000);
+        THREAD_SLEEP(10 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
     }
 
     // Enable the threads
@@ -179,7 +180,7 @@ TEST_F(StreamParallelTest, putFrame_BasicParallelPutGet)
     mStartThreads = TRUE;
 
     // Wait for some time
-    THREAD_SLEEP(TEST_SLEEP_TIME_IN_MICROS);
+    THREAD_SLEEP(TEST_SLEEP_TIME);
 
     // Indicate the cancel for the threads
     mTerminate = TRUE;

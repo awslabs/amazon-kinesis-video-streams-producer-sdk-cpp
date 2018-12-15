@@ -15,6 +15,7 @@
 #include "Logger.h"
 #include "com/amazonaws/kinesis/video/client/Include.h"
 #include "CallbackProvider.h"
+#include "ResponseAcceptor.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -25,8 +26,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
  * Additionally, this class contains all the state that is needed by the postBodyStreamingFunc and is passed in as
  * the void* custom_data parameter to that class.
  */
-class Response;
-class OngoingStreamState {
+class OngoingStreamState : public ResponseAcceptor {
 public:
     OngoingStreamState(CallbackProvider* callback_provider,
                        UPLOAD_HANDLE upload_handle,
@@ -115,7 +115,7 @@ public:
     /**
      * Sets the current CURL response object
      */
-    void setResponse(std::shared_ptr<Response> response) {
+    void setResponse(STREAM_HANDLE stream_handle, std::shared_ptr<Response> response) override {
         curl_response_ = response;
     }
 
@@ -132,6 +132,11 @@ public:
     UPLOAD_HANDLE getUploadHandle() {
         return upload_handle_;
     }
+
+    /**
+     * Unpause the upload
+     */
+     bool unPause();
 
     /**
      * An implementation of the CURLOPT_READFUNCTION callback: https://curl.haxx.se/libcurl/c/CURLOPT_READFUNCTION.html.

@@ -198,6 +198,23 @@ public:
     virtual FragmentAckReceivedFunc getFragmentAckReceivedCallback() {
         return nullptr;
     };
+
+    /**
+     * Reports buffer duration is about to overflow
+     *
+     * Optional callback.
+     *
+     * The function returned by this callback takes the following arguments:
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - The stream to report for.
+     * @param 3 UINT64 - The remaining duration available in buffer in 100ns
+     *
+     *  @return a function pointer conforming to the description above.
+     */
+    virtual BufferDurationOverflowPressureFunc getBufferDurationOverflowPressureCallback() {
+        return nullptr;
+    };
 };
 
 } // namespace video

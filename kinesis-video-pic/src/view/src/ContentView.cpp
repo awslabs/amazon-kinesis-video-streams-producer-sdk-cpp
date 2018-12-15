@@ -100,7 +100,7 @@ CleanUp:
 /**
  * Checks whether the specified timestamp is within the range
  */
-STATUS contentViewTimestampInRange(PContentView pContentView, UINT64 timestamp, PBOOL pInRange)
+STATUS contentViewTimestampInRange(PContentView pContentView, UINT64 timestamp, BOOL checkAckTimeStamp, PBOOL pInRange)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -119,7 +119,12 @@ STATUS contentViewTimestampInRange(PContentView pContentView, UINT64 timestamp, 
     pOldest = GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->tail);
 
     // Check the ranges
-    inRange = (timestamp >= pOldest->timestamp && timestamp <= pNewest->timestamp + pNewest->duration);
+    if (checkAckTimeStamp) {
+        inRange = (timestamp >= pOldest->ackTimestamp && timestamp <= pNewest->ackTimestamp + pNewest->duration);
+    } else {
+        inRange = (timestamp >= pOldest->timestamp && timestamp <= pNewest->timestamp + pNewest->duration);
+    }
+
 
 CleanUp:
 
@@ -186,7 +191,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS contentViewGetItemWithTimestamp(PContentView pContentView, UINT64 timestamp, PViewItem* ppItem)
+STATUS contentViewGetItemWithTimestamp(PContentView pContentView, UINT64 timestamp, BOOL checkAckTimeStamp, PViewItem* ppItem)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -196,14 +201,14 @@ STATUS contentViewGetItemWithTimestamp(PContentView pContentView, UINT64 timesta
     // Check the input params
     CHK(pContentView != NULL && ppItem != NULL, STATUS_NULL_ARG);
 
-    CHK_STATUS(contentViewTimestampInRange(pContentView, timestamp, &exists));
+    CHK_STATUS(contentViewTimestampInRange(pContentView, timestamp, checkAckTimeStamp, &exists));
     CHK(exists, STATUS_CONTENT_VIEW_INVALID_TIMESTAMP);
 
     // Find the item using a binary search method as the items are timestamp ordered.
     *ppItem = findViewItemWithTimestamp(pRollingView,
                                         GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->tail),
                                         GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->head - 1),
-                                        timestamp);
+                                        timestamp, checkAckTimeStamp);
 
 CleanUp:
 
@@ -412,14 +417,14 @@ CleanUp:
  * IMPORTANT: This function will evict the tail and call the remove callback (if specified)
  * based on temporal and size buffer pressure. It will not de-allocate the actual allocation.
  */
-STATUS contentViewAddItem(PContentView pContentView, UINT64 timestamp, UINT64 duration, ALLOCATION_HANDLE allocHandle, UINT32 offset, UINT32 length, UINT32 flags)
+STATUS contentViewAddItem(PContentView pContentView, UINT64 timestamp, UINT64 ackTimeStamp, UINT64 duration, ALLOCATION_HANDLE allocHandle, UINT32 offset, UINT32 length, UINT32 flags)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PRollingContentView pRollingView = (PRollingContentView) pContentView;
     PViewItem pTail = NULL;
     PViewItem pHead = NULL;
-    BOOL currentRemoved = FALSE;
+    BOOL currentAvailability = FALSE, windowAvailability = FALSE;
 
     // Check the input params
     CHK(pContentView != NULL, STATUS_NULL_ARG);
@@ -434,21 +439,20 @@ STATUS contentViewAddItem(PContentView pContentView, UINT64 timestamp, UINT64 du
         CHK(pHead->timestamp + pHead->duration <= timestamp, STATUS_CONTENT_VIEW_INVALID_TIMESTAMP);
 
         // Check if we need to evict based on the max buffer depth or temporal window
-        if (pRollingView->head - pRollingView->tail >= pRollingView->itemBufferCount ||
-                pHead->timestamp + pHead->duration - pTail->timestamp >= pRollingView->bufferDuration) {
+        CHK_STATUS(contentViewCheckAvailability(pContentView, &currentAvailability, &windowAvailability));
+        if (!windowAvailability) {
             // Move the tail first
             pRollingView->tail++;
 
             // Move the current if needed
-            if (pRollingView->current < pRollingView->tail) {
+            if (!currentAvailability) {
                 pRollingView->current = pRollingView->tail;
-                currentRemoved = TRUE;
             }
 
             // Callback if it's specified
             if (pRollingView->removeCallbackFunc != NULL) {
                 // NOTE: The call is prompt - shouldn't block
-                pRollingView->removeCallbackFunc(pContentView, pRollingView->customData, pTail, currentRemoved);
+                pRollingView->removeCallbackFunc(pContentView, pRollingView->customData, pTail, !currentAvailability);
             }
         }
     }
@@ -456,6 +460,7 @@ STATUS contentViewAddItem(PContentView pContentView, UINT64 timestamp, UINT64 du
     // Append the new item and increment the head
     pHead = GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->head);
     pHead->timestamp = timestamp;
+    pHead->ackTimestamp = ackTimeStamp;
     pHead->duration = duration;
     pHead->flags = flags;
     pHead->handle = allocHandle;
@@ -464,6 +469,46 @@ STATUS contentViewAddItem(PContentView pContentView, UINT64 timestamp, UINT64 du
     SET_ITEM_DATA_OFFSET(pHead->flags, offset);
 
     pRollingView->head++;
+
+CleanUp:
+
+    LEAVES();
+    return retStatus;
+}
+
+STATUS contentViewCheckAvailability(PContentView pContentView, PBOOL pCurrentAvailability, PBOOL pWindowAvailability)
+{
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    PRollingContentView pRollingView = (PRollingContentView) pContentView;
+    BOOL windowAvailability = TRUE, currentAvailability = TRUE;
+    PViewItem pTail = NULL;
+    PViewItem pHead = NULL;
+
+    CHK(pContentView != NULL && (pCurrentAvailability != NULL || pWindowAvailability != NULL), STATUS_NULL_ARG);
+
+    // If the tail and head are the same then there must be availability
+    if (pRollingView->head != pRollingView->tail) {
+        pHead = GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->head - 1);
+        pTail = GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->tail);
+
+        // Check for the item count and duration limits
+        if (pRollingView->head - pRollingView->tail >= pRollingView->itemBufferCount ||
+            pHead->timestamp + pHead->duration - pTail->timestamp >= pRollingView->bufferDuration) {
+            windowAvailability = FALSE;
+            // Check the current
+            if (pRollingView->current <= pRollingView->tail) {
+                currentAvailability = FALSE;
+            }
+        }
+    }
+
+    if (pCurrentAvailability != NULL) {
+        *pCurrentAvailability = currentAvailability;
+    }
+    if (pWindowAvailability != NULL) {
+        *pWindowAvailability = windowAvailability;
+    }
 
 CleanUp:
 
@@ -694,10 +739,11 @@ CleanUp:
 /**
  * Finds an element with a timestamp using binary search method.
  */
-PViewItem findViewItemWithTimestamp(PRollingContentView pView, PViewItem pOldest, PViewItem pNewest, UINT64 timestamp)
+PViewItem findViewItemWithTimestamp(PRollingContentView pView, PViewItem pOldest, PViewItem pNewest, UINT64 timestamp,
+                                    BOOL checkAckTimeStamp)
 {
     PViewItem pCurItem = pOldest;
-    UINT64 curIndex = 0, oldestIndex = pOldest->index, newestIndex = pNewest->index;
+    UINT64 curIndex = 0, oldestIndex = pOldest->index, newestIndex = pNewest->index, curItemTimestamp;
 
     // We have to deal with indexes as the view can be sparse
     while (oldestIndex <= newestIndex) {
@@ -705,14 +751,20 @@ PViewItem findViewItemWithTimestamp(PRollingContentView pView, PViewItem pOldest
         curIndex = (oldestIndex + newestIndex) / 2;
         CHECK(STATUS_SUCCEEDED(contentViewGetItemAt((PContentView) pView, curIndex, &pCurItem)));
 
+        if (checkAckTimeStamp) {
+            curItemTimestamp = pCurItem->ackTimestamp;
+        } else {
+            curItemTimestamp = pCurItem->timestamp;
+        }
+
         // Check if the current is the sought item
-        if (pCurItem->timestamp <= timestamp && pCurItem->timestamp + pCurItem->duration >= timestamp) {
+        if (curItemTimestamp <= timestamp && curItemTimestamp + pCurItem->duration >= timestamp) {
             // found the item - break from the loop
             break;
         }
 
         // Check if it's earlier
-        if (pCurItem->timestamp > timestamp) {
+        if (curItemTimestamp > timestamp) {
             // Iterate with the earlier items
             newestIndex = curIndex - 1;
             CHECK(STATUS_SUCCEEDED(contentViewGetItemAt((PContentView) pView, newestIndex, &pNewest)));

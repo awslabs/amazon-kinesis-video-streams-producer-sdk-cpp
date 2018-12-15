@@ -7,13 +7,30 @@
 #include <tuple>
 #include <memory>
 #include <functional>
+#include <vector>
 
 #include "StreamTags.h"
+
+#define DEFAULT_TRACK_ID 0
 
 using namespace std;
 using namespace std::chrono;
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
+
+
+/**
+ * StreamTrackInfo__ shadows TrackInfo struct in mkvgen/include.
+ * This is introduced to provide easier struct initialization for the client
+ */
+typedef struct StreamTrackInfo__ {
+    const uint32_t track_id;
+    const string track_name;
+    const string codec_id;
+    const uint8_t* cpd;
+    uint32_t cpd_size;
+    MKV_TRACK_INFO_TYPE track_type;
+} StreamTrackInfo;
 
 /**
 * Models all metadata necessary to describe a stream
@@ -51,27 +68,30 @@ public:
             duration<uint64_t> connection_staleness = seconds(30),
             string codec_id = "V_MPEG4/ISO/AVC",
             string track_name = "kinesis_video",
-            const unsigned char* codecPrivateData = nullptr,
-            uint32_t codecPrivateDataSize = 0
+            const uint8_t* codecPrivateData = nullptr,
+            uint32_t codecPrivateDataSize = 0,
+            MKV_TRACK_INFO_TYPE track_type = MKV_TRACK_INFO_TYPE_VIDEO
     )
             : tags_(tags),
               stream_name_(stream_name)
     {
         memset(&stream_info_, 0x00, sizeof(StreamInfo));
 
-        assert(MAX_STREAM_NAME_LEN > stream_name.size());
+        assert(MAX_STREAM_NAME_LEN >= stream_name.size());
         strcpy(stream_info_.name, stream_name.c_str());
 
         stream_info_.version = STREAM_INFO_CURRENT_VERSION;
         stream_info_.retention = duration_cast<nanoseconds>(
                 retention_period).count() / DEFAULT_TIME_UNIT_IN_NANOS;
 
-        assert(MAX_ARN_LEN > kms_key_id.size());
+        assert(MAX_ARN_LEN >= kms_key_id.size());
         strcpy(stream_info_.kmsKeyId, kms_key_id.c_str());
 
-        assert(MAX_CONTENT_TYPE_LEN > content_type.size());
+        assert(MAX_CONTENT_TYPE_LEN >= content_type.size());
         strcpy(stream_info_.streamCaps.contentType, content_type.c_str());
 
+        stream_info_.streamCaps.streamingType = streaming_type;
+        stream_info_.streamCaps.adaptive = FALSE;
         stream_info_.streamCaps.maxLatency = duration_cast<nanoseconds>(
                 max_latency).count() / DEFAULT_TIME_UNIT_IN_NANOS;
         stream_info_.streamCaps.fragmentDuration = duration_cast<nanoseconds>(
@@ -94,20 +114,23 @@ public:
         stream_info_.streamCaps.connectionStalenessDuration = duration_cast<nanoseconds>(
                 connection_staleness).count() / DEFAULT_TIME_UNIT_IN_NANOS;
 
-        assert(MKV_MAX_CODEC_ID_LEN > content_type.size());
-        strcpy(stream_info_.streamCaps.codecId, codec_id.c_str());
+        assert(MKV_MAX_CODEC_ID_LEN >= codec_id.size());
+        assert(MKV_MAX_TRACK_NAME_LEN >= track_name.size());
 
-        assert(MKV_MAX_TRACK_NAME_LEN > content_type.size());
-        strcpy(stream_info_.streamCaps.trackName, track_name.c_str());
-
-        // Set the Codec Private Data.
-        // NOTE: We are not actually copying the bits
-        stream_info_.streamCaps.codecPrivateDataSize = codecPrivateDataSize;
-        stream_info_.streamCaps.codecPrivateData = (PBYTE) codecPrivateData;
+        track_info_.push_back(StreamTrackInfo{DEFAULT_TRACK_ID, track_name, codec_id, codecPrivateData, codecPrivateDataSize, track_type});
 
         // Set the tags
         stream_info_.tagCount = (UINT32)tags_.count();
         stream_info_.tags = tags_.asPTag();
+    }
+
+    void addTrack(  const UINT32 track_id,
+                    const string &track_name,
+                    const string &codec_id,
+                    MKV_TRACK_INFO_TYPE track_type,
+                    const uint8_t* codecPrivateData = nullptr,
+                    uint32_t codecPrivateDataSize = 0) {
+        track_info_.push_back(StreamTrackInfo{track_id, track_name, codec_id, codecPrivateData, codecPrivateDataSize, track_type});
     }
 
     ~StreamDefinition() {
@@ -118,6 +141,8 @@ public:
         }
 
         free(stream_info_.tags);
+
+        delete [] stream_info_.streamCaps.trackInfoList;
     }
 
     /**
@@ -127,10 +152,34 @@ public:
         return stream_name_;
     }
 
+    const int getTrackCount() const {
+        return track_info_.size();
+    }
+
     /**
      * @return An Kinesis Video StreamInfo object
      */
     const StreamInfo& getStreamInfo() {
+        stream_info_.streamCaps.trackInfoCount = static_cast<UINT32>(track_info_.size());
+        stream_info_.streamCaps.trackInfoList = new TrackInfo[track_info_.size()];
+        memset(stream_info_.streamCaps.trackInfoList, 0, sizeof(TrackInfo) * track_info_.size());
+        for (size_t i = 0; i < track_info_.size(); ++i) {
+            TrackInfo &trackInfo = stream_info_.streamCaps.trackInfoList[i];
+            trackInfo.trackId = track_info_[i].track_id;
+            trackInfo.trackType = track_info_[i].track_type;
+
+            strncpy(trackInfo.trackName, track_info_[i].track_name.c_str(), MKV_MAX_TRACK_NAME_LEN + 1);
+            trackInfo.trackName[MKV_MAX_TRACK_NAME_LEN] = '\0';
+
+            strncpy(trackInfo.codecId, track_info_[i].codec_id.c_str(), MKV_MAX_CODEC_ID_LEN + 1);
+            trackInfo.codecId[MKV_MAX_CODEC_ID_LEN] = '\0';
+
+            // Set the Codec Private Data.
+            // NOTE: We are not actually copying the bits
+            trackInfo.codecPrivateData = const_cast<PBYTE>(track_info_[i].cpd);
+            trackInfo.codecPrivateDataSize = (UINT32) track_info_[i].cpd_size;
+        }
+
         return stream_info_;
     }
 
@@ -145,6 +194,10 @@ private:
      */
     StreamTags tags_;
 
+    /**
+     * Vector of StreamTrackInfo that contain track metadata
+     */
+    vector<StreamTrackInfo> track_info_;
 
     /**
      * The underlying object

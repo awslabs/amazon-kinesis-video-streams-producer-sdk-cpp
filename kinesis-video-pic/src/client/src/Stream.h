@@ -69,9 +69,9 @@ typedef __FragmentAckParser* PFragmentAckParser;
 #define DEFAULT_MKV_TIMECODE_SCALE      (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 /**
- * End-of-stream metadata name
+ * End-of-fragment metadata name
  */
-#define EOS_METADATA_NAME                    "AWS_KINESISVIDEO_END_OF_SESSION"
+#define EOFR_METADATA_NAME                   "AWS_KINESISVIDEO_END_OF_FRAGMENT"
 
 /**
  * Internal AWS metadata prefix
@@ -79,9 +79,28 @@ typedef __FragmentAckParser* PFragmentAckParser;
 #define AWS_INTERNAL_METADATA_PREFIX         "AWS"
 
 /**
- * Max packaged size for the EOS metadata including EOS metadata name len, max stream name + delta for packaging
+ * Max packaged size for the metadata including metadata name len + value + delta for packaging. The delta is
+ * the maximal "bloat" size the MKV packaging could add. The actual packaged size will be calculated properly.
  */
-#define MAX_PACKAGED_EOS_METADATA_LEN        (SIZEOF(EOS_METADATA_NAME) + (MAX_STREAM_NAME_LEN + 256) * SIZEOF(CHAR))
+#define MAX_PACKAGED_METADATA_LEN             (MKV_MAX_TAG_NAME_LEN + MAX(MKV_MAX_TAG_VALUE_LEN, MAX_STREAM_NAME_LEN) + 256)
+
+/**
+ * Maximal overhead for an allocation
+ */
+#define MAX_ALLOCATION_OVERHEAD_SIZE        100
+
+/**
+ * Max wait time for the blocking put frame
+ */
+#define MAX_BLOCKING_PUT_WAIT               INFINITE_TIME_VALUE
+
+/**
+ * Valid status codes from get stream data
+ */
+#define IS_VALID_GET_STREAM_DATA_STATUS(s) ((s) == STATUS_SUCCESS || \
+                                            (s) == STATUS_NO_MORE_DATA_AVAILABLE || \
+                                            (s) == STATUS_AWAITING_PERSISTED_ACK || \
+                                            (s) == STATUS_END_OF_STREAM)
 
 /**
  * Kinesis Video stream diagnostics information accumulator
@@ -119,24 +138,23 @@ struct __CurrentViewItem {
 typedef __CurrentViewItem* PCurrentViewItem;
 
 /**
- * Helper structure storing and tracking EOS metadata.
+ * Helper structure storing and tracking metadata.
  */
-typedef struct __CurrentEosTracker CurrentEosTracker;
-struct __CurrentEosTracker {
-    // Whether we are sending EOS
-    BOOL sendEos;
+typedef struct __MetadataTracker MetadataTracker;
+struct __MetadataTracker {
+    // Whether we are sending metadata
+    BOOL send;
 
     // Consumed data offset
     UINT32 offset;
 
-    // Packaged EOS metadata size
+    // Packaged metadata size
     UINT32 size;
 
-    // Storage for the packaged EOS indicator metadata.
-    // Using maximum possible packaged size.
-    BYTE packagedEosMetadata[MAX_PACKAGED_EOS_METADATA_LEN];
+    // Storage for the packaged metadata.
+    PBYTE data;
 };
-typedef __CurrentEosTracker* PCurrentEosTracker;
+typedef __MetadataTracker* PMetadataTracker;
 
 /**
  * Streaming type definition
@@ -268,7 +286,10 @@ struct __KinesisVideoStream {
     CurrentViewItem curViewItem;
 
     // Current EOS sending tracker
-    CurrentEosTracker eosTracker;
+    MetadataTracker eosTracker;
+
+    // Packaged metadata sending tracker.
+    MetadataTracker metadataTracker;
 
     // Indicates whether the connection has been dropped
     BOOL connectionDropped;
@@ -290,6 +311,15 @@ struct __KinesisVideoStream {
 
     // Connection result when the stream was dropped
     SERVICE_CALL_RESULT connectionDroppedResult;
+
+    // Conditional lock for blocking put
+    MUTEX bufferAvailabilityLock;
+
+    // Conditional variable for the blocking put
+    CVAR bufferAvailabilityCondition;
+
+    // Maximum size of frame observed
+    UINT64 maxFrameSizeSeen;
 };
 typedef __KinesisVideoStream* PKinesisVideoStream;
 
@@ -309,6 +339,9 @@ struct __SerializedMetadata {
 
     // Whether the metadata is persistent or not
     BOOL persistent;
+
+    // Whether the metadata has been already "applied". This makes sense only for persistent metadata.
+    BOOL applied;
 
     // The actual strings are stored following the structure
 };
@@ -378,10 +411,11 @@ STATUS putFragmentMetadata(PKinesisVideoStream, PCHAR, PCHAR, BOOL);
  * @param 1 PKinesisVideoStream - Kinesis Video stream object.
  * @param 2 UINT32 - Codec private data size.
  * @param 3 PBYTE - Codec Private Data bits.
+ * @param 4 UINT64 - TrackId from TrackInfo.
  *
  * @return Status of the function call.
  */
-STATUS streamFormatChanged(PKinesisVideoStream, UINT32, PBYTE);
+STATUS streamFormatChanged(PKinesisVideoStream, UINT32, PBYTE, UINT64);
 
 /**
  * Extracts and returns the stream metrics.
@@ -412,11 +446,11 @@ UINT32 calculateViewItemCount(PStreamInfo);
 UINT64 calculateViewBufferDuration(PStreamInfo);
 
 /**
- * Frees the previously allocated CPD if any.
+ * Frees the previously allocated metadata tracking info
  *
- * @param 1 PStreamInfo - Kinesis Video stream object.
+ * @param 1 PMetadataTracker - Metadata tracker object.
  */
-VOID freeCodecPrivateData(PKinesisVideoStream pKinesisVideoStream);
+VOID freeMetadataTracker(PMetadataTracker);
 
 /**
  * Moves the view to the next boundary item - aka the next key frame or fragment start
@@ -489,15 +523,31 @@ PUploadHandleInfo getStreamUploadInfoWithEndIndex(PKinesisVideoStream, UINT64);
 PUploadHandleInfo getStreamUploadInfo(PKinesisVideoStream, UPLOAD_HANDLE);
 
 /**
+ * Await for the frame availability in OFFLINE mode
+ *
+ * @param 1 - IN - KVS stream object
+ * @param 2 - IN - Size of the overall packaged allocation
+ * @return Status code of the operation
+ */
+STATUS waitForAvailability(PKinesisVideoStream, UINT32);
+
+/**
+ * Checks whether space is available in the content store and
+ * if there is enough duration available in the content view
+ */
+STATUS checkForAvailability(PKinesisVideoStream, UINT32, PBOOL);
+
+/**
  * Packages the stream metadata.
  *
  * @param 1 - IN - KVS object
  * @param 2 - IN - Current state of the packager/generator
- * @param 3 - IN/OPT - Optional buffer to package to. If NULL then the size will be returned
- * @param 4 - IN/OUT - Size of the buffer when buffer is not NULL, otherwise will return the required size.
- * @return  Status code of the operation
+ * @param 3 - IN - Whether to package only the not yet sent metadata
+ * @param 4 - IN/OPT - Optional buffer to package to. If NULL then the size will be returned
+ * @param 5 - IN/OUT - Size of the buffer when buffer is not NULL, otherwise will return the required size.
+ * @return Status code of the operation
  */
-STATUS packageStreamMetadata(PKinesisVideoStream, MKV_STREAM_STATE, PBYTE, PUINT32);
+STATUS packageStreamMetadata(PKinesisVideoStream, MKV_STREAM_STATE, BOOL, PBYTE, PUINT32);
 
 /**
  * Generates and packages the EOS metadata
@@ -507,6 +557,38 @@ STATUS packageStreamMetadata(PKinesisVideoStream, MKV_STREAM_STATE, PBYTE, PUINT
  * @return Status code of the operation
  */
 STATUS generateEosMetadata(PKinesisVideoStream);
+
+/**
+ * Checks whether there is still metadata that needs to be sent.
+ *
+ * @param 1 - IN - KVS object
+ * @param 2 - OUT - Whether we still have metadata that needs to be sent.
+ *
+ * @return Status code of the operation
+ */
+STATUS checkForNotSentMetadata(PKinesisVideoStream, PBOOL);
+
+/**
+ * Packages the metadata that hasn't been sent yet.
+ *
+ * @param 1 - IN - KVS object
+ *
+ * @return Status code of the operation
+ */
+STATUS packageNotSentMetadata(PKinesisVideoStream);
+
+/**
+ * Appends validated metadata name/value to the queue
+ *
+ * @param 1 - IN - KVS object
+ * @param 2 - IN - Metadata name
+ * @param 3 - IN - Metadata value
+ * @param 4 - IN - Whether persistent
+ * @param 5 - IN - Packaged size of the metadata
+ *
+ * @return Status code of the operation
+ */
+STATUS appendValidatedMetadata(PKinesisVideoStream, PCHAR, PCHAR, BOOL, UINT32);
 
 ///////////////////////////////////////////////////////////////////////////
 // Service call event functions

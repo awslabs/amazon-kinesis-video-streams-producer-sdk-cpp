@@ -14,7 +14,8 @@ extern "C" {
 ////////////////////////////////////////////////////
 
 // Check whether to generate video config element based on the width not being 0
-#define GENERATE_VIDEO_CONFIG(x)        (((PStreamMkvGenerator) (x))->videoWidth != 0)
+#define GENERATE_VIDEO_CONFIG(x)        (((PTrackInfo) (x))->trackType == MKV_TRACK_INFO_TYPE_VIDEO && ((PTrackInfo) (x))->trackCustomData.trackVideoConfig.videoWidth != 0)
+#define GENERATE_AUDIO_CONFIG(x)        (((PTrackInfo) (x))->trackType == MKV_TRACK_INFO_TYPE_AUDIO && ((PTrackInfo) (x))->trackCustomData.trackAudioConfig.samplingFrequency != 0)
 
 // SPS NALU values
 #define SPS_NALU_67     0x67

@@ -37,9 +37,13 @@ BYTE gMkvSegmentInfoBits[] = {
 };
 UINT32 gMkvSegmentInfoBitsSize = SIZEOF(gMkvSegmentInfoBits);
 
-BYTE gMkvTrackInfoBits[] = {
+BYTE gMkvTracksElem[] = {
         0x16, 0x54, 0xAE, 0x6B, // Tracks
-        0x10, 0x00, 0x00, 0x5B, // Size of the header - 4 bytes wide to accommodate max codec private data
+        0x10, 0x00, 0x00, 0x00, // Size of the header - 4 bytes wide to accommodate max codec private data
+};
+UINT32 gMkvTracksElemSize = SIZEOF(gMkvTracksElem);
+
+BYTE gMkvTrackInfoBits[] = {
         0xAE, // Track entry
         0x10, 0x00, 0x00, 0x56, // Size of the track - 4 bytes wide to accommodate max codec private data
         0xD7, 0x81, 0x01, // Track number
@@ -72,6 +76,18 @@ BYTE gMkvTrackVideoBits[] = {
         0x00, 0x00,
 };
 UINT32 gMkvTrackVideoBitsSize = SIZEOF(gMkvTrackVideoBits);
+
+BYTE gMkvTrackAudioBits[] = {
+        0xE1, // Track Audio Element
+        0x10, 0x00, 0x00, 0x0d, // Size of the Audio element - 4 bytes wide to accommodate future extension
+        0xB5, // Sampling Rate
+        0x88, // 8-byte size
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // IEEE 754 double representing the sampling frequency, in big endian
+        0x9f, // Number of Channels
+        0x81, // 1-byte size
+        0x02, // 2 channels
+};
+UINT32 gMkvTrackAudioBitsSize = SIZEOF(gMkvTrackAudioBits);
 
 BYTE gMkvClusterInfoBits[] = {
         0x1F, 0x43, 0xB6, 0x75, // Cluster
@@ -115,3 +131,10 @@ BYTE gMkvTagStringBits[] = {
         // Tag string
 };
 UINT32 gMkvTagStringBitsSize = SIZEOF(gMkvTagStringBits);
+
+// Sampling Frequency in Hz
+DOUBLE gMkvAACSamplingFrequencies[] = {
+        96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350,
+};
+UINT32 gMkvAACSamplingFrequenciesCount = SIZEOF(gMkvAACSamplingFrequencies) / SIZEOF(DOUBLE);
+

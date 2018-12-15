@@ -16,6 +16,7 @@ CallbackProvider::callback_t CallbackProvider::getCallbacks() {
     callbacks.streamLatencyPressureFn = getStreamLatencyPressureCallback();
     callbacks.droppedFrameReportFn = getDroppedFrameReportCallback();
     callbacks.droppedFragmentReportFn = getDroppedFragmentReportCallback();
+    callbacks.bufferDurationOverflowPressureFn = getBufferDurationOverflowPressureCallback();
     callbacks.streamErrorReportFn = getStreamErrorReportCallback();
     callbacks.streamReadyFn = getStreamReadyCallback();
     callbacks.streamClosedFn = getStreamClosedCallback();
@@ -39,6 +40,11 @@ CallbackProvider::callback_t CallbackProvider::getCallbacks() {
     callbacks.unlockMutexFn = getUnlockMutexCallback();
     callbacks.tryLockMutexFn = getTryLockMutexCallback();
     callbacks.freeMutexFn = getFreeMutexCallback();
+    callbacks.createConditionVariableFn = getCreateConditionVariableCallback();
+    callbacks.signalConditionVariableFn = getSignalConditionVariableCallback();
+    callbacks.broadcastConditionVariableFn = getBroadcastConditionVariableCallback();
+    callbacks.waitConditionVariableFn = getWaitConditionVariableCallback();
+    callbacks.freeConditionVariableFn = getFreeConditionVariableCallback();
     callbacks.getCurrentTimeFn = getCurrentTimeCallback();
     callbacks.getRandomNumberFn = getRandomNumberCallback();
     callbacks.logPrintFn = getLogPrintCallback();
@@ -72,6 +78,26 @@ TryLockMutexFunc CallbackProvider::getTryLockMutexCallback() {
 }
 
 FreeMutexFunc CallbackProvider::getFreeMutexCallback() {
+    return nullptr;
+}
+
+CreateConditionVariableFunc CallbackProvider::getCreateConditionVariableCallback() {
+    return nullptr;
+}
+
+SignalConditionVariableFunc CallbackProvider::getSignalConditionVariableCallback() {
+    return nullptr;
+}
+
+BroadcastConditionVariableFunc CallbackProvider::getBroadcastConditionVariableCallback() {
+    return nullptr;
+}
+
+WaitConditionVariableFunc CallbackProvider::getWaitConditionVariableCallback() {
+    return nullptr;
+}
+
+FreeConditionVariableFunc CallbackProvider::getFreeConditionVariableCallback() {
     return nullptr;
 }
 
@@ -116,6 +142,10 @@ StreamConnectionStaleFunc CallbackProvider::getStreamConnectionStaleCallback() {
 }
 
 DroppedFrameReportFunc CallbackProvider::getDroppedFrameReportCallback() {
+    return nullptr;
+}
+
+BufferDurationOverflowPressureFunc CallbackProvider::getBufferDurationOverflowPressureCallback() {
     return nullptr;
 }
 

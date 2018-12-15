@@ -82,16 +82,16 @@ public:
     bool putFragmentMetadata(const std::string& name, const std::string& value, bool persistent = true);
 
     /**
-     * Initializes the stream with a hex-encoded codec private data
+     * Initializes the track identified by trackId with a hex-encoded codec private data
      * and puts the stream in a state that it is ready to receive frames via putFrame().
      */
-    bool start(const std::string& hexEncodedCodecPrivateData);
+    bool start(const std::string& hexEncodedCodecPrivateData, uint64_t trackId = 0);
 
     /**
-     * Initializes the stream  with a binary codec private data
+     * Initializes the track identified by trackId  with a binary codec private data
      * and puts the stream in a state that it is ready to receive frames via putFrame().
      */
-    bool start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize);
+    bool start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize, uint64_t trackId = 0);
 
     /**
      * Initializes the stream and puts the stream in a state that it is ready to receive frames via putFrame().

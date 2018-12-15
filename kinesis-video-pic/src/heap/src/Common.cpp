@@ -173,7 +173,7 @@ DEFINE_HEAP_ALLOC(commonHeapAlloc)
     STATUS retStatus = STATUS_SUCCESS;
     UINT32 overallSize = 0;
     PBaseHeap pBaseHeap = (PBaseHeap) pHeap;
-    DLOGS("Trying to allocate %d bytes", size);
+    DLOGS("Trying to allocate %" PRIu64 " bytes", size);
 
     // Check the input param
     CHK(pHandle != NULL && pHeap != NULL, STATUS_NULL_ARG);
@@ -181,7 +181,7 @@ DEFINE_HEAP_ALLOC(commonHeapAlloc)
     // Set the pointer to NULL first of all
     *pHandle = INVALID_ALLOCATION_HANDLE_VALUE;
 
-    CHK_ERR(size != 0, STATUS_INVALID_ARG, "Cannot allocate 0 amount of bytes");
+    CHK_ERR(size > 0 && size < MAX_ALLOCATION_SIZE, STATUS_INVALID_ALLOCATION_SIZE, "Invalid allocation size");
 
     // Check if we are initialized by looking at heap limit
     CHK_ERR(pHeap->heapLimit != 0, STATUS_HEAP_NOT_INITIALIZED, "Heap has not been initialized.");
@@ -189,7 +189,7 @@ DEFINE_HEAP_ALLOC(commonHeapAlloc)
     // Check if we can allocate the chunk taking into account the allocation header and footer
     overallSize = pBaseHeap->getAllocationHeaderSizeFn() + size + pBaseHeap->getAllocationFooterSizeFn();
     CHK_ERR(overallSize + pHeap->heapSize <= pHeap->heapLimit, STATUS_NOT_ENOUGH_MEMORY,
-            "Allocating %d bytes failed due to heap limit", size);
+            "Allocating %" PRIu64 " bytes failed due to heap limit", size);
 
     // Validate the heap
     CHK_STATUS(validateHeap(pHeap));
@@ -292,7 +292,7 @@ CleanUp:
 /**
  * Increments the heap usage
  */
-VOID incrementUsage(PHeap pHeap, UINT32 overallSize) {
+VOID incrementUsage(PHeap pHeap, UINT64 overallSize) {
     pHeap->heapSize += overallSize;
     pHeap->numAlloc++;
 }
@@ -300,7 +300,7 @@ VOID incrementUsage(PHeap pHeap, UINT32 overallSize) {
 /**
  * Decrements the heap usage
  */
-VOID decrementUsage(PHeap pHeap, UINT32 overallSize) {
+VOID decrementUsage(PHeap pHeap, UINT64 overallSize) {
     pHeap->heapSize -= overallSize;
     pHeap->numAlloc--;
 }

@@ -5,9 +5,10 @@
 #include <memory>
 #include <chrono>
 #include <curl/curl.h>
+#include "com/amazonaws/kinesis/video/client/Include.h"
 #include "com/amazonaws/kinesis/video/common/CommonDefs.h"
-#include "OngoingStreamState.h"
 #include "GetTime.h"
+#include "OngoingStreamState.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -33,9 +34,9 @@ public:
 
     typedef std::map<std::string, std::string, icase_less> HeaderMap; ///< Map of header names to values.
 
-    Request(Verb verb, const std::string &url);
+    Request(Verb verb, const std::string &url, const STREAM_HANDLE stream_handle);
 
-    Request(Verb verb, const std::string &url, std::shared_ptr<OngoingStreamState> state);
+    Request(Verb verb, const std::string &url, const STREAM_HANDLE stream_handle, std::shared_ptr<OngoingStreamState> state);
 
     virtual ~Request();
 
@@ -55,7 +56,7 @@ public:
     const HeaderMap &getHeaders() const; ///< Get a map of all headers set on this request.
     const std::chrono::duration<double, std::milli> getRequestCompletionTimeout() const; ///< Get the request timeout duration.
     const std::chrono::duration<double, std::milli> getConnectionTimeout() const; ///< Get the connection timeout duration.
-    const std::string &get_url() const; ///< Get the full request URL.
+    const std::string &getUrl() const; ///< Get the full request URL.
     Verb getVerb() const; ///< Get the HTTP request method.
 
     std::string getScheme() const; ///< Get the scheme portion of the URL.
@@ -80,9 +81,14 @@ public:
      */
     CurlWriteCallbackFn getPostWriteCallback() const;
 
+    /**
+     * @return Returns the stored stream handle
+     */
+    STREAM_HANDLE getStreamHandle() const;
+
 private:
     // Hide the default constructor
-    Request() {};
+    Request() : stream_handle_(INVALID_STREAM_HANDLE_VALUE) {};
 
     // noncopyable
     Request(const Request &);
@@ -97,6 +103,8 @@ private:
     std::chrono::duration<double, std::milli> connection_timeout_;
 
     bool is_streaming_;
+
+    STREAM_HANDLE stream_handle_;
 
     std::shared_ptr<OngoingStreamState> stream_state_;
 

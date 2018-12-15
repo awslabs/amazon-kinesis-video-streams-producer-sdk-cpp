@@ -137,7 +137,7 @@ TEST_F(HeapApiTest, InvalidHeapAlloc_NullHeap) {
 
 TEST_F(HeapApiTest, InvalidHeapGetAllocSize_NullHeapHandle) {
     PHeap pHeap;
-    UINT32 size;
+    UINT64 size;
     ALLOCATION_HANDLE handle;
 
     // Create and allocate heap
@@ -183,6 +183,19 @@ TEST_F(HeapApiTest, InvalidHeapAlloc_ZeroAlloc) {
     EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
 }
 
+TEST_F(HeapApiTest, InvalidHeapAlloc_MaxAlloc) {
+    PHeap pHeap;
+    ALLOCATION_HANDLE handle;
+
+    EXPECT_EQ(STATUS_SUCCESS, heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap));
+    EXPECT_EQ(STATUS_INVALID_ALLOCATION_SIZE, heapAlloc(pHeap, MAX_ALLOCATION_SIZE, &handle));
+    EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
+
+    EXPECT_EQ(STATUS_SUCCESS, heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap));
+    EXPECT_EQ(STATUS_INVALID_ALLOCATION_SIZE, heapAlloc(pHeap, MAX_ALLOCATION_SIZE, &handle));
+    EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
+}
+
 TEST_F(HeapApiTest, InvalidHeapFree_NullHeap) {
     PHeap pHeap;
     ALLOCATION_HANDLE handle;
@@ -216,7 +229,7 @@ TEST_F(HeapApiTest, InvalidHeapMap_NullHeap) {
     PHeap pHeap;
     ALLOCATION_HANDLE handle;
     PVOID pAlloc;
-    UINT32 size;
+    UINT64 size;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
     EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
@@ -235,7 +248,7 @@ TEST_F(HeapApiTest, InvalidHeapMap_InvalidHandle) {
     PHeap pHeap;
     ALLOCATION_HANDLE handle;
     PVOID pAlloc;
-    UINT32 size;
+    UINT64 size;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
     EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
@@ -253,7 +266,7 @@ TEST_F(HeapApiTest, InvalidHeapMap_InvalidHandle) {
 TEST_F(HeapApiTest, InvalidHeapMap_NullAllocation) {
     PHeap pHeap;
     ALLOCATION_HANDLE handle;
-    UINT32 size;
+    UINT64 size;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
     EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));

@@ -18,7 +18,7 @@ UINT32 gCallCount = 0;
 TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
 {
     UINT64 index, curIndex;
-    BOOL isAvailable;
+    BOOL itemExists, currentAvailability, windowAvailability;
     PViewItem pViewItem;
     UINT64 timestamp = 0, currentDuration = 0, windowDuration = 0;
     UINT64 currentSize = 0, windowSize = 0;
@@ -28,7 +28,11 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
 
     // Add/check
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
+        currentAvailability = windowAvailability = FALSE;
+        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+        EXPECT_TRUE(currentAvailability);
+        EXPECT_TRUE(windowAvailability);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pViewItem));
         EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
@@ -47,18 +51,30 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetCurrentIndex(mContentView, &curIndex));
         EXPECT_EQ(0, curIndex);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        EXPECT_TRUE(itemExists);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
     }
+
+    currentAvailability = windowAvailability = FALSE;
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+    EXPECT_TRUE(currentAvailability);
+    EXPECT_TRUE(windowAvailability);
 
     // Get next/iterate
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
@@ -84,6 +100,11 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
         EXPECT_EQ(INVALID_ALLOCATION_HANDLE_VALUE, pViewItem->handle);
         EXPECT_EQ(index, pViewItem->index);
     }
+
+    currentAvailability = windowAvailability = FALSE;
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+    EXPECT_TRUE(currentAvailability);
+    EXPECT_TRUE(windowAvailability);
 
     // Get the current and window durations
     EXPECT_EQ(STATUS_SUCCESS, contentViewGetWindowDuration(mContentView, &currentDuration, &windowDuration));
@@ -120,7 +141,7 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
 TEST_F(ViewApiFunctionalityTest, AddGetSetCurrent)
 {
     UINT64 index, curIndex;
-    BOOL isAvailable;
+    BOOL itemExists;
     PViewItem pViewItem;
     UINT64 timestamp = 0;
 
@@ -128,7 +149,7 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrent)
 
     // Add/check
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION + 1) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pViewItem));
         EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
@@ -151,19 +172,29 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrent)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetCurrentIndex(mContentView, &curIndex));
         EXPECT_EQ(index + 1, curIndex);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        EXPECT_TRUE(itemExists);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
         EXPECT_EQ(index, pViewItem->index);
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
         EXPECT_EQ(index, pViewItem->index);
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(index, pViewItem->index);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(index, pViewItem->index);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(index, pViewItem->index);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
         EXPECT_EQ(index, pViewItem->index);
 
         // Get and Set the current again
@@ -179,7 +210,7 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrent)
 TEST_F(ViewApiFunctionalityTest, AddGetSetCurrentRemoveAll)
 {
     UINT64 index, curIndex;
-    BOOL isAvailable;
+    BOOL itemExists;
     PViewItem pViewItem;
     UINT64 timestamp = 0;
     UINT64 curDuration, windowDuration;
@@ -189,7 +220,7 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrentRemoveAll)
 
     // Add/check
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION + 1) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pViewItem));
         EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
@@ -212,19 +243,29 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrentRemoveAll)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetCurrentIndex(mContentView, &curIndex));
         EXPECT_EQ(index + 1, curIndex);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        EXPECT_TRUE(itemExists);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
         EXPECT_EQ(index, pViewItem->index);
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
         EXPECT_EQ(index, pViewItem->index);
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(index, pViewItem->index);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(index, pViewItem->index);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(index, pViewItem->index);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
         EXPECT_EQ(index, pViewItem->index);
 
         // Get and Set the current again
@@ -257,7 +298,7 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrentRemoveAll)
 TEST_F(ViewApiFunctionalityTest, OverflowCheck)
 {
     UINT64 index, curIndex;
-    BOOL isAvailable;
+    BOOL itemExists;
     PViewItem pViewItem;
     UINT64 timestamp = 0, currentDuration = 0, windowDuration = 0, currentAllocationSize = 0, windowAllocationSize = 0;
     UINT64 currentSize = 0, windowSize = 0;
@@ -266,7 +307,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowCheck)
 
     // Add/check
     for (timestamp = 0, index = 0; index < 2 * MAX_VIEW_ITEM_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
 
         // Get the tail
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pViewItem));
@@ -311,17 +352,24 @@ TEST_F(ViewApiFunctionalityTest, OverflowCheck)
             EXPECT_EQ(index % MAX_VIEW_ITEM_COUNT + 1, curIndex);
         }
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        EXPECT_TRUE(itemExists);
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
     }
 }
 
@@ -329,12 +377,19 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeCurrent)
 {
     UINT32 index;
     UINT64 timestamp;
+    BOOL currentAvailability, windowAvailability;
 
     CreateContentView();
 
     // Add/check overflow on size
     for (timestamp = 0, index = 0; index < 2 * MAX_VIEW_ITEM_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
+        // Check availability before
+        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+        EXPECT_EQ(index < MAX_VIEW_ITEM_COUNT ? TRUE : FALSE, currentAvailability) << "Failed on index: " << index;
+        EXPECT_EQ(index < MAX_VIEW_ITEM_COUNT ? TRUE : FALSE, windowAvailability) << "Failed on index: " << index;
+
+        // Add the item
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
 
         if (index < MAX_VIEW_ITEM_COUNT) {
             EXPECT_EQ(0, gCustomData);
@@ -356,6 +411,61 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeCurrent)
             EXPECT_TRUE(gCurrent);
         }
     }
+
+    // Set the current and check for availability
+    EXPECT_EQ(STATUS_SUCCESS, contentViewSetCurrentIndex(mContentView, MAX_VIEW_ITEM_COUNT + 1));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+    EXPECT_TRUE(currentAvailability);
+    EXPECT_FALSE(windowAvailability);
+}
+
+TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackAvailability)
+{
+    UINT32 index;
+    UINT64 timestamp;
+    BOOL currentAvailability, windowAvailability;
+
+    CreateContentView();
+
+    // Add/check overflow on size
+    for (timestamp = 0, index = 0; index < MAX_VIEW_ITEM_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
+        // Check availability before
+        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+        EXPECT_EQ(index < MAX_VIEW_ITEM_COUNT ? TRUE : FALSE, currentAvailability) << "Failed on index: " << index;
+        EXPECT_EQ(index < MAX_VIEW_ITEM_COUNT ? TRUE : FALSE, windowAvailability) << "Failed on index: " << index;
+
+        // Add the item
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
+
+        EXPECT_EQ(0, gCustomData);
+        EXPECT_EQ(NULL, gContentView);
+        EXPECT_EQ(0, gViewItem.timestamp);
+        EXPECT_FALSE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
+        EXPECT_EQ(0, gViewItem.duration);
+        EXPECT_EQ(0, gViewItem.handle);
+        EXPECT_EQ(0, gViewItem.index);
+        EXPECT_FALSE(gCurrent);
+    }
+
+    // There should be no availability
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+    EXPECT_FALSE(currentAvailability);
+    EXPECT_FALSE(windowAvailability);
+    EXPECT_EQ(0, gCallCount);
+
+    // Set the current and check for availability
+    EXPECT_EQ(STATUS_SUCCESS, contentViewSetCurrentIndex(mContentView, MAX_VIEW_ITEM_COUNT - 1));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+    EXPECT_TRUE(currentAvailability);
+    EXPECT_FALSE(windowAvailability);
+    EXPECT_EQ(0, gCallCount);
+
+    // Add an item and ensure the callback is called
+    EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp + VIEW_ITEM_DURATION, timestamp + VIEW_ITEM_DURATION, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
+    EXPECT_TRUE(currentAvailability);
+    EXPECT_FALSE(windowAvailability);
+    EXPECT_EQ(1, gCallCount);
 }
 
 TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeTail)
@@ -368,7 +478,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeTail)
 
     // Add/check overflow on size
     for (timestamp = 0, index = 0; index < 2 * MAX_VIEW_ITEM_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetNext(mContentView, &pViewItem));
 
         if (index < MAX_VIEW_ITEM_COUNT) {
@@ -402,7 +512,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationCurrent)
 
     // Add/check overflow on size
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITEM_COUNT; index++, timestamp += VIEW_ITEM_DURATION_LARGE) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION_LARGE, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION_LARGE, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
 
         if (index < MAX_VIEW_ITEM_COUNT / 2) {
             EXPECT_EQ(0, gCustomData);
@@ -436,7 +546,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationTail)
 
     // Add/check overflow on size
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITEM_COUNT; index++, timestamp += VIEW_ITEM_DURATION_LARGE) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION_LARGE, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION_LARGE, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetNext(mContentView, &pViewItem));
 
         if (index < MAX_VIEW_ITEM_COUNT / 2) {
@@ -464,7 +574,7 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationTail)
 TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariations)
 {
     UINT64 index, curIndex;
-    BOOL isAvailable;
+    BOOL itemExists;
     PViewItem pViewItem;
     UINT64 timestamp;
 
@@ -472,7 +582,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariations)
 
     // Add/check
     for (timestamp = VIEW_ITEM_DURATION, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pViewItem));
         EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
@@ -484,17 +594,24 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariations)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetCurrentIndex(mContentView, &curIndex));
         EXPECT_EQ(0, curIndex);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        EXPECT_TRUE(itemExists);
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
     }
 
     // We should be on the 0th element
@@ -541,7 +658,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariations)
 TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparse)
 {
     UINT64 index, curIndex;
-    BOOL isAvailable;
+    BOOL itemExists;
     PViewItem pViewItem;
     UINT64 timestamp;
 
@@ -549,7 +666,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparse)
 
     // Add/check
     for (timestamp = VIEW_ITEM_DURATION, index = 0; index < MAX_VIEW_ITERATION_COUNT / 2; index++, timestamp += 2 * VIEW_ITEM_DURATION) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pViewItem));
         EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
@@ -561,30 +678,48 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparse)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetCurrentIndex(mContentView, &curIndex));
         EXPECT_EQ(0, curIndex);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        EXPECT_TRUE(itemExists);
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 
         // Make sure it fails when trying to retrieve a timestamp over the newest duration
-        EXPECT_NE(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration + 10, &pViewItem));
+        EXPECT_NE(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration + 10, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        // Make sure it fails when trying to retrieve a timestamp over the newest duration
+        EXPECT_NE(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration + 10, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 
         if (index != 0) {
             EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index - 1, &pViewItem));
 
             // This is a sparse view so we should still return an item even if the timestamp is above the last to newest duration
-            EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration + 1, &pViewItem));
+            EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration + 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+            // The expected item is in-between the items and will stick with the newest item
+            EXPECT_EQ(index, pViewItem->index);
+
+            EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index - 1, &pViewItem));
+
+            // This is a sparse view so we should still return an item even if the timestamp is above the last to newest duration
+            EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration + 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 
             // The expected item is in-between the items and will stick with the newest item
             EXPECT_EQ(index, pViewItem->index);
         }
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
     }
 
     // We should be on the 0th element
@@ -631,7 +766,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparse)
 TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrame)
 {
     UINT64 index, curIndex;
-    BOOL isAvailable;
+    BOOL itemExists;
     UINT32 fragmentStart;
     PViewItem pViewItem;
     UINT64 timestamp;
@@ -642,7 +777,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrame)
     for (timestamp = VIEW_ITEM_DURATION, index = 0; index < MAX_VIEW_ITERATION_COUNT / 2; index++, timestamp += 2 * VIEW_ITEM_DURATION) {
         // Set a key frame every 7th starting from 2nd
         fragmentStart = (index % 7 == 2) ? ITEM_FLAG_FRAGMENT_START : ITEM_FLAG_NONE;
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, fragmentStart));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, fragmentStart));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pViewItem));
         EXPECT_FALSE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
@@ -654,17 +789,24 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrame)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetCurrentIndex(mContentView, &curIndex));
         EXPECT_EQ(0, curIndex);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        EXPECT_TRUE(itemExists);
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
     }
 
     // We should be on the 0th element
@@ -733,7 +875,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrame)
 TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrameReceivedAck)
 {
     UINT64 index, curIndex;
-    BOOL isAvailable;
+    BOOL itemExists;
     UINT32 fragmentStart;
     PViewItem pViewItem;
     UINT64 timestamp;
@@ -744,7 +886,7 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrameRe
     for (timestamp = VIEW_ITEM_DURATION, index = 0; index < MAX_VIEW_ITERATION_COUNT / 2; index++, timestamp += 2 * VIEW_ITEM_DURATION) {
         // Set a key frame every 7th starting from 2nd
         fragmentStart = (index % 7 == 2) ? ITEM_FLAG_FRAGMENT_START : ITEM_FLAG_NONE;
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, fragmentStart));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, fragmentStart));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pViewItem));
         EXPECT_FALSE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
@@ -756,17 +898,24 @@ TEST_F(ViewApiFunctionalityTest, RollbackCurrentSimpleVariationsSparseKeyFrameRe
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetCurrentIndex(mContentView, &curIndex));
         EXPECT_EQ(0, curIndex);
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        EXPECT_TRUE(itemExists);
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        EXPECT_TRUE(isAvailable);
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        EXPECT_TRUE(itemExists);
     }
 
     // We should be on the 0th element
@@ -956,29 +1105,42 @@ TEST_F(ViewApiFunctionalityTest, getItemWithTimestamp)
 
     CreateContentView();
 
-    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, 0, &pViewItem));
+    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, 0, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, 0, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 
     // Add/check
     for (timestamp = 1, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pTail));
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetHead(mContentView, &pHead));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
     }
 
-    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp, &pViewItem));
-    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp + pHead->duration, &pViewItem));
-    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp, &pViewItem));
-    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp + pTail->duration, &pViewItem));
-    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, VIEW_ITEM_DURATION, &pViewItem));
-    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp - 1, &pViewItem));
-    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp + pHead->duration + 1, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp + pHead->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp + pTail->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, VIEW_ITEM_DURATION, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp + pHead->duration + 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp + pHead->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp + pTail->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, VIEW_ITEM_DURATION, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, pTail->timestamp - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_TIMESTAMP, contentViewGetItemWithTimestamp(mContentView, pHead->timestamp + pHead->duration + 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
 }
 
 TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
@@ -993,7 +1155,7 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
 
     // Add/check
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
 
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pTail));
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetHead(mContentView, &pHead));
@@ -1048,7 +1210,7 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
 TEST_F(ViewApiFunctionalityTest, DISABLED_IntOverflowRangeCheck)
 {
     UINT64 index;
-    BOOL isAvailable;
+    BOOL itemExists;
     PViewItem pViewItem;
     UINT64 timestamp = 0;
 
@@ -1060,7 +1222,7 @@ TEST_F(ViewApiFunctionalityTest, DISABLED_IntOverflowRangeCheck)
             DLOGI("View item %llu", index);
         }
 
-        ASSERT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
+        ASSERT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
 
         ASSERT_EQ(STATUS_SUCCESS, contentViewGetHead(mContentView, &pViewItem));
         ASSERT_TRUE(CHECK_ITEM_FRAGMENT_START(pViewItem->flags));
@@ -1069,16 +1231,23 @@ TEST_F(ViewApiFunctionalityTest, DISABLED_IntOverflowRangeCheck)
         ASSERT_EQ(INVALID_ALLOCATION_HANDLE_VALUE, pViewItem->handle);
         ASSERT_EQ(index, pViewItem->index);
 
-        ASSERT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &isAvailable));
-        ASSERT_TRUE(isAvailable);
+        ASSERT_EQ(STATUS_SUCCESS, contentViewItemExists(mContentView, index, &itemExists));
+        ASSERT_TRUE(itemExists);
 
-        ASSERT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, &isAvailable));
-        ASSERT_TRUE(isAvailable);
+        ASSERT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        ASSERT_TRUE(itemExists);
+
+        ASSERT_EQ(STATUS_SUCCESS, contentViewTimestampInRange(mContentView, timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &itemExists));
+        ASSERT_TRUE(itemExists);
 
         ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemAt(mContentView, index, &pViewItem));
 
-        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, &pViewItem));
-        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, &pViewItem));
-        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, &pViewItem));
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
+        ASSERT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
     }
 }

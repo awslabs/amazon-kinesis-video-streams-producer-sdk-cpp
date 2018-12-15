@@ -47,7 +47,7 @@ DEFINE_HEAP_CHK(aivHeapDebugCheckAllocator)
         }
 
         if (pBlock->allocSize > ((PALLOCATION_HEADER)pBlock)->size) {
-            DLOGE("Block %p has a requested size of %d which is greater than the entire allocation size %d",
+            DLOGE("Block %p has a requested size of %" PRIu64 " which is greater than the entire allocation size %" PRIu64,
                 pBlock, pBlock->allocSize, ((PALLOCATION_HEADER)pBlock)->size);
             retStatus = STATUS_HEAP_CORRUPTED;
         }
@@ -82,7 +82,7 @@ DEFINE_HEAP_CHK(aivHeapDebugCheckAllocator)
     // walk the free blocks
     while(pBlock != NULL) {
         if (dump) {
-            DLOGI("Block:\t%p\t\tsize:\t%d", pBlock, ((PALLOCATION_HEADER)pBlock)->size);
+            DLOGI("Block:\t%p\t\tsize:\t%" PRIu64, pBlock, ((PALLOCATION_HEADER)pBlock)->size);
         }
 
         if (pBlock->state != ALLOCATION_FLAGS_FREE) {
@@ -168,7 +168,7 @@ DEFINE_INIT_HEAP(aivHeapInit)
 
 #ifdef HEAP_DEBUG
     // Null the memory in debug mode
-    MEMSET(pAivHeap->pAllocation, 0x00, heapLimit);
+    MEMSET(pAivHeap->pAllocation, 0x00, (SIZE_T) heapLimit);
 #endif
 
     // Set the free pointer
@@ -178,7 +178,7 @@ DEFINE_INIT_HEAP(aivHeapInit)
     MEMCPY(pAivHeap->pFree, &gAivHeader, AIV_ALLOCATION_HEADER_SIZE);
 
     // We don't need to re-adjust the heap size to accommodate the header allocation as it will be taken care during alloc
-    ((PALLOCATION_HEADER)pAivHeap->pFree)->size = (UINT32)(pHeap->heapLimit - AIV_ALLOCATION_HEADER_SIZE);
+    ((PALLOCATION_HEADER)pAivHeap->pFree)->size = pHeap->heapLimit - AIV_ALLOCATION_HEADER_SIZE;
 
 CleanUp:
 
@@ -447,13 +447,11 @@ DEFINE_HEAP_LIMITS(aivGetHeapLimits)
 /**
  * Simple first free block finding
  */
-PAIV_ALLOCATION_HEADER getFreeBlock(PAivHeap pAivHeap, UINT32 size)
+PAIV_ALLOCATION_HEADER getFreeBlock(PAivHeap pAivHeap, UINT64 size)
 {
-    CHECK(pAivHeap != NULL && size > 0);
-    
     PAIV_ALLOCATION_HEADER pFree = pAivHeap->pFree;
     // overall allocation size - the header is already included in the free list but not the footer
-    UINT32 allocationSize = size + AIV_ALLOCATION_FOOTER_SIZE;
+    UINT64 allocationSize = size + AIV_ALLOCATION_FOOTER_SIZE;
 
     // Perform the allocation by looking for the first fit in the free list
     while (pFree != NULL) {
@@ -472,10 +470,8 @@ PAIV_ALLOCATION_HEADER getFreeBlock(PAivHeap pAivHeap, UINT32 size)
 /**
  * Splits the free block
  */
-VOID splitFreeBlock(PAivHeap pAivHeap, PAIV_ALLOCATION_HEADER pBlock, UINT32 size)
+VOID splitFreeBlock(PAivHeap pAivHeap, PAIV_ALLOCATION_HEADER pBlock, UINT64 size)
 {
-    CHECK(pAivHeap != NULL && pBlock != NULL && size > 0);
-
     PAIV_ALLOCATION_HEADER pNewFree = NULL;
 
     // There are two scenarios - whether the new header + minimal block size will fit or not
@@ -503,7 +499,7 @@ VOID splitFreeBlock(PAivHeap pAivHeap, PAIV_ALLOCATION_HEADER pBlock, UINT32 siz
 
 #ifdef HEAP_DEBUG
         // Null the memory in debug mode
-        MEMSET(pBlock + 1, 0x00, ((PALLOCATION_HEADER)pBlock)->size - AIV_ALLOCATION_FOOTER_SIZE);
+        MEMSET(pBlock + 1, 0x00, (SIZE_T) ((PALLOCATION_HEADER)pBlock)->size - AIV_ALLOCATION_FOOTER_SIZE);
 
         // Set the header magic
         MEMCPY(((PALLOCATION_HEADER)pBlock)->magic, ALLOCATION_HEADER_MAGIC, SIZEOF(ALLOCATION_HEADER_MAGIC));
@@ -517,7 +513,7 @@ VOID splitFreeBlock(PAivHeap pAivHeap, PAIV_ALLOCATION_HEADER pBlock, UINT32 siz
     } else {
         // split the block
         // Prepare the new free block
-        UINT32 freeSizeStart = size + AIV_ALLOCATION_FOOTER_SIZE;
+        UINT64 freeSizeStart = size + AIV_ALLOCATION_FOOTER_SIZE;
         pNewFree = (PAIV_ALLOCATION_HEADER)((PBYTE)(pBlock + 1) + freeSizeStart);
 
         // Set the header
@@ -530,7 +526,7 @@ VOID splitFreeBlock(PAivHeap pAivHeap, PAIV_ALLOCATION_HEADER pBlock, UINT32 siz
 
 #ifdef HEAP_DEBUG
         // Null the memory in debug mode
-        MEMSET(pNewFree + 1, 0x00, ((PALLOCATION_HEADER)pNewFree)->size - AIV_ALLOCATION_FOOTER_SIZE);
+        MEMSET(pNewFree + 1, 0x00, (SIZE_T) ((PALLOCATION_HEADER)pNewFree)->size - AIV_ALLOCATION_FOOTER_SIZE);
 #endif
 
         // Fix the next block
@@ -690,7 +686,7 @@ VOID insertFreeBlockBefore(PAivHeap pAivHeap, PAIV_ALLOCATION_HEADER pFree, PAIV
     // 4) An independent block - needs to be added to the free list
 
     // We need to insert the block first
-    DLOGS("Insert free block %p (size %d) before %p", pBlock, ((PALLOCATION_HEADER)pBlock)->size, pFree);
+    DLOGS("Insert free block %p (size %" PRIu64 ") before %p", pBlock, ((PALLOCATION_HEADER)pBlock)->size, pFree);
     pBlock->pPrev = pFree->pPrev;
     pBlock->pNext = pFree;
     pFree->pPrev = pBlock;
@@ -703,7 +699,7 @@ VOID insertFreeBlockBefore(PAivHeap pAivHeap, PAIV_ALLOCATION_HEADER pFree, PAIV
     }
 
     // Try to coalesce the block with the neighbors
-    DLOGS("Trying to coalesce block %p (size %d) with neighbors", pBlock, ((PALLOCATION_HEADER)pBlock)->size);
+    DLOGS("Trying to coalesce block %p (size %" PRIu64 ") with neighbors", pBlock, ((PALLOCATION_HEADER)pBlock)->size);
     coalesceFreeBlock(pBlock);
 }
 
@@ -718,12 +714,12 @@ VOID insertFreeBlockLast(PAIV_ALLOCATION_HEADER pFree, PAIV_ALLOCATION_HEADER pB
     // 1) The block is adjacent on left with a free block - coalesce
     // 2) An independent block - needs to be added to the free list
 
-    DLOGS("Insert free block %p (size %d) after %p", pBlock, ((PALLOCATION_HEADER)pBlock)->size, pFree);
+    DLOGS("Insert free block %p (size %" PRIu64 ") after %p", pBlock, ((PALLOCATION_HEADER)pBlock)->size, pFree);
     pFree->pNext = pBlock;
     pBlock->pPrev = pFree;
 
     // Try to coalesce the block with the neighbors
-    DLOGS("Trying to coalesce block %p (size %d) with neighbors", pBlock, ((PALLOCATION_HEADER)pBlock)->size);
+    DLOGS("Trying to coalesce block %p (size %" PRIu64 ") with neighbors", pBlock, ((PALLOCATION_HEADER)pBlock)->size);
     coalesceFreeBlock(pBlock);
 }
 
@@ -732,14 +728,12 @@ VOID insertFreeBlockLast(PAIV_ALLOCATION_HEADER pFree, PAIV_ALLOCATION_HEADER pB
  */
 VOID coalesceFreeBlock(PAIV_ALLOCATION_HEADER pBlock)
 {
-    CHECK(pBlock != NULL && ((PALLOCATION_HEADER)pBlock)->size > 0);
-
     // Try the next first
     PAIV_ALLOCATION_HEADER pNext = pBlock->pNext;
     if (pNext != NULL &&
             pNext == (PAIV_ALLOCATION_HEADER)((PBYTE)(pBlock + 1) + ((PALLOCATION_HEADER)pBlock)->size)) {
         // Coalesce the blocks by adjusting the size and fixing up the pointers
-        DLOGS("Coalescing %p (size %d) with %p (size %d) resulting in size %d",
+        DLOGS("Coalescing %p (size %d) with %p (size %" PRIu64 ") resulting in size %" PRIu64,
                 pBlock, ((PALLOCATION_HEADER)pBlock)->size, pNext, ((PALLOCATION_HEADER)pNext)->size,
                 ((PALLOCATION_HEADER)pBlock)->size + ((PALLOCATION_HEADER)pBlock)->size + AIV_ALLOCATION_HEADER_SIZE);
 
@@ -757,7 +751,7 @@ VOID coalesceFreeBlock(PAIV_ALLOCATION_HEADER pBlock)
     PAIV_ALLOCATION_HEADER pPrev = pBlock->pPrev;
     if (pPrev != NULL &&
             pBlock == (PAIV_ALLOCATION_HEADER)((PBYTE)(pPrev + 1) + ((PALLOCATION_HEADER)pPrev)->size)) {
-        DLOGS("Coalescing %p (size %u) with %p (size %u) resulting in size %u",
+        DLOGS("Coalescing %p (size %" PRIu64 ") with %p (size %" PRIu64 ") resulting in size %" PRIu64,
               pPrev, ((PALLOCATION_HEADER)pPrev)->size, pBlock,
               ((PALLOCATION_HEADER)pBlock)->size,
               ((PALLOCATION_HEADER)pBlock)->size + ((PALLOCATION_HEADER)pPrev)->size + AIV_ALLOCATION_HEADER_SIZE);

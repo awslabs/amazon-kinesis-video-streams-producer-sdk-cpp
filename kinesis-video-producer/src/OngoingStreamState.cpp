@@ -1,8 +1,13 @@
 /** Copyright 2017 Amazon.com. All rights reserved. */
 
 #include "OngoingStreamState.h"
+#include "Response.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
+
+#define DEFAULT_DATA_READY_CV_TIMEOUT_MS 10
+#define DEFAULT_AWAIT_DATA_LOOP_CYCLE 100
+#define DEFAULT_OFFLINE_DATA_READY_CV_TIMEOUT_HOURS 10
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
@@ -52,22 +57,34 @@ void OngoingStreamState::setDataAvailable(UINT64 duration_available, UINT64 size
 }
 
 size_t OngoingStreamState::awaitData(size_t read_size) {
+    int32_t iterations = 0;
+    size_t ret_size = 0;
     LOG_TRACE("Awaiting data...");
     {
         std::unique_lock<std::mutex> lock(data_mutex_);
         do {
             if (0 < bytes_available_ || isEndOfStream()) {
                 // Fast path - bytes are available so return immediately
-                size_t ret_size = (size_t)bytes_available_;
+                ret_size = (size_t)bytes_available_;
                 bytes_available_ -= MIN(read_size, bytes_available_);
-                return ret_size;
+                break;
             }
+
             // Slow path - block until data arrives.
             // Wait may return without any data available due to a spurious wake up.
             // See: https://en.wikipedia.org/wiki/Spurious_wakeup
-            data_ready_.wait(lock, [this]() { return (0 < bytes_available_ || isEndOfStream()); });
-        } while (true);
+            PStreamInfo pStreamInfo;
+            kinesisVideoStreamGetStreamInfo(stream_handle_, &pStreamInfo);
+            auto time_out = IS_OFFLINE_STREAMING_MODE(pStreamInfo->streamCaps.streamingType) ?
+                            chrono::milliseconds(DEFAULT_DATA_READY_CV_TIMEOUT_MS) :
+                            chrono::hours(DEFAULT_OFFLINE_DATA_READY_CV_TIMEOUT_HOURS);
+            data_ready_.wait_for(lock, time_out,
+                                 [this]() { return (0 < bytes_available_ || isEndOfStream()); });
+            iterations++;
+        } while (iterations < DEFAULT_AWAIT_DATA_LOOP_CYCLE);
     }
+
+    return ret_size;
 }
 
 size_t OngoingStreamState::postHeaderReadFunc(char *buffer, size_t item_size, size_t n_items) {
@@ -167,6 +184,14 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
                     if (0 == bytes_written) {
                         LOG_DEBUG("Resetting the available data for the streaming state object.");
                         setDataAvailable(0, 0);
+
+                        // awaitData timed out. Media pipeline thread might be blocked due to heap limit.
+                        // Pause curl read and wait for persisted ack.
+                        if (0 == available_bytes) {
+                            // Pause sending data
+                            LOG_DEBUG("Pausing curl read");
+                            return CURL_READFUNC_PAUSE;
+                        }
                     }
                 }
 
@@ -211,7 +236,7 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
 
     if (bytes_written != 0 &&
         debug_dump_file_ &&
-        (bytes_written != CURL_READFUNC_ABORT || bytes_written != CURL_READFUNC_PAUSE)) {
+        (bytes_written != CURL_READFUNC_ABORT && bytes_written != CURL_READFUNC_PAUSE)) {
         debug_dump_file_stream_.write(buffer, bytes_written);
     }
 
@@ -252,6 +277,10 @@ size_t OngoingStreamState::postBodyStreamingWriteFunc(char *buffer, size_t item_
     }
 
     return data_size;
+}
+
+bool OngoingStreamState::unPause() {
+    return curl_response_->unPause();
 }
 
 } // namespace video

@@ -5,7 +5,6 @@
 #include <mutex>
 #include <cctype>
 #include <thread>
-#include "Response.h"
 #include "Auth.h"
 #include "Logger.h"
 #include "Request.h"
@@ -39,11 +38,17 @@ public:
     const std::string &getData() const; ///< Get the response payload.
     int getStatusCode() const; ///< Get the response status code.
     SERVICE_CALL_RESULT getServiceCallResult() const; ///< Get the response overall result as a service call result.
+    bool unPause(); /// < Unpause the upload of the stream.
 
     void completeSync();
 
     // Force closes the CURL connection
     void terminate();
+
+    // Whether the CURL connection is terminated
+    bool terminated() {
+        return terminated_;
+    }
 
     /**
      * Convenience method to convert HTTP statuses to SERVICE_CALL_RESULT status.

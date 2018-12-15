@@ -75,6 +75,7 @@ class KinesisVideoClientWrapper
     jmethodID mStreamConnectionStaleMethodId;
     jmethodID mFragmentAckReceivedMethodId;
     jmethodID mDroppedFrameReportMethodId;
+    jmethodID mBufferDurationOverflowPressureMethodId;
     jmethodID mDroppedFragmentReportMethodId;
     jmethodID mStreamErrorReportMethodId;
     jmethodID mStreamDataAvailableMethodId;
@@ -108,10 +109,11 @@ class KinesisVideoClientWrapper
     static STATUS storageOverflowPressureFunc(UINT64, UINT64);
     static STATUS streamLatencyPressureFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS streamConnectionStaleFunc(UINT64, STREAM_HANDLE, UINT64);
-    static STATUS fragmentAckReceivedFunc(UINT64, STREAM_HANDLE, PFragmentAck);
+    static STATUS fragmentAckReceivedFunc(UINT64, STREAM_HANDLE, UPLOAD_HANDLE, PFragmentAck);
     static STATUS droppedFrameReportFunc(UINT64, STREAM_HANDLE, UINT64);
+    static STATUS bufferDurationOverflowPressureFunc(UINT64, STREAM_HANDLE, UINT64);
     static STATUS droppedFragmentReportFunc(UINT64, STREAM_HANDLE, UINT64);
-    static STATUS streamErrorReportFunc(UINT64, STREAM_HANDLE, UINT64, STATUS);
+    static STATUS streamErrorReportFunc(UINT64, STREAM_HANDLE, UPLOAD_HANDLE, UINT64, STATUS);
     static STATUS streamDataAvailableFunc(UINT64, STREAM_HANDLE, PCHAR, UINT64, UINT64, UINT64);
     static STATUS streamReadyFunc(UINT64, STREAM_HANDLE);
     static STATUS streamClosedFunc(UINT64, STREAM_HANDLE, UINT64);
@@ -120,6 +122,11 @@ class KinesisVideoClientWrapper
     static VOID unlockMutexFunc(UINT64, MUTEX);
     static BOOL tryLockMutexFunc(UINT64, MUTEX);
     static VOID freeMutexFunc(UINT64, MUTEX);
+    static CVAR createConditionVariableFunc(UINT64);
+    static STATUS signalConditionVariableFunc(UINT64, CVAR);
+    static STATUS broadcastConditionVariableFunc(UINT64, CVAR);
+    static STATUS waitConditionVariableFunc(UINT64, CVAR, MUTEX, UINT64);
+    static VOID freeConditionVariableFunc(UINT64, CVAR);
     static STATUS createStreamFunc(UINT64,
                                    PCHAR,
                                    PCHAR,
@@ -188,7 +195,7 @@ public:
     void putStreamResult(jlong streamHandle, jint httpStatusCode, jlong clientStreamHandle);
     void tagResourceResult(jlong customData, jint httpStatusCode);
     void getKinesisVideoStreamData(jlong streamHandle, jobject dataBuffer, jint offset, jint length, jobject readResult);
-    void streamFormatChanged(jlong streamHandle, jobject codecPrivateData);
+    void streamFormatChanged(jlong streamHandle, jobject codecPrivateData, jlong trackId);
     void createDeviceResult(jlong clientHandle, jint httpStatusCode, jstring deviceArn);
     void deviceCertToTokenResult(jlong clientHandle, jint httpStatusCode, jbyteArray token, jint tokenSize, jlong expiration);
     void kinesisVideoStreamFragmentAck(jlong streamHandle, jlong uploadHandle, jobject fragmentAck);

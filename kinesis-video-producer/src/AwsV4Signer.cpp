@@ -1,5 +1,4 @@
 #include "AwsV4Signer.h"
-#include "Response.h"
 #include "Logger.h"
 #include <fstream>
 #include <openssl/hmac.h>

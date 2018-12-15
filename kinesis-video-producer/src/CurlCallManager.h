@@ -3,7 +3,6 @@
 #include "Request.h"
 #include "Response.h"
 #include "Auth.h"
-#include "OngoingStreamState.h"
 #include "Logger.h"
 
 #include <memory>
@@ -18,11 +17,8 @@ public:
     static CurlCallManager &getInstance();
 
     std::shared_ptr<Response> call(std::unique_ptr<Request> request,
-                                   std::unique_ptr<const RequestSigner> request_signer) const;
-
-    std::shared_ptr<Response> call(std::unique_ptr<Request> request,
                                    std::unique_ptr<const RequestSigner> request_signer,
-                                   std::shared_ptr<OngoingStreamState> ongoing_state) const;
+                                   ResponseAcceptor* response_acceptor) const;
 
 private:
     // RAII initializer for curl.

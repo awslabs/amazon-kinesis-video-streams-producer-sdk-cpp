@@ -28,6 +28,15 @@ extern "C" {
  */
 #define MAX_LARGE_HEAP_SIZE 0x7FFFFFFFFFFFFFFFULL
 
+
+/**
+ * Max possible individual allocation size. This is more of a hypothetical value.
+ * The value will be used as a sentinel. The non-hybrid allocators will shift
+ * the resulting handle at least two bits to the right and fill it with 1s to
+ * ensure the hybrid allocator will know whether to use the direct or indirect heap.
+ */
+#define MAX_ALLOCATION_SIZE 0x0FFFFFFFFFFFFFFFULL
+
 /**
  * Definition of the memory handle
  */
@@ -131,6 +140,7 @@ typedef struct
 #define STATUS_HEAP_VRAM_MAP_FAILED                             STATUS_HEAP_BASE + 0x00000012
 #define STATUS_HEAP_VRAM_UNMAP_FAILED                           STATUS_HEAP_BASE + 0x00000013
 #define STATUS_HEAP_VRAM_UNINIT_FAILED                          STATUS_HEAP_BASE + 0x00000014
+#define STATUS_INVALID_ALLOCATION_SIZE                          STATUS_HEAP_BASE + 0x00000015
 
 //////////////////////////////////////////////////////////////////////////
 // Public functions
@@ -154,7 +164,7 @@ PUBLIC_API STATUS heapGetSize(PHeap, PUINT64);
 /**
  * Allocates memory from the heap
  */
-PUBLIC_API STATUS heapAlloc(PHeap, UINT32, PALLOCATION_HANDLE);
+PUBLIC_API STATUS heapAlloc(PHeap, UINT64, PALLOCATION_HANDLE);
 
 /**
  * Frees allocated memory
@@ -164,12 +174,12 @@ PUBLIC_API STATUS heapFree(PHeap, ALLOCATION_HANDLE);
 /**
  * Gets the size of the allocation
  */
-PUBLIC_API STATUS heapGetAllocSize(PHeap, ALLOCATION_HANDLE, PUINT32);
+PUBLIC_API STATUS heapGetAllocSize(PHeap, ALLOCATION_HANDLE, PUINT64);
 
 /**
  * Maps the allocated handle and retrieves a memory address
  */
-PUBLIC_API STATUS heapMap(PHeap, ALLOCATION_HANDLE, PVOID*, PUINT32);
+PUBLIC_API STATUS heapMap(PHeap, ALLOCATION_HANDLE, PVOID*, PUINT64);
 
 /**
  * Un-maps the previously mapped memory

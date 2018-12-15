@@ -124,9 +124,12 @@ DEFINE_HEAP_ALLOC(sysHeapAlloc)
     // overall allocation size
     overallSize = SYS_ALLOCATION_HEADER_SIZE + size + SYS_ALLOCATION_FOOTER_SIZE;
 
+    // Validate for 32 bit systems
+    CHK(CHECK_64_BIT || overallSize <= MAX_UINT32, STATUS_INVALID_ALLOCATION_SIZE);
+
     // Perform the allocation
-    if (NULL == (pHeader = (PALLOCATION_HEADER)MEMALLOC(overallSize))) {
-        DLOGV("Failed to allocate %d bytes from the heap", overallSize);
+    if (NULL == (pHeader = (PALLOCATION_HEADER)MEMALLOC((SIZE_T) overallSize))) {
+        DLOGV("Failed to allocate %" PRIu64 "bytes from the heap", overallSize);
 
         // Make sure we decrement the counters by calling decrement
         decrementUsage(pHeap, overallSize);
@@ -137,7 +140,7 @@ DEFINE_HEAP_ALLOC(sysHeapAlloc)
 
 #ifdef HEAP_DEBUG
     // Null the memory in debug mode
-    MEMSET(pHeader, 0x00, overallSize);
+    MEMSET(pHeader, 0x00, (SIZE_T) overallSize);
 #endif
     // Set up the header and footer
     MEMCPY(pHeader, &gSysHeader, SYS_ALLOCATION_HEADER_SIZE);
@@ -173,7 +176,7 @@ DEFINE_HEAP_FREE(sysHeapFree)
 
 #ifdef HEAP_DEBUG
     // Null the memory in debug mode
-    MEMSET(pHeader, 0x00, SYS_ALLOCATION_HEADER_SIZE + pHeader->size + SYS_ALLOCATION_FOOTER_SIZE);
+    MEMSET(pHeader, 0x00, (SIZE_T) (SYS_ALLOCATION_HEADER_SIZE + pHeader->size + SYS_ALLOCATION_FOOTER_SIZE));
 #endif
 
     // Perform the de-allocation - will cause corruption if invalid pointer is passed in

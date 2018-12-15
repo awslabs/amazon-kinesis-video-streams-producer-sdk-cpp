@@ -159,7 +159,7 @@ CleanUp:
  *      @size - The size of the allocation
  *      @pHandle - The handle to the allocated memory
  */
-STATUS heapAlloc(PHeap pHeap, UINT32 size, PALLOCATION_HANDLE pHandle)
+STATUS heapAlloc(PHeap pHeap, UINT64 size, PALLOCATION_HANDLE pHandle)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -168,7 +168,7 @@ STATUS heapAlloc(PHeap pHeap, UINT32 size, PALLOCATION_HANDLE pHandle)
     CHK(pBase != NULL && pHandle != NULL, STATUS_NULL_ARG);
     CHK(size != 0, STATUS_INVALID_ARG);
 
-    DLOGS("Allocating %u bytes", size);
+    DLOGS("Allocating %" PRIu64 " bytes", size);
     CHK_STATUS(pBase->heapAllocFn(pHeap, size, pHandle));
 
 CleanUp:
@@ -208,7 +208,7 @@ CleanUp:
  *      @handle - The allocated memory handle
  *      @pAllocSize - Returns the size of the allocation
  */
-STATUS heapGetAllocSize(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT32 pAllocSize)
+STATUS heapGetAllocSize(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT64 pAllocSize)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -234,7 +234,7 @@ CleanUp:
  *      @ppAllocation - The returned memory pointer
  *      @pSize - The returned size of the allocation
  */
-STATUS heapMap(PHeap pHeap, ALLOCATION_HANDLE handle, PVOID* ppAllocation, PUINT32 pSize)
+STATUS heapMap(PHeap pHeap, ALLOCATION_HANDLE handle, PVOID* ppAllocation, PUINT64 pSize)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;

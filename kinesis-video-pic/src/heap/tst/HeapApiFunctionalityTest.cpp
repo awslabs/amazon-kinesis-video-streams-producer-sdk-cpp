@@ -24,7 +24,7 @@ VOID multipleMapUnmapByteAlloc(PHeap pHeap)
 {
     ALLOCATION_HANDLE handle;
     PVOID pAlloc;
-    UINT32 size;
+    UINT64 size;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
     EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
@@ -50,7 +50,7 @@ VOID multipleMapUnmapByteAlloc(PHeap pHeap)
 VOID multipleLargeAlloc(PHeap pHeap)
 {
     ALLOCATION_HANDLE handle;
-    UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
+    UINT64 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
     UINT32 i;
 
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
@@ -69,7 +69,7 @@ VOID minBlockFitAlloc(PHeap pHeap)
     UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
     ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i;
-    UINT32 retSize;
+    UINT64 retSize;
     PVOID pAlloc;
 
     // Set to default
@@ -251,8 +251,7 @@ VOID singleAllocFree(PHeap pHeap)
 TEST_F(HeapApiFunctionalityTest, GetHeapSizeAndGetAllocSize)
 {
     PHeap pHeap;
-    UINT32 i, size;
-    UINT64 heapSize;
+    UINT64 i, size, heapSize;
     ALLOCATION_HANDLE handle;
 
     // AIV heap

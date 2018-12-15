@@ -398,7 +398,7 @@ CleanUp:
         LEAVES();
     }
 
-    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFormatChanged(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject codecPrivateData)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamFormatChanged(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject codecPrivateData, jlong trackId)
     {
         ENTER();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -408,7 +408,7 @@ CleanUp:
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
         if (pWrapper != NULL) {
-            pWrapper->streamFormatChanged(streamHandle, codecPrivateData);
+            pWrapper->streamFormatChanged(streamHandle, codecPrivateData, trackId);
         }
 
         LEAVE();

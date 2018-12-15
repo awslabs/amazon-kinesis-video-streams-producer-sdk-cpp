@@ -57,6 +57,26 @@ STATUS validateClientCallbacks(PDeviceInfo pDeviceInfo, PClientCallbacks pClient
         pClientCallbacks->freeMutexFn = defaultFreeMutex;
     }
 
+    if (pClientCallbacks->createConditionVariableFn == NULL) {
+        pClientCallbacks->createConditionVariableFn = defaultCreateConditionVariable;
+    }
+
+    if (pClientCallbacks->signalConditionVariableFn == NULL) {
+        pClientCallbacks->signalConditionVariableFn = defaultSignalConditionVariable;
+    }
+
+    if (pClientCallbacks->broadcastConditionVariableFn == NULL) {
+        pClientCallbacks->broadcastConditionVariableFn = defaultBroadcastConditionVariable;
+    }
+
+    if (pClientCallbacks->waitConditionVariableFn == NULL) {
+        pClientCallbacks->waitConditionVariableFn = defaultWaitConditionVariable;
+    }
+
+    if (pClientCallbacks->freeConditionVariableFn == NULL) {
+        pClientCallbacks->freeConditionVariableFn = defaultFreeConditionVariable;
+    }
+
     if (pClientCallbacks->streamReadyFn == NULL) {
         pClientCallbacks->streamReadyFn = defaultStreamReady;
     }
@@ -188,7 +208,17 @@ STATUS validateStreamInfo(PStreamInfo pStreamInfo, PClientCallbacks pClientCallb
     pStreamInfo->streamCaps.frameRate = (pStreamInfo->streamCaps.frameRate == 0) ?
                                         DEFAULT_FRAME_RATE : pStreamInfo->streamCaps.frameRate;
 
+    CHK(pStreamInfo->streamCaps.trackInfoCount != 0 && pStreamInfo->streamCaps.trackInfoList != NULL, STATUS_TRACK_INFO_MISSING);
+    CHK(pStreamInfo->streamCaps.trackInfoCount <= MAX_SUPPORTED_TRACK_COUNT_PER_STREAM, STATUS_MAX_TRACK_COUNT_EXCEEDED);
     // Most the information is either optional or will be validated in the packager
+
+    CHK(!(pStreamInfo->retention == RETENTION_PERIOD_SENTINEL &&
+          IS_OFFLINE_STREAMING_MODE(pStreamInfo->streamCaps.streamingType)), STATUS_OFFLINE_MODE_WITH_ZERO_RETENTION);
+
+    if (IS_OFFLINE_STREAMING_MODE(pStreamInfo->streamCaps.streamingType)) {
+        pStreamInfo->streamCaps.connectionStalenessDuration = CONNECTION_STALENESS_DETECTION_SENTINEL;
+        pStreamInfo->streamCaps.maxLatency = STREAM_LATENCY_PRESSURE_CHECK_SENTINEL;
+    }
 
 CleanUp:
     return retStatus;

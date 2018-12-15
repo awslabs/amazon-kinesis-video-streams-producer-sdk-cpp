@@ -52,17 +52,17 @@ typedef STATUS (*HeapGetSizeFunc)(PHeap, PUINT64);
 /**
  * Gets the allocation size
  */
-typedef STATUS (*HeapGetAllocSizeFunc)(PHeap, ALLOCATION_HANDLE, PUINT32);
+typedef STATUS (*HeapGetAllocSizeFunc)(PHeap, ALLOCATION_HANDLE, PUINT64);
 
 /**
  * Allocates memory from the heap
  */
-typedef STATUS (*HeapAllocFunc)(PHeap, UINT32, PALLOCATION_HANDLE);
+typedef STATUS (*HeapAllocFunc)(PHeap, UINT64, PALLOCATION_HANDLE);
 
 /**
  * Maps the allocated handle and retrieves a memory address
  */
-typedef STATUS (*HeapMapFunc)(PHeap, ALLOCATION_HANDLE, PVOID*, PUINT32);
+typedef STATUS (*HeapMapFunc)(PHeap, ALLOCATION_HANDLE, PVOID*, PUINT64);
 
 /**
  * Un-maps the previously mapped memory
@@ -82,17 +82,17 @@ typedef STATUS (*HeapInitializeFunc)(PHeap, UINT64);
 /**
  * Returns the allocation size
  */
-typedef UINT32 (*GetAllocationSizeFunc)(PHeap, ALLOCATION_HANDLE);
+typedef UINT64 (*GetAllocationSizeFunc)(PHeap, ALLOCATION_HANDLE);
 
 /**
  * Returns the allocation header size
  */
-typedef UINT32 (*GetAllocationHeaderSizeFunc)();
+typedef UINT64 (*GetAllocationHeaderSizeFunc)();
 
 /**
  * Returns the allocation footer size
  */
-typedef UINT32 (*GetAllocationFooterSizeFunc)();
+typedef UINT64 (*GetAllocationFooterSizeFunc)();
 
 /**
  * Returns the allocation limits
@@ -106,15 +106,15 @@ typedef VOID (*GetHeapLimitsFunc)(PUINT64, PUINT64);
 #define DEFINE_INIT_HEAP(name)            STATUS name(PHeap pHeap, UINT64 heapLimit)
 #define DEFINE_RELEASE_HEAP(name)         STATUS name(PHeap pHeap)
 #define DEFINE_GET_HEAP_SIZE(name)        STATUS name(PHeap pHeap, PUINT64 pHeapSize)
-#define DEFINE_HEAP_ALLOC(name)           STATUS name(PHeap pHeap, UINT32 size, PALLOCATION_HANDLE pHandle)
+#define DEFINE_HEAP_ALLOC(name)           STATUS name(PHeap pHeap, UINT64 size, PALLOCATION_HANDLE pHandle)
 #define DEFINE_HEAP_FREE(name)            STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle)
-#define DEFINE_HEAP_GET_ALLOC_SIZE(name)  STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT32 pAllocSize)
-#define DEFINE_HEAP_MAP(name)             STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PVOID* ppAllocation, PUINT32 pSize)
+#define DEFINE_HEAP_GET_ALLOC_SIZE(name)  STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT64 pAllocSize)
+#define DEFINE_HEAP_MAP(name)             STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PVOID* ppAllocation, PUINT64 pSize)
 #define DEFINE_HEAP_UNMAP(name)           STATUS name(PHeap pHeap, PVOID pAllocation)
 #define DEFINE_HEAP_CHK(name)             STATUS name(PHeap pHeap, BOOL dump)
-#define DEFINE_ALLOC_SIZE(name)           UINT32 name(PHeap pHeap, ALLOCATION_HANDLE handle)
-#define DEFINE_HEADER_SIZE(name)          UINT32 name()
-#define DEFINE_FOOTER_SIZE(name)          UINT32 name()
+#define DEFINE_ALLOC_SIZE(name)           UINT64 name(PHeap pHeap, ALLOCATION_HANDLE handle)
+#define DEFINE_HEADER_SIZE(name)          UINT64 name()
+#define DEFINE_FOOTER_SIZE(name)          UINT64 name()
 #define DEFINE_HEAP_LIMITS(name)          VOID name(PUINT64 pMinHeapSize, PUINT64 pMaxHeapSize)
 
 typedef struct

@@ -79,7 +79,7 @@ TEST_F(StreamApiFunctionalityTest, streamFormatChange_stateCheck)
     CreateStream();
 
     // Ensure we can successfully set the CPD
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd, TEST_TRACKID));
 
     // Move to ready state
     mStreamDescription.version = STREAM_DESCRIPTION_CURRENT_VERSION;
@@ -93,17 +93,17 @@ TEST_F(StreamApiFunctionalityTest, streamFormatChange_stateCheck)
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 
     // Ensure we can successfully set the CPD
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd, TEST_TRACKID));
 
     EXPECT_EQ(STATUS_SUCCESS, getStreamingEndpointResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT));
 
     // Ensure we can successfully set the CPD
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd, TEST_TRACKID));
 
     EXPECT_EQ(STATUS_SUCCESS, getStreamingTokenResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, (PBYTE) TEST_STREAMING_TOKEN, SIZEOF(TEST_STREAMING_TOKEN), TEST_AUTH_EXPIRATION));
 
     // Ensure we can successfully set the CPD
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd, TEST_TRACKID));
 
     for (i = 0, timestamp = 0; i < 20; timestamp += TEST_FRAME_DURATION, i++) {
         frame.index = i;
@@ -112,6 +112,7 @@ TEST_F(StreamApiFunctionalityTest, streamFormatChange_stateCheck)
         frame.duration = TEST_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
         frame.frameData = tempBuffer;
+        frame.trackId = TEST_TRACKID;
 
         // Key frame every 4th
         frame.flags = i % 4 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
@@ -123,7 +124,7 @@ TEST_F(StreamApiFunctionalityTest, streamFormatChange_stateCheck)
         }
 
         // Setting CPD should fail
-        EXPECT_NE(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd));
+        EXPECT_NE(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, SIZEOF(cpd), cpd, TEST_TRACKID));
     }
 }
 
@@ -148,6 +149,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_BasicPutTestItemLimit)
         frame.duration = TEST_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
         frame.frameData = tempBuffer;
+        frame.trackId = TEST_TRACKID;
 
         // Key frame every 10th
         frame.flags = i % 10 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
@@ -195,6 +197,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_BasicPutTestDurationLimit)
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
         frame.frameData = tempBuffer;
+        frame.trackId = TEST_TRACKID;
 
         // Key frame every 10th
         frame.flags = i % 10 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
@@ -242,6 +245,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetUnderflow)
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
         frame.frameData = tempBuffer;
+        frame.trackId = TEST_TRACKID;
 
         // Key frame every 10th
         frame.flags = i % 10 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
@@ -305,6 +309,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetNextKeyFrame)
         frame.presentationTs = timestamp;
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
+        frame.trackId = TEST_TRACKID;
         // Change the content of the buffer
         *(PUINT32) &tempBuffer = i;
         frame.frameData = tempBuffer;
@@ -349,6 +354,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetNextKeyFrame)
     frame.presentationTs = timestamp;
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
+    frame.trackId = TEST_TRACKID;
     // Change the content of the buffer
     *(PUINT32) &tempBuffer = i;
     frame.frameData = tempBuffer;
@@ -375,6 +381,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StorageOverflow)
         frame.presentationTs = timestamp;
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = frameSize;
+        frame.trackId = TEST_TRACKID;
         // Change the content of the buffer
         *(PUINT32) pData = i;
         frame.frameData = pData;
@@ -407,6 +414,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StorageOverflow)
     frame.presentationTs = timestamp;
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = frameSize;
+    frame.trackId = TEST_TRACKID;
     // Change the content of the buffer
     *(PUINT32) pData = i;
     frame.frameData = pData;
@@ -439,6 +447,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StoragePressureNotification)
         frame.presentationTs = timestamp;
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = frameSize;
+        frame.trackId = TEST_TRACKID;
         // Change the content of the buffer
         *(PUINT32) pData = i;
         frame.frameData = pData;
@@ -489,6 +498,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamLatencyNotification)
         frame.presentationTs = timestamp;
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
+        frame.trackId = TEST_TRACKID;
         frame.frameData = tempBuffer;
 
         // Key frame every 10th
@@ -524,6 +534,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartOkResult)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -604,6 +615,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartStreamLimitResult)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -684,6 +696,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartUnauthorizedResult)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -764,6 +777,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartOtherResult)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -846,6 +860,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartNotFoundResult)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -928,6 +943,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResult)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -992,6 +1008,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResultRestart)
     frame.duration = TEST_LONG_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
@@ -1066,6 +1083,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     frame.presentationTs = timestamp;
     frame.duration = TEST_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
+    frame.trackId = TEST_TRACKID;
     frame.frameData = tempBuffer;
     frame.flags = FRAME_FLAG_KEY_FRAME;
 
@@ -1095,6 +1113,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     frame.presentationTs = timestamp + TEST_FRAME_DURATION;
     frame.duration = TEST_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
+    frame.trackId = TEST_TRACKID;
     frame.frameData = tempBuffer;
     frame.flags = FRAME_FLAG_KEY_FRAME;
     EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
@@ -1108,7 +1127,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     EXPECT_EQ(TEST_FRAME_DURATION * 2, mDataReadyDuration);
 
     // Should be encoded size
-    EXPECT_EQ(SIZEOF(tempBuffer) + MKV_HEADER_OVERHEAD + SIZEOF(tempBuffer) + MKV_SIMPLE_BLOCK_OVERHEAD, mDataReadySize);
+    EXPECT_EQ(SIZEOF(tempBuffer) + GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT) + SIZEOF(tempBuffer) + MKV_SIMPLE_BLOCK_OVERHEAD, mDataReadySize);
 }
 
 TEST_F(StreamApiFunctionalityTest, putFrame_AdaptAnnexB)
@@ -1128,6 +1147,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_AdaptAnnexB)
     frame.presentationTs = 0;
     frame.duration = TEST_FRAME_DURATION;
     frame.size = frameDataSize;
+    frame.trackId = TEST_TRACKID;
     frame.frameData = frameData;
     frame.flags = FRAME_FLAG_KEY_FRAME;
     EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
@@ -1156,6 +1176,7 @@ TEST_F(StreamApiFunctionalityTest, PutGet_ConnectionStaleNotification)
         frame.presentationTs = timestamp;
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
+        frame.trackId = TEST_TRACKID;
         frame.frameData = tempBuffer;
 
         // Key frame every 10th

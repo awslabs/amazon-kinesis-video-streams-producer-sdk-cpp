@@ -3,26 +3,7 @@
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-#define MAX_CUSTOM_USER_AGENT_STRING_LENGTH            128
-
 LOGGER_TAG("com.amazonaws.kinesis.video");
-
-static std::string computeUserAgentString(const std::string user_agent_name, const std::string custom_useragent) {
-    std::stringstream ss;
-    ss << user_agent_name << "/" << getProducerSDKVersion() << " " << getCompilerVersion() << " "
-       << getOSVersion() << " " << getPlatformName();
-
-    if (!custom_useragent.empty()){
-        if (custom_useragent.size() < MAX_CUSTOM_USER_AGENT_STRING_LENGTH) {
-            ss << " " << custom_useragent;
-        } else {
-            LOG_WARN("dropping custom useragent because it execeeded maximum length of "
-                << MAX_CUSTOM_USER_AGENT_STRING_LENGTH);
-        }
-    }
-
-    return ss.str();
-}
 
 unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
         unique_ptr<DeviceInfoProvider> device_info_provider,
@@ -38,7 +19,8 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
                                                                   move(credential_provider),
                                                                   region,
                                                                   control_plane_uri,
-                                                                  computeUserAgentString(user_agent_name, device_info_provider->getCustomUserAgent()));
+                                                                  user_agent_name,
+                                                                  device_info_provider->getCustomUserAgent());
 
     return KinesisVideoProducer::create(move(device_info_provider), move(callback_provider));
 }
@@ -66,6 +48,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     override_callbacks.streamLatencyPressureFn = kinesis_video_producer->stored_callbacks_.streamLatencyPressureFn == NULL ? NULL : KinesisVideoProducer::streamLatencyPressureFunc;
     override_callbacks.droppedFrameReportFn = kinesis_video_producer->stored_callbacks_.droppedFrameReportFn == NULL ? NULL : KinesisVideoProducer::droppedFrameReportFunc;
     override_callbacks.droppedFragmentReportFn = kinesis_video_producer->stored_callbacks_.droppedFragmentReportFn == NULL ? NULL : KinesisVideoProducer::droppedFragmentReportFunc;
+    override_callbacks.bufferDurationOverflowPressureFn = kinesis_video_producer->stored_callbacks_.bufferDurationOverflowPressureFn == NULL ? NULL : KinesisVideoProducer::bufferDurationOverflowPressureFunc;
     override_callbacks.streamErrorReportFn = kinesis_video_producer->stored_callbacks_.streamErrorReportFn == NULL ? NULL : KinesisVideoProducer::streamErrorReportFunc;
     override_callbacks.createStreamFn = kinesis_video_producer->stored_callbacks_.createStreamFn == NULL ? NULL : KinesisVideoProducer::createStreamFunc;
     override_callbacks.describeStreamFn = kinesis_video_producer->stored_callbacks_.describeStreamFn == NULL ? NULL : KinesisVideoProducer::describeStreamFunc;
@@ -83,6 +66,11 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     override_callbacks.unlockMutexFn = kinesis_video_producer->stored_callbacks_.unlockMutexFn == NULL ? NULL : KinesisVideoProducer::unlockMutexFunc;
     override_callbacks.tryLockMutexFn = kinesis_video_producer->stored_callbacks_.tryLockMutexFn == NULL ? NULL : KinesisVideoProducer::tryLockMutexFunc;
     override_callbacks.freeMutexFn = kinesis_video_producer->stored_callbacks_.freeMutexFn == NULL ? NULL : KinesisVideoProducer::freeMutexFunc;
+    override_callbacks.createConditionVariableFn = kinesis_video_producer->stored_callbacks_.createConditionVariableFn == NULL ? NULL : KinesisVideoProducer::createConditionVariableFunc;
+    override_callbacks.signalConditionVariableFn = kinesis_video_producer->stored_callbacks_.signalConditionVariableFn == NULL ? NULL : KinesisVideoProducer::signalConditionVariableFunc;
+    override_callbacks.broadcastConditionVariableFn = kinesis_video_producer->stored_callbacks_.broadcastConditionVariableFn == NULL ? NULL : KinesisVideoProducer::broadcastConditionVariableFunc;
+    override_callbacks.waitConditionVariableFn = kinesis_video_producer->stored_callbacks_.waitConditionVariableFn == NULL ? NULL : KinesisVideoProducer::waitConditionVariableFunc;
+    override_callbacks.freeConditionVariableFn = kinesis_video_producer->stored_callbacks_.freeConditionVariableFn == NULL ? NULL : KinesisVideoProducer::freeConditionVariableFunc;
     override_callbacks.getCurrentTimeFn = kinesis_video_producer->stored_callbacks_.getCurrentTimeFn == NULL ? NULL : KinesisVideoProducer::getCurrentTimeFunc;
     override_callbacks.getRandomNumberFn = kinesis_video_producer->stored_callbacks_.getRandomNumberFn == NULL ? NULL : KinesisVideoProducer::getRandomNumberFunc;
 
@@ -121,7 +109,8 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
                                                                   move(credential_provider),
                                                                   region,
                                                                   control_plane_uri,
-                                                                  computeUserAgentString(user_agent_name, device_info_provider->getCustomUserAgent()));
+                                                                  user_agent_name,
+                                                                  device_info_provider->getCustomUserAgent());
 
     return KinesisVideoProducer::createSync(move(device_info_provider), move(callback_provider));
 }
@@ -166,6 +155,10 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
 shared_ptr<KinesisVideoStream> KinesisVideoProducer::createStream(unique_ptr<StreamDefinition> stream_definition) {
     assert(stream_definition.get());
 
+    if (stream_definition->getTrackCount() > MAX_SUPPORTED_TRACK_COUNT_PER_STREAM) {
+        LOG_ERROR("Exceeded maximum track count: " + std::to_string(MAX_SUPPORTED_TRACK_COUNT_PER_STREAM));
+        return nullptr;
+    }
     StreamInfo stream_info = stream_definition->getStreamInfo();
     std::shared_ptr<KinesisVideoStream> kinesis_video_stream(new KinesisVideoStream(*this, stream_definition->getStreamName()), KinesisVideoStream::videoStreamDeleter);
     STATUS status = createKinesisVideoStream(client_handle_, &stream_info, kinesis_video_stream->getStreamHandle());
@@ -312,6 +305,17 @@ STATUS KinesisVideoProducer::streamClosedFunc(UINT64 custom_data,
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     auto kinesis_video_stream = this_obj->active_streams_.get(stream_handle);
     assert(nullptr != kinesis_video_stream);
+    STATUS status = STATUS_SUCCESS;
+
+    // Call the stored callback if specified
+    if (nullptr != this_obj->stored_callbacks_.streamClosedFn) {
+        status = this_obj->stored_callbacks_.streamClosedFn(this_obj->stored_callbacks_.customData,
+                                                                   stream_handle,
+                                                                   stream_upload_handle);
+        if (STATUS_FAILED(status)) {
+            LOG_WARN("Failed to get call stream closed callback with: " << status);
+        }
+    }
 
     // Trigger the stream closed
     {
@@ -320,14 +324,7 @@ STATUS KinesisVideoProducer::streamClosedFunc(UINT64 custom_data,
         kinesis_video_stream->getStreamClosedVar().notify_one();
     }
 
-    // Call the stored callback if specified
-    if (nullptr != this_obj->stored_callbacks_.streamClosedFn) {
-        return this_obj->stored_callbacks_.streamClosedFn(this_obj->stored_callbacks_.customData,
-                                                          stream_handle,
-                                                          stream_upload_handle);
-    } else {
-        return STATUS_SUCCESS;
-    }
+    return status;
 }
 
 KinesisVideoProducerMetrics KinesisVideoProducer::getMetrics() const {
@@ -358,15 +355,48 @@ VOID KinesisVideoProducer::unlockMutexFunc(UINT64 custom_data,
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     this_obj->stored_callbacks_.unlockMutexFn(this_obj->stored_callbacks_.customData, mutex);
 }
+
 BOOL KinesisVideoProducer::tryLockMutexFunc(UINT64 custom_data,
                                             MUTEX mutex) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     return this_obj->stored_callbacks_.tryLockMutexFn(this_obj->stored_callbacks_.customData, mutex);
 }
+
 VOID KinesisVideoProducer::freeMutexFunc(UINT64 custom_data,
                                          MUTEX mutex) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     this_obj->stored_callbacks_.freeMutexFn(this_obj->stored_callbacks_.customData, mutex);
+}
+
+CVAR KinesisVideoProducer::createConditionVariableFunc(UINT64 custom_data) {
+    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    return this_obj->stored_callbacks_.createConditionVariableFn(this_obj->stored_callbacks_.customData);
+}
+
+STATUS KinesisVideoProducer::signalConditionVariableFunc(UINT64 custom_data,
+                                                         CVAR cvar) {
+    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    return this_obj->stored_callbacks_.signalConditionVariableFn(this_obj->stored_callbacks_.customData, cvar);
+}
+
+STATUS KinesisVideoProducer::broadcastConditionVariableFunc(UINT64 custom_data,
+                                                            CVAR cvar) {
+    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    return this_obj->stored_callbacks_.broadcastConditionVariableFn(this_obj->stored_callbacks_.customData, cvar);
+}
+
+STATUS KinesisVideoProducer::waitConditionVariableFunc(UINT64 custom_data,
+                                                       CVAR cvar,
+                                                       MUTEX mutex,
+                                                       UINT64 timeout) {
+    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    return this_obj->stored_callbacks_.waitConditionVariableFn(this_obj->stored_callbacks_.customData, cvar, mutex, timeout);
+}
+
+VOID KinesisVideoProducer::freeConditionVariableFunc(UINT64 custom_data,
+                                                     CVAR cvar) {
+    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    this_obj->stored_callbacks_.freeConditionVariableFn(this_obj->stored_callbacks_.customData, cvar);
 }
 
 UINT64 KinesisVideoProducer::getCurrentTimeFunc(UINT64 custom_data) {
@@ -502,11 +532,13 @@ STATUS KinesisVideoProducer::droppedFragmentReportFunc(UINT64 custom_data,
 
 STATUS KinesisVideoProducer::streamErrorReportFunc(UINT64 custom_data,
                                                    STREAM_HANDLE stream_handle,
+                                                   UPLOAD_HANDLE upload_handle,
                                                    UINT64 timecode,
                                                    STATUS status) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     return this_obj->stored_callbacks_.streamErrorReportFn(this_obj->stored_callbacks_.customData,
                                                            stream_handle,
+                                                           upload_handle,
                                                            timecode,
                                                            status);
 }
@@ -635,11 +667,20 @@ STATUS KinesisVideoProducer::streamConnectionStaleFunc(UINT64 custom_data,
 
 STATUS KinesisVideoProducer::fragmentAckReceivedFunc(UINT64 custom_data,
                                                      STREAM_HANDLE stream_handle,
+                                                     UPLOAD_HANDLE upload_handle,
                                                      PFragmentAck fragment_ack) {
     auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
     return this_obj->stored_callbacks_.fragmentAckReceivedFn(this_obj->stored_callbacks_.customData,
                                                              stream_handle,
+                                                             upload_handle,
                                                              fragment_ack);
+}
+
+STATUS KinesisVideoProducer::bufferDurationOverflowPressureFunc(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 remaining_duration) {
+    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    return this_obj->stored_callbacks_.bufferDurationOverflowPressureFn(this_obj->stored_callbacks_.customData,
+                                                                        stream_handle,
+                                                                        remaining_duration);
 }
 
 } // namespace video

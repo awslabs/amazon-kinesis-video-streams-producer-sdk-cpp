@@ -64,7 +64,7 @@ typedef struct {
 ////////////////////////////////////////////////////
 // Internal functionality
 ////////////////////////////////////////////////////
-PViewItem findViewItemWithTimestamp(PRollingContentView, PViewItem, PViewItem, UINT64);
+PViewItem findViewItemWithTimestamp(PRollingContentView, PViewItem, PViewItem, UINT64, BOOL);
 
 #pragma pack(pop, include_i)
 

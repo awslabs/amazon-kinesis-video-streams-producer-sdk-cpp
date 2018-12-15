@@ -583,6 +583,12 @@ CleanUp:
         pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
     }
 
+    if (pKinesisVideoStream->streamState == STREAM_STATE_STOPPED &&
+        IS_OFFLINE_STREAMING_MODE(pKinesisVideoStream->streamInfo.streamCaps.streamingType)) {
+        pKinesisVideoClient->clientCallbacks.signalConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                                       pKinesisVideoStream->bufferAvailabilityCondition);
+    }
+
     LEAVES();
     return retStatus;
 }
@@ -655,7 +661,8 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
     }
 
     // Quick check if we have the timestamp in the view window and if not then bail out early
-    CHK_STATUS(contentViewTimestampInRange(pKinesisVideoStream->pView, timestamp, &inView));
+    CHK_STATUS(contentViewTimestampInRange(pKinesisVideoStream->pView, timestamp, TRUE, &inView));
+
 
     // NOTE: IMPORTANT: For the Error Ack case we will still need to process the ACK. The side-effect of
     // processing the Error Ack is the connection termination which is needed as the higher-level clients like
@@ -705,6 +712,7 @@ CleanUp:
         if (pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn != NULL) {
             pKinesisVideoClient->clientCallbacks.fragmentAckReceivedFn(pKinesisVideoClient->clientCallbacks.customData,
                                                                        TO_STREAM_HANDLE(pKinesisVideoStream),
+                                                                       uploadHandle,
                                                                        pFragmentAck);
         }
 

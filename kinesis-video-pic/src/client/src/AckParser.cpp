@@ -33,6 +33,8 @@ STATUS parseFragmentAck(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE u
     UINT32 index = 0;
     UINT32 level = 0;
     CHAR curChar;
+    PKinesisVideoClient pKinesisVideoClient = NULL;
+    BOOL streamLocked = FALSE;
 
     CHK(pKinesisVideoStream != NULL && ackSegment != NULL, STATUS_NULL_ARG);
 
@@ -42,6 +44,11 @@ STATUS parseFragmentAck(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE u
     } else {
         CHK(ackSegmentSize <= MAX_ACK_FRAGMENT_LEN, STATUS_INVALID_ACK_SEGMENT_LEN);
     }
+
+    pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
+    pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                     pKinesisVideoStream->base.lock);
+    streamLocked = TRUE;
 
     // Set the upload handle
     if (!IS_VALID_UPLOAD_HANDLE(pKinesisVideoStream->fragmentAckParser.uploadHandle)) {
@@ -250,6 +257,11 @@ CleanUp:
     // Reset the parser on error
     if (STATUS_FAILED(retStatus)) {
         resetAckParserState(pKinesisVideoStream);
+    }
+
+    if (streamLocked) {
+        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                           pKinesisVideoStream->base.lock);
     }
 
     LEAVES();

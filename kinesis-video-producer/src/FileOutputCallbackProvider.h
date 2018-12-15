@@ -1,67 +1,24 @@
-/** Copyright 2017 Amazon.com. All rights reserved. */
+#ifndef __FILE_OUTPUT_CALLBACK_PROVIDER_H__
+#define __FILE_OUTPUT_CALLBACK_PROVIDER_H__
 
-#pragma once
-
-#include "com/amazonaws/kinesis/video/client/Include.h"
-#include "AwsV4Signer.h"
-#include "CurlCallManager.h"
-#include "Logger.h"
 #include "CallbackProvider.h"
-#include "ClientCallbackProvider.h"
-#include "StreamCallbackProvider.h"
-#include "ThreadSafeMap.h"
-#include "OngoingStreamState.h"
-#include "GetTime.h"
-
-#include "json/json.h"
-
-#include <algorithm>
-#include <memory>
-#include <thread>
-#include <future>
-#include <list>
-#include <cstdint>
-#include <string>
-#include <mutex>
-
-namespace {
-/**
- * Defining the defaults for the service
- */
-const std::string DEFAULT_AWS_REGION  = "us-west-2";
-const std::string KINESIS_VIDEO_SERVICE_NAME = "kinesisvideo";
-const std::string DEFAULT_CONTROL_PLANE_URI = "https://kinesisvideo.us-west-2.amazonaws.com";
-const std::string CONTROL_PLANE_URI_PREFIX = "https://";
-const std::string CONTROL_PLANE_URI_POSTFIX = ".amazonaws.com";
-const std::string DEFAULT_USER_AGENT_NAME = "AWS-SDK-KVS";
-}
+#include <fstream>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
+class FileOutputCallbackProvider : public CallbackProvider {
 
-#define CURL_CLOSE_HANDLE_DELAY_IN_MILLIS 10
-
-class DefaultCallbackProvider : public CallbackProvider, public ResponseAcceptor {
 public:
-    explicit DefaultCallbackProvider(
-            std::unique_ptr <ClientCallbackProvider> client_callback_provider,
-            std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
-            std::unique_ptr <CredentialProvider> credentials_provider =
-                std::make_unique<EmptyCredentialProvider>(),
-            const std::string &region = DEFAULT_AWS_REGION,
-            const std::string &control_plane_uri = "",
-            const std::string &user_agent_name = "",
-            const std::string &custom_user_agent = "");
+    explicit FileOutputCallbackProvider();
 
-    virtual ~DefaultCallbackProvider();
+    virtual ~FileOutputCallbackProvider();
+
+    UPLOAD_HANDLE getUploadHandle() {
+        return current_upload_handle_++;
+    }
 
     /**
-     * Response setter override
-     */
-    void setResponse(STREAM_HANDLE stream_handle, std::shared_ptr<Response> response) override;
-
-    /**
-     * Stream is being freed
-     */
+    * Stream is being freed
+    */
     void shutdownStream(STREAM_HANDLE stream_handle) override;
 
     /**
@@ -185,11 +142,6 @@ public:
     StreamConnectionStaleFunc getStreamConnectionStaleCallback() override;
 
     /**
-     * @copydoc com::amazonaws::kinesis::video::CallbackProvider::getBufferDurationOverflowPressureCallback()
-     */
-    BufferDurationOverflowPressureFunc getBufferDurationOverflowPressureCallback() override;
-
-    /**
      * Gets the current time in 100ns from some timestamp.
      *
      * @param 1 UINT64 - Custom handle passed by the caller.
@@ -253,19 +205,6 @@ public:
     static STATUS droppedFrameReportHandler(UINT64 custom_data,
                                             STREAM_HANDLE stream_handle,
                                             UINT64 timecode);
-
-    /**
-     * Reports temporal buffer pressure.
-     *
-     * @param 1 UINT64 - Custom handle passed by the caller.
-     * @param 2 STREAM_HANDLE - Reporting for this stream.
-     * @param 3 UINT64 - Remaining duration in hundreds of nanos.
-     *
-     * @return Status of the callback
-     */
-    static STATUS bufferDurationOverflowPressureHandler(UINT64 custom_data,
-                                                        STREAM_HANDLE stream_handle,
-                                                        UINT64 remaining_duration);
 
     /**
      * Reports a dropped fragment for the stream.
@@ -507,130 +446,13 @@ public:
                                       UPLOAD_HANDLE stream_upload_handle);
 
 protected:
-
-    /**
-     * Convenience method to convert Kinesis Video string statuses to their corresponding enum value.
-     * If the status is not recognized, a std::runtime_exception will be thrown.
-     *
-     * @param status The status returned by Kinesis Video as a string
-     * @return The KINESIS_VIDEO_STREAM_STATUS value corresponding to the status
-     */
-    static STREAM_STATUS getStreamStatusFromString(const std::string &status);
-
-    /**
-     * Safe frees a buffer
-     * @param buffer
-     */
-    static void safeFreeBuffer(uint8_t** ppBuffer);
-
-    /**
-     * Returns a new upload handle and increments the current value
-     */
-    UPLOAD_HANDLE getUploadHandle() {
-        return current_upload_handle_++;
-    }
-
-    /**
-     * Returns the fully combined service URI
-     */
-    std::string& getControlPlaneUri() {
-        return control_plane_uri_;
-    }
-
-    /**
-     * Notifies the client callback on an error status
-     */
-    void notifyResult(STATUS status, STREAM_HANDLE stream_handle) const;
-
-    /**
-     * SIGV4 request signer used by curl call manager to sign HTTP requests.
-     */
-    CurlCallManager &ccm_;
-
-    /**
-     * Stores the region for the service
-     */
-    std::string region_;
-
-    /**
-     * Stores the service URI
-     */
-    std::string control_plane_uri_;
-
-    /**
-     * Stores the service name
-     */
-    std::string service_;
-
-    /**
-     * Upload handle value
-     */
     UPLOAD_HANDLE current_upload_handle_;
+    std::ofstream debug_dump_file_stream_;
+    uint8_t *buffer_;
 
-    /**
-     * Stores the credentials provider
-     */
-    std::unique_ptr <CredentialProvider> credentials_provider_;
-
-    /**
-     * Stores the client level callbacks
-     */
-    std::unique_ptr <ClientCallbackProvider> client_callback_provider_;
-
-    /**
-     * Stores the stream level API
-     */
-    std::unique_ptr <StreamCallbackProvider> stream_callback_provider_;
-
-    /**
-     * Storage for the serialized security token
-     */
-    uint8_t* security_token_;
-
-    /**
-     * Mutex needed for locking the states for atomic operations
-     */
-    std::recursive_mutex active_streams_mutex_;
-
-    /**
-     * Mutex needed for locking the ongoing responses for atomic operations
-     */
-    std::recursive_mutex ongoing_responses_mutex_;
-
-    /**
-     * Whether to debug dump to a file
-     */
-    bool debug_dump_file_;
-
-    /**
-     * Stores the user agent string
-     */
-    std::string user_agent_;
-
-    /**
-     * A map which holds a reference mapping the stream handle to th OngoingPutFrameState instance associated with that
-     * stream name.
-     *
-     * This map exists so that a raw pointer (void*) of OngoingPutFrameState can be passed into the curl callback, as
-     * required by the curl API. Upon exit of the async task for put stream, the map entry is removed in the thunk
-     * returned by the pending_tasks_ future. At that point the OngoingPutFrameState shared pointer falls out of scope.
-     *
-     */
-    ThreadSafeMap<UPLOAD_HANDLE, std::shared_ptr<OngoingStreamState>> active_streams_;
-
-    /**
-     * A map which holds a reference mapping of the stream handle to an ongoing response object.
-     */
-    ThreadSafeMap<STREAM_HANDLE, std::shared_ptr<Response>> ongoing_responses_;
-
-    /**
-     * Sleep until given time based on current time provided in callback
-     * @param time_point
-     */
-    static void sleepUntilWithTimeCallback(const std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>& time_point);
 };
-
-} // namespace video
-} // namespace kinesis
-} // namespace amazonaws
-} // namespace com
+}
+}
+}
+}
+#endif //__FILE_OUTPUT_CALLBACK_PROVIDER_H__

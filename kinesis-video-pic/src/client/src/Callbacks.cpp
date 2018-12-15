@@ -68,6 +68,51 @@ VOID defaultFreeMutex(UINT64 customData, MUTEX mutex)
 }
 
 /**
+ * Default create condition variable functionality
+ */
+CVAR defaultCreateConditionVariable(UINT64 customData)
+{
+    UNUSED_PARAM(customData);
+    return CVAR_CREATE();
+}
+
+/**
+ * Default signal condition variable functionality
+ */
+STATUS defaultSignalConditionVariable(UINT64 customData, CVAR cvar)
+{
+    UNUSED_PARAM(customData);
+    return CVAR_SIGNAL(cvar);
+}
+
+/**
+ * Default broadcast condition variable functionality
+ */
+STATUS defaultBroadcastConditionVariable(UINT64 customData, CVAR cvar)
+{
+    UNUSED_PARAM(customData);
+    return CVAR_BROADCAST(cvar);
+}
+
+/**
+ * Default wait for condition variable functionality
+ */
+STATUS defaultWaitConditionVariable(UINT64 customData, CVAR cvar, MUTEX mutex, UINT64 timeout)
+{
+    UNUSED_PARAM(customData);
+    return CVAR_WAIT(cvar, mutex, timeout);
+}
+
+/**
+ * Default free cvar functionality
+ */
+VOID defaultFreeConditionVariable(UINT64 customData, CVAR cvar)
+{
+    UNUSED_PARAM(customData);
+    return CVAR_FREE(cvar);
+}
+
+/**
  * Default stream ready callback functionality - NOOP
  */
 STATUS defaultStreamReady(UINT64 customData, STREAM_HANDLE streamHandle)

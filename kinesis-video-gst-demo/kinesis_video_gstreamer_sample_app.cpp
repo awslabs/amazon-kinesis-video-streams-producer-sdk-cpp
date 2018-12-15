@@ -6,6 +6,8 @@
 #include "KinesisVideoProducer.h"
 #include <vector>
 #include <stdlib.h>
+#include <mutex>
+#include <IotCertCredentialProvider.h>
 
 using namespace std;
 using namespace com::amazonaws::kinesis::video;
@@ -37,7 +39,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
 #define DEFAULT_KEY_FRAME_FRAGMENTATION TRUE
 #define DEFAULT_FRAME_TIMECODES TRUE
-#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
+#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES FALSE
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
@@ -48,6 +50,96 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CONNECTION_STALENESS_SECONDS 60
 #define DEFAULT_CODEC_ID "V_MPEG4/ISO/AVC"
 #define DEFAULT_TRACKNAME "kinesis_video"
+#define DEFAULT_FRAME_DURATION_MS 1
+#define DEFAULT_FRAME_DATA_SIZE_BYTE 5000
+#define FRAME_DATA_SIZE_MULTIPLIER 1.5
+#define DEFAULT_CREDENTIAL_ROTATION_SECONDS 120
+#define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
+
+typedef enum _StreamSource {
+    FILE_SOURCE,
+    LIVE_SOURCE,
+    RTSP_SOURCE
+} StreamSource;
+
+typedef struct _FileInfo {
+    _FileInfo():
+            path(""),
+            last_fragment_ts(0) {}
+    string path;
+    uint64_t last_fragment_ts;
+} FileInfo;
+
+typedef struct _CustomData {
+
+    _CustomData():
+            streamSource(LIVE_SOURCE),
+            put_frame_failed(false),
+            h264_stream_supported(false),
+            synthetic_dts(0),
+            last_unpersisted_file_idx(0),
+            stream_status(STATUS_SUCCESS),
+            base_pts(0),
+            max_frame_pts(0),
+            key_frame_pts(0),
+            frame_data_size(DEFAULT_FRAME_DATA_SIZE_BYTE){
+        producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
+    }
+
+    GMainLoop *main_loop;
+    unique_ptr<KinesisVideoProducer> kinesis_video_producer;
+    shared_ptr<KinesisVideoStream> kinesis_video_stream;
+    bool stream_started;
+    bool h264_stream_supported;
+    char *stream_name;
+    mutex file_list_mtx;
+
+    // list of files to upload.
+    vector<FileInfo> file_list;
+
+    // index of file in file_list that application is currently trying to upload.
+    uint32_t current_file_idx;
+
+    // index of last file in file_list that haven't been persisted.
+    atomic_uint last_unpersisted_file_idx;
+
+    // stores any error status code reported by StreamErrorCallback.
+    atomic_uint stream_status;
+
+    // Since each file's timestamp start at 0, need to add all subsequent file's timestamp to base_pts starting from the
+    // second file to avoid fragment overlapping. When starting a new putMedia session, this should be set to 0.
+    // Unit: ns
+    uint64_t base_pts;
+
+    // Max pts in a file. This will be added to the base_pts for the next file. When starting a new putMedia session,
+    // this should be set to 0.
+    // Unit: ns
+    uint64_t max_frame_pts;
+
+    // When uploading file, store the pts of frames that has flag FRAME_FLAG_KEY_FRAME. When the entire file has been uploaded,
+    // key_frame_pts contains the timetamp of the last fragment in the file. key_frame_pts is then stored into last_fragment_ts
+    // of the file.
+    // Unit: ns
+    uint64_t key_frame_pts;
+
+    // Used in file uploading only. Assuming frame timestamp are relative. Add producer_start_time to each frame's
+    // timestamp to convert them to absolute timestamp. This way fragments dont overlap after token rotation when doing
+    // file uploading.
+    uint64_t producer_start_time;
+
+    volatile StreamSource streamSource;
+
+    string rtsp_url;
+
+    unique_ptr<Credentials> credential;
+
+    bool put_frame_failed;
+
+    uint64_t synthetic_dts;
+
+    uint8_t *frame_data;
+    uint32_t frame_data_size;
+} CustomData;
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -66,10 +158,12 @@ public:
 };
 
 class SampleStreamCallbackProvider : public StreamCallbackProvider {
+    UINT64 custom_data_;
 public:
+    SampleStreamCallbackProvider(UINT64 custom_data) : custom_data_(custom_data) {}
 
     UINT64 getCallbackCustomData() override {
-        return reinterpret_cast<UINT64> (this);
+        return custom_data_;
     }
 
     StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
@@ -84,23 +178,31 @@ public:
         return droppedFrameReportHandler;
     };
 
+    FragmentAckReceivedFunc getFragmentAckReceivedCallback() override {
+        return fragmentAckReceivedHandler;
+    };
+
 private:
     static STATUS
     streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                                  UINT64 last_buffering_ack);
 
     static STATUS
-    streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 errored_timecode,
+    streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
                              STATUS status_code);
 
     static STATUS
     droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                               UINT64 dropped_frame_timecode);
+
+    static STATUS
+    fragmentAckReceivedHandler( UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck);
 };
 
 class SampleCredentialProvider : public StaticCredentialProvider {
     // Test rotation period is 40 second for the grace period.
-    const std::chrono::duration<uint64_t> ROTATION_PERIOD = std::chrono::seconds(2400);
+    const std::chrono::duration<uint64_t> ROTATION_PERIOD = std::chrono::seconds(DEFAULT_CREDENTIAL_ROTATION_SECONDS);
 public:
     SampleCredentialProvider(const Credentials &credentials) :
             StaticCredentialProvider(credentials) {}
@@ -144,9 +246,13 @@ STATUS SampleStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_
 
 STATUS
 SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                                       UINT64 errored_timecode, STATUS status_code) {
+                                                       UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status_code) {
     LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: "
                                                            << status_code);
+    if (!IS_RECOVERABLE_ERROR(status_code)) {
+        CustomData *data = reinterpret_cast<CustomData *>(custom_data);
+        data->stream_status = status_code;
+    }
     return STATUS_SUCCESS;
 }
 
@@ -157,31 +263,53 @@ SampleStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STRE
     return STATUS_SUCCESS;
 }
 
+STATUS
+SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                                         UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck) {
+    CustomData *data = reinterpret_cast<CustomData *>(custom_data);
+    if (data->streamSource == FILE_SOURCE && pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED) {
+        std::unique_lock<std::mutex> lk(data->file_list_mtx);
+        uint32_t last_unpersisted_file_idx = data->last_unpersisted_file_idx.load();
+        uint64_t last_frag_ts = data->file_list.at(last_unpersisted_file_idx).last_fragment_ts /
+                                duration_cast<nanoseconds>(milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS)).count();
+        if (last_frag_ts != 0 && last_frag_ts == pFragmentAck->timestamp) {
+            data->last_unpersisted_file_idx = last_unpersisted_file_idx + 1;
+            LOG_INFO("Successfully persisted file " << data->file_list.at(last_unpersisted_file_idx).path);
+        }
+    }
+    LOG_WARN("Reporting fragment ack received. Ack timecode " << pFragmentAck->timestamp);
+    return STATUS_SUCCESS;
+}
+
 }  // namespace video
 }  // namespace kinesis
 }  // namespace amazonaws
 }  // namespace com;
 
-unique_ptr<Credentials> credentials_;
+static void eos_cb(GstElement *sink, CustomData *data) {
+    // bookkeeping base_pts. add 1ms to avoid overlap.
+    data->base_pts += + data->max_frame_pts + duration_cast<nanoseconds>(milliseconds(1)).count();
+    data->max_frame_pts = 0;
 
-typedef struct _CustomData {
-    GstElement *pipeline, *source, *source_filter, *encoder, *filter, *appsink, *video_convert, *h264parse;
-    GstBus *bus;
-    GMainLoop *main_loop;
-    unique_ptr<KinesisVideoProducer> kinesis_video_producer;
-    shared_ptr<KinesisVideoStream> kinesis_video_stream;
-    bool stream_started;
-    bool h264_stream_supported;
-} CustomData;
+    {
+        std::unique_lock<std::mutex> lk(data->file_list_mtx);
+        // store file's last fragment's timestamp.
+        data->file_list.at(data->current_file_idx).last_fragment_ts = data->key_frame_pts;
+    }
+
+    LOG_DEBUG("Terminating pipeline due to EOS");
+    g_main_loop_quit(data->main_loop);
+}
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
                                 void *data, size_t len) {
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
     frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-    frame->duration = 10 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame->duration = DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(data);
+    frame->trackId = DEFAULT_TRACK_ID;
 }
 
 bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
@@ -191,51 +319,93 @@ bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, 
 }
 
 static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
-    GstSample *sample = gst_app_sink_pull_sample(GST_APP_SINK (sink));
-    GstCaps* gstcaps  = (GstCaps*) gst_sample_get_caps(sample);
-    GstStructure * gststructforcaps = gst_caps_get_structure(gstcaps, 0);
+    GstBuffer *buffer;
+    bool isDroppable, isHeader, delta;
+    size_t buffer_size;
+    GstFlowReturn ret = GST_FLOW_OK;
+    STATUS curr_stream_status = data->stream_status.load();
+    GstSample *sample = nullptr;
 
+    if (STATUS_FAILED(curr_stream_status)) {
+        LOG_ERROR("Received stream error: " << curr_stream_status);
+        ret = GST_FLOW_ERROR;
+        goto CleanUp;
+    }
+
+    sample = gst_app_sink_pull_sample(GST_APP_SINK (sink));
+
+    // capture cpd at the first frame
     if (!data->stream_started) {
         data->stream_started = true;
+        GstCaps* gstcaps  = (GstCaps*) gst_sample_get_caps(sample);
+        GstStructure * gststructforcaps = gst_caps_get_structure(gstcaps, 0);
         const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
         gchar *cpd = gst_value_serialize(gstStreamFormat);
         data->kinesis_video_stream->start(std::string(cpd));
     }
 
-    GstBuffer *buffer = gst_sample_get_buffer(sample);
-    bool isDroppable =  GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_CORRUPTED) ||
-                        GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DECODE_ONLY);
+    buffer = gst_sample_get_buffer(sample);
+    isHeader = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_HEADER);
+    isDroppable = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_CORRUPTED) ||
+                  GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DECODE_ONLY) ||
+                  // drop if buffer contains header only and has invalid timestamp
+                  (isHeader && (!GST_BUFFER_PTS_IS_VALID(buffer) || !GST_BUFFER_DTS_IS_VALID(buffer)));
+
     if (!isDroppable) {
-        bool isHeader = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_HEADER);
-        // drop if buffer contains header only and has invalid timestamp
-        if (!(isHeader && (!GST_BUFFER_PTS_IS_VALID(buffer) || !GST_BUFFER_DTS_IS_VALID(buffer)))) {
-            size_t buffer_size = gst_buffer_get_size(buffer);
-            uint8_t *frame_data = new uint8_t[buffer_size];
-            gst_buffer_extract(buffer, 0, frame_data, buffer_size);
+        buffer_size = gst_buffer_get_size(buffer);
 
-            bool delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
-            FRAME_FLAGS kinesis_video_flags;
-            if(!delta) {
-                // Safeguard stream and playback in case of h264 keyframes comes with different PTS and DTS
-                if (data->h264_stream_supported) {
-                    buffer->pts = buffer->dts;
-                }
-                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
-            } else {
-                kinesis_video_flags = FRAME_FLAG_NONE;
+        // resize data buffer if not enough storage
+        if (buffer_size > data->frame_data_size) {
+            delete [] data->frame_data;
+            data->frame_data_size = buffer_size * FRAME_DATA_SIZE_MULTIPLIER;
+            data->frame_data = new uint8_t[data->frame_data_size];
+        }
+
+        gst_buffer_extract(buffer, 0, data->frame_data, buffer_size);
+
+        delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
+
+        FRAME_FLAGS kinesis_video_flags = delta ? FRAME_FLAG_NONE : FRAME_FLAG_KEY_FRAME;
+
+        // Always synthesize dts for file sources because file sources dont have meaningful dts.
+        // For some rtsp sources the dts is invalid, therefore synthesize.
+        if (!GST_BUFFER_DTS_IS_VALID(buffer) ||
+            data->streamSource == FILE_SOURCE) {
+            buffer->dts = data->synthetic_dts;
+
+            data->synthetic_dts += DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
+        }
+
+        if (data->streamSource == FILE_SOURCE) {
+            data->max_frame_pts = MAX(data->max_frame_pts, buffer->pts);
+
+            // make sure the timestamp is continuous across multiple files.
+            buffer->pts += data->base_pts + data->producer_start_time;
+
+            if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
+                data->key_frame_pts = buffer->pts;
             }
+        }
 
-            if (false == put_frame(data->kinesis_video_stream, frame_data, buffer_size, std::chrono::nanoseconds(buffer->pts),
-                                   std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
-                g_printerr("Dropped frame!\n");
-            }
-
-            delete[] frame_data;
+        if (false == put_frame(data->kinesis_video_stream, data->frame_data, buffer_size, std::chrono::nanoseconds(buffer->pts),
+                               std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
+            data->put_frame_failed = true;
+            g_printerr("Failed to submit frame to kinesis video stream\n");
         }
     }
 
-    gst_sample_unref(sample);
-    return GST_FLOW_OK;
+    if (data->streamSource == FILE_SOURCE && data->put_frame_failed) {
+        LOG_ERROR("Put frame failed while uploading file.");
+        ret = GST_FLOW_ERROR;
+        goto CleanUp;
+    }
+
+CleanUp:
+    if (sample != nullptr) {
+        gst_sample_unref(sample);
+    }
+
+    return ret;
 }
 
 static bool format_supported_by_source(GstCaps *src_caps, GstCaps *query_caps, int width, int height, int framerate) {
@@ -284,10 +454,11 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
     g_main_loop_quit(data->main_loop);
 }
 
-void kinesis_video_init(CustomData *data, char *stream_name) {
+void kinesis_video_init(CustomData *data) {
     unique_ptr<DeviceInfoProvider> device_info_provider = make_unique<SampleDeviceInfoProvider>();
     unique_ptr<ClientCallbackProvider> client_callback_provider = make_unique<SampleClientCallbackProvider>();
-    unique_ptr<StreamCallbackProvider> stream_callback_provider = make_unique<SampleStreamCallbackProvider>();
+    unique_ptr<StreamCallbackProvider> stream_callback_provider = make_unique<SampleStreamCallbackProvider>(
+            reinterpret_cast<UINT64>(data));
 
     char const *accessKey;
     char const *secretKey;
@@ -295,31 +466,56 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
     char const *defaultRegion;
     string defaultRegionStr;
     string sessionTokenStr;
-    if (nullptr == (accessKey = getenv(ACCESS_KEY_ENV_VAR))) {
-        accessKey = "AccessKey";
-    }
 
-    if (nullptr == (secretKey = getenv(SECRET_KEY_ENV_VAR))) {
-        secretKey = "SecretKey";
-    }
+    char const *iot_get_credential_endpoint;
+    char const *cert_path;
+    char const *private_key_path;
+    char const *role_alias;
+    char const *ca_cert_path;
 
-    if (nullptr == (sessionToken = getenv(SESSION_TOKEN_ENV_VAR))) {
-        sessionTokenStr = "";
-    } else {
-        sessionTokenStr = string(sessionToken);
-    }
+    unique_ptr<CredentialProvider> credential_provider;
 
     if (nullptr == (defaultRegion = getenv(DEFAULT_REGION_ENV_VAR))) {
         defaultRegionStr = DEFAULT_AWS_REGION;
     } else {
         defaultRegionStr = string(defaultRegion);
     }
+    LOG_INFO("Using region: " << defaultRegionStr);
 
-    credentials_ = make_unique<Credentials>(string(accessKey),
-                                            string(secretKey),
-                                            sessionTokenStr,
-                                            std::chrono::seconds(180));
-    unique_ptr<CredentialProvider> credential_provider = make_unique<SampleCredentialProvider>(*credentials_.get());
+    if (nullptr != (accessKey = getenv(ACCESS_KEY_ENV_VAR)) &&
+        nullptr != (secretKey = getenv(SECRET_KEY_ENV_VAR))) {
+
+        LOG_INFO("Using aws credentials for Kinesis Video Streams");
+        if (nullptr != (sessionToken = getenv(SESSION_TOKEN_ENV_VAR))) {
+            LOG_INFO("Session token detected.");
+            sessionTokenStr = string(sessionToken);
+        } else {
+            LOG_INFO("No session token was detected.");
+            sessionTokenStr = "";
+        }
+
+        data->credential = make_unique<Credentials>(string(accessKey),
+                                                    string(secretKey),
+                                                    sessionTokenStr,
+                                                    std::chrono::seconds(DEFAULT_CREDENTIAL_EXPIRATION_SECONDS));
+        credential_provider = make_unique<SampleCredentialProvider>(*data->credential.get());
+
+    } else if (nullptr != (iot_get_credential_endpoint = getenv("IOT_GET_CREDENTIAL_ENDPOINT")) &&
+               nullptr != (cert_path = getenv("CERT_PATH")) &&
+               nullptr != (private_key_path = getenv("PRIVATE_KEY_PATH")) &&
+               nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
+               nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
+        LOG_INFO("Using IoT credentials for Kinesis Video Streams");
+        credential_provider = make_unique<IotCertCredentialProvider>(iot_get_credential_endpoint,
+                                                                     cert_path,
+                                                                     private_key_path,
+                                                                     role_alias,
+                                                                     ca_cert_path,
+                                                                     data->stream_name);
+
+    } else {
+        LOG_AND_THROW("No valid credential method was found");
+    }
 
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
                                                                     move(client_callback_provider),
@@ -328,24 +524,36 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
                                                                     defaultRegionStr);
 
     LOG_DEBUG("Client is ready");
+}
+
+void kinesis_video_stream_init(CustomData *data) {
     /* create a test stream */
     map<string, string> tags;
     char tag_name[MAX_TAG_NAME_LEN];
     char tag_val[MAX_TAG_VALUE_LEN];
     SPRINTF(tag_name, "piTag");
     SPRINTF(tag_val, "piValue");
-    auto stream_definition = make_unique<StreamDefinition>(stream_name,
+
+    STREAMING_TYPE streaming_type = DEFAULT_STREAMING_TYPE;
+    bool use_absolute_fragment_times = DEFAULT_ABSOLUTE_FRAGMENT_TIMES;
+
+    if (data->streamSource == FILE_SOURCE) {
+        streaming_type = STREAMING_TYPE_OFFLINE;
+        use_absolute_fragment_times = true;
+    }
+
+    auto stream_definition = make_unique<StreamDefinition>(data->stream_name,
                                                            hours(DEFAULT_RETENTION_PERIOD_HOURS),
                                                            &tags,
                                                            DEFAULT_KMS_KEY_ID,
-                                                           DEFAULT_STREAMING_TYPE,
+                                                           streaming_type,
                                                            DEFAULT_CONTENT_TYPE,
                                                            duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
                                                            milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
                                                            milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
                                                            DEFAULT_KEY_FRAME_FRAGMENTATION,
                                                            DEFAULT_FRAME_TIMECODES,
-                                                           DEFAULT_ABSOLUTE_FRAGMENT_TIMES,
+                                                           use_absolute_fragment_times,
                                                            DEFAULT_FRAGMENT_ACKS,
                                                            DEFAULT_RESTART_ON_ERROR,
                                                            DEFAULT_RECALCULATE_METRICS,
@@ -361,31 +569,43 @@ void kinesis_video_init(CustomData *data, char *stream_name) {
                                                            0);
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
 
+    // reset state
+    data->stream_status = STATUS_SUCCESS;
+    data->stream_started = false;
+
+    // since we are starting new putMedia, timestamp need not be padded.
+    if (data->streamSource == FILE_SOURCE) {
+        data->base_pts = 0;
+        data->max_frame_pts = 0;
+    }
+
     LOG_DEBUG("Stream is ready");
 }
 
-int gstreamer_init(int argc, char* argv[]) {
-    PropertyConfigurator::doConfigure("kvs_log_configuration");
+/* callback when each RTSP stream has been created */
+static void pad_added_cb(GstElement *element, GstPad *pad, GstElement *target) {
+    GstPad *target_sink = gst_element_get_static_pad(GST_ELEMENT(target), "sink");
+    GstPadLinkReturn link_ret;
+    gchar *pad_name = gst_pad_get_name(pad);
+    g_print("New pad found: %s\n", pad_name);
 
-    if (argc < 2) {
-        LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app -w width -h height -f framerate -b bitrateInKBPS my-stream-name \n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name");
-        return 1;
+    link_ret = gst_pad_link(pad, target_sink);
+
+    if (link_ret == GST_PAD_LINK_OK) {
+        LOG_INFO("Pad link successful");
+    } else {
+        LOG_INFO("Pad link failed");
     }
 
-    CustomData data;
-    GstStateChangeReturn ret;
-    bool vtenc, isOnRpi;
+    gst_object_unref(target_sink);
+    g_free(pad_name);
+}
 
-    /* init data struct */
-    memset(&data, 0, sizeof(data));
+int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElement *pipeline) {
 
-    /* init GStreamer */
-    gst_init(&argc, &argv);
+    bool vtenc = false, isOnRpi = false;
 
     /* init stream format */
-    char stream_name[MAX_STREAM_NAME_LEN];
     int width = 0, height = 0, framerate = 25, bitrateInKBPS = 512;
     for (int i = 1; i < argc; i++) {
         if (i < argc - 1) {
@@ -436,73 +656,65 @@ int gstreamer_init(int argc, char* argv[]) {
             g_printerr("Invalid arguments\n");
             return 1;
         }
-        else {
-            // Assume it's the stream name
-            STRNCPY(stream_name, argv[i], MAX_STREAM_NAME_LEN);
-        }
     }
-
-    /* init Kinesis Video */
-    kinesis_video_init(&data, stream_name);
 
     if ((width == 0 && height != 0) || (width != 0 && height == 0)) {
         g_printerr("Invalid resolution\n");
         return 1;
     }
 
+    GstElement *source_filter, *filter, *appsink, *h264parse, *encoder, *source, *video_convert;
+
     /* create the elemnents */
     /*
        gst-launch-1.0 v4l2src device=/dev/video0 ! video/x-raw,format=I420,width=1280,height=720,framerate=15/1 ! x264enc pass=quant bframes=0 ! video/x-h264,profile=baseline,format=I420,width=1280,height=720,framerate=15/1 ! matroskamux ! filesink location=test.mkv
      */
-    data.source_filter = gst_element_factory_make("capsfilter", "source_filter");
-    data.filter = gst_element_factory_make("capsfilter", "encoder_filter");
-    data.appsink = gst_element_factory_make("appsink", "appsink");
-    data.h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
+    source_filter = gst_element_factory_make("capsfilter", "source_filter");
+    filter = gst_element_factory_make("capsfilter", "encoder_filter");
+    appsink = gst_element_factory_make("appsink", "appsink");
+    h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
 
     // Attempt to create vtenc encoder
-    data.encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
-    if (data.encoder) {
-        data.source = gst_element_factory_make("autovideosrc", "source");
+    encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
+    if (encoder) {
+        source = gst_element_factory_make("autovideosrc", "source");
         vtenc = true;
     } else {
         // Failed creating vtenc - check pi hardware encoder
-        data.encoder = gst_element_factory_make("omxh264enc", "encoder");
-        if (data.encoder) {
+        encoder = gst_element_factory_make("omxh264enc", "encoder");
+        if (encoder) {
             isOnRpi = true;
         } else {
             // - attempt x264enc
-            data.encoder = gst_element_factory_make("x264enc", "encoder");
+            encoder = gst_element_factory_make("x264enc", "encoder");
             isOnRpi = false;
         }
-        data.source = gst_element_factory_make("v4l2src", "source");
-        if (!data.source) {
-            data.source = gst_element_factory_make("ksvideosrc", "source");
+        source = gst_element_factory_make("v4l2src", "source");
+        if (!source) {
+            source = gst_element_factory_make("ksvideosrc", "source");
         }
         vtenc = false;
     }
 
-    /* create an empty pipeline */
-    data.pipeline = gst_pipeline_new("test-pipeline");
-
-    if (!data.pipeline || !data.source || !data.source_filter || !data.encoder || !data.filter || !data.appsink || !data.h264parse) {
+    if (!pipeline || !source || !source_filter || !encoder || !filter || !appsink || !h264parse) {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
 
     /* configure source */
     if (!vtenc) {
-        g_object_set(G_OBJECT (data.source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
+        g_object_set(G_OBJECT (source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
     }
 
     /* Determine whether device supports h264 encoding and select a streaming resolution supported by the device*/
-    if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(data.source, GST_STATE_READY)) {
+    if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(source, GST_STATE_READY)) {
         g_printerr("Unable to set the source to ready state.\n");
         return 1;
     }
 
-    GstPad *srcpad = gst_element_get_static_pad(data.source, "src");
+    GstPad *srcpad = gst_element_get_static_pad(source, "src");
     GstCaps *src_caps = gst_pad_query_caps(srcpad, NULL);
-    gst_element_set_state(data.source, GST_STATE_NULL);
+    gst_element_set_state(source, GST_STATE_NULL);
 
     GstCaps *query_caps_raw = gst_caps_new_simple("video/x-raw",
                                                   "width", G_TYPE_INT, width,
@@ -514,7 +726,7 @@ int gstreamer_init(int argc, char* argv[]) {
                                                    NULL);
 
     if (width != 0 && height != 0) {
-        if (!resolution_supported(src_caps, query_caps_raw, query_caps_h264, data, width, height, framerate)) {
+        if (!resolution_supported(src_caps, query_caps_raw, query_caps_h264, *data, width, height, framerate)) {
             g_printerr("Resolution %dx%d not supported by video source\n", width, height);
             return 1;
         }
@@ -528,7 +740,7 @@ int gstreamer_init(int argc, char* argv[]) {
             height = res_height[i];
             for (int j = 0; j < fps.size(); j++) {
                 framerate = fps[j];
-                if (resolution_supported(src_caps, query_caps_raw, query_caps_h264, data, width, height, framerate)) {
+                if (resolution_supported(src_caps, query_caps_raw, query_caps_h264, *data, width, height, framerate)) {
                     found_resolution = true;
                     break;
                 }
@@ -547,41 +759,41 @@ int gstreamer_init(int argc, char* argv[]) {
     gst_object_unref(srcpad);
 
     /* create the elemnents needed for the corresponding pipeline */
-    if (!data.h264_stream_supported) {
-        data.video_convert = gst_element_factory_make("videoconvert", "video_convert");
+    if (!data->h264_stream_supported) {
+        video_convert = gst_element_factory_make("videoconvert", "video_convert");
 
-        if (!data.video_convert) {
+        if (!video_convert) {
             g_printerr("Not all elements could be created.\n");
             return 1;
         }
     }
 
     /* source filter */
-    if (!data.h264_stream_supported) {
+    if (!data->h264_stream_supported) {
         gst_caps_set_simple(query_caps_raw,
                             "format", G_TYPE_STRING, "I420",
                             NULL);
-        g_object_set(G_OBJECT (data.source_filter), "caps", query_caps_raw, NULL);
+        g_object_set(G_OBJECT (source_filter), "caps", query_caps_raw, NULL);
     } else {
         gst_caps_set_simple(query_caps_h264,
                             "stream-format", G_TYPE_STRING, "byte-stream",
                             "alignment", G_TYPE_STRING, "au",
                             NULL);
-        g_object_set(G_OBJECT (data.source_filter), "caps", query_caps_h264, NULL);
+        g_object_set(G_OBJECT (source_filter), "caps", query_caps_h264, NULL);
     }
     gst_caps_unref(query_caps_h264);
     gst_caps_unref(query_caps_raw);
 
     /* configure encoder */
-    if (!data.h264_stream_supported){
+    if (!data->h264_stream_supported){
         if (vtenc) {
-            g_object_set(G_OBJECT (data.encoder), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval",
-                              45, "bitrate", bitrateInKBPS, NULL);
+            g_object_set(G_OBJECT (encoder), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval",
+                         45, "bitrate", bitrateInKBPS, NULL);
         } else if (isOnRpi) {
-            g_object_set(G_OBJECT (data.encoder), "control-rate", 2, "target-bitrate", bitrateInKBPS*1000,
-                "periodicty-idr", 45, "inline-header", FALSE, NULL);
+            g_object_set(G_OBJECT (encoder), "control-rate", 2, "target-bitrate", bitrateInKBPS*1000,
+                         "periodicty-idr", 45, "inline-header", FALSE, NULL);
         } else {
-            g_object_set(G_OBJECT (data.encoder), "bframes", 0, "key-int-max", 45, "bitrate", bitrateInKBPS, NULL);
+            g_object_set(G_OBJECT (encoder), "bframes", 0, "key-int-max", 45, "bitrate", bitrateInKBPS, NULL);
         }
     }
 
@@ -591,59 +803,369 @@ int gstreamer_init(int argc, char* argv[]) {
                                              "stream-format", G_TYPE_STRING, "avc",
                                              "alignment", G_TYPE_STRING, "au",
                                              NULL);
-    if (!data.h264_stream_supported) {
+    if (!data->h264_stream_supported) {
         gst_caps_set_simple(h264_caps, "profile", G_TYPE_STRING, "baseline",
-                                        NULL);
+                            NULL);
     }
-    g_object_set(G_OBJECT (data.filter), "caps", h264_caps, NULL);
+    g_object_set(G_OBJECT (filter), "caps", h264_caps, NULL);
     gst_caps_unref(h264_caps);
 
     /* configure appsink */
-    g_object_set(G_OBJECT (data.appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
-    g_signal_connect(data.appsink, "new-sample", G_CALLBACK(on_new_sample), &data);
+    g_object_set(G_OBJECT (appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), data);
 
     /* build the pipeline */
-    if (!data.h264_stream_supported) {
-        gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.video_convert, data.source_filter, data.encoder, data.h264parse, data.filter,
-            data.appsink, NULL);
-        if (!gst_element_link_many(data.source, data.video_convert, data.source_filter, data.encoder, data.h264parse, data.filter, data.appsink, NULL)) {
+    if (!data->h264_stream_supported) {
+        gst_bin_add_many(GST_BIN (pipeline), source, video_convert, source_filter, encoder, h264parse, filter,
+                         appsink, NULL);
+        if (!gst_element_link_many(source, video_convert, source_filter, encoder, h264parse, filter, appsink, NULL)) {
             g_printerr("Elements could not be linked.\n");
-            gst_object_unref(data.pipeline);
+            gst_object_unref(pipeline);
             return 1;
         }
     } else {
-        gst_bin_add_many(GST_BIN (data.pipeline), data.source, data.source_filter, data.h264parse, data.filter, data.appsink, NULL);
-        if (!gst_element_link_many(data.source, data.source_filter, data.h264parse, data.filter, data.appsink, NULL)) {
+        gst_bin_add_many(GST_BIN (pipeline), source, source_filter, h264parse, filter, appsink, NULL);
+        if (!gst_element_link_many(source, source_filter, h264parse, filter, appsink, NULL)) {
             g_printerr("Elements could not be linked.\n");
-            gst_object_unref(data.pipeline);
+            gst_object_unref(pipeline);
             return 1;
         }
     }
 
-
-    /* Instruct the bus to emit signals for each received message, and connect to the interesting signals */
-    data.bus = gst_element_get_bus(data.pipeline);
-    gst_bus_add_signal_watch(data.bus);
-    g_signal_connect (G_OBJECT(data.bus), "message::error", (GCallback) error_cb, &data);
-    gst_object_unref(data.bus);
-
-    /* start streaming */
-    ret = gst_element_set_state(data.pipeline, GST_STATE_PLAYING);
-    if (ret == GST_STATE_CHANGE_FAILURE) {
-        g_printerr("Unable to set the pipeline to the playing state.\n");
-        gst_object_unref(data.pipeline);
-        return 1;
-    }
-
-    data.main_loop = g_main_loop_new(NULL, FALSE);
-    g_main_loop_run(data.main_loop);
-
-    /* free resources */
-    gst_element_set_state(data.pipeline, GST_STATE_NULL);
-    gst_object_unref(data.pipeline);
     return 0;
 }
 
+int gstreamer_rtsp_source_init(CustomData *data, GstElement *pipeline) {
+
+    GstElement *filter, *appsink, *depay, *source;
+
+    filter = gst_element_factory_make("capsfilter", "filter");
+    appsink = gst_element_factory_make("appsink", "appsink");
+    depay = gst_element_factory_make("rtph264depay", "depay");
+    source = gst_element_factory_make("rtspsrc", "source");
+
+    if (!pipeline || !source || !depay || !appsink || !filter) {
+        g_printerr("Not all elements could be created.\n");
+        return 1;
+    }
+
+    // configure filter
+    GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
+                                             "stream-format", G_TYPE_STRING, "avc",
+                                             "alignment", G_TYPE_STRING, "au",
+                                             NULL);
+    g_object_set(G_OBJECT (filter), "caps", h264_caps, NULL);
+    gst_caps_unref(h264_caps);
+
+    // configure appsink
+    g_object_set(G_OBJECT (appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), data);
+
+    // configure rtspsrc
+    g_object_set(G_OBJECT (source),
+                 "location", data->rtsp_url.c_str(),
+                 "short-header", true, // Necessary for target camera
+                 NULL);
+
+    g_signal_connect(source, "pad-added", G_CALLBACK(pad_added_cb), depay);
+
+    /* build the pipeline */
+    gst_bin_add_many(GST_BIN (pipeline), source,
+                     depay, filter, appsink,
+                     NULL);
+
+    /* Leave the actual source out - this will be done when the pad is added */
+    if (!gst_element_link_many(depay, filter,
+                               appsink,
+                               NULL)) {
+
+        g_printerr("Elements could not be linked.\n");
+        gst_object_unref(pipeline);
+        return 1;
+    }
+
+    return 0;
+}
+
+int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
+
+    GstElement *demux, *appsink, *filesrc, *h264parse, *filter, *queue;
+    string file_suffix;
+    string file_path = data->file_list.at(data->current_file_idx).path;
+
+    //reset state
+    data->put_frame_failed = false;
+
+    filter = gst_element_factory_make("capsfilter", "filter");
+    appsink = gst_element_factory_make("appsink", "appsink");
+    filesrc = gst_element_factory_make("filesrc", "filesrc");
+    h264parse = gst_element_factory_make("h264parse", "h264parse");
+    queue = gst_element_factory_make("queue", "queue");
+
+    file_suffix = file_path.substr(file_path.size() - 3);
+    if (file_suffix.compare("mkv") == 0) {
+        demux = gst_element_factory_make("matroskademux", "demux");
+    } else if (file_suffix.compare("mp4") == 0) {
+        demux = gst_element_factory_make("qtdemux", "demux");
+    } else if (file_suffix.compare(".ts") == 0) {
+        demux = gst_element_factory_make("tsdemux", "demux");
+    } else {
+        LOG_ERROR("File format not supported. Supported ones are mp4, mkv and ts. File suffix: " << file_suffix);
+        return 1;
+    }
+
+    if (!demux || !filesrc || !h264parse || !appsink || !pipeline || !filter) {
+        g_printerr("Not all elements could be created:\n");
+        return 1;
+    }
+
+    // configure filter
+    GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
+                                             "stream-format", G_TYPE_STRING, "avc",
+                                             "alignment", G_TYPE_STRING, "au",
+                                             NULL);
+    g_object_set(G_OBJECT (filter), "caps", h264_caps, NULL);
+    gst_caps_unref(h264_caps);
+
+    // configure appsink
+    g_object_set(G_OBJECT (appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), data);
+    g_signal_connect(appsink, "eos", G_CALLBACK(eos_cb), data);
+
+    // configure filesrc
+    g_object_set(G_OBJECT (filesrc), "location", file_path.c_str(), NULL);
+
+    // configure demux
+    g_signal_connect(demux, "pad-added", G_CALLBACK(pad_added_cb), queue);
+
+
+    /* build the pipeline */
+    gst_bin_add_many(GST_BIN (pipeline), demux,
+                     filesrc, filter, appsink, h264parse, queue,
+                     NULL);
+
+    if (!gst_element_link_many(filesrc, demux,
+                               NULL)) {
+        g_printerr("Elements could not be linked.\n");
+        gst_object_unref(pipeline);
+        return 1;
+    }
+
+    if (!gst_element_link_many(queue, h264parse, filter, appsink,
+                               NULL)) {
+        g_printerr("Video elements could not be linked.\n");
+        gst_object_unref(pipeline);
+        return 1;
+    }
+
+    return 0;
+}
+
+
+int gstreamer_init(int argc, char* argv[], CustomData *data) {
+
+    /* init GStreamer */
+    gst_init(&argc, &argv);
+
+    GstElement *pipeline;
+    int ret;
+    GstStateChangeReturn gst_ret;
+
+    switch (data->streamSource) {
+        case LIVE_SOURCE:
+            LOG_INFO("Streaming from live source");
+            pipeline = gst_pipeline_new("live-kinesis-pipeline");
+            ret = gstreamer_live_source_init(argc, argv, data, pipeline);
+            break;
+        case RTSP_SOURCE:
+            LOG_INFO("Streaming from rtsp source");
+            pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
+            ret = gstreamer_rtsp_source_init(data, pipeline);
+            break;
+        case FILE_SOURCE:
+            LOG_INFO("Streaming from file source");
+            pipeline = gst_pipeline_new("file-kinesis-pipeline");
+            ret = gstreamer_file_source_init(data, pipeline);
+            break;
+    }
+
+    if (ret != 0){
+        return ret;
+    }
+
+    /* Instruct the bus to emit signals for each received message, and connect to the interesting signals */
+    GstBus *bus = gst_element_get_bus(pipeline);
+    gst_bus_add_signal_watch(bus);
+    g_signal_connect (G_OBJECT(bus), "message::error", (GCallback) error_cb, data);
+    gst_object_unref(bus);
+
+    /* start streaming */
+    gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (gst_ret == GST_STATE_CHANGE_FAILURE) {
+        g_printerr("Unable to set the pipeline to the playing state.\n");
+        gst_object_unref(pipeline);
+        return 1;
+    }
+
+    data->main_loop = g_main_loop_new(NULL, FALSE);
+    g_main_loop_run(data->main_loop);
+
+    /* free resources */
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+    return 0;
+}
+
+void recreate_stream(CustomData *data) {
+    data->kinesis_video_stream->stopSync();
+    data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+    bool do_repeat = true;
+    do {
+        LOG_INFO("Attempt to recreate kinesis video stream");
+        try {
+            kinesis_video_stream_init(data);
+            do_repeat = false;
+        } catch (runtime_error &err) {
+            LOG_INFO("Failed to create kinesis video stream");
+            this_thread::sleep_for(std::chrono::seconds(2));
+        }
+    } while(do_repeat);
+}
+
 int main(int argc, char* argv[]) {
-    return gstreamer_init(argc, argv);
+    PropertyConfigurator::doConfigure("kvs_log_configuration");
+
+    if (argc < 2) {
+        LOG_ERROR(
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS\n \
+           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name\n \
+           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name rtsp-url\n \
+           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
+        return 1;
+    }
+
+    const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
+
+    CustomData data;
+    char stream_name[MAX_STREAM_NAME_LEN + 1];
+    int ret = 0;
+    int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
+    STATUS stream_status = STATUS_SUCCESS;
+
+    STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
+    stream_name[MAX_STREAM_NAME_LEN] = '\0';
+    data.stream_name = stream_name;
+
+    data.frame_data = new uint8_t[data.frame_data_size];
+
+    data.streamSource = LIVE_SOURCE;
+    if (argc > 2) {
+        string third_arg = string(argv[2]);
+        string prefix = third_arg.substr(0, 4);
+        string suffix = third_arg.substr(third_arg.size() - 3);
+        if (prefix.compare("rtsp") == 0) {
+            data.streamSource = RTSP_SOURCE;
+            data.rtsp_url = string(argv[2]);
+
+        } else if (suffix.compare("mkv") == 0 ||
+                   suffix.compare("mp4") == 0 ||
+                   suffix.compare(".ts") == 0) {
+            data.streamSource = FILE_SOURCE;
+            // skip over stream name
+            for(int i = 2; i < argc; ++i) {
+                string file_path = string(argv[i]);
+                // file path should be at least 4 char (shortest example: a.ts)
+                if (file_path.size() < 4) {
+                    LOG_ERROR("Invalid file path");
+                    return 1;
+                }
+                FileInfo fileInfo;
+                fileInfo.path = file_path;
+                data.file_list.push_back(fileInfo);
+            }
+        }
+    }
+
+    /* init Kinesis Video */
+    try{
+        kinesis_video_init(&data);
+        kinesis_video_stream_init(&data);
+    } catch (runtime_error &err) {
+        LOG_ERROR("Failed to initialize kinesis video.");
+        return 1;
+    }
+
+    bool do_retry = true;
+    do {
+        if (data.streamSource == FILE_SOURCE) {
+            uint32_t i = data.last_unpersisted_file_idx.load();
+            bool continue_uploading = true;
+
+            for(; i < data.file_list.size() && continue_uploading; ++i) {
+
+                data.current_file_idx = i;
+                LOG_DEBUG("Attempt to upload file: " << data.file_list[i].path);
+
+                // control will return after gstreamer_init after file eos or any GST_ERROR was put on the bus.
+                gstreamer_init(argc, argv, &data);
+
+                // check if any stream error occurred.
+                stream_status = data.stream_status.load();
+
+                // fatal cases
+                if (data.put_frame_failed && file_retry_count == 0) {
+                    LOG_ERROR("Failed to upload file " << data.file_list[i].path << " after retrying. Terminating.");
+                    do_retry = false;           // exit while loop
+                    continue_uploading = false; // exit file uploading for loop
+                } else if (STATUS_FAILED(stream_status) &&
+                           !IS_RETRIABLE_ERROR(stream_status)) {
+                    LOG_ERROR("Fatal stream error occurred: " << stream_status << ". Terminating.");
+                    do_retry = false;
+                    continue_uploading = false;
+                }
+
+                // file upload successfully or start retrying
+                if (STATUS_SUCCEEDED(stream_status) && !data.put_frame_failed) {
+                    LOG_INFO("Finished uploading file: " << data.file_list[i].path);
+                    file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
+                } else {
+                    if (data.put_frame_failed) {
+                        file_retry_count--;
+                    }
+                    continue_uploading = false;
+                }
+            }
+
+            // check if we successfully uploaded everything.
+            if (STATUS_SUCCEEDED(stream_status) && !data.put_frame_failed) {
+                this_thread::sleep_for(seconds(20)); // hack before we have waiting for acks
+                LOG_INFO("File uploading complete.");
+                do_retry = false; // exit while loop.
+            }
+        } else {
+            // non file uploading scenario
+            ret = gstreamer_init(argc, argv, &data);
+            if (ret != 0) {
+                return ret;
+            }
+
+            if (STATUS_FAILED(stream_status) &&
+                !IS_RETRIABLE_ERROR(stream_status)) {
+                LOG_ERROR("Fatal stream error occurred: " << stream_status << ". Terminating.");
+                do_retry = false;
+            }
+        }
+
+        if (do_retry) {
+            recreate_stream(&data);
+        }
+
+    } while(do_retry);
+
+    // CleanUp
+    data.kinesis_video_stream->stopSync();
+    data.kinesis_video_producer->freeStream(data.kinesis_video_stream);
+    delete [] data.frame_data;
+
+    return 0;
 }
