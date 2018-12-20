@@ -175,7 +175,16 @@ Response::~Response() {
 }
 
 bool Response::unPause() {
-    return CURLE_OK == curl_easy_pause(curl_, CURLPAUSE_CONT);
+    if (paused_) {
+        paused_ = false;
+        return CURLE_OK == curl_easy_pause(curl_, CURLPAUSE_SEND_CONT);
+    }
+
+    return true;
+}
+
+void Response::pause() {
+    paused_ = true;
 }
 
 void Response::completeSync() {

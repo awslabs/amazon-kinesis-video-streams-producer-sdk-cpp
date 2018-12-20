@@ -19,12 +19,11 @@ OngoingStreamState::OngoingStreamState(CallbackProvider* callback_provider,
                                        STREAM_HANDLE stream_handle,
                                        std::string stream_name,
                                        bool debug_dump_file)
-        : stream_handle_(stream_handle), duration_available_(0),
-          bytes_available_(0), stream_name_(stream_name),
+        : stream_handle_(stream_handle),
+          stream_name_(stream_name),
           end_of_stream_(false), shutdown_(false),
           upload_handle_(upload_handle),
           debug_dump_file_(debug_dump_file),
-          awaiting_persisted_ack_(false),
           callback_provider_(callback_provider) {
     if (debug_dump_file) {
         std::ostringstream dump_file_name;
@@ -40,51 +39,10 @@ void OngoingStreamState::noteDataAvailable(UINT64 duration_available, UINT64 siz
                       << size_available
                       << " for stream handle: "
                       << upload_handle_);
-
-    // Special handling for EOS triggering from close handle
-    if (duration_available == 0 && size_available == 0) {
-        endOfStream();
+    // Un-pause the curl
+    if (curl_response_ != nullptr) {
+        curl_response_->unPause();
     }
-
-    setDataAvailable(duration_available, size_available);
-}
-
-void OngoingStreamState::setDataAvailable(UINT64 duration_available, UINT64 size_available) {
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    duration_available_ = duration_available;
-    bytes_available_ = size_available;
-    data_ready_.notify_one();
-}
-
-size_t OngoingStreamState::awaitData(size_t read_size) {
-    int32_t iterations = 0;
-    size_t ret_size = 0;
-    LOG_TRACE("Awaiting data...");
-    {
-        std::unique_lock<std::mutex> lock(data_mutex_);
-        do {
-            if (0 < bytes_available_ || isEndOfStream()) {
-                // Fast path - bytes are available so return immediately
-                ret_size = (size_t)bytes_available_;
-                bytes_available_ -= MIN(read_size, bytes_available_);
-                break;
-            }
-
-            // Slow path - block until data arrives.
-            // Wait may return without any data available due to a spurious wake up.
-            // See: https://en.wikipedia.org/wiki/Spurious_wakeup
-            PStreamInfo pStreamInfo;
-            kinesisVideoStreamGetStreamInfo(stream_handle_, &pStreamInfo);
-            auto time_out = IS_OFFLINE_STREAMING_MODE(pStreamInfo->streamCaps.streamingType) ?
-                            chrono::milliseconds(DEFAULT_DATA_READY_CV_TIMEOUT_MS) :
-                            chrono::hours(DEFAULT_OFFLINE_DATA_READY_CV_TIMEOUT_HOURS);
-            data_ready_.wait_for(lock, time_out,
-                                 [this]() { return (0 < bytes_available_ || isEndOfStream()); });
-            iterations++;
-        } while (iterations < DEFAULT_AWAIT_DATA_LOOP_CYCLE);
-    }
-
-    return ret_size;
 }
 
 size_t OngoingStreamState::postHeaderReadFunc(char *buffer, size_t item_size, size_t n_items) {
@@ -100,12 +58,6 @@ size_t OngoingStreamState::postHeaderReadFunc(char *buffer, size_t item_size, si
 size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_size, size_t n_items) {
     LOG_TRACE("postBodyStreamingReadFunc (curl callback) invoked");
 
-    if (awaiting_persisted_ack_) {
-        // If we are awaiting for the persisted ACK then we need to pause the upload
-        LOG_TRACE("Awaiting the persisted ACK. Pausing the upload.");
-        return CURL_READFUNC_PAUSE;
-    }
-
     UPLOAD_HANDLE upload_handle = getUploadHandle();
 
     size_t buffer_size = item_size * n_items;
@@ -117,16 +69,7 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
         if (isEndOfStream()) {
             // Returning 0 will close the connection
             LOG_INFO("Closing connection for upload stream handle: " << upload_handle);
-            break;
-        }
-
-        size_t available_bytes = awaitData(buffer_size);
-
-        // Check for EOS and shutdown after the await
-        if (isEndOfStream()) {
-            // Returning 0 will close the connection
-            LOG_INFO("Closing connection for upload stream handle: " << upload_handle);
-            break;
+            return 0;
         }
 
         if (isShutdown()) {
@@ -145,15 +88,10 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
                 &retrieved_size);
         bytes_written = (size_t)retrieved_size;
 
-        LOG_TRACE("Available bytes to read: " << available_bytes
-                                              << " buffer size: "
-                                              << buffer_size
-                                              << " written bytes: "
-                                              << bytes_written
-                                              << " for client stream handle: "
-                                              << client_stream_handle
-                                              << " current stream handle: "
-                                              << upload_handle);
+        LOG_TRACE("Get Stream data returned: " << " buffer size: " << buffer_size
+                                               << " written bytes: " << bytes_written
+                                               << " for client stream handle: " << client_stream_handle
+                                               << " current stream handle: " << upload_handle);
 
         // The return should be OK, no more data or an end of stream
         switch (retStatus) {
@@ -162,39 +100,17 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
                 // Check if we the return is for this handle
                 if (client_stream_handle != upload_handle) {
                     // Pulse the 'other' stream handler
-                    auto callback_provider = getCallbackProvider();
-                    auto custom_data = callback_provider->getCallbacks().customData;
-                    auto data_available_callback = callback_provider->getStreamDataAvailableCallback();
-                    if (nullptr != data_available_callback) {
-                        CHAR stream_name[MAX_STREAM_NAME_LEN + 1];
-                        STRNCPY(stream_name, getStreamName().c_str(), MAX_STREAM_NAME_LEN);
-                        stream_name[MAX_STREAM_NAME_LEN] = '\0';
-                        LOG_DEBUG("Indicating data available for a different upload handle: " << client_stream_handle);
-                        data_available_callback(custom_data,
-                                                getStreamHandle(),
-                                                stream_name,
-                                                client_stream_handle,
-                                                0,
-                                                0);
-                    }
+                    pulseUploadHandle(client_stream_handle);
 
                     bytes_written = 0;
                 } else {
-                    // This is an OK case - ensure that we reset the available bytes in the state if we got 0 returned
+                    // Media pipeline thread might be blocked due to heap or temporal limit.
+                    // Pause curl read and wait for persisted ack.
                     if (0 == bytes_written) {
-                        LOG_DEBUG("Resetting the available data for the streaming state object.");
-                        setDataAvailable(0, 0);
-
-                        // awaitData timed out. Media pipeline thread might be blocked due to heap limit.
-                        // Pause curl read and wait for persisted ack.
-                        if (0 == available_bytes) {
-                            // Pause sending data
-                            LOG_DEBUG("Pausing curl read");
-                            return CURL_READFUNC_PAUSE;
-                        }
+                        LOG_DEBUG("Pausing CURL read for upload handle: " << upload_handle);
+                        bytes_written = CURL_READFUNC_PAUSE;
                     }
                 }
-
                 break;
 
             case STATUS_END_OF_STREAM:
@@ -216,12 +132,19 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
                     // Output the remaining bytes and signal the EOS
                     endOfStream();
                 }
-
                 break;
 
             case STATUS_AWAITING_PERSISTED_ACK:
-                // Send out the remaining bits and pause the upload
-                awaiting_persisted_ack_ = true;
+                // Check if we the return is for this handle
+                if (client_stream_handle != upload_handle) {
+                    // Pulse the 'other' stream handler
+                    pulseUploadHandle(client_stream_handle);
+
+                    bytes_written = 0;
+                } else {
+                    LOG_DEBUG("Pausing CURL read to await ACK for upload handle: " << upload_handle);
+                    bytes_written = CURL_READFUNC_PAUSE;
+                }
                 break;
 
             default:
@@ -232,12 +155,17 @@ size_t OngoingStreamState::postBodyStreamingReadFunc(char *buffer, size_t item_s
         }
     }
 
-    LOG_DEBUG("Wrote " << bytes_written << " bytes to Kinesis Video. Upload stream handle: " << upload_handle);
+    if (bytes_written != CURL_READFUNC_ABORT && bytes_written != CURL_READFUNC_PAUSE) {
+        LOG_DEBUG("Wrote " << bytes_written << " bytes to Kinesis Video. Upload stream handle: " << upload_handle);
 
-    if (bytes_written != 0 &&
-        debug_dump_file_ &&
-        (bytes_written != CURL_READFUNC_ABORT && bytes_written != CURL_READFUNC_PAUSE)) {
-        debug_dump_file_stream_.write(buffer, bytes_written);
+        if (bytes_written != 0 &&
+            debug_dump_file_) {
+            debug_dump_file_stream_.write(buffer, bytes_written);
+        }
+    }
+
+    if (bytes_written == CURL_READFUNC_PAUSE && curl_response_ != nullptr) {
+        curl_response_->pause();
     }
 
     return bytes_written;
@@ -280,7 +208,25 @@ size_t OngoingStreamState::postBodyStreamingWriteFunc(char *buffer, size_t item_
 }
 
 bool OngoingStreamState::unPause() {
-    return curl_response_->unPause();
+    return curl_response_ == nullptr ? false : curl_response_->unPause();
+}
+
+void OngoingStreamState::pulseUploadHandle(uint64_t upload_handle) {
+    auto callback_provider = getCallbackProvider();
+    auto custom_data = callback_provider->getCallbacks().customData;
+    auto data_available_callback = callback_provider->getStreamDataAvailableCallback();
+    if (nullptr != data_available_callback) {
+        CHAR stream_name[MAX_STREAM_NAME_LEN + 1];
+        STRNCPY(stream_name, getStreamName().c_str(), MAX_STREAM_NAME_LEN);
+        stream_name[MAX_STREAM_NAME_LEN] = '\0';
+        LOG_DEBUG("Indicating data available for a different upload handle: " << upload_handle);
+        data_available_callback(custom_data,
+                                getStreamHandle(),
+                                stream_name,
+                                upload_handle,
+                                0,
+                                0);
+    }
 }
 
 } // namespace video

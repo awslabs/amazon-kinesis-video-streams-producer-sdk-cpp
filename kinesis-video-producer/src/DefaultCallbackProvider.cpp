@@ -755,7 +755,7 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
                 state->endOfStream();
 
                 // Pulse the awaiting threads
-                state->noteDataAvailable(0, 0);
+                state->unPause();
             }
 
             auto curl_response = state->getResponse();
@@ -985,11 +985,8 @@ STATUS DefaultCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
         auto existingState = this_obj->active_streams_.get(uploadHandle);
 
         if (existingState != nullptr) {
-            if (existingState->unPause()) {
-                LOG_DEBUG("Curl read resumed");
-            } else {
-                LOG_WARN("Failed to resume curl read");
-            }
+            // curl could be paused due to limit in space or buffer duration
+            existingState->unPause();
         }
     }
 

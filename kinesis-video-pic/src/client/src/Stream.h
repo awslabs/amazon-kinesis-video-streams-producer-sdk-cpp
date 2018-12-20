@@ -523,6 +523,11 @@ PUploadHandleInfo getStreamUploadInfoWithEndIndex(PKinesisVideoStream, UINT64);
 PUploadHandleInfo getStreamUploadInfo(PKinesisVideoStream, UPLOAD_HANDLE);
 
 /**
+ * Returns the available duration and byte size for streaming, accounting for the partial frame sent and potential EoS
+ */
+STATUS getAvailableViewSize(PKinesisVideoStream, PUINT64, PUINT64);
+
+/**
  * Await for the frame availability in OFFLINE mode
  *
  * @param 1 - IN - KVS stream object

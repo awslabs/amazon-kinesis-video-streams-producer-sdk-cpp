@@ -40,6 +40,8 @@ public:
     SERVICE_CALL_RESULT getServiceCallResult() const; ///< Get the response overall result as a service call result.
     bool unPause(); /// < Unpause the upload of the stream.
 
+    void pause();
+
     void completeSync();
 
     // Force closes the CURL connection
@@ -79,6 +81,7 @@ private:
     std::mutex termination_mutex_;
     CURL *curl_;
     volatile bool terminated_;
+    volatile bool paused_;
     char error_buffer_[CURL_ERROR_SIZE];
     curl_slist *request_headers_;
     HeaderMap response_headers_;

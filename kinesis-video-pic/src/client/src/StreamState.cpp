@@ -257,6 +257,7 @@ STATUS fromPutStreamState(UINT64 customData, PUINT64 pState) {
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
     UINT64 state = STREAM_STATE_PUT_STREAM;
+    UINT64 duration, viewByteSize;
     PUploadHandleInfo pUploadHandleInfo;
 
     CHK(pKinesisVideoStream != NULL && pState != NULL, STATUS_NULL_ARG);
@@ -269,6 +270,22 @@ STATUS fromPutStreamState(UINT64 customData, PUINT64 pState) {
         pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_NEW);
         if (NULL != pUploadHandleInfo) {
             pUploadHandleInfo->state = UPLOAD_HANDLE_STATE_READY;
+
+            // NOTE: On successful streaming state transition we need to notify the data notification callback
+            // to handle the case with the intermittent producer that's already finished putting frames and
+            // is awaiting for the existing buffer to be streamed out.
+
+            // Get the duration and the size
+            CHK_STATUS(getAvailableViewSize(pKinesisVideoStream, &duration, &viewByteSize));
+
+            // Call the notification callback
+            CHK_STATUS(pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.streamDataAvailableFn(
+                    pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.customData,
+                    TO_STREAM_HANDLE(pKinesisVideoStream),
+                    pKinesisVideoStream->streamInfo.name,
+                    pUploadHandleInfo->handle,
+                    duration,
+                    viewByteSize));
         }
 
         state = STREAM_STATE_STREAMING;

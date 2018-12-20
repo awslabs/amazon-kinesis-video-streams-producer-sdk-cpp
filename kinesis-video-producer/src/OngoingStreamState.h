@@ -20,12 +20,12 @@
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /**
- * Internal class to wrap a condition variable that signals the curl callback that data is ready and to try to read
- * data off Kinesis Video PIC's internal data buffer in order to post it over the network.
- *
- * Additionally, this class contains all the state that is needed by the postBodyStreamingFunc and is passed in as
- * the void* custom_data parameter to that class.
- */
+* Internal class to wrap a condition variable that signals the curl callback that data is ready and to try to read
+* data off Kinesis Video PIC's internal data buffer in order to post it over the network.
+*
+* Additionally, this class contains all the state that is needed by the postBodyStreamingFunc and is passed in as
+* the void* custom_data parameter to that class.
+*/
 class OngoingStreamState : public ResponseAcceptor {
 public:
     OngoingStreamState(CallbackProvider* callback_provider,
@@ -44,13 +44,6 @@ public:
      * @param size_available the size available for reading off Kinesis Video PIC's buffer in bytes.
      */
     void noteDataAvailable(UINT64 duration_available, UINT64 size_available);
-
-    /**
-     * Blocks until this.noteDataReceived() is invoked.
-     * @param buffer_size The max buffer size to read
-     * @return the bytes available for reading
-     */
-    size_t awaitData(size_t buffer_size);
 
     /**
      * Returns the current stream handle we are streaming for
@@ -108,11 +101,6 @@ public:
     }
 
     /**
-     * Sets the size and duration of the available data
-     */
-    void setDataAvailable(UINT64 duration_available, UINT64 size_available);
-
-    /**
      * Sets the current CURL response object
      */
     void setResponse(STREAM_HANDLE stream_handle, std::shared_ptr<Response> response) override {
@@ -134,9 +122,14 @@ public:
     }
 
     /**
+     * Pulse another upload handles
+     */
+    void pulseUploadHandle(uint64_t upload_handle);
+
+    /**
      * Unpause the upload
      */
-     bool unPause();
+    bool unPause();
 
     /**
      * An implementation of the CURLOPT_READFUNCTION callback: https://curl.haxx.se/libcurl/c/CURLOPT_READFUNCTION.html.
@@ -211,18 +204,6 @@ private:
     CallbackProvider* callback_provider_;
 
     /**
-     * The duration of the data available to put in 100 nanoseconds.
-     * NOTE: in the future we may want to support "awaitDuration()" method call which behaves
-     * similarly to awaitData(), but that it blocks until a duration is reached, instead of bytes.
-     */
-    volatile UINT64 duration_available_;
-
-    /**
-     * The size of the data available to send to Kinesis Video PIC in bytes.
-     */
-    volatile UINT64 bytes_available_;
-
-    /**
      * Stream name
      */
     std::string stream_name_;
@@ -231,17 +212,6 @@ private:
      * Stream upload handle
      */
     UPLOAD_HANDLE upload_handle_;
-
-    /**
-     * Mutex needed for the condition variable for data available locking.
-     */
-    std::mutex data_mutex_;
-
-    /**
-     * Condition variable used to signal between the Kinesis Video PIC state machine execution context and the network thread that
-     * data is ready or to await data.
-     */
-    std::condition_variable data_ready_;
 
     /**
      * Whether we have reached end-of-stream and the connection needs to be closed
@@ -267,11 +237,6 @@ private:
      * Whether the debug dump file is opened and needs to be closed.
      */
     bool debug_dump_file_;
-
-    /**
-     * Indicator to wait for the persisted ack
-     */
-    bool awaiting_persisted_ack_;
 };
 
 } // namespace video
