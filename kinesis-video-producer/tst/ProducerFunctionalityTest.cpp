@@ -524,7 +524,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
     }
 
     const int clip_duration_seconds = 15;
-    const int clip_count = 5;
+    const int clip_count = 20;
     const int frames_per_clip = clip_duration_seconds * fps_;
     const int total_frames = frames_per_clip * clip_count;
     const int pause_between_clip_seconds[] = {2, 15};
@@ -569,7 +569,8 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
             EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
             timestamp += frame_duration_;
 
-            if (i > 0 && i % frames_per_clip == 0) {
+            // pause at the last frame of each clip
+            if (i > 0 && (i + 1) % frames_per_clip == 0) {
                 LOG_INFO("Pausing for next clip");
                 THREAD_SLEEP(pause_seconds * HUNDREDS_OF_NANOS_IN_A_SECOND);
             }

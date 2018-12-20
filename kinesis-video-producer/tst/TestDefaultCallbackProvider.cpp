@@ -20,7 +20,10 @@ STATUS TestDefaultCallbackProvider::putStreamHandler(UINT64 custom_data, PCHAR s
                     state = this_obj->active_streams_.get(handle_to_terminate);
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(terminate_curl_timeout));
-                state->getResponse()->terminate();
+                if (state->getResponse() != nullptr) {
+                    state->getResponse()->terminate();
+                }
+
             };
             auto worker = std::thread(async_call, state, this_obj->terminate_curl_timeout, handle_to_terminate, this_obj);
             worker.detach();

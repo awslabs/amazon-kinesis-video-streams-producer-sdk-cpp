@@ -2651,3 +2651,38 @@ CleanUp:
     LEAVES();
     return retStatus;
 }
+
+STATUS getAvailableViewSize(PKinesisVideoStream pKinesisVideoStream, PUINT64 pDuration, PUINT64 pViewSize)
+{
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    UINT64 duration = 0, viewByteSize = 0;
+
+    // NOTE: Parameters are assumed to have been validated
+
+    // Get the duration from current point to the head
+    CHK_STATUS(contentViewGetWindowDuration(pKinesisVideoStream->pView, &duration, NULL));
+
+    // Get the size of the allocation from current point to the head
+    CHK_STATUS(contentViewGetWindowAllocationSize(pKinesisVideoStream->pView, &viewByteSize, NULL));
+
+    // Account for the partially sent frame
+    viewByteSize += pKinesisVideoStream->curViewItem.viewItem.length - pKinesisVideoStream->curViewItem.offset;
+
+    // Account for the EOS and the metadata that hasn't been packaged
+    if (pKinesisVideoStream->metadataTracker.send) {
+        viewByteSize += pKinesisVideoStream->metadataTracker.size;
+    }
+
+    if (pKinesisVideoStream->eosTracker.send) {
+        viewByteSize += pKinesisVideoStream->eosTracker.size;
+    }
+
+CleanUp:
+
+    *pViewSize = viewByteSize;
+    *pDuration = duration;
+
+    LEAVES();
+    return retStatus;
+}
