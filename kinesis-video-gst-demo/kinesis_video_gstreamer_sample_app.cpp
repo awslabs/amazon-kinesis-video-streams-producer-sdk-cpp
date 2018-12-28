@@ -607,8 +607,9 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
 
     /* init stream format */
     int width = 0, height = 0, framerate = 25, bitrateInKBPS = 512;
-    for (int i = 1; i < argc; i++) {
-        if (i < argc - 1) {
+    // index 1 is stream name which is already processed
+    for (int i = 2; i < argc; i++) {
+        if (i < argc) {
             if ((0 == STRCMPI(argv[i], "-w")) ||
                 (0 == STRCMPI(argv[i], "/w")) ||
                 (0 == STRCMPI(argv[i], "--w"))) {
@@ -662,6 +663,8 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
         g_printerr("Invalid resolution\n");
         return 1;
     }
+
+    LOG_DEBUG("Streaming with live source and width: " << width << ", height: " << height << ", fps: " << framerate << ", bitrateInKBPS" << bitrateInKBPS);
 
     GstElement *source_filter, *filter, *appsink, *h264parse, *encoder, *source, *video_convert;
 
@@ -1056,32 +1059,33 @@ int main(int argc, char* argv[]) {
     stream_name[MAX_STREAM_NAME_LEN] = '\0';
     data.stream_name = stream_name;
 
-    data.frame_data = new uint8_t[data.frame_data_size];
-
     data.streamSource = LIVE_SOURCE;
     if (argc > 2) {
         string third_arg = string(argv[2]);
-        string prefix = third_arg.substr(0, 4);
-        string suffix = third_arg.substr(third_arg.size() - 3);
-        if (prefix.compare("rtsp") == 0) {
-            data.streamSource = RTSP_SOURCE;
-            data.rtsp_url = string(argv[2]);
+        // config options for live source begin with -
+        if (third_arg[0] != '-') {
+            string prefix = third_arg.substr(0, 4);
+            string suffix = third_arg.substr(third_arg.size() - 3);
+            if (prefix.compare("rtsp") == 0) {
+                data.streamSource = RTSP_SOURCE;
+                data.rtsp_url = string(argv[2]);
 
-        } else if (suffix.compare("mkv") == 0 ||
-                   suffix.compare("mp4") == 0 ||
-                   suffix.compare(".ts") == 0) {
-            data.streamSource = FILE_SOURCE;
-            // skip over stream name
-            for(int i = 2; i < argc; ++i) {
-                string file_path = string(argv[i]);
-                // file path should be at least 4 char (shortest example: a.ts)
-                if (file_path.size() < 4) {
-                    LOG_ERROR("Invalid file path");
-                    return 1;
+            } else if (suffix.compare("mkv") == 0 ||
+                       suffix.compare("mp4") == 0 ||
+                       suffix.compare(".ts") == 0) {
+                data.streamSource = FILE_SOURCE;
+                // skip over stream name
+                for(int i = 2; i < argc; ++i) {
+                    string file_path = string(argv[i]);
+                    // file path should be at least 4 char (shortest example: a.ts)
+                    if (file_path.size() < 4) {
+                        LOG_ERROR("Invalid file path");
+                        return 1;
+                    }
+                    FileInfo fileInfo;
+                    fileInfo.path = file_path;
+                    data.file_list.push_back(fileInfo);
                 }
-                FileInfo fileInfo;
-                fileInfo.path = file_path;
-                data.file_list.push_back(fileInfo);
             }
         }
     }
@@ -1095,6 +1099,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    data.frame_data = new uint8_t[data.frame_data_size];
     bool do_retry = true;
     do {
         if (data.streamSource == FILE_SOURCE) {
