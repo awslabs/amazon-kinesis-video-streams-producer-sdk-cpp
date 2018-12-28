@@ -1123,7 +1123,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     EXPECT_EQ(FALSE, mAckRequired);
 
     // Validate the function has been called
-    EXPECT_EQ(1, mStreamDataAvailableFuncCount);
+    EXPECT_EQ(2, mStreamDataAvailableFuncCount);
     EXPECT_EQ(TEST_FRAME_DURATION * 2, mDataReadyDuration);
 
     // Should be encoded size
