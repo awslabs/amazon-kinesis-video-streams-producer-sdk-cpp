@@ -53,12 +53,13 @@ TEST_F(StreamTokenRotationTest, basicTokenRotationNonPersistAwait)
     UINT32 i, filledSize, rotation, lastRotation;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[5000];
-    UINT64 timestamp, clientStreamHandle, oldClientStreamHandle = INVALID_CLIENT_HANDLE_VALUE;
+    UINT64 timestamp, uploadHandle = TEST_UPLOAD_HANDLE, newUploadHandle = TEST_UPLOAD_HANDLE;
     Frame frame;
     STATUS status;
     UINT64 runDuration = 3 * MIN_STREAMING_TOKEN_EXPIRATION_DURATION + TEST_LONG_FRAME_DURATION;
     CLIENT_HANDLE clientHandle = INVALID_CLIENT_HANDLE_VALUE;
     STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
+    BOOL iterate = TRUE;
 
     // Reset the values for repeated playback of the tests
     gPresetTimeValue = 0;
@@ -139,51 +140,74 @@ TEST_F(StreamTokenRotationTest, basicTokenRotationNonPersistAwait)
             UPDATE_TEST_STREAMING_TOKEN(rotation);
         }
 
-        // consume after every 10th
-        if (i != 0 && (i % 10 == 0)) {
-            status = getKinesisVideoStreamData(streamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
-                                               &filledSize);
-            EXPECT_TRUE(status == STATUS_SUCCESS || status == STATUS_END_OF_STREAM);
-
-            if (status == STATUS_END_OF_STREAM) {
-                EXPECT_EQ(oldClientStreamHandle, clientStreamHandle);
-            } else {
-                oldClientStreamHandle = clientStreamHandle;
-            }
-
-        }
-
         // Return a put stream result after some iterations
         if (lastRotation != rotation && (i % 5 == 0)) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE + i));
-
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, newUploadHandle++));
             lastRotation = rotation;
+        }
+
+        // consume after every 10th
+        if (i != 0 && (i % 10 == 0)) {
+            iterate = TRUE;
+            while(iterate) {
+                status = getKinesisVideoStreamData(streamHandle, uploadHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                                                   &filledSize);
+                EXPECT_TRUE(status == STATUS_SUCCESS ||
+                            status == STATUS_END_OF_STREAM ||
+                            status == STATUS_NO_MORE_DATA_AVAILABLE);
+                switch (status) {
+                    case STATUS_SUCCESS:
+                        break;
+                    case STATUS_END_OF_STREAM:
+                        uploadHandle++;
+                        break;
+                    case STATUS_NO_MORE_DATA_AVAILABLE:
+                        iterate = FALSE;
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
     }
 
+
     EXPECT_EQ(0, mStreamErrorReportFuncCount);
     EXPECT_EQ(STATUS_SUCCESS, mStatus);
+    EXPECT_TRUE(uploadHandle > TEST_UPLOAD_HANDLE); //upload handle rotated at least once.
 
     if (IS_VALID_CLIENT_HANDLE(clientHandle)) {
         freeKinesisVideoClient(&clientHandle);
     }
 }
 
-TEST_F(StreamTokenRotationTest, DISABLED_rotationWithAwaitingCheck)
+TEST_F(StreamTokenRotationTest, rotationWithAwaitingCheck)
 {
-    UINT32 i, filledSize, rotation, lastRotation, nameSize;
+    UINT32 i, filledSize, rotation, lastRotation;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[5000];
-    UINT64 timestamp, clientStreamHandle, oldClientStreamHandle = INVALID_CLIENT_HANDLE_VALUE;
+    PBYTE emptyTagValue = (PBYTE) MEMALLOC(MKV_TAG_STRING_BITS_SIZE);
+    UINT64 timestamp, uploadHandle = TEST_UPLOAD_HANDLE, newUploadHandle = TEST_UPLOAD_HANDLE;
     Frame frame;
     STATUS status;
     UINT64 runDuration = 3 * MIN_STREAMING_TOKEN_EXPIRATION_DURATION + TEST_LONG_FRAME_DURATION;
     CLIENT_HANDLE clientHandle = INVALID_CLIENT_HANDLE_VALUE;
     STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
+    BOOL sendAck = FALSE;
+    FragmentAck fragmentAck;
+    PUploadHandleInfo pUploadHandleInfo = NULL;
+    BOOL iterate;
 
     // Reset the values for repeated playback of the tests
     gPresetTimeValue = 0;
     gPutStreamFuncCount = 0;
+
+    // Set the ACK values
+    fragmentAck.version = FRAGMENT_ACK_CURRENT_VERSION;
+    fragmentAck.ackType = FRAGMENT_ACK_TYPE_PERSISTED;
+    fragmentAck.result = SERVICE_CALL_RESULT_OK;
+    STRCPY(fragmentAck.sequenceNumber, "SequenceNumber");
+    fragmentAck.timestamp = 0;
 
     // Set the specialized callback functions
     mClientCallbacks.getCurrentTimeFn = getCurrentTimePreset;
@@ -192,12 +216,15 @@ TEST_F(StreamTokenRotationTest, DISABLED_rotationWithAwaitingCheck)
     // Set the retention period to enforce the awaiting for last persist ACK
     mStreamInfo.retention = 10 * HUNDREDS_OF_NANOS_IN_AN_HOUR;
 
+    // Set to absolute timestamps to ensure deterministic ACKs
+    mStreamInfo.streamCaps.absoluteFragmentTimes = TRUE;
+
     // Set the frame buffer to a pattern
     MEMSET(tempBuffer, 0x55, SIZEOF(tempBuffer));
 
-    // Store the name size without the NULL terminator
-    nameSize = (UINT32) STRLEN(TEST_STREAM_NAME);
-
+    // Copy over empty MkvTagStringBits and fix up ebml size for empty tag string
+    MEMCPY(emptyTagValue, gMkvTagStringBits, gMkvTagStringBitsSize);
+    emptyTagValue[2] = 0x01;
 
     // Create and ready a stream
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
@@ -233,6 +260,7 @@ TEST_F(StreamTokenRotationTest, DISABLED_rotationWithAwaitingCheck)
         frame.duration = TEST_LONG_FRAME_DURATION;
         frame.size = SIZEOF(tempBuffer);
         frame.frameData = tempBuffer;
+        frame.trackId = TEST_TRACKID;
 
         // Update the timer
         gPresetTimeValue = timestamp;
@@ -266,38 +294,56 @@ TEST_F(StreamTokenRotationTest, DISABLED_rotationWithAwaitingCheck)
             UPDATE_TEST_STREAMING_TOKEN(rotation);
         }
 
-        // consume after every 10th
-        if (i != 0 && (i % 10 == 0)) {
-            status = getKinesisVideoStreamData(streamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
-                                               &filledSize);
-            EXPECT_TRUE(status == STATUS_SUCCESS || status == STATUS_END_OF_STREAM|| status == STATUS_AWAITING_PERSISTED_ACK);
-
-            if (status == STATUS_END_OF_STREAM) {
-                EXPECT_EQ(oldClientStreamHandle, clientStreamHandle);
-            } else if (status == STATUS_AWAITING_PERSISTED_ACK) {
-                // The last bits should be EOS tag.
-                // We can check the EOS tag by checking the value part of the
-                // tag which should be the stream name
-                EXPECT_EQ(0, MEMCMP(TEST_STREAM_NAME, getDataBuffer + filledSize - nameSize, nameSize));
-            }
-            else {
-                oldClientStreamHandle = clientStreamHandle;
-            }
-
-        }
-
         // Return a put stream result after some iterations
         if (lastRotation != rotation && (i % 5 == 0)) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE + i));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, newUploadHandle++));
 
             lastRotation = rotation;
         }
+
+        // consume after every 10th
+        if (i != 0 && (i % 10 == 0)) {
+            iterate = TRUE;
+            while(iterate) {
+                status = getKinesisVideoStreamData(streamHandle, uploadHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                                                   &filledSize);
+                EXPECT_TRUE(status == STATUS_SUCCESS ||
+                            status == STATUS_END_OF_STREAM ||
+                            status == STATUS_NO_MORE_DATA_AVAILABLE ||
+                            status == STATUS_AWAITING_PERSISTED_ACK);
+                switch (status) {
+                    case STATUS_SUCCESS:
+                        break;
+                    case STATUS_END_OF_STREAM:
+                        uploadHandle++;
+                        break;
+                    case STATUS_NO_MORE_DATA_AVAILABLE:
+                        iterate = FALSE;
+                        break;
+                    case STATUS_AWAITING_PERSISTED_ACK:
+                        // The last bits should be EOS tag.
+                        // We can check the EOS tag by checking the value part of the
+                        // tag which should be empty
+                        EXPECT_EQ(0, MEMCMP(emptyTagValue, getDataBuffer + filledSize - gMkvTagStringBitsSize,
+                                            gMkvTagStringBitsSize));
+
+                        // Send the ACK
+                        pUploadHandleInfo = getStreamUploadInfo(FROM_STREAM_HANDLE(streamHandle), uploadHandle);
+                        fragmentAck.timestamp = pUploadHandleInfo->lastFragmentTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+                        EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFragmentAck(streamHandle, uploadHandle, &fragmentAck));
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
     }
 
-    EXPECT_NE(0, mStreamErrorReportFuncCount);
-    EXPECT_EQ(STATUS_PERSISTED_ACK_TIMEOUT, mStatus);
+    EXPECT_EQ(0, mStreamErrorReportFuncCount);
+    EXPECT_TRUE(uploadHandle > TEST_UPLOAD_HANDLE); //upload handle rotated at least once.
 
     if (IS_VALID_CLIENT_HANDLE(clientHandle)) {
         freeKinesisVideoClient(&clientHandle);
     }
+    MEMFREE(emptyTagValue);
 }

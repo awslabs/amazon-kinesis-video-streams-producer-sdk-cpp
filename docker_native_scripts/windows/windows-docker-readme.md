@@ -28,5 +28,5 @@ Use the **IMAGE_ID** from the output (e.g `02181afc49f9`):
 #### 3. Start the Docker container to run RTSP video streaming
 Run the Docker container to send video to Kinesis Video Streams using the following command:
 ```
-  > docker run -it <IMAGE_ID> <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <RTSP_URL> <YOUR_STREAM_NAME>
+  > docker run -it <IMAGE_ID> <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <YOUR_STREAM_NAME> <RTSP_URL>
 ```

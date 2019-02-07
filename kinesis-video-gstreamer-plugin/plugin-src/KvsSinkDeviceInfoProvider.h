@@ -1,13 +1,13 @@
 #ifndef __KVS_SINK_DEVICE_INFO_PROVIDER_H__
 #define __KVS_SINK_DEVICE_INFO_PROVIDER_H__
 
-#include "gstkvssink.h"
+#include <DefaultDeviceInfoProvider.h>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
     class KvsSinkDeviceInfoProvider: public DefaultDeviceInfoProvider {
-        std::shared_ptr<CustomData> data;
+        uint64_t storage_size_mb_;
     public:
-        KvsSinkDeviceInfoProvider(std::shared_ptr<CustomData> data): data(data) {}
+        KvsSinkDeviceInfoProvider(uint64_t storage_size_mb): storage_size_mb_(storage_size_mb) {}
         device_info_t getDeviceInfo() override;
     };
 }

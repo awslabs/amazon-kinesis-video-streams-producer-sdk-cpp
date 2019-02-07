@@ -1,7 +1,7 @@
 #ifndef __ROTATING_CREDENTIAL_PROVIDER_H__
 #define __ROTATING_CREDENTIAL_PROVIDER_H__
 
-#include <Auth.h>
+#include "Auth.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 

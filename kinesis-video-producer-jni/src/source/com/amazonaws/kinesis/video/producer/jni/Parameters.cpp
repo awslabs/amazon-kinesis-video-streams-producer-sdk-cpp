@@ -120,6 +120,9 @@ BOOL setDeviceInfo(JNIEnv *env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
         }
     }
 
+    // Set empty device cert path
+    pDeviceInfo->certPath[0] = '\0';
+
 CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
@@ -393,6 +396,35 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     } else {
         pStreamInfo->streamCaps.nalAdaptationFlags = env->CallIntMethod(streamInfo, methodId);
         CHK_JVM_EXCEPTION(env);
+    }
+
+    // Initialize to NULL first in case of failures
+    pStreamInfo->streamCaps.segmentUuid = NULL;
+    methodId = env->GetMethodID(cls, "getSegmentUuidBytes", "()[B");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getSegmentUuidBytes");
+    } else {
+        byteArray = (jbyteArray) env->CallObjectMethod(streamInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+
+        if (byteArray != NULL) {
+            // Extract the bits from the byte buffer
+            bufferPtr = env->GetByteArrayElements(byteArray, NULL);
+            arrayLen = env->GetArrayLength(byteArray);
+
+            // Ensure we have at least UUID size
+            CHK(arrayLen == MKV_SEGMENT_UUID_LEN, STATUS_INVALID_ARG_LEN);
+
+            // Allocate a temp storage
+            pStreamInfo->streamCaps.segmentUuid = (PBYTE) MEMALLOC(MKV_SEGMENT_UUID_LEN);
+            CHK(pStreamInfo->streamCaps.segmentUuid != NULL, STATUS_NOT_ENOUGH_MEMORY);
+
+            // Copy the bits
+            MEMCPY(pStreamInfo->streamCaps.segmentUuid, bufferPtr, MKV_SEGMENT_UUID_LEN);
+
+            // Release the buffer
+            env->ReleaseByteArrayElements(byteArray, bufferPtr, JNI_ABORT);
+        }
     }
 
     methodId = env->GetMethodID(cls, "getTrackInfoCount", "()I");

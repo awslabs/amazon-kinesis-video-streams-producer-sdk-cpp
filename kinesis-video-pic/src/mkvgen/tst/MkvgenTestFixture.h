@@ -17,14 +17,16 @@
 #define MKV_TEST_BEHAVIOR_FLAGS         (MKV_GEN_KEY_FRAME_PROCESSING | MKV_GEN_IN_STREAM_TIME)
 
 #define MKV_TEST_CONTENT_TYPE           ((PCHAR) "video/teststream")
-#define MKV_TEST_CODEC_ID               ((PCHAR) "TEST_CODEC_ID")
-#define MKV_TEST_TRACK_NAME             ((PCHAR) "test track")
+#define MKV_TEST_CODEC_ID               ((PCHAR) "TestCodec")
+#define MKV_TEST_TRACK_NAME             ((PCHAR) "TestTrack")
 
 #define MKV_TEST_CUSTOM_DATA            0x12345
 
 #define MKV_TEST_TAG_COUNT          5
 #define MKV_TEST_TRACK_INFO_COUNT   1
 #define MKV_TEST_TRACKID            0
+
+#define MKV_TEST_SEGMENT_UUID           ((PBYTE) "0123456789abcdef")
 
 /**
  * Callback function
@@ -50,7 +52,7 @@ protected:
 
         // Create the MKV generator
         retStatus = createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE,
-            MKV_TEST_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &mMkvGenerator);
+            MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &mMkvGenerator);
         EXPECT_EQ(STATUS_SUCCESS, retStatus);
 
         return retStatus;

@@ -28,3 +28,23 @@ VOID dumpMemoryHex(PVOID pMem, UINT32 size)
     DLOGS("Dumping memory done!");
     DLOGS("============================================");
 }
+
+BOOL checkBufferValues(PVOID ptr, BYTE val, SIZE_T size)
+{
+    SIZE_T i;
+    PBYTE pBuf = (PBYTE) ptr;
+
+    if (pBuf == NULL) {
+        return FALSE;
+    }
+
+    for (i = 0; i < size; pBuf++, i++) {
+        if (*pBuf != val) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+memChk globalMemChk = checkBufferValues;

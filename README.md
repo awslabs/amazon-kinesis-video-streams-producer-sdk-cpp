@@ -44,9 +44,14 @@ This library is licensed under the Amazon Software License.
 
 ----
 ### Release notes
+
+#### Release 1.7.1 (6th Feb 2019)
+* Removed kinesis_video_gstreamer_sample_rtsp_app as the kinesis_video_gstreamer_sample_app has become multi-purposed for webcams, rtsp and video files.
+* stability fixes.
+
 #### Release 1.7.0 (14th Dec 2018)
 * Added support for uploading files(offline mode) to Kinesis Video Stream
-* Stability fixes
+* Additional fixes
 
 #### Release 1.6.0 (3rd Dec 2018)
 * JNI namespace change

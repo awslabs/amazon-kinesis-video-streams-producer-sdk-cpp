@@ -24,6 +24,7 @@ get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
 
 # Include source base directory to allow absolute header paths
 include_directories(${CMAKE_SOURCE_DIR})
+
 enable_testing()
 add_subdirectory(src)
 

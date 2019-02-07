@@ -105,7 +105,9 @@ $ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! r
 ```
 
 **Note:** If you are using IoT credentials then you can pass them as parameters to the gst-launch-1.0 command
-``` gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
+
+```
+$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
  kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
 ```
 
@@ -119,16 +121,23 @@ $ gst-launch-1.0 autovideosrc ! videoconvert ! video/x-raw,format=I420,width=640
 The demo application `kinesis_video_gstreamer_sample_app` in the `kinesis-video-native-build` directory uses GStreamer pipeline to get video data from the camera. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution (width and height) through command line arguments.
 
 ```
-Usage: AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app -w <width> -h <height> -f <framerate> -b <bitrateInKBPS> <my_stream_name>
+Usage: AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my_stream_name> -w <width> -h <height> -f <framerate> -b <bitrateInKBPS>
 ```
 * **A.** If **resolution is provided** then the sample will try to check if the camera supports that resolution. If it does detect that the camera can support the resolution supplied in command line, then streaming starts; else, it will fail with an error message `Resolution not supported`.
 * **B.** If **no resolution is specified**, the demo will try to use these three resolutions **640x480, 1280x720 and 1920x1080** and will **start streaming** once the camera supported resolution is detected.
 
 ##### Running the GStreamer RTSP demo application
-The GStreamer RTSP demo app will be built in `kinesis_video_gstreamer_sample_rtsp_app` in the `kinesis-video-native-build` directory. Launch it with a stream name and `rtsp_url`  and it will start streaming.
+`kinesis_video_gstreamer_sample_app` also supports taking a rtsp url. In the `kinesis-video-native-build` directory. Launch it with a stream name and `rtsp_url`  and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_rtsp_app <my_rtsp_url> my-rtsp-stream
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my-rtsp-stream> <my_rtsp_url>
+```
+
+##### Uploading a video file
+`kinesis_video_gstreamer_sample_app` also supports uploading a video that is either mkv, mpegts, or mp4. The file content has to be h264 encoded. In the `kinesis-video-native-build` directory. Launch it with a stream name and a path to the file and it will start streaming.
+
+```
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my-stream> </path/to/file>
 ```
 
 ##### Using Docker to run the demo application

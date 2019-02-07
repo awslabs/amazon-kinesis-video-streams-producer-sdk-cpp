@@ -173,10 +173,10 @@ JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_Nat
 /*
  * Class:     com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni
  * Method:    getKinesisVideoStreamData
- * Signature: (JJ[BIILcom/amazonaws/kinesisvideo/internal/producer/ReadResult;)V
+ * Signature: (JJJ[BIILcom/amazonaws/kinesisvideo/internal/producer/ReadResult;)V
  */
 JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamData
-  (JNIEnv *, jobject, jlong, jlong, jobject, jint, jint, jobject);
+  (JNIEnv *, jobject, jlong, jlong, jlong, jobject, jint, jint, jobject);
 
 /*
  * Class:     com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni

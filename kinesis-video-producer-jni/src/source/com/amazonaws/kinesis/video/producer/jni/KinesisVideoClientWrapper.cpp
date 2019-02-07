@@ -311,6 +311,12 @@ STREAM_HANDLE KinesisVideoClientWrapper::createKinesisVideoStream(jobject stream
 
 CleanUp:
 
+    // Release the Segment UUID memory if any
+    if (kinesisVideoStreamInfo.streamCaps.segmentUuid != NULL) {
+        MEMFREE(kinesisVideoStreamInfo.streamCaps.segmentUuid);
+        kinesisVideoStreamInfo.streamCaps.segmentUuid = NULL;
+    }
+
     // Release the temporary memory allocated for cpd
     for (i = 0; i < kinesisVideoStreamInfo.streamCaps.trackInfoCount; ++i) {
         if (kinesisVideoStreamInfo.streamCaps.trackInfoList[i].codecPrivateData != NULL) {
@@ -423,12 +429,11 @@ void KinesisVideoClientWrapper::putKinesisVideoFragmentMetadata(jlong streamHand
 
 }
 
-void KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)
+void KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, jlong uploadHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)
 {
     STATUS retStatus = STATUS_SUCCESS;
     JNIEnv *env;
     mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
-    UINT64 uploadHandle = 0;
     UINT32 filledSize = 0, bufferSize = 0;
     PBYTE pBuffer = NULL;
     jboolean isEos = JNI_FALSE;
@@ -471,15 +476,19 @@ void KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, jo
         goto CleanUp;
     }
 
-    retStatus = ::getKinesisVideoStreamData(streamHandle, &uploadHandle, pBuffer, (UINT32) length, &filledSize);
-    if (STATUS_SUCCESS != retStatus && STATUS_NO_MORE_DATA_AVAILABLE != retStatus && STATUS_END_OF_STREAM != retStatus)
+    retStatus = ::getKinesisVideoStreamData(streamHandle, uploadHandle, pBuffer, (UINT32) length, &filledSize);
+    if (STATUS_SUCCESS != retStatus && STATUS_AWAITING_PERSISTED_ACK != retStatus
+        && STATUS_UPLOAD_HANDLE_ABORTED != retStatus
+        && STATUS_NO_MORE_DATA_AVAILABLE != retStatus && STATUS_END_OF_STREAM != retStatus)
     {
+        char errMessage[256];
+        SNPRINTF(errMessage, 256, "Failed to get data from the stream 0x%016" PRIx64 " with uploadHandle %" PRIu64 , (UINT64) streamHandle, (UINT64) uploadHandle);
         DLOGE("Failed to get data from the stream with status code 0x%08x", retStatus);
-        throwNativeException(env, EXCEPTION_NAME, "Failed to get data from the stream.", retStatus);
+        throwNativeException(env, EXCEPTION_NAME, errMessage, retStatus);
         goto CleanUp;
     }
 
-    if (STATUS_END_OF_STREAM == retStatus) {
+    if (STATUS_END_OF_STREAM == retStatus || STATUS_UPLOAD_HANDLE_ABORTED == retStatus) {
         isEos = JNI_TRUE;
     }
 
@@ -492,7 +501,7 @@ void KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, jo
     }
 
     // Get the Java method id
-    setterMethodId = env->GetMethodID(readResultClass, "setReadResult", "(JIZ)V");
+    setterMethodId = env->GetMethodID(readResultClass, "setReadResult", "(IZ)V");
     if (setterMethodId == NULL)
     {
         DLOGE("Failed to get the setter method id.");
@@ -503,7 +512,6 @@ void KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, jo
     // Call the setter method
     env->CallVoidMethod(readResult,
                         setterMethodId,
-                        uploadHandle,
                         filledSize,
                         isEos);
 
@@ -2306,6 +2314,11 @@ STATUS KinesisVideoClientWrapper::getAuthInfo(jmethodID methodId, PBYTE* ppCert,
 
     // Call the Java func
     jAuthInfoObj = env->CallObjectMethod(mGlobalJniObjRef, methodId);
+    if (jAuthInfoObj == NULL) {
+        DLOGE("Failed to get the object for the AuthInfo object. methodId %s", methodId);
+        retStatus = STATUS_INVALID_ARG;
+        goto CleanUp;
+    }
 
     // Extract the method IDs for the auth object
     authCls = env->GetObjectClass(jAuthInfoObj);

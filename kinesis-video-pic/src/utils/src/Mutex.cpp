@@ -86,7 +86,7 @@ INLINE VOID defaultFreeMutex(MUTEX mutex)
     if (pLock->reentrant) {
         DeleteCriticalSection(&pLock->criticalSection);
     }
-    
+
     MEMFREE(pLock);
 }
 
@@ -117,7 +117,7 @@ INLINE STATUS defaultConditionVariableSignal(CVAR cvar)
     STATUS retStatus = STATUS_SUCCESS;
 
     CHK_ERR(NULL != cvar, STATUS_INVALID_ARG, "Invalid condition variable value");
-    
+
     WakeConditionVariable(cvar);
 
 CleanUp:
@@ -155,7 +155,7 @@ INLINE STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeou
         CHK(SleepConditionVariableCS(cvar, &pLock->criticalSection, dwTimeout), STATUS_WAIT_FAILED);
     }
     else {
-        CHK(SleepConditionVariableSRW(cvar, &pLock->srwLock, dwTimeout, 0), STATUS_WAIT_FAILED);
+        CHK(SleepConditionVariableSRW(cvar, &pLock->srwLock, dwTimeout, CONDITION_VARIABLE_LOCKMODE_SHARED), STATUS_WAIT_FAILED);
     }
 
 CleanUp:
@@ -284,7 +284,7 @@ INLINE STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeou
     INT32 retVal = 0;
     timespec timeSpec;
     pthread_mutex_t* pMutex = (pthread_mutex_t*) mutex;
-    
+
     if (INFINITE_TIME_VALUE == timeout) {
         CHK(0 == (retVal = pthread_cond_wait(cvar, pMutex)), STATUS_WAIT_FAILED);
     }

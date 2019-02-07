@@ -12,23 +12,18 @@ enum class StreamLatencyHandlingState {
 };
 
 class StreamLatencyStateMachine {
-    const uint32_t THROTTLE_DELAY_NANOSECOND = 3000000;
     const uint32_t GRACE_PERIOD_MILLISECOND = 30000;
     const uint32_t VERIFICATION_PERIOD_MILLISECOND = 60000;
 
     std::shared_ptr<CustomData> data;
-    STREAM_HANDLE stream_handle;
     StreamLatencyHandlingState current_state;
     std::chrono::milliseconds curr_time = std::chrono::milliseconds(0);
     std::chrono::milliseconds quiet_time = std::chrono::milliseconds(0);
     std::chrono::milliseconds back_to_normal_time = std::chrono::milliseconds(0);
-    std::thread undo_throttle;
 public:
-    StreamLatencyStateMachine(std::shared_ptr<CustomData> data, STREAM_HANDLE stream_handle): current_state(StreamLatencyHandlingState::NORMAL_STATE),
-                                                                              data(data), stream_handle(stream_handle) {}
+    StreamLatencyStateMachine(std::shared_ptr<CustomData> data): current_state(StreamLatencyHandlingState::NORMAL_STATE),
+                                                                 data(data) {}
     void handleStreamLatency();
-
-    ~StreamLatencyStateMachine();
 
 private:
     void toResetConnectionState();

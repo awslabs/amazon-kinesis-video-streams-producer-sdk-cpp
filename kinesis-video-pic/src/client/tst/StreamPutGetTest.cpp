@@ -9,7 +9,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
-    UINT64 timestamp, clientStreamHandle, availableStorage, curAvailableStorage;
+    UINT64 timestamp, availableStorage, curAvailableStorage;
     Frame frame;
     ClientMetrics memMetrics;
 
@@ -54,7 +54,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
 
         // Get the available storage size
@@ -69,11 +69,9 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
     // Consume frames on the boundary and validate
 
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
-        clientStreamHandle = 0;
-
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -86,9 +84,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
         bufferSize = SIZEOF(tempBuffer) + offset;
 
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Validate the fill pattern
         validPattern = TRUE;
@@ -109,7 +106,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
     STATUS retStatus;
     UINT32 putStreamResultCount = 20;
@@ -152,17 +149,15 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
 
         // Return a put stream result on 20th
         if (i == putStreamResultCount) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
 
         // We will be reading from the beginning only after we have the upload handle
         k = i - putStreamResultCount;
 
-        clientStreamHandle = 0;
-
         // The first frame will have the cluster and MKV overhead
         if (k == 0) {
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (k % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -174,16 +169,14 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
         // Set the buffer size to be the offset + frame bits size
         bufferSize = SIZEOF(tempBuffer) + offset;
 
-        retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize);
+        retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize);
 
         if (i >= putStreamResultCount) {
             EXPECT_EQ(STATUS_SUCCESS, retStatus);
-            EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
             EXPECT_EQ(bufferSize, filledSize);
         } else {
             // PutStreamResult hasn't been called yet
-            EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
-            EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
+            EXPECT_EQ(STATUS_UPLOAD_HANDLE_ABORTED, retStatus);
             EXPECT_EQ(0, filledSize);
         }
 
@@ -208,7 +201,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
     STATUS retStatus;
     UINT32 putStreamResultCount = 20;
@@ -251,14 +244,12 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
 
         // Return a put stream result on 20th
         if (i == putStreamResultCount) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
-
-        clientStreamHandle = 0;
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -273,21 +264,21 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
         if (i == putStreamResultCount) {
             // Catch-up with the head and continue
             for (k = 0; k < i; k++) {
-                getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
-                                          SIZEOF(tempBuffer) + GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT), &filledSize);
+                getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer,
+                                          SIZEOF(tempBuffer) +
+                                          mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount),
+                                          &filledSize);
             }
         } else {
-            retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+            retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
                                                   &filledSize);
 
             if (i > putStreamResultCount) {
-                EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
                 EXPECT_EQ(STATUS_SUCCESS, retStatus);
                 EXPECT_EQ(bufferSize, filledSize);
             } else {
                 // PutStreamResult hasn't been called yet
-                EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
-                EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
+                EXPECT_EQ(STATUS_UPLOAD_HANDLE_ABORTED, retStatus);
                 EXPECT_EQ(0, filledSize);
             }
 
@@ -306,7 +297,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
                 if (k >= putStreamResultCount) {
                     // No more data should be available
                     EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
-                              getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+                              getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
                                                         &filledSize));
                 }
             }
@@ -320,7 +311,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
     STATUS retStatus;
     UINT32 putStreamResultCount = 20;
@@ -363,14 +354,12 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
         // Return a put stream result on 20th
         if (i == putStreamResultCount) {
             EXPECT_EQ(STATUS_SUCCESS,
-                      putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+                      putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
-
-        clientStreamHandle = 0;
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -385,16 +374,17 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
         if (i == putStreamResultCount) {
             // Catch-up with the head and continue
             for (k = 0; k < i; k++) {
-                getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
-                                          SIZEOF(tempBuffer) + GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT), &filledSize);
+                getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer,
+                                          SIZEOF(tempBuffer) +
+                                          mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount),
+                                          &filledSize);
             }
         } else {
-            retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+            retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
                                                   &filledSize);
 
             if (i > putStreamResultCount) {
                 EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE, retStatus);
-                EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
                 EXPECT_EQ(SIZEOF(tempBuffer) + offset, filledSize);
 
                 // Validate the fill pattern
@@ -409,8 +399,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
                 EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
             } else {
                 // PutStreamResult hasn't been called yet
-                EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
-                EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
+                EXPECT_EQ(STATUS_UPLOAD_HANDLE_ABORTED, retStatus);
                 EXPECT_EQ(0, filledSize);
             }
         }
@@ -423,7 +412,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBuffer)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Ensure we have fragmentation based on the key frames
@@ -463,18 +452,16 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBuffer)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames
     iterations = i;
     for (i = 0; i < iterations; i++) {
-        clientStreamHandle = 0;
-
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -488,18 +475,16 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBuffer)
 
         // Read the first half
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Read the second half
         filledSize = bufferSize;
         bufferSize = SIZEOF(tempBuffer) / 2;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer + filledSize, bufferSize,
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer + filledSize, bufferSize,
                                             &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Validate the fill pattern
         validPattern = TRUE;
@@ -519,7 +504,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
     STATUS retStatus;
     UINT32 putStreamResultCount = 20;
@@ -562,15 +547,12 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
         // Return a put stream result on 20th
         if (i == putStreamResultCount) {
             EXPECT_EQ(STATUS_SUCCESS,
-                      putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+                      putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
-
-        // Consume frames
-        clientStreamHandle = 0;
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -583,7 +565,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
         bufferSize = SIZEOF(tempBuffer) / 2 + offset;
 
         // Read the first half
-        retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+        retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
                                               &filledSize);
 
         if (i == putStreamResultCount) {
@@ -591,28 +573,27 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
 
             // Catch-up with the head and continue
             for (k = 0; k < i; k++) {
-                getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer,
-                                          SIZEOF(tempBuffer) + GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT), &filledSize);
+                getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer,
+                                          SIZEOF(tempBuffer) +
+                                          mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount),
+                                          &filledSize);
             }
         } else {
             if (i > putStreamResultCount) {
-                EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
                 EXPECT_EQ(STATUS_SUCCESS, retStatus);
                 EXPECT_EQ(bufferSize, filledSize);
             } else {
                 // PutStreamResult hasn't been called yet
-                EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
-                EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
+                EXPECT_EQ(STATUS_UPLOAD_HANDLE_ABORTED, retStatus);
             }
 
             // Read the second half
             filledSize = bufferSize;
             bufferSize = SIZEOF(tempBuffer) / 2;
-            retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer + filledSize,
+            retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer + filledSize,
                                                   bufferSize, &filledSize);
 
             if (i > putStreamResultCount) {
-                EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
                 EXPECT_EQ(STATUS_SUCCESS, retStatus);
                 EXPECT_EQ(bufferSize, filledSize);
 
@@ -629,12 +610,11 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
 
                 // No more data should be available
                 EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
-                          getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize,
+                          getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
                                                     &filledSize));
             } else {
                 // PutStreamResult hasn't been called yet
-                EXPECT_EQ(INVALID_UPLOAD_HANDLE_VALUE, clientStreamHandle);
-                EXPECT_EQ(STATUS_END_OF_STREAM, retStatus);
+                EXPECT_EQ(STATUS_UPLOAD_HANDLE_ABORTED, retStatus);
             }
         }
     }
@@ -646,7 +626,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetDoubleBuffer)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[5000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Ensure we have fragmentation based on the key frames
@@ -686,18 +666,16 @@ TEST_F(StreamPutGetTest, putFrame_PutGetDoubleBuffer)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames
     iterations = i / 2;
     for (i = 0; i < iterations; i+=2) {
-        clientStreamHandle = 0;
-
         // The first two frames will have the simple block, cluster and MKV overhead
         if (i == 0) {
-            offset1 = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset1 = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
             offset2 = MKV_SIMPLE_BLOCK_OVERHEAD;
         } else if (i % 10 == 0) {
             // Cluster start will have simple block and cluster overhead
@@ -713,9 +691,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetDoubleBuffer)
 
         // Read the double
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Validate the fill pattern
         validPattern = TRUE;
@@ -746,7 +723,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonBoundaryBuffer)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[5000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Ensure we have fragmentation based on the key frames
@@ -786,17 +763,15 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonBoundaryBuffer)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames - half on the boundary
     iterations = i / 2;
     for (i = 0; i < iterations; i++) {
-        clientStreamHandle = 0;
-
         if (i == 0) {
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start
             offset = MKV_CLUSTER_OVERHEAD;
@@ -809,9 +784,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonBoundaryBuffer)
 
         // Read the double
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Validate the fill pattern
         validPattern = TRUE;
@@ -828,7 +802,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonBoundaryBuffer)
     // Read 1.5 frame size
     bufferSize = SIZEOF(tempBuffer) + SIZEOF(tempBuffer) / 2 + MKV_CLUSTER_OVERHEAD + MKV_SIMPLE_BLOCK_OVERHEAD;
     EXPECT_EQ(STATUS_SUCCESS,
-              getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+              getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
     EXPECT_EQ(bufferSize, filledSize);
 
     // Validate the first part fill pattern
@@ -862,7 +836,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Ensure we have fragmentation based on the key frames
@@ -902,18 +876,16 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames on the boundary and validate
 
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
-        clientStreamHandle = 0;
-
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT);
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -926,9 +898,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
         bufferSize = SIZEOF(tempBuffer) + offset;
 
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Validate the fill pattern
         validPattern = TRUE;
@@ -949,8 +920,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
     BOOL validPattern;
     BYTE tempBuffer[1000];
     BYTE getDataBuffer[2000];
-    BYTE cpd[10];
-    UINT64 timestamp, clientStreamHandle;
+    BYTE cpd[10]; // cpd's ebml length should be 1 byte
+    UINT64 timestamp;
     Frame frame;
 
     // Ensure we have fragmentation based on the key frames
@@ -994,19 +965,17 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames on the boundary and validate
 
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
-        clientStreamHandle = 0;
-
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT) + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 1;
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1019,9 +988,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
         bufferSize = SIZEOF(tempBuffer) + offset;
 
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Validate the fill pattern
         validPattern = TRUE;
@@ -1041,9 +1009,9 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
     UINT32 i, j, filledSize, offset, bufferSize;
     BOOL validPattern;
     BYTE tempBuffer[1000];
-    BYTE cpd[0x4000 - 2];
+    BYTE cpd[1 << 13]; // cpd's ebml length should be 2 bytes
     BYTE getDataBuffer[2000 + SIZEOF(cpd)];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Ensure we have fragmentation based on the key frames
@@ -1087,19 +1055,17 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames on the boundary and validate
 
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
-        clientStreamHandle = 0;
-
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT) + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 2;
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1112,9 +1078,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
         bufferSize = SIZEOF(tempBuffer) + offset;
 
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Validate the fill pattern
         validPattern = TRUE;
@@ -1134,9 +1099,9 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
     UINT32 i, j, filledSize, offset, bufferSize;
     BOOL validPattern;
     BYTE tempBuffer[1000];
-    BYTE cpd[0x4000];
+    BYTE cpd[1 << 20]; // cpd's ebml length should be 3 bytes
     BYTE getDataBuffer[2000 + SIZEOF(cpd)];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Ensure we have fragmentation based on the key frames
@@ -1180,19 +1145,17 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames on the boundary and validate
 
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
-        clientStreamHandle = 0;
-
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT) + SIZEOF(cpd) + MKV_CODEC_PRIVATE_DATA_ELEM_SIZE + 3;
+            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1205,9 +1168,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
         bufferSize = SIZEOF(tempBuffer) + offset;
 
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, bufferSize, &filledSize));
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
         EXPECT_EQ(bufferSize, filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
         // Validate the fill pattern
         validPattern = TRUE;
@@ -1222,13 +1184,152 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
     }
 }
 
+TEST_F(StreamPutGetTest, putFrame_PutGetSegmentUidCheck)
+{
+    UINT32 i, filledSize;
+    BYTE tempBuffer[100];
+    PBYTE getDataBuffer = NULL;
+    UINT32 getDataBufferSize = 500000;
+    UINT64 timestamp;
+    Frame frame;
+    STATUS retStatus;
+
+    // Ensure we have fragmentation based on the key frames
+    mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
+
+    // Create and ready a stream
+    ReadyStream();
+
+    getDataBuffer = (PBYTE) MEMALLOC(getDataBufferSize);
+
+    // Produce frames
+    frame.duration = TEST_LONG_FRAME_DURATION;
+    frame.size = SIZEOF(tempBuffer);
+    frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
+    for (i = 0, timestamp = 0; i < 100; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+        frame.index = i;
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+
+        // Set the frame bits
+        MEMSET(frame.frameData, (BYTE) i, SIZEOF(tempBuffer));
+
+        // Key frame every 10th
+        frame.flags = i % 10 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame)) << "Iteration " << i;
+
+        // Return a put stream result on 20th
+        if (i == 20) {
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
+        }
+    }
+
+    // Consume frames on the boundary and validate
+    retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, getDataBufferSize, &filledSize);
+    ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
+
+    // Manually pre-validated data file size
+    EXPECT_EQ(11687, filledSize);
+
+    // Validate the segment UUID
+    EXPECT_EQ(0, MEMCMP(getDataBuffer + MKV_SEGMENT_UUID_OFFSET, TEST_SEGMENT_UUID, MKV_SEGMENT_UUID_LEN));
+
+    // Store the data in a file
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_segment_uid.mkv", TRUE, getDataBuffer, filledSize));
+    MEMFREE(getDataBuffer);
+}
+
+TEST_F(StreamPutGetTest, putFrame_PutGetGeneratedSegmentUidCheck)
+{
+    UINT32 i, filledSize;
+    BYTE tempBuffer[100];
+    PBYTE getDataBuffer = NULL;
+    UINT32 getDataBufferSize = 500000;
+    UINT64 timestamp;
+    Frame frame;
+    STATUS retStatus;
+    CLIENT_HANDLE clientHandle;
+    STREAM_HANDLE streamHandle;
+
+    // Ensure we have fragmentation based on the key frames
+    mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
+
+    // Try to force the generation of the Segment UID
+    mStreamInfo.streamCaps.segmentUuid = NULL;
+
+    // Override the random gen function
+    mClientCallbacks.getRandomNumberFn = getRandomNumberConstFunc;
+
+    // Create and ready a stream
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, createDeviceResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_DEVICE_ARN));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(clientHandle, &mStreamInfo, &streamHandle));
+
+    // Move to ready state
+    mStreamDescription.version = STREAM_DESCRIPTION_CURRENT_VERSION;
+    STRCPY(mStreamDescription.deviceName, TEST_DEVICE_NAME);
+    STRCPY(mStreamDescription.streamName, TEST_STREAM_NAME);
+    STRCPY(mStreamDescription.contentType, TEST_CONTENT_TYPE);
+    STRCPY(mStreamDescription.streamArn, TEST_STREAM_ARN);
+    STRCPY(mStreamDescription.updateVersion, TEST_UPDATE_VERSION);
+    mStreamDescription.streamStatus = STREAM_STATUS_ACTIVE;
+    mStreamDescription.creationTime = GETTIME();
+    // Reset the stream name
+    mStreamName[0] = '\0';
+    EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingEndpointResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT));
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingTokenResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, (PBYTE) TEST_STREAMING_TOKEN, SIZEOF(TEST_STREAMING_TOKEN), TEST_AUTH_EXPIRATION));
+
+    getDataBuffer = (PBYTE) MEMALLOC(getDataBufferSize);
+
+    // Produce frames
+    frame.duration = TEST_LONG_FRAME_DURATION;
+    frame.size = SIZEOF(tempBuffer);
+    frame.frameData = tempBuffer;
+    frame.trackId = TEST_TRACKID;
+    for (i = 0, timestamp = 0; i < 100; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+        frame.index = i;
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+
+        // Set the frame bits
+        MEMSET(frame.frameData, (BYTE) i, SIZEOF(tempBuffer));
+
+        // Key frame every 10th
+        frame.flags = i % 10 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &frame)) << "Iteration " << i;
+
+        // Return a put stream result on 20th
+        if (i == 20) {
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
+        }
+    }
+
+    // Consume frames on the boundary and validate
+    retStatus = getKinesisVideoStreamData(streamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, getDataBufferSize, &filledSize);
+    ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
+
+    // Manually pre-validated data file size
+    EXPECT_EQ(11687, filledSize);
+
+    // Validate the segment UUID
+    EXPECT_TRUE(MEMCHK(getDataBuffer + MKV_SEGMENT_UUID_OFFSET, TEST_CONST_RAND_FUNC_BYTE, MKV_SEGMENT_UUID_LEN));
+
+    // Store the data in a file
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_gen_segment_uid.mkv", TRUE, getDataBuffer, filledSize));
+    MEMFREE(getDataBuffer);
+
+    freeKinesisVideoClient(&clientHandle);
+}
+
 TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
 {
     UINT32 i, filledSize;
     BYTE tempBuffer[100];
     PBYTE getDataBuffer = NULL;
     UINT32 getDataBufferSize = 500000;
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
     STATUS retStatus;
 
@@ -1261,16 +1362,16 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames on the boundary and validate
-    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
+    retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, getDataBufferSize, &filledSize);
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(18474, filledSize);
+    EXPECT_EQ(18437, filledSize);
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_tags.mkv", TRUE, getDataBuffer, filledSize));
@@ -1284,7 +1385,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
     PBYTE getDataBuffer = NULL;
     UINT32 getDataBufferSize = 500000;
 
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
     STATUS retStatus;
 
@@ -1327,16 +1428,16 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
 
         // Return a put stream result on 20th
         if (i == 20) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Consume frames on the boundary and validate
-    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
+    retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, getDataBufferSize, &filledSize);
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(16237, filledSize);
+    EXPECT_EQ(16200, filledSize);
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
@@ -1344,13 +1445,13 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
     MEMFREE(getDataBuffer);
 }
 
-TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
+TEST_F(StreamPutGetTest, DISABLED_putFrame_PutGetTagsBeforeStoreData)
 {
     UINT32 i, filledSize;
     BYTE tempBuffer[100];
     PBYTE getDataBuffer = NULL;
     UINT32 getDataBufferSize = 500000;
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
     STATUS retStatus;
 
@@ -1398,7 +1499,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
 
         // Return a put stream result on 10th
         if (i == 10) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
@@ -1406,11 +1507,11 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
     EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "Should not appear", (PCHAR) "Should not appear", FALSE));
 
     // Consume frames on the boundary and validate
-    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
+    retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, getDataBufferSize, &filledSize);
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(6697, filledSize);
+    EXPECT_EQ(6706, filledSize);
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
@@ -1425,7 +1526,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
     PBYTE getDataBuffer = NULL;
     UINT32 getDataBufferSize = 500000;
     CHAR tagValue[1000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
     STATUS retStatus;
 
@@ -1485,7 +1586,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
 
         // Return a put stream result on 10th
         if (i == 10) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
@@ -1493,14 +1594,14 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
     EXPECT_EQ(STATUS_SUCCESS, putFragmentMetadata(pKinesisVideoStream, (PCHAR) "Should not appear", (PCHAR) "Should not appear", FALSE));
 
     // Consume frames on the boundary and validate
-    retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, getDataBufferSize, &filledSize);
+    retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, getDataBufferSize, &filledSize);
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
-
-    // Manually pre-validated data file size
-    EXPECT_EQ(6394, filledSize);
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_persistent_tags.mkv", TRUE, getDataBuffer, filledSize));
+
+    // Manually pre-validated data file size
+    EXPECT_EQ(6357, filledSize);
 
     MEMFREE(getDataBuffer);
 }

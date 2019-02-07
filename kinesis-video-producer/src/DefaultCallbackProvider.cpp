@@ -2,6 +2,7 @@
 
 #include "DefaultCallbackProvider.h"
 #include "Version.h"
+#include "Logger.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -27,8 +28,8 @@ using std::async;
 using std::launch;
 using Json::FastWriter;
 
-#define CURL_CLOSE_HANDLE_DELAY_IN_MILLIS               10
-#define MAX_CUSTOM_USER_AGENT_STRING_LENGTH            128
+#define CURL_CLOSE_HANDLE_DELAY_IN_MILLIS               200
+#define MAX_CUSTOM_USER_AGENT_STRING_LENGTH             128
 
 /**
 * As we store the credentials provider in the object itself we will return the pointer in the buffer
@@ -129,6 +130,7 @@ STATUS DefaultCallbackProvider::createStreamHandler(
     request->setHeader("content-type", "application/json");
     request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
+    request->setCertPath(this_obj->cert_path_);
 
     LOG_DEBUG("createStreamHandler post body: " << post_body);
 
@@ -225,6 +227,7 @@ STATUS DefaultCallbackProvider::tagResourceHandler(
     request->setHeader("content-type", "application/json");
     request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
+    request->setCertPath(this_obj->cert_path_);
 
     LOG_DEBUG("tagResourceHandler post body: " << post_body);
 
@@ -300,6 +303,7 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
     request->setHeader("content-type", "application/json");
     request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
+    request->setCertPath(this_obj->cert_path_);
 
     auto async_call = [](DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
@@ -363,12 +367,12 @@ STATUS DefaultCallbackProvider::describeStreamHandler(
 
                 // Set the ARN
                 const string stream_arn(json_response["StreamInfo"]["StreamARN"].asString());
-                LOG_INFO("Discovered existing Kinesis Video stream: " << stream_arn);
+                LOG_DEBUG("Discovered existing Kinesis Video stream: " << stream_arn);
                 assert(MAX_ARN_LEN > stream_arn.size());
                 std::memcpy(&(stream_description.streamArn), stream_arn.c_str(), stream_arn.size());
                 stream_description.streamArn[stream_arn.size()] = '\0';
 
-                LOG_INFO("stream arn in stream_info struct: "
+                LOG_DEBUG("stream arn in stream_info struct: "
                                  << string(reinterpret_cast<char *>(&(stream_description
                                          .streamArn))));
 
@@ -436,6 +440,7 @@ STATUS DefaultCallbackProvider::streamingEndpointHandler(
     request->setHeader("host", endpoint);
     request->setHeader("user-agent", this_obj->user_agent_);
     request->setBody(post_body);
+    request->setCertPath(this_obj->cert_path_);
 
     auto async_call = [](DefaultCallbackProvider* this_obj,
                          std::unique_ptr<Request> request,
@@ -594,6 +599,7 @@ STATUS DefaultCallbackProvider::putStreamHandler(
     request->setHeader("transfer-encoding", "chunked");
     request->setHeader("connection", "keep-alive");
     request->setHeader("user-agent", this_obj->user_agent_);
+    request->setCertPath(this_obj->cert_path_);
 
     auto async_call = [](DefaultCallbackProvider* this_obj,
                          shared_ptr<OngoingStreamState> state,
@@ -693,10 +699,18 @@ void DefaultCallbackProvider::shutdownStream(STREAM_HANDLE stream_handle) {
                               << state->isShutdown());
             if (nullptr != state && stream_handle == state->getStreamHandle()) {
                 state->shutdown();
+                state->unPause();
 
-                auto response = state->getResponse();
-                if (nullptr != response) {
-                    response->terminate();
+                std::this_thread::sleep_for(std::chrono::milliseconds(CURL_CLOSE_HANDLE_DELAY_IN_MILLIS));
+
+                if (!state->isTerminated()) {
+                    LOG_WARN("Timed out waiting for curl thread to terminate. Forcing curl to terminate.");
+                    auto curl_response = state->getResponse();
+                    // Close the connection
+                    if (nullptr != curl_response) {
+                        curl_response->terminate();
+                    }
+                    state->terminate();
                 }
             }
         }
@@ -742,53 +756,67 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
     LOG_DEBUG("streamClosedHandler invoked for upload handle: " << stream_upload_handle);
 
     auto this_obj = reinterpret_cast<DefaultCallbackProvider *>(custom_data);
-    if (IS_VALID_UPLOAD_HANDLE(stream_upload_handle)) {
-        std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
 
-        auto state = this_obj->active_streams_.get(stream_upload_handle);
-        if (nullptr != state) {
-            // Remove from the map
-            this_obj->active_streams_.remove(stream_upload_handle);
+    std::unique_lock<std::recursive_mutex> lock(this_obj->active_streams_mutex_);
+
+    // Iterate over the map and make sure to shutdown all the ongoing states
+    auto map = this_obj->active_streams_.getMap();
+    for (std::map<STREAM_HANDLE, std::shared_ptr<OngoingStreamState>>::iterator iter = map.begin();
+         iter != map.end();
+         iter++) {
+        auto state = iter->second;
+        if (nullptr != state && stream_handle == state->getStreamHandle()) {
+            LOG_DEBUG("Close connection: "
+                              << state->getStreamName()
+                              << ", upload handle: "
+                              << state->getUploadHandle()
+                              << ", is EOS: "
+                              << state->isEndOfStream()
+                              << ", is in Shutdown: "
+                              << state->isShutdown());
 
             // Set EOS and terminate
             if (!state->isEndOfStream()) {
-                state->endOfStream();
 
+                state->endOfStream();
+                LOG_DEBUG("handle " << state->getUploadHandle() << " end-of-stream");
                 // Pulse the awaiting threads
                 state->unPause();
             }
+        }
+    }
 
-            auto curl_response = state->getResponse();
-            // Close the connection
-            if (nullptr != curl_response) {
-                curl_response->terminate();
+    std::this_thread::sleep_for(std::chrono::milliseconds(CURL_CLOSE_HANDLE_DELAY_IN_MILLIS));
+
+    // Iterate over the map and make sure to shutdown all the ongoing states
+    for (std::map<STREAM_HANDLE, std::shared_ptr<OngoingStreamState>>::iterator iter = map.begin();
+         iter != map.end();
+         iter++) {
+        auto state = iter->second;
+        if (nullptr != state && stream_handle == state->getStreamHandle()) {
+
+            this_obj->active_streams_.remove(iter->first);
+
+            if (!state->isTerminated()) {
+                LOG_WARN("Timed out waiting for curl thread to terminate. Forcing curl to terminate.");
+                auto curl_response = state->getResponse();
+                // Close the connection
+                if (nullptr != curl_response) {
+                    curl_response->terminate();
+                }
+                state->terminate();
             }
         }
     }
 
     auto stream_eos_callback = this_obj->stream_callback_provider_->getStreamClosedCallback();
     if (nullptr != stream_eos_callback) {
-        // Await for some time for CURL to terminate properly before triggering the callback on another thread
-        // as the calling thread is likely to be the curls thread and most implementations have a single threaded
-        // pool which we can't block.
-        auto async_call = [](const StreamClosedFunc stream_eos_callback,
-                             UINT64 custom_data,
-                             STREAM_HANDLE stream_handle,
-                             UPLOAD_HANDLE stream_upload_handle) -> auto {
-
-            STATUS status = stream_eos_callback(custom_data, stream_handle, stream_upload_handle);
-            if (STATUS_FAILED(status)) {
-                LOG_ERROR("streamClosedHandler failed with: " << status);
-            }
-        };
-
-        thread worker(async_call,
-                      stream_eos_callback,
-                      this_obj->stream_callback_provider_->getCallbackCustomData(),
-                      stream_handle,
-                      stream_upload_handle);
-
-        worker.detach();
+        STATUS status = stream_eos_callback(this_obj->stream_callback_provider_->getCallbackCustomData(),
+                                            stream_handle,
+                                            stream_upload_handle);
+        if (STATUS_FAILED(status)) {
+            LOG_ERROR("streamClosedHandler failed with: " << status);
+        }
     }
 
     return STATUS_SUCCESS;
@@ -1037,13 +1065,15 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const string& region,
         const string& control_plane_uri,
         const std::string &user_agent_name,
-        const std::string &custom_user_agent)
+        const std::string &custom_user_agent,
+        const std::string &cert_path)
         : ccm_(CurlCallManager::getInstance()),
           region_(region),
           current_upload_handle_(0),
           service_(KINESIS_VIDEO_SERVICE_NAME),
           control_plane_uri_(control_plane_uri),
           debug_dump_file_(false),
+          cert_path_(cert_path),
           security_token_(nullptr) {
     client_callback_provider_ = move(client_callback_provider);
     stream_callback_provider_ = move(stream_callback_provider);

@@ -1,10 +1,9 @@
 #include "ConnectionStaleStateMachine.h"
+#include "Logger.h"
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
 using namespace std;
-
-const uint32_t THROTTLING_PERIOD_MILLISECOND = 20000;
 
 void ConnectionStaleStateMachine::toResetConnectionState() {
     LOG_INFO("Stream Latency State Machine move to RESET_CONNECTION_STATE");
@@ -12,11 +11,10 @@ void ConnectionStaleStateMachine::toResetConnectionState() {
     current_state = ConnectionStaleHandlingState::RESET_CONNECTION_STATE;
     update_timestamp();
 
-    auto stream = data->kinesis_video_stream_map.get(stream_handle);
-    if (NULL != stream) {
-        stream->resetConnection();
+    if (data->stream_ready.load()) {
+        data->kinesis_video_stream->resetConnection();
     } else {
-        LOG_ERROR("No stream found for given stream handle: " << stream_handle);
+        LOG_ERROR("Stream not ready.");
     }
 }
 

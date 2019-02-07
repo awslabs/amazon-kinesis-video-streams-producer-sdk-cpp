@@ -1151,7 +1151,8 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
 
     CreateContentView();
 
-    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_INDEX, contentViewTrimTail(mContentView, 0));
+    EXPECT_EQ(STATUS_SUCCESS, contentViewTrimTail(mContentView, 0));
+    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_INDEX, contentViewTrimTail(mContentView, 1));
 
     // Add/check
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
@@ -1160,10 +1161,12 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pTail));
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetHead(mContentView, &pHead));
 
-        EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_INDEX, contentViewTrimTail(mContentView, pHead->index + 1));
+        // pHead->index is pRollingView->head-1. contentViewTrimTail accepts itemIndex <= pRollingView->head.
+        // Therefore invalid index is pRollingView->head + 1 or pHead->index + 2
+        EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_INDEX, contentViewTrimTail(mContentView, pHead->index + 2));
     }
 
-    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_INDEX, contentViewTrimTail(mContentView, pHead->index + 1));
+    EXPECT_EQ(STATUS_CONTENT_VIEW_INVALID_INDEX, contentViewTrimTail(mContentView, pHead->index + 2));
 
     // trim till 0 - ensure the callback is not called
     EXPECT_EQ(STATUS_SUCCESS, contentViewTrimTail(mContentView, 0));

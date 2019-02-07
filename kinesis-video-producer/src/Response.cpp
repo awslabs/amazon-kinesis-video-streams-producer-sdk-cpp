@@ -1,4 +1,5 @@
 #include "Response.h"
+#include "Logger.h"
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
@@ -90,9 +91,9 @@ shared_ptr<Response> Response::create(Request &request) {
     curl_easy_setopt(response->curl_, CURLOPT_URL, request.getUrl().c_str());
     curl_easy_setopt(response->curl_, CURLOPT_NOSIGNAL, 1);
 
-    // Curl will abort if the connection drops to below 10 bytes/s for 10 seconds.
-    curl_easy_setopt(response->curl_, CURLOPT_LOW_SPEED_TIME, 10L);
-    curl_easy_setopt(response->curl_, CURLOPT_LOW_SPEED_LIMIT, 10L);
+    // Setting up limits for curl timeout
+    curl_easy_setopt(response->curl_, CURLOPT_LOW_SPEED_TIME, 30L);
+    curl_easy_setopt(response->curl_, CURLOPT_LOW_SPEED_LIMIT, 30L);
 
     // add headers
     for (HeaderMap::const_iterator i = request.getHeaders().begin(); i != request.getHeaders().end(); ++i) {
@@ -105,8 +106,10 @@ shared_ptr<Response> Response::create(Request &request) {
     // set no verification for SSL connections
     if (request.getScheme() == "https") {
         // Use the default cert store at /etc/ssl in most common platforms
-        // TODO have a way to set the certificate store path
-        //curl_easy_setopt(response->m_curl, CURLOPT_CAPATH, >>> client should pass in path <<<);
+        auto cert_path = request.getCertPath();
+        if (!cert_path.empty()) {
+            curl_easy_setopt(response->curl_, CURLOPT_CAPATH, cert_path.c_str());
+        }
 
         // Enforce the public cert verification - even though this is the default
         curl_easy_setopt(response->curl_, CURLOPT_SSL_VERIFYPEER, 1L);
@@ -176,6 +179,8 @@ Response::~Response() {
 
 bool Response::unPause() {
     if (paused_) {
+        // rapid curl pause and unpause could cause curl exception
+        std::this_thread::sleep_for(std::chrono::milliseconds(CURL_PAUSE_UNPAUSE_INTERVAL_MS));
         paused_ = false;
         return CURLE_OK == curl_easy_pause(curl_, CURLPAUSE_SEND_CONT);
     }
@@ -233,6 +238,12 @@ void Response::terminate() {
 
     // Currently, it seems that the only "good" way to stop CURL is to set
     // the timeout to a small value which will timeout the connection.
+    // There is also a potential race condition on stream stopping as termination
+    // could be fast and the bits in the CURL buffer might not have been sent
+    // by the time the terminate() call is issued. We can't control this timing
+    // of the CURL internal buffers so we need to introduce a timeout here before
+    // the main curl termination path.
+    std::this_thread::sleep_for(std::chrono::milliseconds(TIMEOUT_WAIT_FOR_CURL_BUFFER));
     terminated_ = true;
     curl_easy_setopt(curl_, CURLOPT_TIMEOUT_MS, TIMEOUT_AFTER_STREAM_STOPPED);
 }

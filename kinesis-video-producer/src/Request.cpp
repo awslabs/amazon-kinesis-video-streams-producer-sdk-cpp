@@ -9,6 +9,7 @@ Request::Request(Verb verb, const string &url, const STREAM_HANDLE stream_handle
         : creation_time_(systemCurrentTime()),
           verb_(verb),
           url_(url),
+          cert_path_(""),
           stream_handle_(stream_handle),
           request_completion_timeout_(std::chrono::duration<double, std::milli>::zero()),
           connection_timeout_(std::chrono::duration<double, std::milli>::zero()),
@@ -22,6 +23,7 @@ Request::Request(Request::Verb verb,
         : creation_time_(systemCurrentTime()),
           verb_(verb),
           url_(url),
+          cert_path_(""),
           stream_handle_(stream_handle),
           request_completion_timeout_(std::chrono::duration<double, std::milli>::zero()),
           connection_timeout_(std::chrono::duration<double, std::milli>::zero()),
@@ -58,6 +60,14 @@ void Request::setUrl(const std::string &url) {
 
 void Request::setVerb(Verb verb) {
     verb_ = verb;
+}
+
+void Request::setCertPath(const std::string &cert_path) {
+    cert_path_ = cert_path;
+}
+
+const std::string& Request::getCertPath() const {
+    return cert_path_;
 }
 
 const string& Request::getBody() const {

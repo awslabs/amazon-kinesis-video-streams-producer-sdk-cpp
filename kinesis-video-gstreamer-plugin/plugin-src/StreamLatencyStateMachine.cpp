@@ -1,16 +1,10 @@
 #include "StreamLatencyStateMachine.h"
+#include "Logger.h"
+
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
 using namespace std;
-
-const uint32_t THROTTLING_PERIOD_MILLISECOND = 20000;
-
-void turnOffThrottle(std::shared_ptr<CustomData> data) {
-    LOG_INFO("Stream Latency State Machine turn off throttling");
-    this_thread::sleep_for(std::chrono::milliseconds(THROTTLING_PERIOD_MILLISECOND));
-    gst_base_sink_set_throttle_time (GST_BASE_SINK (data->kvsSink), 0);
-}
 
 void StreamLatencyStateMachine::update_timestamp() {
     quiet_time = (curr_time + std::chrono::milliseconds(GRACE_PERIOD_MILLISECOND));
@@ -22,11 +16,10 @@ void StreamLatencyStateMachine::toResetConnectionState() {
 
     current_state = StreamLatencyHandlingState::RESET_CONNECTION_STATE;
     update_timestamp();
-    auto stream = data->kinesis_video_stream_map.get(stream_handle);
-    if (NULL != stream) {
-        stream->resetConnection();
+    if (data->stream_ready.load()) {
+        data->kinesis_video_stream->resetConnection();
     } else {
-        LOG_ERROR("No stream found for given stream handle: " << stream_handle);
+        LOG_ERROR("Stream not ready.");
     }
 }
 
@@ -34,11 +27,8 @@ void StreamLatencyStateMachine::toThrottlePipelineState() {
     LOG_INFO("Stream Latency State Machine move to THROTTLE_PIPELINE_STATE");
     current_state = StreamLatencyHandlingState::THROTTLE_PIPELINE_STATE;
     update_timestamp();
-    gst_base_sink_set_throttle_time (GST_BASE_SINK (data->kvsSink), THROTTLE_DELAY_NANOSECOND);
-    if (undo_throttle.joinable()){
-        undo_throttle.join();
-    }
-    undo_throttle = std::thread(turnOffThrottle, data);
+
+    // no-op for now. Should send qos event to upstream
 }
 
 void StreamLatencyStateMachine::toInfiniteRetryState() {
@@ -48,11 +38,10 @@ void StreamLatencyStateMachine::toInfiniteRetryState() {
 
 void StreamLatencyStateMachine::doInfiniteRetry() {
     update_timestamp();
-    auto stream = data->kinesis_video_stream_map.get(stream_handle);
-    if (NULL != stream) {
-        stream->resetConnection();
+    if (data->stream_ready.load()) {
+        data->kinesis_video_stream->resetConnection();
     } else {
-        LOG_ERROR("No stream found for given stream handle: " << stream_handle);
+        LOG_ERROR("Stream not ready.");
     }
 }
 
@@ -87,8 +76,3 @@ void StreamLatencyStateMachine::handleStreamLatency() {
     }
 }
 
-StreamLatencyStateMachine::~StreamLatencyStateMachine() {
-    if (undo_throttle.joinable()){
-        undo_throttle.join();
-    }
-}

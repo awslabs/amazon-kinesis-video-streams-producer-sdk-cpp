@@ -294,6 +294,8 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/OngoingStreamState.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/OngoingStreamState.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/DefaultCallbackProvider.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/CachingEndpointOnlyCallbackProvider.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/CachingEndpointOnlyCallbackProvider.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/DefaultDeviceInfoProvider.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/DefaultDeviceInfoProvider.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/DeviceInfoProvider.h
@@ -391,10 +393,6 @@ set(PRODUCER_SOURCE_FILES_JNI
 
 set(GST_DEMO_APP
         ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_app.cpp)
-
-
-set(RTSP_DEMO_APP
-        ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_rtsp_app.cpp)
 
 set(GST_PLUGIN_SOURCE_FILES
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/gstkvssink.cpp
@@ -510,7 +508,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND NOT "${CMAKE_CXX_COMPILER_ID}" STR
   add_library(KinesisVideoProducerJNI SHARED ${PRODUCER_SOURCE_FILES_JNI} ${PIC_SOURCE_FILES})
   add_executable(start ${TST_PRODUCER_SOURCE_FILES})
   add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
-  add_executable(kinesis_video_gstreamer_sample_rtsp_app ${RTSP_DEMO_APP})
 
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
 
@@ -518,7 +515,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND NOT "${CMAKE_CXX_COMPILER_ID}" STR
   add_executable(kvs_producer_plugin_rtsp_demo ${KINESIS_VIDEO_GST_PLUGIN_DEMO_SRC}/kvs_producer_plugin_rtsp_demo.cpp)
 
   target_include_directories(kinesis_video_gstreamer_sample_app PRIVATE ${GST_INCLUDE_DIRS})
-  target_include_directories(kinesis_video_gstreamer_sample_rtsp_app PRIVATE ${GST_INCLUDE_DIRS})
 
   target_link_libraries(KinesisVideoProducerJNI)
 
@@ -534,13 +530,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND NOT "${CMAKE_CXX_COMPILER_ID}" STR
           libcurl_a)
 
   target_link_libraries(kinesis_video_gstreamer_sample_app
-          producer
-          gstreamer-1.0
-          gstapp-1.0
-          gobject-2.0
-          glib-2.0)
-
-  target_link_libraries(kinesis_video_gstreamer_sample_rtsp_app
           producer
           gstreamer-1.0
           gstapp-1.0
@@ -592,11 +581,6 @@ else()
 
   add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
   target_link_libraries(kinesis_video_gstreamer_sample_app
-          producer
-          ${GST_DEMO_LIBRARIES})
-
-  add_executable(kinesis_video_gstreamer_sample_rtsp_app ${RTSP_DEMO_APP})
-  target_link_libraries(kinesis_video_gstreamer_sample_rtsp_app
           producer
           ${GST_DEMO_LIBRARIES})
 

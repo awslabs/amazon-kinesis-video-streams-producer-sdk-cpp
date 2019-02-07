@@ -2,7 +2,6 @@
 #include <cstring>
 #include <Logger.h>
 #include "KinesisVideoProducer.h"
-#include "../plugin-src/gstkvssinkenumproperties.h"
 
 using namespace std;
 using namespace com::amazonaws::kinesis::video;
@@ -206,7 +205,7 @@ int gstreamer_init(int argc, char *argv[]) {
         g_object_set(G_OBJECT (data.source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
     }
 
-    g_object_set(G_OBJECT (data.kvsproducer), "stream-name", "plugin-test-stream", "frame-timestamp", KVS_SINK_TIMESTAMP_DEFAULT, "storage-size", 128, NULL);
+    g_object_set(G_OBJECT (data.kvsproducer), "stream-name", "plugin-test-stream", "storage-size", 128, NULL);
 
 //    Iot certificate sample usage.
 //    const char* iot_g_struct = "iot-certificate,endpoint=endpoint,"

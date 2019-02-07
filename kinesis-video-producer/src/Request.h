@@ -43,6 +43,7 @@ public:
     void setBody(const void *body, size_t body_size); ///< Set the request body.
     void setBody(const std::string &body); ///< Set the request body.
     void setHeader(const std::string &header_name, const std::string &header_value); ///< Set a header value.
+    void setCertPath(const std::string &cert_path); ///> Set the optional certificate directory path
     void setRequestCompletionTimeout(
             std::chrono::duration<double, std::milli> timeout); ///< Set the request timeout duration.
     void setConnectionTimeout(
@@ -63,6 +64,7 @@ public:
     std::string getHost() const; ///< Get the host portion of the URL.
     std::string getPath() const; ///< Get the path portion of the URL.
     std::string getQuery() const; ///< Get the query  portion of the URL.
+    const std::string& getCertPath() const; ///< Get the certificate directory path.
 
     bool isStreaming() const; ///< Return true if the request transfers the body as chunks; false otherwise.
 
@@ -99,6 +101,7 @@ private:
     std::string url_;
     HeaderMap headers_;
     std::string body_;
+    std::string cert_path_;
     std::chrono::duration<double, std::milli> request_completion_timeout_;
     std::chrono::duration<double, std::milli> connection_timeout_;
 

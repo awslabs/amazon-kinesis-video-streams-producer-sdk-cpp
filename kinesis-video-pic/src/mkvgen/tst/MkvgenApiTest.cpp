@@ -20,42 +20,44 @@ TEST_F(MkvgenApiTest, createMkvGenerator_InvalidInput)
     MEMSET(trackName, 'a', MKV_MAX_TRACK_NAME_LEN + 1);
     trackName[MKV_MAX_TRACK_NAME_LEN + 1] = '\0';
 
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(contentType, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(contentType, MKV_TEST_BEHAVIOR_FLAGS, MIN_TIMECODE_SCALE - 1, MKV_TEST_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(contentType, MKV_TEST_BEHAVIOR_FLAGS, MAX_TIMECODE_SCALE + 1, MKV_TEST_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
-    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MIN_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(contentType, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(contentType, MKV_TEST_BEHAVIOR_FLAGS, MIN_TIMECODE_SCALE - 1, MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(contentType, MKV_TEST_BEHAVIOR_FLAGS, MAX_TIMECODE_SCALE + 1, MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MIN_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
     EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(pMkvGenerator)));
-    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MAX_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MIN_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, NULL, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
     EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(pMkvGenerator)));
-    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MAX_CLUSTER_DURATION + 1, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MAX_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
     EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(pMkvGenerator)));
-    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION - 1, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MAX_CLUSTER_DURATION + 1, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
     EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(pMkvGenerator)));
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_GEN_FLAG_NONE, MKV_TEST_TIMECODE_SCALE, MAX_CLUSTER_DURATION + 1, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_GEN_FLAG_NONE, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION - 1, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION - 1, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(pMkvGenerator)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_GEN_FLAG_NONE, MKV_TEST_TIMECODE_SCALE, MAX_CLUSTER_DURATION + 1, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_GEN_FLAG_NONE, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION - 1, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
 
     STRCPY(mTrackInfo.codecId, codecId);
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
     STRCPY(mTrackInfo.codecId, MKV_TEST_CODEC_ID);
     STRCPY(mTrackInfo.trackName, trackName);
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
     STRCPY(mTrackInfo.trackName, MKV_TEST_TRACK_NAME);
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, NULL)));
 
     // invalid cpd buffer
     mTrackInfo.codecPrivateDataSize = 1;
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, NULL)));
 
     // invalid cpd size
     mTrackInfo.codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN + 1;
     mTrackInfo.codecPrivateData = (PBYTE) 0x11;
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, NULL)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, NULL)));
     mTrackInfo.codecPrivateDataSize = 0;
     mTrackInfo.codecPrivateData = NULL;
 
-    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS | MKV_GEN_ADAPT_ANNEXB_NALS | MKV_GEN_ADAPT_AVCC_NALS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_FAILED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS | MKV_GEN_ADAPT_ANNEXB_NALS | MKV_GEN_ADAPT_AVCC_NALS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, NULL, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
     EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(pMkvGenerator)));
 }
 
@@ -64,7 +66,7 @@ TEST_F(MkvgenApiTest, freeMkvGenerator_Idempotency)
     PMkvGenerator pMkvGenerator = NULL;
 
     // Create a valid generator
-    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE, MIN_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &pMkvGenerator)));
 
     // Free the generator
     EXPECT_TRUE(STATUS_SUCCEEDED(freeMkvGenerator(pMkvGenerator)));
@@ -196,6 +198,47 @@ TEST_F(MkvgenApiTest, mkvgenGenerateHeader_PositiveAndNegativeTest)
     EXPECT_NE(STATUS_SUCCESS, mkvgenGenerateHeader(mMkvGenerator, testBuf, &size, &timestamp));
 }
 
+TEST_F(MkvgenApiTest, mkvgenGenerateHeader_TrackNameCodecIdGenerationTest)
+{
+    BYTE testBuf[1000];
+    UINT32 size = 0, storedSize;
+    UINT64 timestamp;
+    PCHAR shortCodecId = (PCHAR) "a", shortTrackName = (PCHAR) "a";
+    CHAR longTrackName[MKV_MAX_TRACK_NAME_LEN + 1];
+    MEMSET(longTrackName, 'a', MKV_MAX_TRACK_NAME_LEN);
+    longTrackName[MKV_MAX_TRACK_NAME_LEN] = '\0';
+    CHAR longCodecId[MKV_MAX_CODEC_ID_LEN + 1];
+    MEMSET(longCodecId, 'a', MKV_MAX_CODEC_ID_LEN);
+    longCodecId[MKV_MAX_CODEC_ID_LEN] = '\0';
+    TrackInfo trackInfo;
+
+    trackInfo.trackId = MKV_TEST_TRACKID;
+    STRCPY(trackInfo.codecId, shortCodecId);
+    STRCPY(trackInfo.trackName, shortTrackName);
+    trackInfo.codecPrivateData = NULL;
+    trackInfo.codecPrivateDataSize = 0;
+    trackInfo.trackType = MKV_TRACK_INFO_TYPE_VIDEO;
+    trackInfo.trackCustomData.trackVideoConfig.videoWidth = 1280;
+    trackInfo.trackCustomData.trackVideoConfig.videoHeight = 720;
+
+    storedSize = mkvgenGetMkvHeaderSize(&trackInfo, 1);
+
+    STRCPY(trackInfo.codecId, longCodecId);
+    STRCPY(trackInfo.trackName, longTrackName);
+
+    size = mkvgenGetMkvHeaderSize(&trackInfo, 1);
+    EXPECT_EQ(STRLEN(longTrackName) - STRLEN(shortTrackName) + STRLEN(longCodecId) - STRLEN(shortCodecId),
+              size - storedSize);
+
+    // empty trackname and codec id
+    trackInfo.codecId[0] = '\0';
+    trackInfo.trackName[0] = '\0';
+    size = mkvgenGetMkvHeaderSize(&trackInfo, 1);
+    // when track name and codec id are empty, their mkv element wont be generated.
+    // 4 accounts for 1 byte of data and 1 byte of ebml length for both track name and codec id.
+    EXPECT_EQ(size, storedSize - MKV_TRACK_NAME_BITS_SIZE - MKV_CODEC_ID_BITS_SIZE - 4);
+}
+
 TEST_F(MkvgenApiTest, mkvgenGetMkvOverheadSize_PositiveAndNegativeTest)
 {
     UINT32 size;
@@ -205,7 +248,7 @@ TEST_F(MkvgenApiTest, mkvgenGetMkvOverheadSize_PositiveAndNegativeTest)
     EXPECT_NE(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(NULL, MKV_STATE_START_BLOCK, NULL));
 
     EXPECT_EQ(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(mMkvGenerator, MKV_STATE_START_STREAM, &size));
-    EXPECT_GE(GET_MKV_HEADER_OVERHEAD(defaultTrackInfoCount) + MKV_TRACK_VIDEO_BITS_SIZE, size);
+    EXPECT_GE(mkvgenGetMkvHeaderOverhead(&mTrackInfo, mTrackInfoCount), size);
 
     EXPECT_EQ(STATUS_SUCCESS, mkvgenGetMkvOverheadSize(mMkvGenerator, MKV_STATE_START_CLUSTER, &size));
     EXPECT_EQ(MKV_CLUSTER_OVERHEAD, size);

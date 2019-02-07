@@ -10,6 +10,9 @@
 #include "Auth.h"
 #include "StreamDefinition.h"
 #include "TestDefaultCallbackProvider.h"
+#include "CachingEndpointOnlyCallbackProvider.h"
+#include "Logger.h"
+
 #include <atomic>
 #include <map>
 
@@ -26,7 +29,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
 #define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 
 #define TEST_FRAME_DURATION                                 (40 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
-#define TEST_EXECUTION_DURATION                             (2 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
+#define TEST_EXECUTION_DURATION                             (120 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define TEST_STREAM_COUNT                                   1
 #define TEST_FRAME_SIZE                                     1000
 #define TEST_STREAMING_TOKEN_DURATION_IN_SECONDS            40
@@ -307,7 +310,7 @@ protected:
     }
 
 
-    void CreateProducer() {
+    void CreateProducer(bool cachingEndpoingProvider = false) {
         // Create the producer client
         CreateCredentialProvider();
         device_provider_ = make_unique<TestDeviceInfoProvider>(device_storage_size_);
@@ -315,11 +318,26 @@ protected:
         stream_callback_provider_ = make_unique<TestStreamCallbackProvider>(this);
 
         try {
-            unique_ptr<DefaultCallbackProvider> defaultCallbackProvider = make_unique<TestDefaultCallbackProvider>(
-                    move(client_callback_provider_),
-                    move(stream_callback_provider_),
-                    move(credential_provider_)
-            );
+            unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
+            if (cachingEndpoingProvider) {
+                defaultCallbackProvider = make_unique<CachingEndpointOnlyCallbackProvider>(
+                        move(client_callback_provider_),
+                        move(stream_callback_provider_),
+                        move(credential_provider_),
+                        defaultRegion_,
+                        "",
+                        "",
+                        "",
+                        "",
+                        DEFAULT_CACHE_UPDATE_PERIOD_IN_SECONDS);
+            } else {
+                defaultCallbackProvider = make_unique<TestDefaultCallbackProvider>(
+                        move(client_callback_provider_),
+                        move(stream_callback_provider_),
+                        move(credential_provider_),
+                        defaultRegion_);
+            }
+
             testDefaultCallbackProvider = reinterpret_cast<TestDefaultCallbackProvider *>(defaultCallbackProvider.get());
             kinesis_video_producer_ = KinesisVideoProducer::createSync(move(device_provider_),
                                                                        move(defaultCallbackProvider));
@@ -374,6 +392,9 @@ protected:
 
     virtual void TearDown() {
         kinesis_video_producer_.release();
+        previous_buffering_ack_timestamp_.clear();
+        buffering_ack_in_sequence_ = true;
+        frame_dropped_ = false;
         LOG_INFO("Tearing down test: " << GetTestName());
     };
 

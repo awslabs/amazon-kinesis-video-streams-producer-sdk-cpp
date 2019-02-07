@@ -20,3 +20,7 @@ target_link_libraries(${PROJECT_NAME} ${BP_BUILD_LINK_LIBS} client duration heap
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
+
+install (DIRECTORY ${CMAKE_SOURCE_DIR}/src/
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+        FILES_MATCHING PATTERN "*.h*")

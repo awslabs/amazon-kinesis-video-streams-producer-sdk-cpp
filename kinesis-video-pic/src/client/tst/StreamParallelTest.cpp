@@ -53,7 +53,7 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
 
         // Return a put stream result on 5th
         if (index == 5) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCustomDatas[streamId], SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCustomDatas[streamId], SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
 
         // Sleep a while
@@ -68,7 +68,6 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
 {
     UINT32 filledSize;
     BYTE getDataBuffer[20000];
-    UINT64 clientStreamHandle = 0;
     STATUS retStatus;
     STREAM_HANDLE streamHandle = mStreamHandles[streamId];
 
@@ -84,15 +83,13 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
     while(!mTerminate) {
         DLOGV("Consumer for stream %llu TID %016llx", streamId, GETTID());
         // Consume frames
-        clientStreamHandle = 0;
-        retStatus = getKinesisVideoStreamData(streamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+        retStatus = getKinesisVideoStreamData(streamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                               &filledSize);
         EXPECT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE ||
-                    retStatus == STATUS_END_OF_STREAM);
+                    retStatus == STATUS_END_OF_STREAM || retStatus == STATUS_UPLOAD_HANDLE_ABORTED);
 
         if (retStatus == STATUS_SUCCESS) {
             EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-            EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
         }
 
         // Sleep a while

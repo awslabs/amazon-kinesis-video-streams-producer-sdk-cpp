@@ -24,7 +24,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
  * This is introduced to provide easier struct initialization for the client
  */
 typedef struct StreamTrackInfo__ {
-    const uint32_t track_id;
+    const uint64_t track_id;
     const string track_name;
     const string codec_id;
     const uint8_t* cpd;
@@ -70,7 +70,9 @@ public:
             string track_name = "kinesis_video",
             const uint8_t* codecPrivateData = nullptr,
             uint32_t codecPrivateDataSize = 0,
-            MKV_TRACK_INFO_TYPE track_type = MKV_TRACK_INFO_TYPE_VIDEO
+            MKV_TRACK_INFO_TYPE track_type = MKV_TRACK_INFO_TYPE_VIDEO,
+            const vector<uint8_t> segment_uuid = vector<uint8_t>(),
+            const uint64_t default_track_id = DEFAULT_TRACK_ID
     )
             : tags_(tags),
               stream_name_(stream_name)
@@ -114,23 +116,36 @@ public:
         stream_info_.streamCaps.connectionStalenessDuration = duration_cast<nanoseconds>(
                 connection_staleness).count() / DEFAULT_TIME_UNIT_IN_NANOS;
 
+        if (segment_uuid.empty()) {
+            stream_info_.streamCaps.segmentUuid = NULL;
+        } else {
+            assert(MKV_SEGMENT_UUID_LEN == segment_uuid.size());
+            memcpy(segment_uuid_, &segment_uuid[0], MKV_SEGMENT_UUID_LEN);
+            stream_info_.streamCaps.segmentUuid = segment_uuid_;
+        }
+
         assert(MKV_MAX_CODEC_ID_LEN >= codec_id.size());
         assert(MKV_MAX_TRACK_NAME_LEN >= track_name.size());
 
-        track_info_.push_back(StreamTrackInfo{DEFAULT_TRACK_ID, track_name, codec_id, codecPrivateData, codecPrivateDataSize, track_type});
+        track_info_.push_back(StreamTrackInfo{default_track_id, track_name, codec_id, codecPrivateData, codecPrivateDataSize, track_type});
 
         // Set the tags
         stream_info_.tagCount = (UINT32)tags_.count();
         stream_info_.tags = tags_.asPTag();
     }
 
-    void addTrack(  const UINT32 track_id,
-                    const string &track_name,
-                    const string &codec_id,
-                    MKV_TRACK_INFO_TYPE track_type,
-                    const uint8_t* codecPrivateData = nullptr,
-                    uint32_t codecPrivateDataSize = 0) {
-        track_info_.push_back(StreamTrackInfo{track_id, track_name, codec_id, codecPrivateData, codecPrivateDataSize, track_type});
+    void addTrack(const uint64_t track_id,
+                  const string &track_name,
+                  const string &codec_id,
+                  MKV_TRACK_INFO_TYPE track_type,
+                  const uint8_t* codecPrivateData = nullptr,
+                  uint32_t codecPrivateDataSize = 0) {
+        track_info_.push_back(StreamTrackInfo{track_id,
+                                              track_name,
+                                              codec_id,
+                                              codecPrivateData,
+                                              codecPrivateDataSize,
+                                              track_type});
     }
 
     ~StreamDefinition() {
@@ -152,7 +167,7 @@ public:
         return stream_name_;
     }
 
-    const int getTrackCount() const {
+    const size_t getTrackCount() const {
         return track_info_.size();
     }
 
@@ -204,6 +219,10 @@ private:
      */
     StreamInfo stream_info_;
 
+    /**
+     * Segment UUID bytes
+     */
+     uint8_t segment_uuid_[MKV_SEGMENT_UUID_LEN];
 };
 
 } // namespace video

@@ -10,7 +10,6 @@
 #include "DefaultDeviceInfoProvider.h"
 #include "DeviceInfoProvider.h"
 #include "StreamDefinition.h"
-#include "Logger.h"
 #include "Auth.h"
 #include "KinesisVideoProducerMetrics.h"
 
@@ -38,7 +37,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
  * Default time in millis to await for the client callback to finish before proceeding with unlocking
  * We will add extra 10 milliseconds to account for thread scheduling to ensure the callback is complete.
  */
-#define CLIENT_STREAM_CLOSED_CALLBACK_AWAIT_TIME_MILLIS (10 + TIMEOUT_AFTER_STREAM_STOPPED + CURL_CLOSE_HANDLE_DELAY_IN_MILLIS)
+#define CLIENT_STREAM_CLOSED_CALLBACK_AWAIT_TIME_MILLIS (10 + TIMEOUT_AFTER_STREAM_STOPPED + TIMEOUT_WAIT_FOR_CURL_BUFFER)
 
 /**
 * Kinesis Video client interface for real time streaming. The structure of this class is that each instance of type <T,U>

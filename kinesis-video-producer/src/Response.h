@@ -6,7 +6,6 @@
 #include <cctype>
 #include <thread>
 #include "Auth.h"
-#include "Logger.h"
 #include "Request.h"
 
 // forward-declare CURL types to restrict visibility of curl.h
@@ -20,6 +19,12 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 // Setting this timeout to terminate CURL connection
 #define TIMEOUT_AFTER_STREAM_STOPPED 1L
+
+// Awaiting for this timeout before termination
+#define TIMEOUT_WAIT_FOR_CURL_BUFFER 100L
+
+// Even out rapid curl pause and unpause calls to avoid curl exception
+#define CURL_PAUSE_UNPAUSE_INTERVAL_MS 10L
 
 /// Provides an interface for retrieving HTTP response data.
 class Response {

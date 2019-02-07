@@ -1,4 +1,5 @@
 #include "TestDefaultCallbackProvider.h"
+#include "Logger.h"
 #include <thread>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
@@ -21,6 +22,7 @@ STATUS TestDefaultCallbackProvider::putStreamHandler(UINT64 custom_data, PCHAR s
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(terminate_curl_timeout));
                 if (state->getResponse() != nullptr) {
+                    LOG_DEBUG("fault injecting curl");
                     state->getResponse()->terminate();
                 }
 

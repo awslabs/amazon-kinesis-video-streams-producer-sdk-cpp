@@ -29,6 +29,18 @@ UINT32 ClientTestBase::getRandomNumberFunc(UINT64 customData)
     return RAND();
 }
 
+UINT32 ClientTestBase::getRandomNumberConstFunc(UINT64 customData)
+{
+    DLOGV("TID 0x%016llx getRandomNumberConstFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mGetRandomNumberFuncCount++;
+
+    return TEST_CONST_RAND_FUNC_BYTE;
+}
+
 VOID ClientTestBase::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt, ...)
 {
     // Temp scratch buffer = 10KB

@@ -109,7 +109,7 @@ DEFINE_HEAP_ALLOC(sysHeapAlloc)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    UINT32 overallSize = 0;
+    UINT64 overallSize = 0;
     PALLOCATION_HEADER pHeader = NULL;
 
     // Call the common heap function
