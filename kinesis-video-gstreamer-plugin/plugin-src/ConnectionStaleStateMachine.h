@@ -14,14 +14,13 @@ class ConnectionStaleStateMachine {
     const uint32_t VERIFICATION_PERIOD_MILLISECOND = 60000;
 
     std::shared_ptr<CustomData> data;
-    STREAM_HANDLE stream_handle;
     ConnectionStaleHandlingState current_state;
     std::chrono::milliseconds quiet_time = std::chrono::milliseconds(0);
     std::chrono::milliseconds back_to_normal_time = std::chrono::milliseconds(0);
     std::chrono::milliseconds curr_time = std::chrono::milliseconds(0);
 public:
-    ConnectionStaleStateMachine(std::shared_ptr<CustomData> data, STREAM_HANDLE stream_handle):
-            current_state(ConnectionStaleHandlingState::NORMAL_STATE), data(data), stream_handle(stream_handle) {}
+    ConnectionStaleStateMachine(std::shared_ptr<CustomData> data):
+            current_state(ConnectionStaleHandlingState::NORMAL_STATE), data(data) {}
     void handleConnectionStale();
 private:
     void toResetConnectionState();

@@ -45,11 +45,6 @@ extern "C" {
 #define MKV_FOURCC_CODEC_ID                 ((PCHAR) "V_MS/VFW/FOURCC")
 
 /**
- * Generate a random byte
- */
-#define MKV_GEN_RANDOM_BYTE()                     ((BYTE)(RAND() % 0x100))
-
-/**
  * Static definitions
  */
 extern BYTE gMkvHeaderBits[];
@@ -88,6 +83,10 @@ extern BYTE gMkvCodecPrivateDataElem[];
 extern UINT32 gMkvCodecPrivateDataElemSize;
 extern BYTE gMkvTrackAudioBits[];
 extern UINT32 gMkvTrackAudioBitsSize;
+extern BYTE gMkvCodecIdBits[];
+extern UINT32 gMkvCodecIdBitsSize;
+extern BYTE gMkvTrackNameBits[];
+extern UINT32 gMkvTrackNameBitsSize;
 #define MKV_TRACK_INFO_BITS gMkvTrackInfoBits
 #define MKV_TRACK_INFO_BITS_SIZE gMkvTrackInfoBitsSize
 #define MKV_TRACKS_ELEM_BITS gMkvTracksElem
@@ -98,9 +97,10 @@ extern UINT32 gMkvTrackAudioBitsSize;
 #define MKV_CODEC_PRIVATE_DATA_ELEM_SIZE gMkvCodecPrivateDataElemSize
 #define MKV_TRACK_AUDIO_BITS gMkvTrackAudioBits
 #define MKV_TRACK_AUDIO_BITS_SIZE gMkvTrackAudioBitsSize
-
-// The size of the track ID in bytes. We are using 8 bytes for the track ID
-#define MKV_TRACK_ID_BYTE_SIZE 8
+#define MKV_CODEC_ID_BITS gMkvCodecIdBits
+#define MKV_CODEC_ID_BITS_SIZE gMkvCodecIdBitsSize
+#define MKV_TRACK_NAME_BITS gMkvTrackNameBits
+#define MKV_TRACK_NAME_BITS_SIZE gMkvTrackNameBitsSize
 
 // gMkvTrackInfoBits element size offset for fixing up
 #define MKV_TRACK_HEADER_SIZE_OFFSET 4
@@ -113,12 +113,6 @@ extern UINT32 gMkvTrackAudioBitsSize;
 
 // gMkvTrackInfoBits track type offset for fixing up
 #define MKV_TRACK_TYPE_OFFSET 21
-
-// gMkvTrackInfoBits track name offset for fixing up
-#define MKV_TRACK_NAME_OFFSET 25
-
-// gMkvTrackInfoBits Codec ID offset
-#define MKV_CODEC_ID_OFFSET 59
 
 // Track info video width offset for fixing up
 #define MKV_TRACK_VIDEO_WIDTH_OFFSET 7
@@ -211,7 +205,6 @@ extern UINT32 gMkvTagStringBitsSize;
 // gMkvTagStringBits simple tag string element size offset for fixing up
 #define MKV_TAG_STRING_ELEMENT_SIZE_OFFSET 2
 
-
 /**
  * MKV simple block flags
  */
@@ -234,26 +227,6 @@ extern UINT32 gMkvTagStringBitsSize;
  * MKV EBML and Segment header size in bytes
  */
 #define MKV_EBML_SEGMENT_SIZE               (MKV_HEADER_BITS_SIZE + MKV_SEGMENT_HEADER_BITS_SIZE)
-
-/**
- * MKV Segment and Track info
- */
-#define GET_MKV_SEGMENT_TRACK_INFO_SIZE(track_count)        (MKV_SEGMENT_INFO_BITS_SIZE + MKV_TRACK_INFO_BITS_SIZE * track_count + MKV_TRACKS_ELEM_BITS_SIZE)
-
-/**
- * MKV header size in bytes
- */
-#define GET_MKV_HEADER_SIZE(track_count)        (MKV_EBML_SEGMENT_SIZE + GET_MKV_SEGMENT_TRACK_INFO_SIZE(track_count))
-
-/**
- * MKV header overhead in bytes
- */
-#define GET_MKV_HEADER_OVERHEAD(track_count)        (GET_MKV_HEADER_SIZE(track_count) + MKV_CLUSTER_OVERHEAD)
-
-/**
- * MKV Segment and Track info overhead in bytes
- */
-#define GET_MKV_SEGMENT_TRACK_INFO_OVERHEAD(track_count)        (GET_MKV_SEGMENT_TRACK_INFO_SIZE(track_count) + MKV_CLUSTER_OVERHEAD)
 
 /**
  * To and from MKV timestamp conversion factoring in the timecode
@@ -334,6 +307,9 @@ typedef struct {
     UINT16 videoWidth;
     UINT16 videoHeight;
 
+    // Segment UUID
+    BYTE segmentUuid[MKV_SEGMENT_UUID_LEN];
+
     // Array of TrackInfo containing track metadata
     PTrackInfo trackInfoList;
 
@@ -365,14 +341,6 @@ MKV_STREAM_STATE mkvgenGetStreamState(PStreamMkvGenerator, FRAME_FLAGS, UINT64);
  * @return - Size of the overhead in bytes
  **/
 UINT32 mkvgenGetFrameOverhead(PStreamMkvGenerator, MKV_STREAM_STATE);
-
-/**
- * Gets the size of the MKV header
- * @PStreamMkvGenerator - the current generator object
- *
- * @return - Size of the header in bytes
- */
-UINT32 mkvgenGetHeaderOverhead(PStreamMkvGenerator);
 
 /**
  * Fast validation of the frame object
@@ -438,12 +406,12 @@ STATUS mkvgenEbmlEncodeSegmentHeader(PBYTE, UINT32, PUINT32);
 /**
  * EBML encodes a segment info and stores in the buffer
  *
+ * @PStreamMkvGenerator - the mkv generator object
  * @PBYTE - the buffer to store the encoded info in
  * @UINT32 - the size of the buffer
- * @UINT64 - default timecode scale
  * @PUINT32 - the returned encoded length of the number in bytes
  */
-STATUS mkvgenEbmlEncodeSegmentInfo(PBYTE, UINT32, UINT64, PUINT32);
+STATUS mkvgenEbmlEncodeSegmentInfo(PStreamMkvGenerator, PBYTE, UINT32, PUINT32);
 
 /**
  * EBML encodes a track info and stores in the buffer
@@ -477,6 +445,59 @@ STATUS mkvgenEbmlEncodeClusterInfo(PBYTE, UINT32, UINT64, PUINT32);
  * @PUINT32 - the returned encoded length of the number in bytes
  */
 STATUS mkvgenEbmlEncodeSimpleBlock(PBYTE, UINT32, INT16, PFrame, UINT32, PStreamMkvGenerator, PUINT32);
+
+/**
+ * Gets the size of a single mkv TrackEntry
+ * @PTrackInfo - the TrackInfo object
+ *
+ * @return - Size of the TrackEntry in bytes
+ */
+UINT32 mkvgenGetTrackEntrySize(PTrackInfo);
+
+/**
+ * Gets the size of mkv Track header
+ * @PTrackInfo - array of TrackInfo
+ * @UINT32 - number of TrackInfo in the array
+ *
+ * @return - Size of mkv Track header in bytes
+ */
+UINT32 mkvgenGetMkvTrackHeaderSize(PTrackInfo, UINT32);
+
+/**
+ * Gets MKV Segment and Track header
+ * @PTrackInfo - array of TrackInfo
+ * @UINT32 - number of TrackInfo in the array
+ *
+ * @return - Size of mkv Segment and Track header in bytes
+ */
+UINT32 mkvgenGetMkvSegmentTrackHeaderSize(PTrackInfo, UINT32);
+
+/**
+ * Gets the size of mkv header
+ * @PTrackInfo - array of TrackInfo
+ * @UINT32 - number of TrackInfo in the array
+ *
+ * @return - Size of mkv Track header in bytes
+ */
+UINT32 mkvgenGetMkvHeaderSize(PTrackInfo, UINT32);
+
+/**
+ * Gets MKV header overhead in bytes
+ * @PTrackInfo - array of TrackInfo
+ * @UINT32 - number of TrackInfo in the array
+ *
+ * @return - Size of mkv header overhead in bytes
+ */
+UINT32 mkvgenGetMkvHeaderOverhead(PTrackInfo, UINT32);
+
+/**
+ * Gets MKV Segment and Track info overhead in bytes
+ * @PTrackInfo - array of TrackInfo
+ * @UINT32 - number of TrackInfo in the array
+ *
+ * @return - Size of MKV Segment and Track info overhead in bytes
+ */
+UINT32 mkvgenGetMkvSegmentTrackInfoOverhead(PTrackInfo, UINT32);
 
 /**
  * Returns the byte count of a number

@@ -64,6 +64,7 @@ extern "C" {
 #define ITEM_FLAG_BUFFERING_ACK                      (0x1 << 2)
 #define ITEM_FLAG_RECEIVED_ACK                       (0x1 << 3)
 #define ITEM_FLAG_FRAGMENT_END                       (0x1 << 4)
+#define ITEM_FLAG_PERSISTED_ACK                      (0x1 << 5)
 
 /**
  * Macros for checking/setting/clearing for various flags
@@ -73,18 +74,21 @@ extern "C" {
 #define CHECK_ITEM_RECEIVED_ACK(f)                  (((f) & ITEM_FLAG_RECEIVED_ACK) != ITEM_FLAG_NONE)
 #define CHECK_ITEM_STREAM_START(f)                  (((f) & ITEM_FLAG_STREAM_START) != ITEM_FLAG_NONE)
 #define CHECK_ITEM_FRAGMENT_END(f)                  (((f) & ITEM_FLAG_FRAGMENT_END) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_PERSISTED_ACK(f)                 (((f) & ITEM_FLAG_PERSISTED_ACK) != ITEM_FLAG_NONE)
 
 #define SET_ITEM_FRAGMENT_START(f)                  ((f) |= ITEM_FLAG_FRAGMENT_START)
 #define SET_ITEM_BUFFERING_ACK(f)                   ((f) |= ITEM_FLAG_BUFFERING_ACK)
 #define SET_ITEM_RECEIVED_ACK(f)                    ((f) |= ITEM_FLAG_RECEIVED_ACK)
 #define SET_ITEM_STREAM_START(f)                    ((f) |= ITEM_FLAG_STREAM_START)
 #define SET_ITEM_FRAGMENT_END(f)                    ((f) |= ITEM_FLAG_FRAGMENT_END)
+#define SET_ITEM_PERSISTED_ACK(f)                   ((f) |= ITEM_FLAG_PERSISTED_ACK)
 
 #define CLEAR_ITEM_FRAGMENT_START(f)                ((f) &= ~ITEM_FLAG_FRAGMENT_START)
 #define CLEAR_ITEM_BUFFERING_ACK(f)                 ((f) &= ~ITEM_FLAG_BUFFERING_ACK)
 #define CLEAR_ITEM_RECEIVED_ACK(f)                  ((f) &= ~ITEM_FLAG_RECEIVED_ACK)
 #define CLEAR_ITEM_STREAM_START(f)                  ((f) &= ~ITEM_FLAG_STREAM_START)
 #define CLEAR_ITEM_FRAGMENT_END(f)                  ((f) &= ~ITEM_FLAG_FRAGMENT_END)
+#define CLEAR_ITEM_PERSISTED_ACK(f)                 ((f) &= ~ITEM_FLAG_PERSISTED_ACK)
 
 #define GET_ITEM_DATA_OFFSET(f)                     ((UINT16) ((f) >> 16))
 #define SET_ITEM_DATA_OFFSET(f, o)                  (((f) &= 0x0000ffff) |= (((UINT16) (o)) << 16))

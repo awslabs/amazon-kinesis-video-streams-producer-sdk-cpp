@@ -495,6 +495,8 @@ typedef PVOID (*memAlignAlloc)(SIZE_T size, SIZE_T alignment);
 typedef PVOID (*memCalloc)(SIZE_T num, SIZE_T size);
 typedef VOID (*memFree)(PVOID ptr);
 
+typedef BOOL (*memChk)(PVOID ptr, BYTE val, SIZE_T size);
+
 //
 // Default allocator functions
 //
@@ -533,6 +535,8 @@ extern memAlloc globalMemAlloc;
 extern memAlignAlloc globalMemAlignAlloc;
 extern memCalloc globalMemCalloc;
 extern memFree globalMemFree;
+
+extern memChk globalMemChk;
 
 //
 // Dynamic library loading function definitions
@@ -669,6 +673,11 @@ extern freeConditionVariable globalConditionVariableFree;
 #define MEMCPY                     memcpy
 #define MEMSET                     memset
 #define MEMMOVE                    memmove
+
+//
+// Whether the buffer contains the same char
+//
+#define MEMCHK                     globalMemChk
 
 //
 // String operations

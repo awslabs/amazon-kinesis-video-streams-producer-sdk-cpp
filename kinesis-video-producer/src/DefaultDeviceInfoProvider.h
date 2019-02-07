@@ -9,7 +9,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 class DefaultDeviceInfoProvider : public DeviceInfoProvider {
 public:
-    DefaultDeviceInfoProvider(const std::string &custom_useragent = "");
+    DefaultDeviceInfoProvider(const std::string &custom_useragent = "", const std::string &cert_path = "");
     device_info_t getDeviceInfo() override;
     const std::string getCustomUserAgent() override;
 

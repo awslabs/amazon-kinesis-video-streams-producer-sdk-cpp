@@ -2,6 +2,7 @@
  * Kinesis Video MKV generator statics
  */
 #define LOG_CLASS "InputValidator"
+
 #include "Include_i.h"
 
 /**
@@ -128,6 +129,7 @@ STATUS validateDeviceInfo(PDeviceInfo pDeviceInfo)
         STATUS_INVALID_STORAGE_SIZE);
     CHK(pDeviceInfo->storageInfo.spillRatio <= 100, STATUS_INVALID_SPILL_RATIO);
     CHK(STRNLEN(pDeviceInfo->storageInfo.rootDirectory, MAX_PATH_LEN + 1) <= MAX_PATH_LEN, STATUS_INVALID_ROOT_DIRECTORY_LENGTH);
+    CHK(STRNLEN(pDeviceInfo->certPath, MAX_PATH_LEN + 1) <= MAX_PATH_LEN, STATUS_INVALID_CERT_PATH_LENGTH);
     CHK(STRNLEN(pDeviceInfo->name, MAX_DEVICE_NAME_LEN + 1) <= MAX_DEVICE_NAME_LEN, STATUS_INVALID_DEVICE_NAME_LENGTH);
 
     // Validate the tags
@@ -180,6 +182,7 @@ CleanUp:
 STATUS validateStreamInfo(PStreamInfo pStreamInfo, PClientCallbacks pClientCallbacks)
 {
     STATUS retStatus = STATUS_SUCCESS;
+    UINT32 i, j;
 
     // Validate the stream info struct
     CHK(pStreamInfo != NULL, STATUS_NULL_ARG);
@@ -210,6 +213,15 @@ STATUS validateStreamInfo(PStreamInfo pStreamInfo, PClientCallbacks pClientCallb
 
     CHK(pStreamInfo->streamCaps.trackInfoCount != 0 && pStreamInfo->streamCaps.trackInfoList != NULL, STATUS_TRACK_INFO_MISSING);
     CHK(pStreamInfo->streamCaps.trackInfoCount <= MAX_SUPPORTED_TRACK_COUNT_PER_STREAM, STATUS_MAX_TRACK_COUNT_EXCEEDED);
+
+    // Ensure uniqueness of the track ID across the track infos. OK to run quadratic algo.
+    for (j = 0; j < pStreamInfo->streamCaps.trackInfoCount; j++) {
+        for (i = 0; i < j; i++) {
+            CHK(pStreamInfo->streamCaps.trackInfoList[j].trackId != pStreamInfo->streamCaps.trackInfoList[i].trackId,
+                STATUS_DUPLICATE_TRACK_ID_FOUND);
+        }
+    }
+
     // Most the information is either optional or will be validated in the packager
 
     CHK(!(pStreamInfo->retention == RETENTION_PERIOD_SENTINEL &&

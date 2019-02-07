@@ -41,14 +41,12 @@
 #define __GST_KVS_SINK_H__
 
 #include <gst/gst.h>
-#include <gst/base/gstbasesink.h>
 #include <KinesisVideoProducer.h>
 #include <string.h>
-#include "gstkvssinkenumproperties.h"
 #include <mutex>
-#include <queue>
-#include <condition_variable>
 #include <atomic>
+#include <gst/base/gstcollectpads.h>
+#include <map>
 
 using namespace com::amazonaws::kinesis::video;
 
@@ -74,20 +72,31 @@ typedef struct _GstKvsSinkClass GstKvsSinkClass;
 
 typedef struct _CustomData CustomData;
 
+/* all information needed for one track */
+typedef struct _GstKvsSinkTrackData {
+    GstCollectData collect;       /* we extend the CollectData */
+    MKV_TRACK_INFO_TYPE track_type;
+    GstKvsSink *kvssink;
+    guint track_id;
+} GstKvsSinkTrackData;
+
+typedef enum _MediaType {
+    AUDIO_VIDEO,
+    VIDEO_ONLY,
+    AUDIO_ONLY
+} MediaType;
+
 /**
  * GstKvsSink:
  *
  * The opaque #GstKvsSink data structure.
  */
 struct _GstKvsSink {
-    GstBaseSink		element;
+    GstElement		element;
 
-    gboolean		            silent;
-    gboolean		            dump;
-    gboolean		            signal_handoffs;
-    gchar			            *last_message;
-    gint                        num_buffers;
-    gint                        num_buffers_left;
+    GstCollectPads              *collect;
+
+    // Stream definition
     gchar                       *stream_name;
     guint                       retention_period_hours;
     gchar                       *kms_key_id;
@@ -116,23 +125,24 @@ struct _GstKvsSink {
     size_t                      current_frame_data_size;
     guint                       rotation_period;
     gchar                       *log_config_path;
-    GstKvsSinkFrameTimestamp    frame_timestamp;
     guint                       storage_size;
     gchar                       *credential_file_path;
     GstStructure                *iot_certificate;
     GstStructure                *stream_tags;
     gulong                      file_start_time;
+    MKV_TRACK_INFO_TYPE         track_info_type;
+
+
+    guint                       num_streams;
+    guint                       num_audio_streams;
+    guint                       num_video_streams;
 
     unique_ptr<Credentials> credentials_;
     shared_ptr<CustomData> data;
 };
 
 struct _GstKvsSinkClass {
-    GstBaseSinkClass parent_class;
-
-    /* signals */
-    void (*handoff) (GstElement *element, GstBuffer *buf, GstPad *pad);
-    void (*preroll_handoff) (GstElement *element, GstBuffer *buf, GstPad *pad);
+    GstElementClass parent_class;
 };
 
 GType gst_kvs_sink_get_type (void);
@@ -146,30 +156,31 @@ typedef struct _CallbackStateMachine {
     shared_ptr<StreamLatencyStateMachine> stream_latency_state_machine;
     shared_ptr<ConnectionStaleStateMachine> connection_stale_state_machine;
 
-    _CallbackStateMachine(shared_ptr<CustomData> data, STREAM_HANDLE stream_handle);
+    _CallbackStateMachine(shared_ptr<CustomData> data);
 } CallbackStateMachine;
 
 typedef struct _CustomData {
 
     _CustomData():
-            cpd(""),
             stream_created(false),
-            stream_recreation_in_progress(false),
+            stream_ready(false),
             stream_status(STATUS_SUCCESS),
             last_dts(0),
-            pts_base(0) {}
+            pts_base(0),
+            media_type(VIDEO_ONLY),
+            first_key_frame(true) {}
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
-    ThreadSafeMap<STREAM_HANDLE, shared_ptr<KinesisVideoStream>> kinesis_video_stream_map;
-    ThreadSafeMap<STREAM_HANDLE, shared_ptr<CallbackStateMachine>> callback_state_machine_map;
-    string cpd = "";
+    shared_ptr<KinesisVideoStream> kinesis_video_stream;
+    shared_ptr<CallbackStateMachine> callback_state_machine;
+    map<uint64_t, string> track_cpd;
     GstKvsSink *kvsSink;
     bool stream_created = false;
+    MediaType media_type;
+    bool first_key_frame;
 
-    queue<STREAM_HANDLE> closing_stream_handles_queue;
-    atomic_bool stream_recreation_in_progress;
+    atomic_bool stream_ready;
     atomic_uint stream_status;
 
-    std::mutex closing_stream_handles_queue_mtx;
     uint64_t last_dts;
     uint64_t pts_base;
 } CustomData;

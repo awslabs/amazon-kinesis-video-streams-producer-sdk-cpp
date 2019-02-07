@@ -4,6 +4,7 @@
 #include "gstkvssink.h"
 #include "StreamLatencyStateMachine.h"
 #include "ConnectionStaleStateMachine.h"
+#include "Logger.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
     class KvsSinkStreamCallbackProvider : public StreamCallbackProvider {

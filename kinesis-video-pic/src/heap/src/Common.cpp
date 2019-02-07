@@ -171,7 +171,7 @@ DEFINE_HEAP_ALLOC(commonHeapAlloc)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    UINT32 overallSize = 0;
+    UINT64 overallSize = 0;
     PBaseHeap pBaseHeap = (PBaseHeap) pHeap;
     DLOGS("Trying to allocate %" PRIu64 " bytes", size);
 
@@ -209,7 +209,7 @@ DEFINE_HEAP_FREE(commonHeapFree)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    UINT32 overallSize = 0;
+    UINT64 overallSize = 0;
     PBaseHeap pBaseHeap = (PBaseHeap) pHeap;
     DLOGS("Freeing allocation handle 0x%016" PRIx64, handle);
 

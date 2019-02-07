@@ -567,7 +567,7 @@ STATUS contentViewTrimTail(PContentView pContentView, UINT64 itemIndex)
 
     // Check the input params
     CHK(pContentView != NULL, STATUS_NULL_ARG);
-    CHK(itemIndex >= pRollingView->tail && itemIndex < pRollingView->head, STATUS_CONTENT_VIEW_INVALID_INDEX);
+    CHK(itemIndex >= pRollingView->tail && itemIndex <= pRollingView->head, STATUS_CONTENT_VIEW_INVALID_INDEX);
 
     while(pRollingView->tail != itemIndex) {
         pTail = GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->tail);
@@ -758,7 +758,7 @@ PViewItem findViewItemWithTimestamp(PRollingContentView pView, PViewItem pOldest
         }
 
         // Check if the current is the sought item
-        if (curItemTimestamp <= timestamp && curItemTimestamp + pCurItem->duration >= timestamp) {
+        if (curItemTimestamp <= timestamp && curItemTimestamp + pCurItem->duration > timestamp) {
             // found the item - break from the loop
             break;
         }
@@ -767,11 +767,9 @@ PViewItem findViewItemWithTimestamp(PRollingContentView pView, PViewItem pOldest
         if (curItemTimestamp > timestamp) {
             // Iterate with the earlier items
             newestIndex = curIndex - 1;
-            CHECK(STATUS_SUCCEEDED(contentViewGetItemAt((PContentView) pView, newestIndex, &pNewest)));
         } else {
             // Iterate with the later items
             oldestIndex = curIndex + 1;
-            CHECK(STATUS_SUCCEEDED(contentViewGetItemAt((PContentView) pView, oldestIndex, &pOldest)));
         }
     }
 

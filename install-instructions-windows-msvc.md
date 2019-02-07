@@ -93,4 +93,4 @@ set GST_PLUGIN_SYSTEM_PATH=C:\Users\<myuser>\Downloads\amazon-kinesis-video-stre
       * Run the demo
           * **Example**:
             * Run the sample demo application for sending **webcam video** by executing ` kinesis_video_gstreamer_sample_app.exe my-test-stream `  or
-              * Run the sample **RTSP demo** application for sending **IP camera video** by executing  `kinesis_video_gstreamer_sample_rtsp_app.exe <rtsp_url> my-test-rtsp-stream`
+            * Run the sample application for sending **IP camera video** by executing  `kinesis_video_gstreamer_sample_app.exe my-test-rtsp-stream <rtsp_url>`

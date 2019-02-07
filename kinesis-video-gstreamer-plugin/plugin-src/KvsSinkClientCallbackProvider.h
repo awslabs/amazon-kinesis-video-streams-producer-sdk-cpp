@@ -1,7 +1,8 @@
 #ifndef __KVS_SINK_CLIENT_CALLBACK_PROVIDER_H__
 #define __KVS_SINK_CLIENT_CALLBACK_PROVIDER_H__
 
-#include "gstkvssink.h"
+#include <ClientCallbackProvider.h>
+#include <Logger.h>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 

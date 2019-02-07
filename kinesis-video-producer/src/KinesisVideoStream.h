@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Logger.h"
 #include <mutex>
 #include <iostream>
 #include <utility>
@@ -16,8 +15,11 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /**
  * Stream stop timeout duration.
+ * This needs to be extended to allow post stream stop stream.
  **/
-#define STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS 30
+#define STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS 120
+
+#define DEBUG_DUMP_FRAME_INFO "DEBUG_DUMP_FRAME_INFO"
 
 /**
 * This definition comes from the Kinesis Video PIC, the typedef is to allow differentiation in case of other "Frame" definitions.
@@ -248,6 +250,11 @@ protected:
      * Stream metrics
      */
     KinesisVideoStreamMetrics stream_metrics_;
+
+    /**
+     * Whether to dump frame info into file.
+     */
+    bool debug_dump_frame_info_;
 };
 
 } // namespace video

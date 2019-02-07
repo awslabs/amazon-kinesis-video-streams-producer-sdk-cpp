@@ -12,7 +12,7 @@
 // IMPORTANT: This version number *must* be incremented every time a new library build is checked in.
 // We are seeing a very high incidence of runtime failures due to APKs being deployed with the wrong native libraries,
 // and they are much easier to diagnose when the numeric version check fails.
-#define NATIVE_LIBRARY_VERSION "1.9"
+#define NATIVE_LIBRARY_VERSION "1.11"
 
 // Used for serializing the access to functions
 static SyncMutex ACCESS_LOCK;
@@ -381,7 +381,7 @@ CleanUp:
         LEAVE();
     }
 
-    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamData(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_getKinesisVideoStreamData(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jlong uploadHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)
     {
         ENTERS();
         SyncMutex::Autolock l(ACCESS_LOCK, __FUNCTION__);
@@ -392,7 +392,7 @@ CleanUp:
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
         if (pWrapper != NULL) {
-            pWrapper->getKinesisVideoStreamData(streamHandle, dataBuffer, offset, length, readResult);
+            pWrapper->getKinesisVideoStreamData(streamHandle, uploadHandle, dataBuffer, offset, length, readResult);
         }
 
         LEAVES();

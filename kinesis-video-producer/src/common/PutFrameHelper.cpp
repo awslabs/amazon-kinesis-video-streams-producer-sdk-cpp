@@ -22,14 +22,14 @@ PutFrameHelper::PutFrameHelper(
             next_available_buffer_video(0),
             put_frame_status(true) {
 
-    for(int i = 0; i < (MAX_VIDEO_QUEUE_SIZE); i++) {
+    for(uint32_t i = 0; i < MAX_VIDEO_QUEUE_SIZE; i++) {
         FrameDataBuffer frameDataBuffer;
         frameDataBuffer.size = INITIAL_BUFFER_SIZE_VIDEO;
         frameDataBuffer.buffer = new uint8_t[INITIAL_BUFFER_SIZE_VIDEO];
         video_data_buffers.push_back(frameDataBuffer);
     }
 
-    for(int i = 0; i < (MAX_AUDIO_QUEUE_SIZE); i++) {
+    for(uint32_t i = 0; i < MAX_AUDIO_QUEUE_SIZE; i++) {
         FrameDataBuffer frameDataBuffer;
         frameDataBuffer.size = INITIAL_BUFFER_SIZE_AUDIO;
         frameDataBuffer.buffer = new uint8_t[INITIAL_BUFFER_SIZE_AUDIO];

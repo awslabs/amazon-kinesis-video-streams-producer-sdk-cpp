@@ -174,6 +174,12 @@ extern "C" {
 #define STATUS_TRACK_INFO_MISSING                                                   STATUS_CLIENT_BASE + 0x00000079
 #define STATUS_MAX_TRACK_COUNT_EXCEEDED                                             STATUS_CLIENT_BASE + 0x0000007a
 #define STATUS_OFFLINE_MODE_WITH_ZERO_RETENTION                                     STATUS_CLIENT_BASE + 0x0000007b
+#define STATUS_ACK_ERR_TRACK_NUMBER_MISMATCH                                        STATUS_CLIENT_BASE + 0x0000007c
+#define STATUS_ACK_ERR_FRAMES_MISSING_FOR_TRACK                                     STATUS_CLIENT_BASE + 0x0000007d
+#define STATUS_ACK_ERR_MORE_THAN_ALLOWED_TRACKS_FOUND                               STATUS_CLIENT_BASE + 0x0000007e
+#define STATUS_UPLOAD_HANDLE_ABORTED                                                STATUS_CLIENT_BASE + 0x0000007f
+#define STATUS_INVALID_CERT_PATH_LENGTH                                             STATUS_CLIENT_BASE + 0x00000080
+#define STATUS_DUPLICATE_TRACK_ID_FOUND                                             STATUS_CLIENT_BASE + 0x00000081
 
 #define IS_RECOVERABLE_ERROR(error)     ((error) == STATUS_ACK_ERR_INVALID_MKV_DATA ||          \
                                         (error) == STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR ||    \
@@ -645,6 +651,15 @@ typedef enum {
     // Fragment metadata name/value/count limit reached
     SERVICE_CALL_RESULT_FRAGMENT_METADATA_LIMIT_REACHED = 4009,
 
+    // Track number in simple block doesn't match the track number in TrackInfo
+    SERVICE_CALL_RESULT_TRACK_NUMBER_MISMATCH = 4010,
+
+    // Frames (simple block) missing for at least of one of the Tracks specified in TrackInfo
+    SERVICE_CALL_RESULT_FRAMES_MISSING_FOR_TRACK = 4011,
+
+    // KVS doesn't accept MKV input with more than 3 tracks (limit can be changed via SDC config)
+    SERVICE_CALL_RESULT_MORE_THAN_ALLOWED_TRACKS_FOUND = 4012,
+
     // KMS specific error - KMS access denied while encrypting data
     SERVICE_CALL_RESULT_KMS_KEY_ACCESS_DENIED = 4500,
 
@@ -859,6 +874,9 @@ struct __StreamCaps {
     // Whether to recalculate metrics at runtime with slight increasing performance hit.
     BOOL recalculateMetrics;
 
+    // Segment UUID. If specified it should be MKV_SEGMENT_UUID_LEN long. Specifying NULL will generate random UUID
+    PBYTE segmentUuid;
+
     // Array of TrackInfo containing track metadata
     PTrackInfo trackInfoList;
 
@@ -946,6 +964,9 @@ struct __DeviceInfo {
 
     // Number of declared streams.
     UINT32 streamCount;
+
+    // Certificate store directory holding CA certificates
+    CHAR certPath[MAX_PATH_LEN + 1];
 };
 
 typedef __DeviceInfo* PDeviceInfo;
@@ -1752,14 +1773,14 @@ PUBLIC_API STATUS putKinesisVideoFrame(STREAM_HANDLE, PFrame);
  * should check the returned filled size for partially filled buffers.
  *
  * @param 1 STREAM_HANDLE - the stream handle.
- * @param 2 PUINT64 - Client stream upload handle.
+ * @param 2 UPLOAD_HANDLE - Client stream upload handle.
  * @param 3 PBYTE - Buffer to fill in.
  * @param 4 UINT32 - Size of the buffer to fill up-to.
  * @param 5 PUINT32 - Actual size filled.
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS getKinesisVideoStreamData(STREAM_HANDLE, PUINT64, PBYTE, UINT32, PUINT32);
+PUBLIC_API STATUS getKinesisVideoStreamData(STREAM_HANDLE, UPLOAD_HANDLE, PBYTE, UINT32, PUINT32);
 
 /**
  * Inserts a "metadata" - a key/value string pair into the stream.

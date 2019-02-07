@@ -19,7 +19,7 @@ using std::string;
  */
 #define DEFAULT_MAX_STREAM_COUNT        16
 
-DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_useragent)
+DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_useragent, const std::string &cert_path)
         : custom_useragent_(custom_useragent) {
     memset(&device_info_, 0, sizeof(device_info_));
     device_info_.version = DEVICE_INFO_CURRENT_VERSION;
@@ -40,9 +40,11 @@ DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_u
     device_info_.storageInfo.storageType = DEVICE_STORAGE_TYPE_IN_MEM;
     device_info_.storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
 
+    // Cert path
+    strncpy(device_info_.certPath, cert_path.c_str(), MAX_PATH_LEN);
+
     // We put any overflow storage in /tmp as it is in memory.
-    string dir = "/tmp";
-    memcpy(&device_info_.storageInfo.rootDirectory, dir.c_str(), dir.size());
+    strcpy(device_info_.storageInfo.rootDirectory, "/tmp");
 
     // Set the max stream count
     device_info_.streamCount = DEFAULT_MAX_STREAM_COUNT;

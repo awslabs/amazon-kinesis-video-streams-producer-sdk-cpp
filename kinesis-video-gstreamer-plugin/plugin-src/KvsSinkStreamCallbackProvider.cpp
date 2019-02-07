@@ -9,12 +9,7 @@ KvsSinkStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
                                                                   STREAM_HANDLE stream_handle,
                                                                   UINT64 last_buffering_ack) {
     auto customDataObj = reinterpret_cast<CustomData*>(custom_data);
-    auto stateMachine = customDataObj->callback_state_machine_map.get(stream_handle);
-    if (NULL != stateMachine) {
-        stateMachine->connection_stale_state_machine->handleConnectionStale();
-    } else {
-        LOG_ERROR("No state machine found for given stream handle: " << stream_handle);
-    }
+    customDataObj->callback_state_machine->connection_stale_state_machine->handleConnectionStale();
 
     return STATUS_SUCCESS;
 }
@@ -24,10 +19,9 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STRE
                                                            UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status_code) {
     LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: 0x" << std::hex << status_code);
     auto customDataObj = reinterpret_cast<CustomData*>(custom_data);
-    if (IS_RETRIABLE_ERROR(status_code)) {
-        std::lock_guard<std::mutex> lk(customDataObj->closing_stream_handles_queue_mtx);
-        customDataObj->closing_stream_handles_queue.push(stream_handle);
-    } else if (!IS_RECOVERABLE_ERROR(status_code)) {
+
+    // ignore if the sdk can recover from the error
+    if (!IS_RECOVERABLE_ERROR(status_code)) {
         customDataObj->stream_status = status_code;
     }
 
@@ -45,12 +39,7 @@ STATUS
 KvsSinkStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                                                                UINT64 current_buffer_duration) {
     auto customDataObj = reinterpret_cast<CustomData*>(custom_data);
-    auto stateMachine = customDataObj->callback_state_machine_map.get(stream_handle);
-    if (NULL != stateMachine) {
-        stateMachine->stream_latency_state_machine->handleStreamLatency();
-    } else {
-        LOG_ERROR("No state machine found for given stream handle: " << stream_handle);
-    }
+    customDataObj->callback_state_machine->stream_latency_state_machine->handleStreamLatency();
 
     return STATUS_SUCCESS;
 }

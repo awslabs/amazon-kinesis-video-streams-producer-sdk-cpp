@@ -194,6 +194,38 @@ TEST_F(StreamApiTest, createKinesisVideoStream_InvalidTrackInfoInput)
     mStreamInfo.streamCaps.trackInfoCount = 1;
     mStreamInfo.streamCaps.trackInfoList = NULL;
     EXPECT_EQ(STATUS_TRACK_INFO_MISSING, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    // Check for duplicate tracks
+    mStreamInfo.streamCaps.trackInfoCount = MAX_SUPPORTED_TRACK_COUNT_PER_STREAM;
+    TrackInfo trackInfo[MAX_SUPPORTED_TRACK_COUNT_PER_STREAM];
+    mStreamInfo.streamCaps.trackInfoList = trackInfo;
+
+    // All same ids
+    for (UINT32 i = 0; i < MAX_SUPPORTED_TRACK_COUNT_PER_STREAM; i++) {
+        trackInfo[i].trackId = TEST_TRACKID;
+        trackInfo[i].codecPrivateDataSize = 0;
+        trackInfo[i].codecPrivateData = NULL;
+        STRCPY(trackInfo[i].codecId, TEST_CODEC_ID);
+        STRCPY(trackInfo[i].trackName, TEST_TRACK_NAME);
+        trackInfo[i].trackType = MKV_TRACK_INFO_TYPE_VIDEO;
+        trackInfo[i].trackCustomData.trackVideoConfig.videoWidth = 1280;
+        trackInfo[i].trackCustomData.trackVideoConfig.videoHeight = 720;
+    }
+    EXPECT_EQ(STATUS_DUPLICATE_TRACK_ID_FOUND, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
+
+    // Last one is the same as the first one
+    for (UINT32 i = 0; i < MAX_SUPPORTED_TRACK_COUNT_PER_STREAM; i++) {
+        trackInfo[i].trackId = i;
+        trackInfo[i].codecPrivateDataSize = 0;
+        trackInfo[i].codecPrivateData = NULL;
+        STRCPY(trackInfo[i].codecId, TEST_CODEC_ID);
+        STRCPY(trackInfo[i].trackName, TEST_TRACK_NAME);
+        trackInfo[i].trackType = MKV_TRACK_INFO_TYPE_VIDEO;
+        trackInfo[i].trackCustomData.trackVideoConfig.videoWidth = 1280;
+        trackInfo[i].trackCustomData.trackVideoConfig.videoHeight = 720;
+    }
+    trackInfo[MAX_SUPPORTED_TRACK_COUNT_PER_STREAM - 1].trackId = 0;
+    EXPECT_EQ(STATUS_DUPLICATE_TRACK_ID_FOUND, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 }
 
 TEST_F(StreamApiTest, freeKinesisVideoStream_NULL_Invalid)
@@ -369,7 +401,6 @@ TEST_F(StreamApiTest, insertKinesisVideoTag_Mixed_Count) {
 TEST_F(StreamApiTest, kinesisVideoGetData_NULL_Invalid)
 {
     STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
-    UINT64 clientStreamHandle = 0;
     UINT32 bufferSize = 100000, fillSize;
     PBYTE pBuffer = (PBYTE) MEMALLOC(bufferSize);
 
@@ -377,11 +408,11 @@ TEST_F(StreamApiTest, kinesisVideoGetData_NULL_Invalid)
     CreateStream();
 
     EXPECT_TRUE(STATUS_FAILED(
-            getKinesisVideoStreamData(streamHandle, &clientStreamHandle, pBuffer, bufferSize, &fillSize)));
-    EXPECT_TRUE(STATUS_FAILED(getKinesisVideoStreamData(mStreamHandle, NULL, pBuffer, bufferSize, &fillSize)));
-    EXPECT_TRUE(STATUS_FAILED(getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, NULL, bufferSize, &fillSize)));
-    EXPECT_TRUE(STATUS_FAILED(getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, pBuffer, 0, &fillSize)));
-    EXPECT_TRUE(STATUS_FAILED(getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, pBuffer, bufferSize, NULL)));
+            getKinesisVideoStreamData(streamHandle, TEST_UPLOAD_HANDLE, pBuffer, bufferSize, &fillSize)));
+    EXPECT_TRUE(STATUS_FAILED(getKinesisVideoStreamData(mStreamHandle, INVALID_UPLOAD_HANDLE_VALUE, pBuffer, bufferSize, &fillSize)));
+    EXPECT_TRUE(STATUS_FAILED(getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, NULL, bufferSize, &fillSize)));
+    EXPECT_TRUE(STATUS_FAILED(getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, pBuffer, 0, &fillSize)));
+    EXPECT_TRUE(STATUS_FAILED(getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, pBuffer, bufferSize, NULL)));
 
     MEMFREE(pBuffer);
 }

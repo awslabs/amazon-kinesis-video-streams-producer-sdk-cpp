@@ -376,7 +376,6 @@ CleanUp:
 STATUS putKinesisVideoFrame(STREAM_HANDLE streamHandle, PFrame pFrame)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    UINT32 i;
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
 
     DLOGS("Putting frame into an Kinesis Video stream.");
@@ -441,7 +440,7 @@ CleanUp:
  * Fills in the buffer for a given stream
  * @return Status of the operation
  */
-STATUS getKinesisVideoStreamData(STREAM_HANDLE streamHandle, PUINT64 pClientStreamHandle, PBYTE pBuffer,
+STATUS getKinesisVideoStreamData(STREAM_HANDLE streamHandle, UPLOAD_HANDLE uploadHandle, PBYTE pBuffer,
                                  UINT32 bufferSize, PUINT32 pFilledSize)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -452,11 +451,27 @@ STATUS getKinesisVideoStreamData(STREAM_HANDLE streamHandle, PUINT64 pClientStre
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
 
     // Process and store the result
-    CHK_STATUS(getStreamData(pKinesisVideoStream, pClientStreamHandle, pBuffer, bufferSize, pFilledSize));
+    CHK_STATUS(getStreamData(pKinesisVideoStream, uploadHandle, pBuffer, bufferSize, pFilledSize));
 
 CleanUp:
 
     LEAVES();
+    return retStatus;
+}
+
+/**
+ * Kinesis Video stream get streamInfo from STREAM_HANDLE
+ */
+STATUS kinesisVideoStreamGetStreamInfo(STREAM_HANDLE stream_handle, PPStreamInfo ppStreamInfo) {
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(stream_handle);
+
+    CHK(pKinesisVideoStream != NULL && ppStreamInfo != NULL, STATUS_NULL_ARG);
+    *ppStreamInfo = &pKinesisVideoStream->streamInfo;
+
+CleanUp:
+    LEAVE();
     return retStatus;
 }
 
@@ -701,22 +716,6 @@ CleanUp:
     return retStatus;
 }
 
-/**
- * Kinesis Video stream get streamInfo from STREAM_HANDLE
- */
-STATUS kinesisVideoStreamGetStreamInfo(STREAM_HANDLE stream_handle, PPStreamInfo ppStreamInfo) {
-    ENTERS();
-    STATUS retStatus = STATUS_SUCCESS;
-    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(stream_handle);
-
-    CHK(pKinesisVideoStream != NULL && ppStreamInfo != NULL, STATUS_NULL_ARG);
-    *ppStreamInfo = &pKinesisVideoStream->streamInfo;
-
-CleanUp:
-    LEAVE();
-    return retStatus;
-}
-
 //////////////////////////////////////////////////////////
 // Internal functions
 //////////////////////////////////////////////////////////
@@ -741,31 +740,6 @@ VOID viewItemRemoved(PContentView pContentView, UINT64 customData, PViewItem pVi
     // Lock the stream
     pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
     streamLocked = TRUE;
-
-    // Check whether we need to purge the data from the hash tables
-    if (pViewItem->index != 0) {
-        // Check if it's a session start and remove in a loop as there could be multiple terminations at the given index
-        while (NULL != (pUploadHandleInfo = getStreamUploadInfoWithEndIndex(pKinesisVideoStream, pViewItem->index))) {
-            uploadHandle = pUploadHandleInfo->handle;
-
-            // Remove the handle info from the queue
-            deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
-
-            // If the upload session info is still in awaiting state then we need to trigger an error
-            if (pUploadHandleInfo->state == UPLOAD_HANDLE_STATE_AWAITING_ACK &&
-                    NULL != pKinesisVideoClient->clientCallbacks.streamErrorReportFn) {
-                pKinesisVideoClient->clientCallbacks.streamErrorReportFn(
-                        pKinesisVideoClient->clientCallbacks.customData,
-                        TO_STREAM_HANDLE(pKinesisVideoStream),
-                        uploadHandle,
-                        pUploadHandleInfo->timestamp,
-                        STATUS_PERSISTED_ACK_TIMEOUT);
-            }
-
-            // Rotate the index
-            pKinesisVideoStream->curSessionIndex = pViewItem->index;
-        }
-    }
 
     // Notify the client about the dropped frame - only if we are removing the current view item
     // or the item that's been partially sent is being removed which was the one before the current.

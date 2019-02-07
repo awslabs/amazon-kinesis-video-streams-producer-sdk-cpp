@@ -120,7 +120,7 @@ TEST_F(StreamApiFunctionalityTest, streamFormatChange_stateCheck)
 
         // Return a put stream result on 5th
         if (i == 5) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
 
         // Setting CPD should fail
@@ -174,7 +174,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_BasicPutTestItemLimit)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 }
@@ -222,7 +222,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_BasicPutTestDurationLimit)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 }
@@ -232,7 +232,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetUnderflow)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -263,31 +263,25 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetUnderflow)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now try to retrieve the data
     for (timestamp = 0; timestamp < TEST_BUFFER_DURATION / 2; timestamp += TEST_LONG_FRAME_DURATION) {
-        clientStreamHandle = 0;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                             &filledSize));
         EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     }
 
-    clientStreamHandle = 0;
     EXPECT_TRUE(STATUS_FAILED(
-            getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+            getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                       &filledSize)));
-    EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 
-    clientStreamHandle = 0;
     EXPECT_TRUE(STATUS_FAILED(
-            getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+            getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                       &filledSize)));
-    EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
 }
 
 TEST_F(StreamApiFunctionalityTest, putFrame_PutGetNextKeyFrame)
@@ -296,7 +290,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetNextKeyFrame)
     BYTE tempBuffer[10000];
     PBYTE pData;
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -329,17 +323,15 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetNextKeyFrame)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now, the first frame should be the 10th
-    clientStreamHandle = 0;
     EXPECT_EQ(STATUS_SUCCESS,
-              getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+              getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                         &filledSize));
     EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-    EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     pData = getDataBuffer;
 
     // This should point to 10th frame, offset with cluster info and simple block info
@@ -401,7 +393,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StorageOverflow)
 
         // Return a put stream result on 5th
         if (i == 5) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
@@ -471,7 +463,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StoragePressureNotification)
 
         // Return a put stream result on 5th
         if (i == 5) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
@@ -525,7 +517,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartOkResult)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -558,22 +550,20 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartOkResult)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now try to retrieve the data
     for (timestamp = 0; timestamp < TEST_BUFFER_DURATION / 2; timestamp += TEST_LONG_FRAME_DURATION) {
-        clientStreamHandle = 0;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                             &filledSize));
         EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_RESULT_OK));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_RESULT_OK));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -606,7 +596,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartStreamLimitResult)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -639,22 +629,20 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartStreamLimitResult)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now try to retrieve the data
     for (timestamp = 0; timestamp < TEST_BUFFER_DURATION / 2; timestamp += TEST_LONG_FRAME_DURATION) {
-        clientStreamHandle = 0;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                             &filledSize));
         EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_STREAM_LIMIT));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_STREAM_LIMIT));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -687,7 +675,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartUnauthorizedResult)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -720,22 +708,20 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartUnauthorizedResult)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now try to retrieve the data
     for (timestamp = 0; timestamp < TEST_BUFFER_DURATION / 2; timestamp += TEST_LONG_FRAME_DURATION) {
-        clientStreamHandle = 0;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                             &filledSize));
         EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_NOT_AUTHORIZED));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_NOT_AUTHORIZED));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -768,7 +754,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartOtherResult)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -801,22 +787,20 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartOtherResult)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now try to retrieve the data
     for (timestamp = 0; timestamp < TEST_BUFFER_DURATION / 2; timestamp += TEST_LONG_FRAME_DURATION) {
-        clientStreamHandle = 0;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                             &filledSize));
         EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_UNKNOWN));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_UNKNOWN));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -851,7 +835,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartNotFoundResult)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -884,22 +868,20 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartNotFoundResult)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now try to retrieve the data
     for (timestamp = 0; timestamp < TEST_BUFFER_DURATION / 2; timestamp += TEST_LONG_FRAME_DURATION) {
-        clientStreamHandle = 0;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                             &filledSize));
         EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_RESOURCE_NOT_FOUND));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_RESOURCE_NOT_FOUND));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
@@ -934,7 +916,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResult)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Create and ready a stream
@@ -967,29 +949,27 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResult)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now try to retrieve the data
     for (timestamp = 0; timestamp < TEST_BUFFER_DURATION / 2; timestamp += TEST_LONG_FRAME_DURATION) {
-        clientStreamHandle = 0;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                             &filledSize));
         EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_INVALID_ARG));
+    EXPECT_EQ(STATUS_SERVICE_CALL_INVALID_ARG_ERROR, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_INVALID_ARG));
 
     // Try streaming again and ensure the right callbacks are fired
     frame.index++;
     frame.decodingTs += TEST_LONG_FRAME_DURATION;
     frame.presentationTs += TEST_LONG_FRAME_DURATION;
     frame.flags = FRAME_FLAG_KEY_FRAME;
-    EXPECT_EQ(STATUS_SERVICE_CALL_INVALID_ARG_ERROR, putKinesisVideoFrame(mStreamHandle, &frame));
+    EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 }
 
 TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResultRestart)
@@ -997,7 +977,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResultRestart)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, clientStreamHandle;
+    UINT64 timestamp;
     Frame frame;
 
     // Set to restart
@@ -1032,22 +1012,20 @@ TEST_F(StreamApiFunctionalityTest, putFrame_PutGetRestartBadResultRestart)
 
         // Return a put stream result on 50th
         if (i == 50) {
-            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
     }
 
     // Now try to retrieve the data
     for (timestamp = 0; timestamp < TEST_BUFFER_DURATION / 2; timestamp += TEST_LONG_FRAME_DURATION) {
-        clientStreamHandle = 0;
         EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                                             &filledSize));
         EXPECT_EQ(SIZEOF(getDataBuffer), filledSize);
-        EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
     }
 
     // Send a terminate event to warm reset the stream
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_INVALID_ARG));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_INVALID_ARG));
 
     // Try streaming again - should succeed
     frame.index++;
@@ -1102,7 +1080,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     EXPECT_EQ(0, mDataReadySize);
 
     // Set the result
-    EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+    EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
 
     // Call again with cleared data
     mStreamName[0] = '\0';
@@ -1127,7 +1105,211 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     EXPECT_EQ(TEST_FRAME_DURATION * 2, mDataReadyDuration);
 
     // Should be encoded size
-    EXPECT_EQ(SIZEOF(tempBuffer) + GET_MKV_HEADER_OVERHEAD(TEST_TRACK_COUNT) + SIZEOF(tempBuffer) + MKV_SIMPLE_BLOCK_OVERHEAD, mDataReadySize);
+    EXPECT_EQ(SIZEOF(tempBuffer) + mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount) +
+              SIZEOF(tempBuffer) + MKV_SIMPLE_BLOCK_OVERHEAD, mDataReadySize);
+}
+
+TEST_F(StreamApiFunctionalityTest, putFrame_SubmitAckWithTimecodeZero)
+{
+    UINT32 i, remaining;
+    UINT32 frameSize = 100000;
+    PBYTE pData = (PBYTE) MEMALLOC(frameSize);
+    UINT64 timestamp;
+    Frame frame;
+    FragmentAck fragmentAck;
+
+    // Set the ACK values
+    fragmentAck.version = FRAGMENT_ACK_CURRENT_VERSION;
+    fragmentAck.ackType = FRAGMENT_ACK_TYPE_BUFFERING;
+    fragmentAck.result = SERVICE_CALL_RESULT_OK;
+    STRCPY(fragmentAck.sequenceNumber, "SequenceNumber");
+    fragmentAck.timestamp = 0;
+
+    // Create and ready a stream
+    ReadyStream();
+
+    EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
+
+    // Make sure we drop the first frame which should be the key frame
+    for (i = 0, timestamp = 0; i < 10; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+        frame.index = i;
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+        frame.duration = TEST_LONG_FRAME_DURATION;
+        frame.size = frameSize;
+        frame.trackId = TEST_TRACKID;
+        // Change the content of the buffer
+        *(PUINT32) pData = i;
+        frame.frameData = pData;
+
+        // Key frame every 3rd
+        frame.flags = i % 3 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
+
+        // Ensure put stream is called
+        EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
+        EXPECT_EQ(TRUE, mAckRequired);
+        // Need to ensure we have a streaming token in the auth
+        EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
+        EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
+    }
+
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFragmentAck(mStreamHandle, TEST_UPLOAD_HANDLE, &fragmentAck));
+
+    MEMFREE(pData);
+}
+
+/*
+ * Frame timestamp begin with non zero value, streamInfo absolute timestamp is FALSE,
+ * no more putKinesisVideoFrame after putStreamResultEvent. Submitting ack should succeed.
+ */
+TEST_F(StreamApiFunctionalityTest, submitAck_shouldBeInWindowPutStreamResultAfterAllPutFrame)
+{
+    UINT32 i, remaining, filledSize;
+    UINT32 frameSize = 100000;
+    PBYTE getDataBuffer = (PBYTE) MEMALLOC(frameSize * 4);
+    PBYTE pData = (PBYTE) MEMALLOC(frameSize);
+    UINT64 timestamp, startTs = 300000;
+    Frame frame;
+    STATUS retStatus = STATUS_SUCCESS;
+    FragmentAck fragmentAck;
+    UPLOAD_HANDLE uploadHandle = TEST_UPLOAD_HANDLE;
+
+    // Set the ACK values
+    fragmentAck.version = FRAGMENT_ACK_CURRENT_VERSION;
+    fragmentAck.ackType = FRAGMENT_ACK_TYPE_BUFFERING;
+    fragmentAck.result = SERVICE_CALL_RESULT_OK;
+    STRCPY(fragmentAck.sequenceNumber, "SequenceNumber");
+    fragmentAck.timestamp = 0; // because we are using relative timestamp mode in streamInfo
+
+    // Create and ready a stream
+    ReadyStream();
+
+    // Make sure we drop the first frame which should be the key frame
+    for (i = 0, timestamp = startTs; i < 10; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+        frame.index = i;
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+        frame.duration = TEST_LONG_FRAME_DURATION;
+        frame.size = frameSize;
+        frame.trackId = TEST_TRACKID;
+        // Change the content of the buffer
+        *(PUINT32) pData = i;
+        frame.frameData = pData;
+
+        // Key frame every 3rd
+        frame.flags = i % 3 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
+
+        // Ensure put stream is called
+        EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
+        EXPECT_EQ(TRUE, mAckRequired);
+        // Need to ensure we have a streaming token in the auth
+        EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
+        EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
+    }
+
+    EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, uploadHandle));
+
+    retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
+                                          &filledSize);
+    EXPECT_EQ(true, STATUS_SUCCESS == retStatus || STATUS_NO_MORE_DATA_AVAILABLE == retStatus);
+    EXPECT_EQ(true, filledSize > 0);
+
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFragmentAck(mStreamHandle, uploadHandle, &fragmentAck));
+
+    MEMFREE(pData);
+    MEMFREE(getDataBuffer);
+}
+
+/*
+ * Frame timestamp begin with non zero value, streamInfo absolute timestamp is FALSE,
+ * after an error ack, submitting ack for the retransmitted fragment should succeed.
+ */
+TEST_F(StreamApiFunctionalityTest, submitAck_shouldBeInWindowAfterErrorAck)
+{
+    UINT32 i, remaining, filledSize;
+    UINT32 frameSize = 100000;
+    PBYTE getDataBuffer = (PBYTE) MEMALLOC(frameSize * 4);
+    PBYTE pData = (PBYTE) MEMALLOC(frameSize);
+    UINT64 timestamp, startTs = 300000;
+    Frame frame;
+    STATUS retStatus = STATUS_SUCCESS;
+    FragmentAck fragmentAck, archivalErrorAck;
+    UPLOAD_HANDLE uploadHandle = TEST_UPLOAD_HANDLE;
+
+    // Set the ACK values
+    fragmentAck.version = FRAGMENT_ACK_CURRENT_VERSION;
+    fragmentAck.ackType = FRAGMENT_ACK_TYPE_BUFFERING;
+    fragmentAck.result = SERVICE_CALL_RESULT_OK;
+    STRCPY(fragmentAck.sequenceNumber, "SequenceNumber");
+    fragmentAck.timestamp = 0;
+
+    archivalErrorAck.version = FRAGMENT_ACK_CURRENT_VERSION;
+    archivalErrorAck.ackType = FRAGMENT_ACK_TYPE_ERROR;
+    archivalErrorAck.result = SERVICE_CALL_RESULT_FRAGMENT_ARCHIVAL_ERROR;
+    STRCPY(archivalErrorAck.sequenceNumber, "SequenceNumber");
+    archivalErrorAck.timestamp = 0;
+
+    // need this so we can recover after error ack
+    mStreamInfo.streamCaps.recoverOnError = TRUE;
+
+    // Create and ready a stream
+    ReadyStream();
+
+    // Make sure we drop the first frame which should be the key frame
+    for (i = 0, timestamp = startTs; i < 10; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+        frame.index = i;
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+        frame.duration = TEST_LONG_FRAME_DURATION;
+        frame.size = frameSize;
+        frame.trackId = TEST_TRACKID;
+        // Change the content of the buffer
+        *(PUINT32) pData = i;
+        frame.frameData = pData;
+
+        // Key frame every 3rd
+        frame.flags = i % 3 == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
+
+        // Ensure put stream is called
+        EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
+        EXPECT_EQ(TRUE, mAckRequired);
+        // Need to ensure we have a streaming token in the auth
+        EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
+        EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
+
+        if (i == 8) {
+            EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, uploadHandle));
+        }
+    }
+
+    retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
+                                          &filledSize);
+    EXPECT_EQ(true, STATUS_SUCCESS == retStatus || STATUS_NO_MORE_DATA_AVAILABLE == retStatus);
+    EXPECT_EQ(true, filledSize > 0);
+
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFragmentAck(mStreamHandle, uploadHandle, &fragmentAck));
+    fragmentAck.ackType = FRAGMENT_ACK_TYPE_RECEIVED;
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFragmentAck(mStreamHandle, uploadHandle, &fragmentAck));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFragmentAck(mStreamHandle, uploadHandle, &archivalErrorAck));
+
+    MoveFromDescribeToReady();
+
+    uploadHandle++;
+    EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, uploadHandle));
+
+    retStatus = getKinesisVideoStreamData(mStreamHandle, uploadHandle, getDataBuffer, SIZEOF(getDataBuffer),
+                                          &filledSize);
+    EXPECT_EQ(true, STATUS_SUCCESS == retStatus || STATUS_NO_MORE_DATA_AVAILABLE == retStatus);
+    EXPECT_EQ(true, filledSize > 0);
+
+    fragmentAck.ackType = FRAGMENT_ACK_TYPE_BUFFERING;
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFragmentAck(mStreamHandle, uploadHandle, &fragmentAck));
+
+    MEMFREE(pData);
+    MEMFREE(getDataBuffer);
 }
 
 TEST_F(StreamApiFunctionalityTest, putFrame_AdaptAnnexB)
@@ -1158,7 +1340,7 @@ TEST_F(StreamApiFunctionalityTest, PutGet_ConnectionStaleNotification)
     UINT32 i, filledSize;
     BYTE tempBuffer[10000];
     BYTE getDataBuffer[20000];
-    UINT64 timestamp, delay, clientStreamHandle;
+    UINT64 timestamp, delay;
     Frame frame;
     STATUS retStatus = STATUS_SUCCESS;
 
@@ -1185,16 +1367,14 @@ TEST_F(StreamApiFunctionalityTest, PutGet_ConnectionStaleNotification)
 
         // Return a put stream result on 1st
         if (i == 1) {
-           EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_HANDLE));
+           EXPECT_EQ(STATUS_SUCCESS, putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_UPLOAD_HANDLE));
         }
 
         if (i >= 1) {
-            clientStreamHandle = 0;
-            retStatus = getKinesisVideoStreamData(mStreamHandle, &clientStreamHandle, getDataBuffer, SIZEOF(getDataBuffer),
+            retStatus = getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
                     &filledSize);
             EXPECT_EQ(true, STATUS_SUCCESS == retStatus || STATUS_NO_MORE_DATA_AVAILABLE == retStatus);
             EXPECT_EQ(true, filledSize > 0);
-            EXPECT_EQ(TEST_STREAMING_HANDLE, clientStreamHandle);
         }
 
         if (timestamp == delay + TEST_LONG_FRAME_DURATION) {

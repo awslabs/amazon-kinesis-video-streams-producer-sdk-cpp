@@ -233,7 +233,7 @@ STATUS FileOutputCallbackProvider::streamDataAvailableHandler(UINT64 custom_data
     do {
         ret_status = getKinesisVideoStreamData(
                 stream_handle,
-                &client_stream_handle,
+                stream_upload_handle,
                 reinterpret_cast<PBYTE>(this_obj->buffer_),
                 (UINT32)buffer_size,
                 &retrieved_size);

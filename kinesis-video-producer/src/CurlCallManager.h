@@ -3,7 +3,6 @@
 #include "Request.h"
 #include "Response.h"
 #include "Auth.h"
-#include "Logger.h"
 
 #include <memory>
 #include <signal.h>

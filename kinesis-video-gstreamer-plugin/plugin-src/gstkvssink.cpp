@@ -57,7 +57,9 @@
  * </refsect2>
  */
 
-
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
 
 #include "gstkvssink.h"
 #include <chrono>
@@ -74,49 +76,24 @@
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
-
-
 using namespace std;
 using namespace log4cplus;
 
-static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
-                                                                     GST_PAD_SINK,
-                                                                     GST_PAD_ALWAYS,
-                                                                     GST_STATIC_CAPS_ANY);
-
 GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
-
-
+#define GST_CAT_DEFAULT gst_kvs_sink_debug
 
 // default starting delay between reties when trying to create and start kvs stream.
 #define DEFAULT_INITIAL_RETRY_DELAY_MS 400
 // default number of retries when trying to create and start kvs stream.
 #define DEFAULT_TOTAL_RETRY 4
 
-/* KvsSink signals and args */
-enum {
-    /* FILL ME */
-    SIGNAL_HANDOFF,
-    SIGNAL_PREROLL_HANDOFF,
-    LAST_SIGNAL
-};
-
-#define DEFAULT_SYNC FALSE
-
-#define DEFAULT_STATE_ERROR KVS_SINK_STATE_ERROR_NONE
-#define DEFAULT_SILENT TRUE
-#define DEFAULT_DUMP FALSE
-#define DEFAULT_SIGNAL_HANDOFFS FALSE
-#define DEFAULT_LAST_MESSAGE NULL
-#define DEFAULT_CAN_ACTIVATE_PUSH TRUE
-#define DEFAULT_CAN_ACTIVATE_PULL FALSE
-#define DEFAULT_NUM_BUFFERS (-1)
-
 #define DEFAULT_STREAM_NAME "DEFAULT_STREAM"
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
 #define DEFAULT_KMS_KEY_ID ""
 #define DEFAULT_STREAMING_TYPE STREAMING_TYPE_REALTIME
-#define DEFAULT_CONTENT_TYPE "video/h264"
+#define DEFAULT_CONTENT_TYPE_VIDEO_H264 "video/h264"
+#define DEFAULT_CONTENT_TYPE_AV_H264_AAC "video/h264,audio/aac"
+#define DEFAULT_CONTENT_TYPE_AUDIO "audio/aac"
 #define DEFAULT_MAX_LATENCY_SECONDS 60
 #define DEFAULT_FRAGMENT_DURATION_MILLISECONDS 2000
 #define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
@@ -139,16 +116,8 @@ enum {
 #define DEFAULT_FRAME_DATA_SIZE_BYTE 512 * 1024
 #define DEFAULT_ROTATION_PERIOD_SECONDS 2400
 #define DEFAULT_LOG_FILE_PATH "./kvs_log_configuration"
-#define DEFAULT_FRAME_TIMESTAMP KVS_SINK_TIMESTAMP_DEFAULT
 #define DEFAULT_FILE_START_TIME 0
-// default size is 2250MB
-#define DEFRAGMENTATION_FACTOR 1.2
-#define ESTIMATED_AVG_BUFFER_SIZE_BYTE 3 * 1024 // for 720p 25 fps stream
-#define DEFAULT_STORAGE_SIZE_MB \
-        static_cast<UINT64>(static_cast<UINT64>(ESTIMATED_AVG_BUFFER_SIZE_BYTE) * \
-        DEFAULT_STREAM_FRAMERATE * \
-        DEFAULT_BUFFER_DURATION_SECONDS * \
-        DEFRAGMENTATION_FACTOR / (1024 * 1024))
+#define DEFAULT_STORAGE_SIZE_MB 128
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 #define DEFAULT_FRAME_DURATION_MS 2
 
@@ -159,16 +128,13 @@ enum {
 #define KVS_ADD_METADATA_PERSISTENT "persist"
 #define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CLIENT"
 
+#define DEFAULT_AUDIO_TRACK_NAME "audio"
+#define DEFAULT_AUDIO_CODEC_ID "A_AAC"
+#define DEFAULT_VIDEO_TRACKID 0
+#define DEFAULT_AUDIO_TRACKID 1
+
 enum {
     PROP_0,
-    PROP_SILENT,
-    PROP_DUMP,
-    PROP_SIGNAL_HANDOFFS,
-    PROP_LAST_MESSAGE,
-    PROP_CAN_ACTIVATE_PUSH,
-    PROP_CAN_ACTIVATE_PULL,
-    PROP_NUM_BUFFERS,
-    PROP_LAST,
     PROP_STREAM_NAME,
     PROP_RETENTION_PERIOD,
     PROP_STREAMING_TYPE,
@@ -182,7 +148,6 @@ enum {
     PROP_FRAGMENT_ACKS,
     PROP_RESTART_ON_ERROR,
     PROP_RECALCULATE_METRICS,
-    PROP_NAL_ADAPTATION_FLAGS,
     PROP_FRAMERATE,
     PROP_AVG_BANDWIDTH_BPS,
     PROP_BUFFER_DURATION,
@@ -195,32 +160,12 @@ enum {
     PROP_AWS_REGION,
     PROP_ROTATION_PERIOD,
     PROP_LOG_CONFIG_PATH,
-    PROP_FRAME_TIMESTAMP,
     PROP_STORAGE_SIZE,
     PROP_CREDENTIAL_FILE_PATH,
     PROP_IOT_CERTIFICATE,
     PROP_STREAM_TAGS,
     PROP_FILE_START_TIME
 };
-
-#define GST_TYPE_KVS_SINK_FRAME_TIMESTAMP_TYPE (gst_kvs_sink_frame_timestamp_type_get_type())
-static GType
-gst_kvs_sink_frame_timestamp_type_get_type (void)
-{
-    static GType kvssink_frame_timestamp_type_type = 0;
-    static const GEnumValue kvssink_frame_timestamp_type[] = {
-            {KVS_SINK_TIMESTAMP_PTS_ONLY, "Set dts equal to pts for every frame sent to kvs", "pts-only"},
-            {KVS_SINK_TIMESTAMP_DTS_ONLY, "Set pts equal to dts for every frame sent to kvs", "dts-only"},
-            {KVS_SINK_TIMESTAMP_DEFAULT, "Try to use both pts and dts. If one is not available, then use the other", "default-timestamp"},
-            {0, NULL, NULL},
-    };
-
-    if (!kvssink_frame_timestamp_type_type) {
-        kvssink_frame_timestamp_type_type =
-                g_enum_register_static ("GstKvsSinkFrameTimestampType", kvssink_frame_timestamp_type);
-    }
-    return kvssink_frame_timestamp_type_type;
-}
 
 #define GST_TYPE_KVS_SINK_STREAMING_TYPE (gst_kvs_sink_streaming_type_get_type())
 static GType
@@ -241,64 +186,83 @@ gst_kvs_sink_streaming_type_get_type (void)
     return kvssink_streaming_type_type;
 }
 
-#define _do_init \
-    GST_DEBUG_CATEGORY_INIT (gst_kvs_sink_debug, "kvssink", 0, "KVS sink plug-in");
+static GstStaticPadTemplate audiosink_templ =
+        GST_STATIC_PAD_TEMPLATE ("audio_%u",
+                                 GST_PAD_SINK,
+                                 GST_PAD_REQUEST,
+                                 GST_STATIC_CAPS (
+                                         "audio/mpeg, mpegversion = (int) { 2, 4 }, stream-format = (string) raw, channels = (int) [ 1, MAX ], rate = (int) [ 1, MAX ] ;"
+                                 )
+        );
+
+static GstStaticPadTemplate videosink_templ =
+        GST_STATIC_PAD_TEMPLATE ("video_%u",
+                                 GST_PAD_SINK,
+                                 GST_PAD_REQUEST,
+                                 GST_STATIC_CAPS (
+                                         "video/x-h264, stream-format = (string) avc, alignment = (string) au, width = (int) [ 16, MAX ], height = (int) [ 16, MAX ] ;"
+                                 )
+        );
+
+#define _do_init GST_DEBUG_CATEGORY_INIT (gst_kvs_sink_debug, "kvssink", 0, "KVS sink plug-in");
 
 #define gst_kvs_sink_parent_class parent_class
 
-G_DEFINE_TYPE_WITH_CODE (GstKvsSink, gst_kvs_sink, GST_TYPE_BASE_SINK, _do_init);
+G_DEFINE_TYPE_WITH_CODE (GstKvsSink, gst_kvs_sink, GST_TYPE_ELEMENT, _do_init);
+
 
 static void gst_kvs_sink_set_property(GObject *object, guint prop_id,
-                                         const GValue *value, GParamSpec *pspec);
+                                      const GValue *value, GParamSpec *pspec);
 
 static void gst_kvs_sink_get_property(GObject *object, guint prop_id,
-                                         GValue *value, GParamSpec *pspec);
+                                      GValue *value, GParamSpec *pspec);
 
 static void gst_kvs_sink_finalize(GObject *obj);
 
 static GstStateChangeReturn gst_kvs_sink_change_state(GstElement *element,
-                                                         GstStateChange transition);
+                                                      GstStateChange transition);
 
-static GstFlowReturn gst_kvs_sink_preroll(GstBaseSink *bsink,
-                                             GstBuffer *buffer);
+/* collectpad callback */
+static GstFlowReturn gst_kvs_sink_handle_buffer (GstCollectPads * pads,
+                                                 GstCollectData * data, GstBuffer * buf, gpointer user_data);
+static gboolean gst_kvs_sink_handle_sink_event (GstCollectPads * pads,
+                                                GstCollectData * data, GstEvent * event, gpointer user_data);
+static gint gst_kvs_sink_collect_compare (GstCollectPads *pads,
+                                          GstCollectData *data1,
+                                          GstClockTime timestamp1,
+                                          GstCollectData *data2,
+                                          GstClockTime timestamp2,
+                                          gpointer user_data);
 
-static GstFlowReturn gst_kvs_sink_render(GstBaseSink *bsink,
-                                            GstBuffer *buffer);
+/* Request pad callback */
+static GstPad* gst_kvs_sink_request_new_pad (GstElement *element, GstPadTemplate *templ,
+                                             const gchar* name, const GstCaps *caps);
+static void gst_kvs_sink_release_pad (GstElement *element, GstPad *pad);
 
-static gboolean gst_kvs_sink_event(GstBaseSink *bsink, GstEvent *event);
-static gboolean gst_kvs_sink_query(GstBaseSink *bsink, GstQuery *query);
 
-static gboolean gst_kvs_sink_start (GstBaseSink * bsink);
-static gboolean gst_kvs_sink_stop (GstBaseSink * bsink);
-
-static GstFlowReturn gst_kvs_sink_prepare(GstBaseSink *bsink,
-                                          GstBuffer *buffer);
-
-static guint gst_kvs_sink_signals[LAST_SIGNAL] = {0};
-
-static GParamSpec *pspec_last_message = NULL;
-
-CallbackStateMachine::_CallbackStateMachine(shared_ptr<CustomData> data, STREAM_HANDLE stream_handle) {
-    stream_latency_state_machine = make_shared<StreamLatencyStateMachine>(data, stream_handle);
-    connection_stale_state_machine = make_shared<ConnectionStaleStateMachine>(data, stream_handle);
+CallbackStateMachine::_CallbackStateMachine(shared_ptr<CustomData> data) {
+    stream_latency_state_machine = make_shared<StreamLatencyStateMachine>(data);
+    connection_stale_state_machine = make_shared<ConnectionStaleStateMachine>(data);
 }
 
 
-void kinesis_video_producer_init(GstKvsSink *sink) {
-    auto data = sink->data;
-    unique_ptr<DeviceInfoProvider> device_info_provider = make_unique<KvsSinkDeviceInfoProvider>(data);
+void kinesis_video_producer_init(GstKvsSink *kvssink) {
+    auto data = kvssink->data;
+    unique_ptr<DeviceInfoProvider> device_info_provider = make_unique<KvsSinkDeviceInfoProvider>(kvssink->storage_size);
     unique_ptr<ClientCallbackProvider> client_callback_provider = make_unique<KvsSinkClientCallbackProvider>();
     unique_ptr<StreamCallbackProvider> stream_callback_provider = make_unique<KvsSinkStreamCallbackProvider>(data);
 
     char const *access_key;
     char const *secret_key;
+    char const *session_token;
     char const *default_region;
     string access_key_str;
     string secret_key_str;
+    string session_token_str;
     string region_str;
     bool credential_is_static = true;
 
-    if (0 == strcmp(sink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
+    if (0 == strcmp(kvssink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
         if (nullptr == (access_key = getenv(ACCESS_KEY_ENV_VAR))
             || nullptr == (secret_key = getenv(SECRET_KEY_ENV_VAR))) { // if no static credential is available in env var.
             credential_is_static = false; // No static credential available.
@@ -307,15 +271,19 @@ void kinesis_video_producer_init(GstKvsSink *sink) {
         } else {
             access_key_str = string(access_key);
             secret_key_str = string(secret_key);
+            session_token_str = "";
+            if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
+                session_token_str = string(session_token);
+            }
         }
 
     } else {
-        access_key_str = string(sink->access_key);
-        secret_key_str = string(sink->secret_key);
+        access_key_str = string(kvssink->access_key);
+        secret_key_str = string(kvssink->secret_key);
     }
 
     if (nullptr == (default_region = getenv(DEFAULT_REGION_ENV_VAR))) {
-        region_str = string(sink->aws_region);
+        region_str = string(kvssink->aws_region);
     } else {
         region_str = string(default_region); // Use env var if both property and env var are available.
     }
@@ -323,23 +291,23 @@ void kinesis_video_producer_init(GstKvsSink *sink) {
     unique_ptr<CredentialProvider> credential_provider;
 
     if (credential_is_static) {
-        sink->credentials_ = make_unique<Credentials>(access_key_str,
-                                                      secret_key_str,
-                                                      "",
-                                                      std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS));
-        credential_provider = make_unique<RotatingStaticCredentialProvider>(*sink->credentials_, sink->rotation_period);
-    } else if (sink->iot_certificate) {
+        kvssink->credentials_ = make_unique<Credentials>(access_key_str,
+                                                         secret_key_str,
+                                                         session_token_str,
+                                                         std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS));
+        credential_provider = make_unique<RotatingStaticCredentialProvider>(*kvssink->credentials_, kvssink->rotation_period);
+    } else if (kvssink->iot_certificate) {
         std::map<std::string, std::string> iot_cert_params;
-        gboolean ret = kvs_sink_util::parseIotCredentialGstructure(sink->iot_certificate, iot_cert_params);
+        gboolean ret = kvs_sink_util::parseIotCredentialGstructure(kvssink->iot_certificate, iot_cert_params);
         g_assert_true(ret);
         credential_provider = make_unique<IotCertCredentialProvider>(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
                                                                      iot_cert_params[CERTIFICATE_PATH],
                                                                      iot_cert_params[PRIVATE_KEY_PATH],
                                                                      iot_cert_params[ROLE_ALIASES],
                                                                      iot_cert_params[CA_CERT_PATH],
-                                                                     sink->stream_name);
+                                                                     kvssink->stream_name);
     } else {
-        credential_provider = make_unique<RotatingCredentialProvider>(sink->credential_file_path);
+        credential_provider = make_unique<RotatingCredentialProvider>(kvssink->credential_file_path);
     }
 
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
@@ -351,14 +319,14 @@ void kinesis_video_producer_init(GstKvsSink *sink) {
                                                                     KVS_CLIENT_USER_AGENT_NAME);
 }
 
-void create_kinesis_video_stream(GstKvsSink *sink) {
-    auto data = sink->data;
+void create_kinesis_video_stream(GstKvsSink *kvssink) {
+    auto data = kvssink->data;
 
     map<string, string> *p_stream_tags = nullptr;
     map<string, string> stream_tags;
-    if (sink->stream_tags) {
+    if (kvssink->stream_tags) {
         gboolean ret;
-        ret = kvs_sink_util::gstructToMap(sink->stream_tags, &stream_tags);
+        ret = kvs_sink_util::gstructToMap(kvssink->stream_tags, &stream_tags);
         if (!ret) {
             LOG_WARN("Failed to parse stream tags");
         } else {
@@ -370,54 +338,76 @@ void create_kinesis_video_stream(GstKvsSink *sink) {
     // then switch to use abosolute fragment time. Since we will be adding the file_start_time to the timestamp
     // of each frame to make each frame's timestamp absolute. Assuming each frame's timestamp is relative
     // (i.e. starting from 0)
-    if (sink->streaming_type == STREAMING_TYPE_OFFLINE && sink->file_start_time != 0) {
-        sink->absolute_fragment_times = TRUE;
-        data->pts_base = duration_cast<nanoseconds>(seconds(sink->file_start_time)).count();
+    if (kvssink->streaming_type == STREAMING_TYPE_OFFLINE && kvssink->file_start_time != 0) {
+        kvssink->absolute_fragment_times = TRUE;
+        data->pts_base = duration_cast<nanoseconds>(seconds(kvssink->file_start_time)).count();
     }
 
-    auto stream_definition = make_unique<StreamDefinition>(sink->stream_name,
-                                                           hours(sink->retention_period_hours),
+    switch (data->media_type) {
+        case AUDIO_VIDEO:
+            g_free(kvssink->content_type);
+            kvssink->content_type = g_strdup(DEFAULT_CONTENT_TYPE_AV_H264_AAC);
+            break;
+        case AUDIO_ONLY:
+            g_free(kvssink->content_type);
+            kvssink->content_type = g_strdup(DEFAULT_CONTENT_TYPE_AUDIO);
+            g_free(kvssink->codec_id);
+            kvssink->codec_id = g_strdup(DEFAULT_AUDIO_CODEC_ID);
+            g_free(kvssink->track_name);
+            kvssink->track_name = g_strdup(DEFAULT_AUDIO_TRACK_NAME);
+            kvssink->track_info_type = MKV_TRACK_INFO_TYPE_AUDIO;
+            kvssink->key_frame_fragmentation = FALSE;
+            break;
+        case VIDEO_ONLY:
+            // no-op because default setup is for video only
+            break;
+    }
+
+    auto stream_definition = make_unique<StreamDefinition>(kvssink->stream_name,
+                                                           hours(kvssink->retention_period_hours),
                                                            p_stream_tags,
-                                                           sink->kms_key_id,
-                                                           sink->streaming_type,
-                                                           sink->content_type,
-                                                           duration_cast<milliseconds> (seconds(sink->max_latency_seconds)),
-                                                           milliseconds(sink->fragment_duration_miliseconds),
-                                                           milliseconds(sink->timecode_scale_milliseconds),
-                                                           sink->key_frame_fragmentation,//Construct a fragment at each key frame
-                                                           sink->frame_timecodes,//Use provided frame timecode
-                                                           sink->absolute_fragment_times,//Relative timecode
-                                                           sink->fragment_acks,//Ack on fragment is enabled
-                                                           sink->restart_on_error,//SDK will restart when error happens
-                                                           sink->recalculate_metrics,//recalculate_metrics
+                                                           kvssink->kms_key_id,
+                                                           kvssink->streaming_type,
+                                                           kvssink->content_type,
+                                                           duration_cast<milliseconds> (seconds(kvssink->max_latency_seconds)),
+                                                           milliseconds(kvssink->fragment_duration_miliseconds),
+                                                           milliseconds(kvssink->timecode_scale_milliseconds),
+                                                           kvssink->key_frame_fragmentation,//Construct a fragment at each key frame
+                                                           kvssink->frame_timecodes,//Use provided frame timecode
+                                                           kvssink->absolute_fragment_times,//Relative timecode
+                                                           kvssink->fragment_acks,//Ack on fragment is enabled
+                                                           kvssink->restart_on_error,//SDK will restart when error happens
+                                                           kvssink->recalculate_metrics,//recalculate_metrics
                                                            0,
-                                                           sink->framerate,
-                                                           sink->avg_bandwidth_bps,
-                                                           seconds(sink->buffer_duration_seconds),
-                                                           seconds(sink->replay_duration_seconds),
-                                                           seconds(sink->connection_staleness_seconds),
-                                                           sink->codec_id,
-                                                           sink->track_name,
+                                                           kvssink->framerate,
+                                                           kvssink->avg_bandwidth_bps,
+                                                           seconds(kvssink->buffer_duration_seconds),
+                                                           seconds(kvssink->replay_duration_seconds),
+                                                           seconds(kvssink->connection_staleness_seconds),
+                                                           kvssink->codec_id,
+                                                           kvssink->track_name,
                                                            nullptr,
-                                                           0);
-    auto kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
-    auto stream_handle = *(kinesis_video_stream->getStreamHandle());
-    data->kinesis_video_stream_map.put(stream_handle, kinesis_video_stream);
-    shared_ptr<CallbackStateMachine> callbackStateMachine = make_shared<CallbackStateMachine>(data, stream_handle);
-    data->callback_state_machine_map.put(stream_handle, callbackStateMachine);
+                                                           0,
+                                                           kvssink->track_info_type);
+
+    if (data->media_type == AUDIO_VIDEO) {
+        stream_definition->addTrack(DEFAULT_AUDIO_TRACKID, DEFAULT_AUDIO_TRACK_NAME, DEFAULT_AUDIO_CODEC_ID, MKV_TRACK_INFO_TYPE_AUDIO);
+    }
+
+    data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
+    data->callback_state_machine = make_shared<CallbackStateMachine>(data);
     cout << "Stream is ready" << endl;
 }
 
-bool kinesis_video_stream_init(GstKvsSink *sink, string &err_msg) {
+bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
     bool ret = true;
     int retry_count = DEFAULT_TOTAL_RETRY;
     int retry_delay = DEFAULT_INITIAL_RETRY_DELAY_MS;
     bool do_retry = true;
-
     while(do_retry) {
         try {
             LOG_INFO("try creating stream");
-            create_kinesis_video_stream(sink);
+            create_kinesis_video_stream(kvssink);
             break;
         } catch (runtime_error &err) {
             if (--retry_count == 0) {
@@ -437,29 +427,24 @@ bool kinesis_video_stream_init(GstKvsSink *sink, string &err_msg) {
     return ret;
 }
 
-bool kinesis_video_stream_start(GstKvsSink *sink, string &err_msg) {
-    auto data = sink->data;
+bool kinesis_video_stream_start(shared_ptr<CustomData> data, string &cpd, uint64_t track_id) {
     bool ret = true;
     int retry_count = DEFAULT_TOTAL_RETRY;
     int retry_delay = DEFAULT_INITIAL_RETRY_DELAY_MS;
-    for (auto stream : data->kinesis_video_stream_map.getMap()) {
-        bool do_retry = true;
-        while(do_retry) {
-            LOG_INFO("try starting stream. Stream handle: " << stream.first);
-            if (stream.second->start(data->cpd)) {
-                break;
+    bool do_retry = true;
+
+    while(do_retry) {
+        LOG_INFO("try starting stream.");
+        if (data->kinesis_video_stream->start(cpd, track_id)) {
+            do_retry = false;
+        } else {
+            if (--retry_count == 0) {
+                ret = false;
+                do_retry = false;
             } else {
-                if (--retry_count == 0) {
-                    ostringstream oss;
-                    oss << "Failed to start kvs stream. Stream handle: " << stream.first;
-                    err_msg = oss.str();
-                    ret = false;
-                    do_retry = false;
-                } else {
-                    this_thread::sleep_for(std::chrono::milliseconds(retry_delay));
-                    // double the delay period
-                    retry_delay = retry_delay << 1;
-                }
+                this_thread::sleep_for(std::chrono::milliseconds(retry_delay));
+                // double the delay period
+                retry_delay = retry_delay << 1;
             }
         }
     }
@@ -471,49 +456,13 @@ static void
 gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     GObjectClass *gobject_class;
     GstElementClass *gstelement_class;
-    GstBaseSinkClass *gstbase_sink_class;
 
     gobject_class = G_OBJECT_CLASS (klass);
     gstelement_class = GST_ELEMENT_CLASS (klass);
-    gstbase_sink_class = GST_BASE_SINK_CLASS (klass);
 
     gobject_class->set_property = gst_kvs_sink_set_property;
     gobject_class->get_property = gst_kvs_sink_get_property;
     gobject_class->finalize = gst_kvs_sink_finalize;
-
-    pspec_last_message = g_param_spec_string("last-message", "Last Message",
-                                             "The message describing current status", DEFAULT_LAST_MESSAGE,
-                                             (GParamFlags) (G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
-    g_object_class_install_property(gobject_class, PROP_LAST_MESSAGE,
-                                    pspec_last_message);
-    g_object_class_install_property(gobject_class, PROP_SIGNAL_HANDOFFS,
-                                    g_param_spec_boolean("signal-handoffs", "Signal handoffs",
-                                                         "Send a signal before unreffing the buffer",
-                                                         DEFAULT_SIGNAL_HANDOFFS,
-                                                         (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-    g_object_class_install_property(gobject_class, PROP_SILENT,
-                                    g_param_spec_boolean("silent", "Silent",
-                                                         "Don't produce last_message events", DEFAULT_SILENT,
-                                                         (GParamFlags) (G_PARAM_READWRITE | GST_PARAM_MUTABLE_PLAYING |
-                                                                        G_PARAM_STATIC_STRINGS)));
-    g_object_class_install_property(gobject_class, PROP_DUMP,
-                                    g_param_spec_boolean("dump", "Dump", "Dump buffer contents to stdout",
-                                                         DEFAULT_DUMP,
-                                                         (GParamFlags) (G_PARAM_READWRITE | GST_PARAM_MUTABLE_PLAYING |
-                                                                        G_PARAM_STATIC_STRINGS)));
-    g_object_class_install_property(gobject_class, PROP_CAN_ACTIVATE_PUSH,
-                                    g_param_spec_boolean("can-activate-push", "Can activate push",
-                                                         "Can activate in push mode", DEFAULT_CAN_ACTIVATE_PUSH,
-                                                         (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-    g_object_class_install_property(gobject_class, PROP_CAN_ACTIVATE_PULL,
-                                    g_param_spec_boolean("can-activate-pull", "Can activate pull",
-                                                         "Can activate in pull mode", DEFAULT_CAN_ACTIVATE_PULL,
-                                                         (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-    g_object_class_install_property(gobject_class, PROP_NUM_BUFFERS,
-                                    g_param_spec_int("num-buffers", "num-buffers",
-                                                     "Number of buffers to accept going EOS", -1, G_MAXINT,
-                                                     DEFAULT_NUM_BUFFERS,
-                                                     (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_STREAM_NAME,
                                      g_param_spec_string ("stream-name", "Stream Name",
@@ -529,7 +478,7 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
 
     g_object_class_install_property (gobject_class, PROP_CONTENT_TYPE,
                                      g_param_spec_string ("content-type", "Content Type",
-                                                          "content type", DEFAULT_CONTENT_TYPE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                                                          "content type", DEFAULT_CONTENT_TYPE_VIDEO_H264, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_MAX_LATENCY,
                                      g_param_spec_uint ("max-latency", "Max Latency",
@@ -621,10 +570,6 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                      g_param_spec_string ("log-config", "Log Configuration",
                                                         "Log Configuration Path", DEFAULT_LOG_FILE_PATH, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
-    g_object_class_install_property (gobject_class, PROP_FRAME_TIMESTAMP,
-                                     g_param_spec_enum ("frame-timestamp", "Frame Timestamp",
-                                                        "Frame Timestamp", GST_TYPE_KVS_SINK_FRAME_TIMESTAMP_TYPE, DEFAULT_FRAME_TIMESTAMP, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-
     g_object_class_install_property (gobject_class, PROP_STORAGE_SIZE,
                                      g_param_spec_uint ("storage-size", "Storage Size",
                                                         "Storage Size. Unit: MB", 0, G_MAXUINT, DEFAULT_STORAGE_SIZE_MB, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -648,68 +593,41 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                         "Epoch time that the file starts in kinesis video stream. By default, current time is used. Unit: Seconds",
                                                          0, G_MAXULONG, 0, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
-    /**
-     * GstKvsSink::handoff:
-     * @kvssink: the kvssink instance
-     * @buffer: the buffer that just has been received
-     * @pad: the pad that received it
-     *
-     * This signal gets emitted before unreffing the buffer.
-     */
-    gst_kvs_sink_signals[SIGNAL_HANDOFF] =
-            g_signal_new("handoff", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST,
-                         G_STRUCT_OFFSET (GstKvsSinkClass, handoff), NULL, NULL,
-                         g_cclosure_marshal_generic, G_TYPE_NONE, 2,
-                         GST_TYPE_BUFFER | G_SIGNAL_TYPE_STATIC_SCOPE, GST_TYPE_PAD);
-
-    /**
-     * GstKvsSink::preroll-handoff:
-     * @kvssink: the kvssink instance
-     * @buffer: the buffer that just has been received
-     * @pad: the pad that received it
-     *
-     * This signal gets emitted before unreffing the buffer.
-     */
-    gst_kvs_sink_signals[SIGNAL_PREROLL_HANDOFF] =
-            g_signal_new("preroll-handoff", G_TYPE_FROM_CLASS (klass),
-                         G_SIGNAL_RUN_LAST, G_STRUCT_OFFSET (GstKvsSinkClass, preroll_handoff),
-                         NULL, NULL, g_cclosure_marshal_generic, G_TYPE_NONE, 2,
-                         GST_TYPE_BUFFER | G_SIGNAL_TYPE_STATIC_SCOPE, GST_TYPE_PAD);
-
     gst_element_class_set_static_metadata(gstelement_class,
                                           "KVS Sink",
                                           "Sink/Video/Network",
                                           "GStreamer AWS KVS plugin",
                                           "AWS KVS <kinesis-video-support@amazon.com>");
 
-    //gst_element_class_add_static_pad_template (gstelement_class, &sink_template);
-    gst_element_class_add_pad_template(gstelement_class, gst_static_pad_template_get(&sink_template));
+    gst_element_class_add_pad_template(gstelement_class, gst_static_pad_template_get(&audiosink_templ));
+    gst_element_class_add_pad_template(gstelement_class, gst_static_pad_template_get(&videosink_templ));
 
-    gstelement_class->change_state =
-            GST_DEBUG_FUNCPTR (gst_kvs_sink_change_state);
-
-    gstbase_sink_class->event = GST_DEBUG_FUNCPTR (gst_kvs_sink_event);
-    gstbase_sink_class->preroll = GST_DEBUG_FUNCPTR (gst_kvs_sink_preroll);
-    gstbase_sink_class->render = GST_DEBUG_FUNCPTR (gst_kvs_sink_render);
-    gstbase_sink_class->query = GST_DEBUG_FUNCPTR (gst_kvs_sink_query);
-    gstbase_sink_class->start = GST_DEBUG_FUNCPTR (gst_kvs_sink_start);
-    gstbase_sink_class->stop = GST_DEBUG_FUNCPTR (gst_kvs_sink_stop);
-    gstbase_sink_class->prepare = GST_DEBUG_FUNCPTR (gst_kvs_sink_prepare);
+    gstelement_class->change_state = GST_DEBUG_FUNCPTR (gst_kvs_sink_change_state);
+    gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
+    gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
 }
 
-static void  gst_kvs_sink_init(GstKvsSink *kvssink) {
+static void
+gst_kvs_sink_init(GstKvsSink *kvssink) {
+    kvssink->collect = gst_collect_pads_new();
 
-    kvssink->silent = DEFAULT_SILENT;
-    kvssink->dump = DEFAULT_DUMP;
-    kvssink->last_message = g_strdup(DEFAULT_LAST_MESSAGE);
-    kvssink->signal_handoffs = DEFAULT_SIGNAL_HANDOFFS;
-    kvssink->num_buffers = DEFAULT_NUM_BUFFERS;
+    gst_collect_pads_set_buffer_function (kvssink->collect,
+                                          GST_DEBUG_FUNCPTR (gst_kvs_sink_handle_buffer), kvssink);
+    gst_collect_pads_set_event_function (kvssink->collect,
+                                         GST_DEBUG_FUNCPTR (gst_kvs_sink_handle_sink_event), kvssink);
+    gst_collect_pads_set_compare_function(kvssink->collect,
+                                          GST_DEBUG_FUNCPTR (gst_kvs_sink_collect_compare), kvssink);
 
+    kvssink->num_streams = 0;
+    kvssink->num_audio_streams = 0;
+    kvssink->num_video_streams = 0;
+
+    // Stream definition
     kvssink->stream_name = g_strdup (DEFAULT_STREAM_NAME);
     kvssink->retention_period_hours = DEFAULT_RETENTION_PERIOD_HOURS;
     kvssink->kms_key_id = g_strdup (DEFAULT_KMS_KEY_ID);
     kvssink->streaming_type = DEFAULT_STREAMING_TYPE;
-    kvssink->content_type = g_strdup (DEFAULT_CONTENT_TYPE);
+    kvssink->content_type = g_strdup (DEFAULT_CONTENT_TYPE_VIDEO_H264);
     kvssink->max_latency_seconds = DEFAULT_MAX_LATENCY_SECONDS;
     kvssink->fragment_duration_miliseconds = DEFAULT_FRAGMENT_DURATION_MILLISECONDS;
     kvssink->timecode_scale_milliseconds = DEFAULT_TIMECODE_SCALE_MILLISECONDS;
@@ -733,303 +651,159 @@ static void  gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->current_frame_data_size = DEFAULT_FRAME_DATA_SIZE_BYTE;
     kvssink->rotation_period = DEFAULT_ROTATION_PERIOD_SECONDS;
     kvssink->log_config_path = g_strdup (DEFAULT_LOG_FILE_PATH);
-    kvssink->frame_timestamp = DEFAULT_FRAME_TIMESTAMP;
     kvssink->storage_size = DEFAULT_STORAGE_SIZE_MB;
     kvssink->credential_file_path = g_strdup (DEFAULT_CREDENTIAL_FILE_PATH);
     kvssink->file_start_time = DEFAULT_FILE_START_TIME;
-
-    gst_base_sink_set_sync(GST_BASE_SINK (kvssink), DEFAULT_SYNC);
+    kvssink->track_info_type = MKV_TRACK_INFO_TYPE_VIDEO;
 
     kvssink->data = make_shared<CustomData>();
+
+    // Mark plugin as sink
+    GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
+
     LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
     LOG_CONFIGURE_STDOUT("DEBUG")
 }
 
 static void
 gst_kvs_sink_finalize(GObject *object) {
-    GstKvsSink *sink = GST_KVS_SINK (object);
+    GstKvsSink *kvssink = GST_KVS_SINK (object);
+    auto data = kvssink->data;
 
-    g_free(sink->stream_name);
-    g_free(sink->content_type);
-    g_free(sink->codec_id);
-    g_free(sink->track_name);
-    g_free(sink->secret_key);
-    g_free(sink->access_key);
-    if (sink->iot_certificate) {
-        gst_structure_free (sink->iot_certificate);
+    data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+
+    g_free(kvssink->stream_name);
+    g_free(kvssink->content_type);
+    g_free(kvssink->codec_id);
+    g_free(kvssink->track_name);
+    g_free(kvssink->secret_key);
+    g_free(kvssink->access_key);
+    if (kvssink->iot_certificate) {
+        gst_structure_free (kvssink->iot_certificate);
     }
-    if (sink->stream_tags) {
-        gst_structure_free (sink->stream_tags);
+    if (kvssink->stream_tags) {
+        gst_structure_free (kvssink->stream_tags);
     }
-    delete [] sink->frame_data;
+    delete [] kvssink->frame_data;
     G_OBJECT_CLASS (parent_class)->finalize(object);
 }
 
-static void gst_kvs_sink_set_property(GObject *object, guint prop_id,
+static void
+gst_kvs_sink_set_property(GObject *object, guint prop_id,
                              const GValue *value, GParamSpec *pspec) {
-    GstKvsSink *sink;
+    GstKvsSink *kvssink;
 
-    sink = GST_KVS_SINK (object);
+    kvssink = GST_KVS_SINK (object);
 
     switch (prop_id) {
-        case PROP_SILENT:
-            sink->silent = g_value_get_boolean(value);
-            break;
-        case PROP_DUMP:
-            sink->dump = g_value_get_boolean(value);
-            break;
-        case PROP_SIGNAL_HANDOFFS:
-            sink->signal_handoffs = g_value_get_boolean(value);
-            break;
-        case PROP_CAN_ACTIVATE_PUSH:
-            GST_BASE_SINK (sink)->can_activate_push = g_value_get_boolean(value);
-            break;
-        case PROP_CAN_ACTIVATE_PULL:
-            GST_BASE_SINK (sink)->can_activate_pull = g_value_get_boolean(value);
-            break;
-        case PROP_NUM_BUFFERS:
-            sink->num_buffers = g_value_get_int(value);
-            break;
         case PROP_STREAM_NAME:
-            g_free(sink->stream_name);
-            sink->stream_name = g_strdup (g_value_get_string (value));
+            g_free(kvssink->stream_name);
+            kvssink->stream_name = g_strdup (g_value_get_string (value));
             break;
         case PROP_RETENTION_PERIOD:
-            sink->retention_period_hours = g_value_get_uint (value);
+            kvssink->retention_period_hours = g_value_get_uint (value);
             break;
         case PROP_STREAMING_TYPE:
-            sink->streaming_type = (STREAMING_TYPE) g_value_get_enum (value);
+            kvssink->streaming_type = (STREAMING_TYPE) g_value_get_enum (value);
             break;
         case PROP_CONTENT_TYPE:
-            g_free(sink->content_type);
-            sink->content_type = g_strdup (g_value_get_string (value));
+            g_free(kvssink->content_type);
+            kvssink->content_type = g_strdup (g_value_get_string (value));
             break;
         case PROP_MAX_LATENCY:
-            sink->max_latency_seconds = g_value_get_uint (value);
+            kvssink->max_latency_seconds = g_value_get_uint (value);
             break;
         case PROP_FRAGMENT_DURATION:
-            sink->fragment_duration_miliseconds = g_value_get_uint (value);
+            kvssink->fragment_duration_miliseconds = g_value_get_uint (value);
             break;
         case PROP_TIMECODE_SCALE:
-            sink->timecode_scale_milliseconds = g_value_get_uint (value);
+            kvssink->timecode_scale_milliseconds = g_value_get_uint (value);
             break;
         case PROP_KEY_FRAME_FRAGMENTATION:
-            sink->key_frame_fragmentation = g_value_get_boolean (value);
+            kvssink->key_frame_fragmentation = g_value_get_boolean (value);
             break;
         case PROP_FRAME_TIMECODES:
-            sink->frame_timecodes = g_value_get_boolean (value);
+            kvssink->frame_timecodes = g_value_get_boolean (value);
             break;
         case PROP_ABSOLUTE_FRAGMENT_TIMES:
-            sink->absolute_fragment_times = g_value_get_boolean (value);
+            kvssink->absolute_fragment_times = g_value_get_boolean (value);
             break;
         case PROP_FRAGMENT_ACKS:
-            sink->fragment_acks = g_value_get_boolean (value);
+            kvssink->fragment_acks = g_value_get_boolean (value);
             break;
         case PROP_RESTART_ON_ERROR:
-            sink->restart_on_error = g_value_get_boolean (value);
+            kvssink->restart_on_error = g_value_get_boolean (value);
             break;
         case PROP_RECALCULATE_METRICS:
-            sink->recalculate_metrics = g_value_get_boolean (value);
+            kvssink->recalculate_metrics = g_value_get_boolean (value);
             break;
         case PROP_AVG_BANDWIDTH_BPS:
-            sink->avg_bandwidth_bps = g_value_get_uint (value);
+            kvssink->avg_bandwidth_bps = g_value_get_uint (value);
             break;
         case PROP_BUFFER_DURATION:
-            sink->buffer_duration_seconds = g_value_get_uint (value);
+            kvssink->buffer_duration_seconds = g_value_get_uint (value);
             break;
         case PROP_REPLAY_DURATION:
-            sink->replay_duration_seconds = g_value_get_uint (value);
+            kvssink->replay_duration_seconds = g_value_get_uint (value);
             break;
         case PROP_CONNECTION_STALENESS:
-            sink->connection_staleness_seconds = g_value_get_uint (value);
+            kvssink->connection_staleness_seconds = g_value_get_uint (value);
             break;
         case PROP_CODEC_ID:
-            g_free(sink->codec_id);
-            sink->codec_id = g_strdup (g_value_get_string (value));
+            g_free(kvssink->codec_id);
+            kvssink->codec_id = g_strdup (g_value_get_string (value));
             break;
         case PROP_TRACK_NAME:
-            g_free(sink->track_name);
-            sink->track_name = g_strdup (g_value_get_string (value));
+            g_free(kvssink->track_name);
+            kvssink->track_name = g_strdup (g_value_get_string (value));
             break;
         case PROP_ACCESS_KEY:
-            g_free(sink->access_key);
-            sink->access_key = g_strdup (g_value_get_string (value));
+            g_free(kvssink->access_key);
+            kvssink->access_key = g_strdup (g_value_get_string (value));
             break;
         case PROP_SECRET_KEY:
-            g_free(sink->secret_key);
-            sink->secret_key = g_strdup (g_value_get_string (value));
+            g_free(kvssink->secret_key);
+            kvssink->secret_key = g_strdup (g_value_get_string (value));
             break;
         case PROP_AWS_REGION:
-            g_free(sink->aws_region);
-            sink->aws_region = g_strdup (g_value_get_string (value));
+            g_free(kvssink->aws_region);
+            kvssink->aws_region = g_strdup (g_value_get_string (value));
             break;
         case PROP_ROTATION_PERIOD:
-            sink->rotation_period = g_value_get_uint (value);
+            kvssink->rotation_period = g_value_get_uint (value);
             break;
         case PROP_LOG_CONFIG_PATH:
-            sink->log_config_path = g_strdup (g_value_get_string (value));
+            kvssink->log_config_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_FRAMERATE:
-            sink->framerate = g_value_get_uint (value);
-            break;
-        case PROP_FRAME_TIMESTAMP:
-            sink->frame_timestamp = (GstKvsSinkFrameTimestamp) g_value_get_enum (value);
+            kvssink->framerate = g_value_get_uint (value);
             break;
         case PROP_STORAGE_SIZE:
-            sink->storage_size = g_value_get_uint (value);
+            kvssink->storage_size = g_value_get_uint (value);
             break;
         case PROP_CREDENTIAL_FILE_PATH:
-            sink->credential_file_path = g_strdup (g_value_get_string (value));
+            kvssink->credential_file_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_IOT_CERTIFICATE: {
             const GstStructure *s = gst_value_get_structure(value);
 
-            if (sink->iot_certificate) {
-                gst_structure_free(sink->iot_certificate);
+            if (kvssink->iot_certificate) {
+                gst_structure_free(kvssink->iot_certificate);
             }
-            sink->iot_certificate = s ? gst_structure_copy(s) : NULL;
+            kvssink->iot_certificate = s ? gst_structure_copy(s) : NULL;
             break;
         }
         case PROP_STREAM_TAGS: {
             const GstStructure *s = gst_value_get_structure(value);
 
-            if (sink->stream_tags) {
-                gst_structure_free(sink->stream_tags);
+            if (kvssink->stream_tags) {
+                gst_structure_free(kvssink->stream_tags);
             }
-            sink->stream_tags = s ? gst_structure_copy(s) : NULL;
+            kvssink->stream_tags = s ? gst_structure_copy(s) : NULL;
             break;
         }
         case PROP_FILE_START_TIME:
-            sink->file_start_time = g_value_get_ulong (value);
-            break;
-        default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-            break;
-    }
-}
-
-static void gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
-                             GParamSpec *pspec) {
-    GstKvsSink *sink;
-
-    sink = GST_KVS_SINK (object);
-
-    switch (prop_id) {
-        case PROP_SILENT:
-            g_value_set_boolean(value, sink->silent);
-            break;
-        case PROP_DUMP:
-            g_value_set_boolean(value, sink->dump);
-            break;
-        case PROP_SIGNAL_HANDOFFS:
-            g_value_set_boolean(value, sink->signal_handoffs);
-            break;
-        case PROP_LAST_MESSAGE:
-            GST_OBJECT_LOCK (sink);
-            g_value_set_string(value, sink->last_message);
-            GST_OBJECT_UNLOCK (sink);
-            break;
-        case PROP_CAN_ACTIVATE_PUSH:
-            g_value_set_boolean(value, GST_BASE_SINK (sink)->can_activate_push);
-            break;
-        case PROP_CAN_ACTIVATE_PULL:
-            g_value_set_boolean(value, GST_BASE_SINK (sink)->can_activate_pull);
-            break;
-        case PROP_NUM_BUFFERS:
-            g_value_set_uint(value, sink->num_buffers);
-            break;
-        case PROP_STREAM_NAME:
-            g_value_set_string (value, sink->stream_name);
-            break;
-        case PROP_RETENTION_PERIOD:
-            g_value_set_uint (value, sink->retention_period_hours);
-            break;
-        case PROP_STREAMING_TYPE:
-            g_value_set_enum (value, sink->streaming_type);
-            break;
-        case PROP_CONTENT_TYPE:
-            g_value_set_string (value, sink->content_type);
-            break;
-        case PROP_MAX_LATENCY:
-            g_value_set_uint (value, sink->max_latency_seconds);
-            break;
-        case PROP_FRAGMENT_DURATION:
-            g_value_set_uint (value, sink->fragment_duration_miliseconds);
-            break;
-        case PROP_TIMECODE_SCALE:
-            g_value_set_uint (value, sink->timecode_scale_milliseconds);
-            break;
-        case PROP_KEY_FRAME_FRAGMENTATION:
-            g_value_set_boolean (value, sink->key_frame_fragmentation);
-            break;
-        case PROP_FRAME_TIMECODES:
-            g_value_set_boolean (value, sink->frame_timecodes);
-            break;
-        case PROP_ABSOLUTE_FRAGMENT_TIMES:
-            g_value_set_boolean (value, sink->absolute_fragment_times);
-            break;
-        case PROP_FRAGMENT_ACKS:
-            g_value_set_boolean (value, sink->fragment_acks);
-            break;
-        case PROP_RESTART_ON_ERROR:
-            g_value_set_boolean (value, sink->restart_on_error);
-            break;
-        case PROP_RECALCULATE_METRICS:
-            g_value_set_boolean (value, sink->recalculate_metrics);
-            break;
-        case PROP_AVG_BANDWIDTH_BPS:
-            g_value_set_uint (value, sink->avg_bandwidth_bps);
-            break;
-        case PROP_BUFFER_DURATION:
-            g_value_set_uint (value, sink->buffer_duration_seconds);
-            break;
-        case PROP_REPLAY_DURATION:
-            g_value_set_uint (value, sink->replay_duration_seconds);
-            break;
-        case PROP_CONNECTION_STALENESS:
-            g_value_set_uint (value, sink->connection_staleness_seconds);
-            break;
-        case PROP_CODEC_ID:
-            g_value_set_string (value, sink->codec_id);
-            break;
-        case PROP_TRACK_NAME:
-            g_value_set_string (value, sink->track_name);
-            break;
-        case PROP_ACCESS_KEY:
-            g_value_set_string (value, sink->access_key);
-            break;
-        case PROP_SECRET_KEY:
-            g_value_set_string (value, sink->secret_key);
-            break;
-        case PROP_AWS_REGION:
-            g_value_set_string (value, sink->aws_region);
-            break;
-        case PROP_ROTATION_PERIOD:
-            g_value_set_uint (value, sink->rotation_period);
-            break;
-        case PROP_LOG_CONFIG_PATH:
-            g_value_set_string (value, sink->log_config_path);
-            break;
-        case PROP_FRAMERATE:
-            g_value_set_uint (value, sink->framerate);
-            break;
-        case PROP_FRAME_TIMESTAMP:
-            g_value_set_enum (value, sink->frame_timestamp);
-            break;
-        case PROP_STORAGE_SIZE:
-            g_value_set_uint (value, sink->storage_size);
-            break;
-        case PROP_CREDENTIAL_FILE_PATH:
-            g_value_set_string (value, sink->credential_file_path);
-            break;
-        case PROP_IOT_CERTIFICATE:
-            gst_value_set_structure (value, sink->iot_certificate);
-            break;
-        case PROP_STREAM_TAGS:
-            gst_value_set_structure (value, sink->stream_tags);
-            break;
-        case PROP_FILE_START_TIME:
-            g_value_set_ulong (value, sink->file_start_time);
+            kvssink->file_start_time = g_value_get_ulong (value);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1038,387 +812,566 @@ static void gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *va
 }
 
 static void
-gst_kvs_sink_notify_last_message(GstKvsSink *sink) {
-    g_object_notify_by_pspec((GObject *) sink, pspec_last_message);
+gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
+                             GParamSpec *pspec) {
+    GstKvsSink *kvssink;
+
+    kvssink = GST_KVS_SINK (object);
+
+    switch (prop_id) {
+        case PROP_STREAM_NAME:
+            g_value_set_string (value, kvssink->stream_name);
+            break;
+        case PROP_RETENTION_PERIOD:
+            g_value_set_uint (value, kvssink->retention_period_hours);
+            break;
+        case PROP_STREAMING_TYPE:
+            g_value_set_enum (value, kvssink->streaming_type);
+            break;
+        case PROP_CONTENT_TYPE:
+            g_value_set_string (value, kvssink->content_type);
+            break;
+        case PROP_MAX_LATENCY:
+            g_value_set_uint (value, kvssink->max_latency_seconds);
+            break;
+        case PROP_FRAGMENT_DURATION:
+            g_value_set_uint (value, kvssink->fragment_duration_miliseconds);
+            break;
+        case PROP_TIMECODE_SCALE:
+            g_value_set_uint (value, kvssink->timecode_scale_milliseconds);
+            break;
+        case PROP_KEY_FRAME_FRAGMENTATION:
+            g_value_set_boolean (value, kvssink->key_frame_fragmentation);
+            break;
+        case PROP_FRAME_TIMECODES:
+            g_value_set_boolean (value, kvssink->frame_timecodes);
+            break;
+        case PROP_ABSOLUTE_FRAGMENT_TIMES:
+            g_value_set_boolean (value, kvssink->absolute_fragment_times);
+            break;
+        case PROP_FRAGMENT_ACKS:
+            g_value_set_boolean (value, kvssink->fragment_acks);
+            break;
+        case PROP_RESTART_ON_ERROR:
+            g_value_set_boolean (value, kvssink->restart_on_error);
+            break;
+        case PROP_RECALCULATE_METRICS:
+            g_value_set_boolean (value, kvssink->recalculate_metrics);
+            break;
+        case PROP_AVG_BANDWIDTH_BPS:
+            g_value_set_uint (value, kvssink->avg_bandwidth_bps);
+            break;
+        case PROP_BUFFER_DURATION:
+            g_value_set_uint (value, kvssink->buffer_duration_seconds);
+            break;
+        case PROP_REPLAY_DURATION:
+            g_value_set_uint (value, kvssink->replay_duration_seconds);
+            break;
+        case PROP_CONNECTION_STALENESS:
+            g_value_set_uint (value, kvssink->connection_staleness_seconds);
+            break;
+        case PROP_CODEC_ID:
+            g_value_set_string (value, kvssink->codec_id);
+            break;
+        case PROP_TRACK_NAME:
+            g_value_set_string (value, kvssink->track_name);
+            break;
+        case PROP_ACCESS_KEY:
+            g_value_set_string (value, kvssink->access_key);
+            break;
+        case PROP_SECRET_KEY:
+            g_value_set_string (value, kvssink->secret_key);
+            break;
+        case PROP_AWS_REGION:
+            g_value_set_string (value, kvssink->aws_region);
+            break;
+        case PROP_ROTATION_PERIOD:
+            g_value_set_uint (value, kvssink->rotation_period);
+            break;
+        case PROP_LOG_CONFIG_PATH:
+            g_value_set_string (value, kvssink->log_config_path);
+            break;
+        case PROP_FRAMERATE:
+            g_value_set_uint (value, kvssink->framerate);
+            break;
+        case PROP_STORAGE_SIZE:
+            g_value_set_uint (value, kvssink->storage_size);
+            break;
+        case PROP_CREDENTIAL_FILE_PATH:
+            g_value_set_string (value, kvssink->credential_file_path);
+            break;
+        case PROP_IOT_CERTIFICATE:
+            gst_value_set_structure (value, kvssink->iot_certificate);
+            break;
+        case PROP_STREAM_TAGS:
+            gst_value_set_structure (value, kvssink->stream_tags);
+            break;
+        case PROP_FILE_START_TIME:
+            g_value_set_ulong (value, kvssink->file_start_time);
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+            break;
+    }
 }
 
-static gboolean gst_kvs_sink_event(GstBaseSink *bsink, GstEvent *event) {
-    GstKvsSink *sink = GST_KVS_SINK (bsink);
-    auto data = sink->data;
+static gboolean
+gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
+                                GstCollectData *track_data, GstEvent * event, gpointer user_data) {
+    GstKvsSink *kvssink = GST_KVS_SINK(user_data);
+    auto data = kvssink->data;
+    GstKvsSinkTrackData *kvs_sink_track_data = (GstKvsSinkTrackData *) track_data;
+    gboolean ret = TRUE;
+    GstCaps *gstcaps = NULL;
+    string err_msg;
+    uint64_t track_id = kvs_sink_track_data->track_id;
 
-    if (!sink->silent) {
-        const GstStructure *s;
-        const gchar *tstr;
-        gchar *sstr;
+    switch (GST_EVENT_TYPE (event)) {
+        case GST_EVENT_CAPS: {
+            gst_event_parse_caps(event, &gstcaps);
+            GstStructure *gststructforcaps = gst_caps_get_structure(gstcaps, 0);
+            GST_INFO ("structure is %" GST_PTR_FORMAT, gststructforcaps);
+            if (data->track_cpd.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
+                const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
+                gchar *cpd = gst_value_serialize(gstStreamFormat);
+                string cpd_str = string(cpd);
+                data->track_cpd[track_id] = cpd_str;
+                g_free(cpd);
 
-        GST_OBJECT_LOCK (sink);
-        g_free(sink->last_message);
+                // Send cpd to kinesis video stream and mark kvs stream ready to consume frames.
+                if (!kinesis_video_stream_start(data, cpd_str, track_id)) {
+                    GST_ELEMENT_ERROR(kvssink, STREAM, FAILED, (NULL), ("Failed to start stream"));
+                    ret = false;
+                    goto CleanUp;
+                }
+                data->stream_ready = true;
+            }
+            gst_event_unref (event);
+            event = NULL;
+            break;
+        }
+        case GST_EVENT_CUSTOM_DOWNSTREAM: {
+            const GstStructure *structure = gst_event_get_structure(event);
+            std::string metadata_name, metadata_value;
+            gboolean persistent;
+            bool is_persist;
 
-        if (GST_EVENT_TYPE (event) == GST_EVENT_SINK_MESSAGE) {
-            GstMessage *msg;
-            const GstStructure *structure;
-
-            gst_event_parse_sink_message(event, &msg);
-            structure = gst_message_get_structure(msg);
-            sstr = gst_structure_to_string(structure);
-            sink->last_message =
-                    g_strdup_printf("message ******* (%s:%s) M (type: %d, %s) %p",
-                                    GST_DEBUG_PAD_NAME (GST_BASE_SINK_CAST(sink)->sinkpad),
-                                    GST_MESSAGE_TYPE (msg), sstr, msg);
-            gst_message_unref(msg);
-        } else {
-            tstr = gst_event_type_get_name(GST_EVENT_TYPE (event));
-
-            if ((s = gst_event_get_structure(event))) {
-                sstr = gst_structure_to_string(s);
-            } else {
-                sstr = g_strdup("");
+            if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME)) {
+                goto CleanUp;
             }
 
-            sink->last_message =
-                    g_strdup_printf("event   ******* (%s:%s) E (type: %s (%d), %s) %p",
-                                    GST_DEBUG_PAD_NAME (GST_BASE_SINK_CAST(sink)->sinkpad),
-                                    tstr, GST_EVENT_TYPE (event), sstr, event);
-        }
-        g_free(sstr);
-        GST_OBJECT_UNLOCK (sink);
+            LOG_INFO("received kvs-add-metadata event");
+            if (NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
+                NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
+                FALSE == gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
 
-        gst_kvs_sink_notify_last_message(sink);
-    }
+                LOG_WARN("Event structure contains invalid field: " << std::string(gst_structure_to_string (structure)));
+                goto CleanUp;
+            }
 
-    if (GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
-        GstCaps *gstcaps;
-        gst_event_parse_caps(event, &gstcaps);
-        GstStructure *gststructforcaps = gst_caps_get_structure(gstcaps, 0);
-        if (data->cpd.empty() && gst_structure_has_field(gststructforcaps, "codec_data")) {
-            const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
-            gchar *cpd = gst_value_serialize(gstStreamFormat);
-            data->cpd = std::string(cpd);
-        }
+            metadata_name = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_NAME));
+            metadata_value = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE));
+            is_persist = persistent;
 
-        GST_INFO ("structure is %" GST_PTR_FORMAT, gststructforcaps);
-    } else if (GST_EVENT_TYPE (event) == GST_EVENT_CUSTOM_DOWNSTREAM) {
-        const GstStructure *structure = gst_event_get_structure(event);
-        std::string metadata_name, metadata_value;
-        gboolean persistent;
-        bool is_persist;
-
-        if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME)) {
-            goto CleanUp;
-        }
-
-        LOG_INFO("received kvs-add-metadata event");
-        if (NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
-            NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
-            FALSE == gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
-
-            LOG_WARN("Event structure contains invalid field: " << std::string(gst_structure_to_string (structure)));
-            goto CleanUp;
-        }
-
-        metadata_name = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_NAME));
-        metadata_value = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE));
-        is_persist = persistent;
-
-        for (auto stream : sink->data->kinesis_video_stream_map.getMap()) {
-            bool result = stream.second->putFragmentMetadata(metadata_name, metadata_value, is_persist);
+            bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
             if (false == result) {
                 LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
             }
+            gst_event_unref (event);
+            event = NULL;
+            break;
         }
-    } else if (GST_EVENT_TYPE (event) == GST_EVENT_EOS) {
-        this_thread::sleep_for(seconds(20)); // hack before waiting for last ack
-        for (auto stream : data->kinesis_video_stream_map.getMap()) {
-            stream.second->stopSync();
-            data->kinesis_video_producer->freeStream(stream.second);
-        }
+        default:
+            break;
     }
 
 CleanUp:
-    return GST_BASE_SINK_CLASS (parent_class)->event(bsink, event);
+    if (event != NULL) {
+        gst_collect_pads_event_default(pads, track_data, event, FALSE);
+    }
+
+    return ret;
 }
 
-static GstFlowReturn gst_kvs_sink_preroll(GstBaseSink *bsink, GstBuffer *buffer) {
-    GstKvsSink *sink = GST_KVS_SINK (bsink);
+void recreate_kvs_stream(GstKvsSink *kvssink) {
+    auto data = kvssink->data;
 
-    if (sink->num_buffers_left == 0)
-        goto eos;
-
-    if (!sink->silent) {
-        GST_OBJECT_LOCK (sink);
-        g_free(sink->last_message);
-
-        sink->last_message = g_strdup_printf("preroll   ******* ");
-        GST_OBJECT_UNLOCK (sink);
-
-        gst_kvs_sink_notify_last_message(sink);
-    }
-    if (sink->signal_handoffs) {
-        g_signal_emit(sink,
-                      gst_kvs_sink_signals[SIGNAL_PREROLL_HANDOFF], 0, buffer,
-                      bsink->sinkpad);
-    }
-    return GST_FLOW_OK;
-
-    /* ERRORS */
-    eos:
-    {
-        GST_DEBUG_OBJECT (sink, "Reached End Of Stream (EOS)");
-        return GST_FLOW_EOS;
-    }
-}
-
-void recreate_kvs_stream(GstKvsSink *sink) {
-    auto data = sink->data;
-
-    data->stream_recreation_in_progress = true;
+    data->stream_ready = false;
 
     string err_msg;
     // retry forever until success
     bool succeeded;
     do {
-        succeeded = kinesis_video_stream_init(sink, err_msg) && kinesis_video_stream_start(sink, err_msg);
+        succeeded = kinesis_video_stream_init(kvssink, err_msg);
+        if (succeeded) {
+            for(map<uint64_t, string>::iterator it = data->track_cpd.begin(); it != data->track_cpd.end(); it++) {
+                if (!kinesis_video_stream_start(data, it->second, it->first)) {
+                    LOG_DEBUG("Failed to start stream");
+                    succeeded = false;
+                    data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+                    break;
+                }
+            }
+        }
     } while (!succeeded);
 
-    data->stream_recreation_in_progress = false;
+    data->stream_ready = true;
 }
 
-/*
- * This method is called right before render for every frame. i.e. right before put_frame is called
- * for every frame.
- */
-static GstFlowReturn gst_kvs_sink_prepare(GstBaseSink *bsink, GstBuffer *buffer) {
-
-    GstKvsSink *sink = GST_KVS_SINK_CAST (bsink);
-    auto data = sink->data;
-    string err_msg;
-    GstFlowReturn ret = GST_FLOW_OK;
-    bool recreate_stream = false;
-
-    {
-        std::lock_guard<std::mutex> lk(data->closing_stream_handles_queue_mtx);
-        // During streaming, if any error is received in getStreamErrorReportCallback that require a stream to be freed and
-        // recreated, its stream handle is pushed into closing_stream_handles_queue by getStreamErrorReportCallback.
-        if (!data->closing_stream_handles_queue.empty()) {
-            do {
-                STREAM_HANDLE handle = data->closing_stream_handles_queue.front();
-                data->closing_stream_handles_queue.pop();
-                auto stream = data->kinesis_video_stream_map.get(handle);
-                if (stream == nullptr) {
-                    continue;
-                }
-                recreate_stream = true;
-
-                data->kinesis_video_producer->freeStream(stream);
-                data->kinesis_video_stream_map.remove(handle);
-                data->callback_state_machine_map.remove(handle);
-            } while (!data->closing_stream_handles_queue.empty());
-        }
-    }
-
-    if (recreate_stream) {
-        // Use another thread to create and start new stream so that we dont block gstreamer pipeline.
-        // The process could take some time because recreate_kvs_stream would retry a few times.
-        std::thread worker(recreate_kvs_stream, sink);
-        worker.detach();
-    }
-
-    return ret;
-}
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
-                                void *frame_data, size_t len) {
+                                void *frame_data, size_t len, uint64_t track_id) {
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
     frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-    frame->duration = DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame->duration = 0; // with audio, frame can get as close as 0.01ms
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(frame_data);
     frame->index = 0;
-    frame->trackId = DEFAULT_TRACK_ID;
+    frame->trackId = static_cast<UINT64>(track_id);
 }
 
 bool
 put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *frame_data, size_t len, const nanoseconds &pts,
-          const nanoseconds &dts, FRAME_FLAGS flags) {
+          const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id) {
     Frame frame;
-    create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len);
+    create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id);
     return kinesis_video_stream->putFrame(frame);
 }
 
-static GstFlowReturn gst_kvs_sink_render(GstBaseSink *bsink, GstBuffer *buf) {
-    GstKvsSink *sink = GST_KVS_SINK_CAST (bsink);
-    auto data = sink->data;
-    string err_msg;
+static GstFlowReturn
+gst_kvs_sink_handle_buffer (GstCollectPads * pads,
+                            GstCollectData * track_data, GstBuffer * buf, gpointer user_data) {
+    GstKvsSink *kvssink = GST_KVS_SINK(user_data);
     GstFlowReturn ret = GST_FLOW_OK;
-    bool isDroppable = false;
+    GstKvsSinkTrackData *kvs_sink_track_data = (GstKvsSinkTrackData *) track_data;
+    auto data = kvssink->data;
+    string err_msg;
+    bool isDroppable;
     STATUS stream_status = data->stream_status.load();
+    GstMessage *message;
+    bool isKey, delta;
+    uint64_t track_id;
+    FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
+    size_t buffer_size;
 
-    if (sink->dump) {
-        GstMapInfo info;
+    // eos reached
+    if (buf == NULL || track_data == NULL) {
+        data->kinesis_video_stream->stopSync();
+        LOG_INFO("Sending eos");
 
-        if (gst_buffer_map(buf, &info, GST_MAP_READ)) {
-            gst_util_dump_mem(info.data, (guint) info.size);
-            gst_buffer_unmap(buf, &info);
-        }
+        // send out eos message to gstreamer bus
+        message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
+        gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
+
+        ret = GST_FLOW_EOS;
+        goto CleanUp;
+    }
+
+    if (!data->stream_ready.load()) {
+        goto CleanUp;
     }
 
     if (STATUS_FAILED(stream_status)) {
-        GST_ELEMENT_ERROR (sink, STREAM, FAILED, (NULL),
+        if (IS_RETRIABLE_ERROR(stream_status)) {
+
+            data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+
+            // reset status so we dont create any more recreate stream threads. Subsequent frame will be drop because
+            // stream_ready is false.
+            data->stream_status = STATUS_SUCCESS;
+
+            // Use another thread to create and start new stream so that we dont block gstreamer pipeline.
+            // The process could take some time because recreate_kvs_stream would retry a few times.
+            std::thread worker(recreate_kvs_stream, kvssink);
+            worker.detach();
+            goto CleanUp;
+        }
+
+        // received unrecoverable error
+        GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL),
                            ("Stream error occurred. Status: 0x%08x", stream_status));
         ret = GST_FLOW_ERROR;
         goto CleanUp;
     }
 
-    /*
-     * If in progress of creating new kvs stream. Thus there is no kvs stream available. Therefore skip current
-     * frame.
-     */
     isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
                     GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
-                    data->stream_recreation_in_progress.load();
+                    (!GST_BUFFER_PTS_IS_VALID(buf)); //frame with invalid pts cannot be processed.
 
-    if (!isDroppable) {
-        bool isHeader = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER);
-        // drop if buffer contains header only and has invalid timestamp
-        if (!(isHeader && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)))) {
-            switch (sink->frame_timestamp) {
-                case KVS_SINK_TIMESTAMP_PTS_ONLY:
-                    if (!GST_BUFFER_PTS_IS_VALID(buf)) {
-                        GST_ELEMENT_ERROR (sink, STREAM, FAILED, (NULL),
-                                           ("frame-timestamp is KVS_SINK_TIMESTAMP_PTS_ONLY but frame contains invalid pts"));
-                        ret = GST_FLOW_ERROR;
-                        goto CleanUp;
-                    }
-                    buf->dts = buf->pts;
-                    break;
-                case KVS_SINK_TIMESTAMP_DTS_ONLY:
-                    if (!GST_BUFFER_DTS_IS_VALID(buf)) {
-                        GST_ELEMENT_ERROR (sink, STREAM, FAILED, (NULL),
-                                           ("frame-timestamp is KVS_SINK_TIMESTAMP_DTS_ONLY but frame contains invalid dts"));
-                        ret = GST_FLOW_ERROR;
-                        goto CleanUp;
-                    }
-                    buf->pts = buf->dts;
-                    break;
-                case KVS_SINK_TIMESTAMP_DEFAULT:
-                    if (!GST_BUFFER_PTS_IS_VALID(buf)) {
-                        GST_ELEMENT_ERROR (sink, STREAM, FAILED, (NULL),
-                                           ("frame pts is invalid"));
-                        ret = GST_FLOW_ERROR;
-                        goto CleanUp;
-                    }
+    if (isDroppable) {
+        goto CleanUp;
+    }
 
-                    // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
-                    // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
-                    // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
-                    if (IS_OFFLINE_STREAMING_MODE(sink->streaming_type)) {
-                        buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
-                        buf->pts += data->pts_base;
-                    } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
-                        buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
-                    }
+    // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
+    // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
+    // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
+    if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
+        buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
+        buf->pts += data->pts_base;
+    } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
+        buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
+    }
 
-                    data->last_dts = buf->dts;
-                    break;
-            }
+    data->last_dts = buf->dts;
+    track_id = kvs_sink_track_data->track_id;
 
-            size_t buffer_size = gst_buffer_get_size(buf);
-            if (buffer_size > sink->current_frame_data_size) {
-                delete [] sink->frame_data;
-                sink->current_frame_data_size = (size_t) (buffer_size * FRAME_DATA_ALLOCATION_MULTIPLIER);
-                sink->frame_data = new uint8_t[sink->current_frame_data_size];
-            }
-            gst_buffer_extract(buf, 0, sink->frame_data, buffer_size);
+    buffer_size = gst_buffer_get_size(buf);
+    if (buffer_size > kvssink->current_frame_data_size) {
+        delete [] kvssink->frame_data;
+        kvssink->current_frame_data_size = (size_t) (buffer_size * FRAME_DATA_ALLOCATION_MULTIPLIER);
+        kvssink->frame_data = new uint8_t[kvssink->current_frame_data_size];
+    }
+    gst_buffer_extract(buf, 0, kvssink->frame_data, buffer_size);
 
-            bool delta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
-            FRAME_FLAGS kinesis_video_flags;
-            if(!delta) {
+    delta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
+
+    switch (data->media_type) {
+        case AUDIO_ONLY:
+        case VIDEO_ONLY:
+            if (!delta) {
                 kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
-            } else {
-                kinesis_video_flags = FRAME_FLAG_NONE;
             }
-
-            for (auto stream : data->kinesis_video_stream_map.getMap()) {
-                try {
-                    if (!put_frame(stream.second, sink->frame_data, buffer_size,
-                                   std::chrono::nanoseconds(buf->pts),
-                                   std::chrono::nanoseconds(buf->dts), kinesis_video_flags)) {
-                        g_printerr("Failed to put frame into Kinesis Video Stream buffer\n");
-                    }
-                } catch (runtime_error &err) {
-                    err_msg = err.what();
-                    GST_ELEMENT_ERROR (sink, STREAM, FAILED, (NULL),
-                                       ("put_frame threw an exception. %s", err_msg.c_str()));
-                    ret = GST_FLOW_ERROR;
-                    goto CleanUp;
+            break;
+        case AUDIO_VIDEO:
+            if(!delta) {
+                // Set key frame flag on first key frame. No matter audio or video.
+                // After that set key frame flag on video key frame only.
+                if (data->first_key_frame) {
+                    data->first_key_frame = false;
+                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+                } else if (kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
+                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
                 }
             }
+            break;
+    }
 
-            if (sink->num_buffers_left == 0) {
-                GST_DEBUG_OBJECT (sink, "Reached End Of Stream (EOS)");
-                ret = GST_FLOW_EOS;
-                goto CleanUp;
-            }
+    try {
+        if (!put_frame(data->kinesis_video_stream, kvssink->frame_data, buffer_size,
+                       std::chrono::nanoseconds(buf->pts),
+                       std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id)) {
+            g_printerr("Failed to put frame into Kinesis Video Stream buffer\n");
         }
+    } catch (runtime_error &err) {
+        err_msg = err.what();
+        GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL),
+                           ("put_frame threw an exception. %s", err_msg.c_str()));
+        ret = GST_FLOW_ERROR;
+        goto CleanUp;
     }
 
 CleanUp:
-
-    return ret;
-}
-
-static gboolean gst_kvs_sink_query(GstBaseSink *bsink, GstQuery *query) {
-    gboolean ret;
-
-    switch (GST_QUERY_TYPE (query)) {
-        case GST_QUERY_SEEKING: {
-            GstFormat fmt;
-
-            /* we don't supporting seeking */
-            gst_query_parse_seeking(query, &fmt, NULL, NULL, NULL);
-            gst_query_set_seeking(query, fmt, FALSE, 0, -1);
-            ret = TRUE;
-            break;
-        }
-        default:
-            ret = GST_BASE_SINK_CLASS (parent_class)->query(bsink, query);
-            break;
+    if (buf != NULL) {
+        gst_buffer_unref (buf);
     }
 
     return ret;
 }
 
-static GstStateChangeReturn  gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
-    GstStateChangeReturn ret;
-    GstKvsSink *sink = GST_KVS_SINK (element);
-    auto data = sink->data;
-    string err_msg;
+/**
+ * Collectpad function for comparing buffers.
+ * If return 0, both buffers are considered equally old.
+ * If return -1, first buffer is considered older
+ * If return 1, second buffer is considered older
+ * Older buffer go first.
+ */
+static gint gst_kvs_sink_collect_compare (GstCollectPads *pads,
+                                          GstCollectData *data1,
+                                          GstClockTime timestamp1,
+                                          GstCollectData *data2,
+                                          GstClockTime timestamp2,
+                                          gpointer user_data) {
+    GstKvsSink *kvssink = GST_KVS_SINK(user_data);
+    gint ret = 0;
+    GstKvsSinkTrackData *kvs_sink_track_data1 = (GstKvsSinkTrackData *) data1;
+    GstKvsSinkTrackData *kvs_sink_track_data2 = (GstKvsSinkTrackData *) data2;
+
+    // If two buffer timestamps' mkv timecode are equal, and they are from different tracks, let video go first.
+    // This prevents fragment x's last audio frame timecode being equal to fragment x+1's first video frame timecode.
+    if (GST_TIME_AS_MSECONDS(timestamp1) == GST_TIME_AS_MSECONDS(timestamp2) &&
+        kvs_sink_track_data1->track_type != kvs_sink_track_data2->track_type) {
+        ret = kvs_sink_track_data1->track_type == MKV_TRACK_INFO_TYPE_VIDEO ? -1 : 1;
+        goto CleanUp;
+    }
+
+    if (timestamp1 > timestamp2) {
+        ret = 1;
+    } else if (timestamp1 < timestamp2) {
+        ret = -1;
+    }
+
+CleanUp:
+    return ret;
+}
+
+static GstPad *
+gst_kvs_sink_request_new_pad (GstElement * element, GstPadTemplate * templ,
+                                    const gchar * req_name, const GstCaps * caps)
+{
+    GstElementClass *klass = GST_ELEMENT_GET_CLASS (element);
+    GstKvsSink* kvssink = GST_KVS_SINK(element);
+
+    gchar *name = NULL;
+    GstPad *newpad = NULL;
+    const gchar *pad_name = NULL;
+    MKV_TRACK_INFO_TYPE track_type = MKV_TRACK_INFO_TYPE_VIDEO;
+    gboolean locked = TRUE;
+    GstKvsSinkTrackData *kvs_sink_track_data;
+
+    if (req_name != NULL) {
+        GST_WARNING_OBJECT (kvssink, "Custom pad name not supported");
+    }
+
+    // Check if the pad template is supported
+    if (templ == gst_element_class_get_pad_template (klass, "audio_%u")) {
+        if (kvssink->num_audio_streams == 1) {
+            GST_ERROR_OBJECT (kvssink, "Can not have more than one audio stream.");
+            goto CleanUp;
+        }
+
+        name = g_strdup_printf ("audio_%u", kvssink->num_audio_streams++);
+        pad_name = name;
+        track_type = MKV_TRACK_INFO_TYPE_AUDIO;
+
+    } else if (templ == gst_element_class_get_pad_template (klass, "video_%u")) {
+        if (kvssink->num_video_streams == 1) {
+            GST_ERROR_OBJECT (kvssink, "Can not have more than one video stream.");
+            goto CleanUp;
+        }
+
+        name = g_strdup_printf ("video_%u", kvssink->num_video_streams++);
+        pad_name = name;
+        track_type = MKV_TRACK_INFO_TYPE_VIDEO;
+
+    } else {
+        GST_WARNING_OBJECT (kvssink, "This is not our template!");
+        goto CleanUp;
+    }
+
+    if (kvssink->num_video_streams > 0 && kvssink->num_audio_streams > 0) {
+        kvssink->data->media_type = AUDIO_VIDEO;
+    } else if (kvssink->num_video_streams > 0) {
+        kvssink->data->media_type = VIDEO_ONLY;
+    } else {
+        kvssink->data->media_type = AUDIO_ONLY;
+    }
+
+    newpad = GST_PAD_CAST (g_object_new (GST_TYPE_PAD,
+                                          "name", pad_name, "direction", templ->direction, "template", templ,
+                                          NULL));
+
+    kvs_sink_track_data = (GstKvsSinkTrackData *)
+            gst_collect_pads_add_pad (kvssink->collect, GST_PAD (newpad),
+                                      sizeof (GstKvsSinkTrackData),
+                                      NULL, locked);
+    kvs_sink_track_data->kvssink = kvssink;
+    kvs_sink_track_data->track_type = track_type;
+    kvs_sink_track_data->track_id = DEFAULT_TRACK_ID;
+
+    if (!gst_element_add_pad (element, GST_PAD (newpad))) {
+        gst_object_unref (newpad);
+        newpad = NULL;
+        GST_WARNING_OBJECT (kvssink, "Adding the new pad '%s' failed", pad_name);
+        goto CleanUp;
+    }
+
+    kvssink->num_streams++;
+
+    GST_INFO("Added new request pad");
+
+CleanUp:
+    g_free (name);
+    return newpad;
+}
+
+static void
+gst_kvs_sink_release_pad (GstElement *element, GstPad *pad) {
+    GstKvsSink *kvssink = GST_KVS_SINK (GST_PAD_PARENT (pad));
+    GSList *walk;
+
+    // when a pad is released, check whether it's audio or video and keep track of the stream count
+    for (walk = kvssink->collect->data; walk; walk = g_slist_next (walk)) {
+        GstCollectData *c_data;
+        c_data = (GstCollectData *) walk->data;
+
+        if (c_data->pad == pad) {
+            GstKvsSinkTrackData *kvs_sink_track_data;
+            kvs_sink_track_data = (GstKvsSinkTrackData *) walk->data;
+            if (kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
+                kvssink->num_video_streams--;
+            } else if (kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_AUDIO) {
+                kvssink->num_audio_streams--;
+            }
+        }
+    }
+
+    gst_collect_pads_remove_pad (kvssink->collect, pad);
+    if (gst_element_remove_pad (element, pad)) {
+        kvssink->num_streams--;
+    }
+}
+
+static void
+assign_track_id(GstKvsSink *kvssink) {
+    GSList *walk;
+
+    if (kvssink->data->media_type == AUDIO_VIDEO) {
+        for (walk = kvssink->collect->data; walk; walk = g_slist_next (walk)) {
+            GstKvsSinkTrackData *kvs_sink_track_data;
+            kvs_sink_track_data = (GstKvsSinkTrackData *) walk->data;
+
+            // set up track id in kvs_sink_track_data
+            kvs_sink_track_data->track_id = kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_AUDIO ?
+                                            DEFAULT_AUDIO_TRACKID :
+                                            DEFAULT_VIDEO_TRACKID;
+        }
+    }
+}
+
+static GstStateChangeReturn
+gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
+    GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
+    GstKvsSink *kvssink = GST_KVS_SINK (element);
+    auto data = kvssink->data;
+    string err_msg = "";
 
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
+            log4cplus::initialize();
+            log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
+            try {
+                kinesis_video_producer_init(kvssink);
+            } catch (runtime_error &err) {
+                ostringstream oss;
+                oss << "Failed to init kvs producer. Error: " << err.what();
+                err_msg = oss.str();
+                ret = GST_STATE_CHANGE_FAILURE;
+                GST_ELEMENT_ERROR (kvssink, LIBRARY, INIT, (NULL), ("%s", err_msg.c_str()));
+                goto CleanUp;
+            }
+
+            if (kvssink->data->media_type == AUDIO_ONLY) {
+                GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL), ("Audio only is not supported yet"));
+                ret = GST_STATE_CHANGE_FAILURE;
+                goto CleanUp;
+            }
+
+            assign_track_id(kvssink);
+
+            if (false == kinesis_video_stream_init(kvssink, err_msg)) {
+                GST_ELEMENT_ERROR (kvssink, LIBRARY, INIT, (NULL), ("%s", err_msg.c_str()));
+                ret = GST_STATE_CHANGE_FAILURE;
+                goto CleanUp;
+            }
             break;
         case GST_STATE_CHANGE_READY_TO_PAUSED:
-            sink->num_buffers_left = sink->num_buffers;
+            gst_collect_pads_start (kvssink->collect);
             break;
         case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
-            if (!data->stream_created){
-                data->stream_created = true;
-
-                if (data->cpd.empty()) {
-                    GST_ELEMENT_ERROR (sink, CORE, STATE_CHANGE, (NULL),
-                                       ("Can't start kvs stream. Codec private data was not found in GST_CAPS event"));
-                    ret = GST_STATE_CHANGE_FAILURE;
-                    goto CleanUp;
-                }
-
-                if (false == kinesis_video_stream_start(sink, err_msg)) {
-                    GST_ELEMENT_ERROR (sink, LIBRARY, INIT, (NULL),
-                                       ("%s", err_msg.c_str()));
-                    ret = GST_STATE_CHANGE_FAILURE;
-                    goto CleanUp;
-                }
-            }
+            break;
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
+            gst_collect_pads_stop (kvssink->collect);
             break;
         default:
             break;
@@ -1432,55 +1385,13 @@ static GstStateChangeReturn  gst_kvs_sink_change_state(GstElement *element, GstS
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:
-            GST_OBJECT_LOCK (sink);
-            g_free(sink->last_message);
-            sink->last_message = NULL;
-            GST_OBJECT_UNLOCK (sink);
             break;
         default:
             break;
     }
 
 CleanUp:
-
     return ret;
-}
-
-static gboolean gst_kvs_sink_start (GstBaseSink * bsink)
-{
-    GstKvsSink *sink = GST_KVS_SINK (bsink);
-    auto data = sink->data;
-    data->kvsSink = sink;
-    bool ret = true;
-
-    initialize();
-    PropertyConfigurator::doConfigure(sink->log_config_path);
-
-    string err_msg;
-    try {
-        kinesis_video_producer_init(sink);
-    } catch (runtime_error &err) {
-        ostringstream oss;
-        oss << "Failed to init kvs producer. Error: " << err.what();
-        err_msg = oss.str();
-        ret = false;
-        GST_ELEMENT_ERROR (sink, LIBRARY, INIT, (NULL), ("%s", err_msg.c_str()));
-        goto CleanUp;
-    }
-
-    if (false == kinesis_video_stream_init(sink, err_msg)) {
-        GST_ELEMENT_ERROR (sink, LIBRARY, INIT, (NULL), ("%s", err_msg.c_str()));
-        ret = false;
-        goto CleanUp;
-    }
-
-CleanUp:
-    return ret;
-}
-
-static gboolean gst_kvs_sink_stop (GstBaseSink * bsink)
-{
-    return TRUE;
 }
 
 GST_DEBUG_CATEGORY (kvs_debug);

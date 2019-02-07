@@ -35,6 +35,15 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
     frame.trackId = DEFAULT_TRACK_ID;
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
+    BYTE cpd2[] = {0x00, 0x00, 0x00, 0x01, 0x67, 0x64, 0x00, 0x34,
+                   0xAC, 0x2B, 0x40, 0x1E, 0x00, 0x78, 0xD8, 0x08,
+                   0x80, 0x00, 0x01, 0xF4, 0x00, 0x00, 0xEA, 0x60,
+                   0x47, 0xA5, 0x50, 0x00, 0x00, 0x00, 0x01, 0x68,
+                   0xEE, 0x3C, 0xB0};
+    UINT32 cpdSize = SIZEOF(cpd2);
+
+    EXPECT_TRUE(kinesis_video_stream->start(cpd2, cpdSize, 0));
+
     while (!stop_producer_) {
         // Produce frames
         if (IS_OFFLINE_STREAMING_MODE(streaming_type)) {
@@ -101,9 +110,7 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
         // Simulate EoFr first
         if (frame.index % 50 == 0 && frame.index != 0) {
             Frame eofr = EOFR_FRAME_INITIALIZER;
-            LOG_DEBUG("Putting End-of-Fragment frame");
             EXPECT_TRUE(kinesis_video_stream->putFrame(eofr));
-            LOG_DEBUG("Finished End-of-Fragment frame");
         }
 #endif
 
@@ -148,6 +155,7 @@ TEST_F(ProducerApiTest, create_free_stream)
     for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
         // Free the stream
         kinesis_video_producer_->freeStream(streams_[i]);
+        streams_[i] = NULL;
 
         // Re-create again
         streams_[i] = CreateTestStream(i);
@@ -196,7 +204,7 @@ TEST_F(ProducerApiTest, DISABLED_create_produce_offline_stream)
     int32_t index = 0;
     do {
         THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-    } while (index < 100 && !producer_stopped_);
+    } while (++index < 100 && !producer_stopped_);
 
     EXPECT_TRUE(producer_stopped_) << "Producer thread failed to stop cleanly";
 
@@ -335,11 +343,54 @@ TEST_F(ProducerApiTest, create_produce_stream)
     // NOTE: This is not a right way of doing it as for the multiple stream scenario
     // it will have a potential race condition. This is for demo purposes only and the
     // real implementations should use proper signalling.
-    // We will wait for 10 seconds for the thread to terminate
+    // We will wait for 30 seconds for the thread to terminate
     int32_t index = 0;
     do {
         THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-    } while (index < 100 && !producer_stopped_);
+    } while (index < 300 && !producer_stopped_);
+
+    EXPECT_TRUE(producer_stopped_) << "Producer thread failed to stop cleanly";
+
+    // We will block for some time due to an incorrect implementation of the awaiting code
+    // NOTE: The proper implementation should use synchronization primitives to await for the
+    // producer threads to finish properly - here we just simulate a media pipeline.
+    THREAD_SLEEP(10 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+
+    freeStreams();
+}
+
+TEST_F(ProducerApiTest, create_caching_endpoing_produce_stream)
+{
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    CreateProducer(true);
+
+    for (uint32_t i = 0; i < TEST_STREAM_COUNT; i++) {
+        // Create the stream
+        streams_[i] = CreateTestStream(i);
+
+        // Spin off the producer
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&producer_thread_, staticProducerRoutine, reinterpret_cast<PVOID> (streams_[i].get())));
+    }
+
+    // Wait for some time to produce
+    THREAD_SLEEP(TEST_EXECUTION_DURATION);
+
+    // Indicate the cancel for the threads
+    stop_producer_ = true;
+
+    // Join the thread and wait to exit.
+    // NOTE: This is not a right way of doing it as for the multiple stream scenario
+    // it will have a potential race condition. This is for demo purposes only and the
+    // real implementations should use proper signalling.
+    // We will wait for 30 seconds for the thread to terminate
+    int32_t index = 0;
+    do {
+        THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    } while (index < 300 && !producer_stopped_);
 
     EXPECT_TRUE(producer_stopped_) << "Producer thread failed to stop cleanly";
 
@@ -353,6 +404,7 @@ TEST_F(ProducerApiTest, create_produce_stream)
 
 TEST_F(ProducerApiTest, exceed_max_track_count)
 {
+    CreateProducer();
     char stream_name[MAX_STREAM_NAME_LEN];
     sprintf(stream_name, "ScaryTestStream");
     const string testTrackName = "testTrackName", testCodecId = "testCodecId";
@@ -374,6 +426,150 @@ TEST_F(ProducerApiTest, exceed_max_track_count)
     stream_definition->addTrack(2, testTrackName, testCodecId, MKV_TRACK_INFO_TYPE_AUDIO);
     stream_definition->addTrack(3, testTrackName, testCodecId, MKV_TRACK_INFO_TYPE_VIDEO);
     EXPECT_EQ(nullptr, kinesis_video_producer_->createStream(move(stream_definition)));
+}
+
+TEST_F(ProducerApiTest, segment_uuid_variations)
+{
+    CreateProducer();
+    char stream_name[MAX_STREAM_NAME_LEN];
+    sprintf(stream_name, "ScaryTestStream");
+    const string testTrackName = "testTrackName", testCodecId = "testCodecId";
+
+    // Empty
+    auto stream_definition = make_unique<StreamDefinition>(stream_name,
+                                                           hours(2),
+                                                           nullptr,
+                                                           "",
+                                                           STREAMING_TYPE_REALTIME,
+                                                           "video/h264",
+                                                           milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
+                                                           seconds(2),
+                                                           milliseconds(1),
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
+                                                           25,
+                                                           4 * 1024 * 1024,
+                                                           seconds(120),
+                                                           seconds(40),
+                                                           seconds(30),
+                                                           "V_MPEG4/ISO/AVC",
+                                                           "kinesis_video",
+                                                           nullptr,
+                                                           0,
+                                                           MKV_TRACK_INFO_TYPE_VIDEO,
+                                                           vector<uint8_t>(),
+                                                           DEFAULT_TRACK_ID);
+
+    EXPECT_NE(nullptr, kinesis_video_producer_->createStream(move(stream_definition)));
+    kinesis_video_producer_->freeStreams();
+
+    // Valid
+    vector<uint8_t> segment_uuid = vector<uint8_t>(MKV_SEGMENT_UUID_LEN);
+    memset(&segment_uuid[0], 0xab, MKV_SEGMENT_UUID_LEN);
+    stream_definition = make_unique<StreamDefinition>(stream_name,
+                                                           hours(2),
+                                                           nullptr,
+                                                           "",
+                                                           STREAMING_TYPE_REALTIME,
+                                                           "video/h264",
+                                                           milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
+                                                           seconds(2),
+                                                           milliseconds(1),
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
+                                                           25,
+                                                           4 * 1024 * 1024,
+                                                           seconds(120),
+                                                           seconds(40),
+                                                           seconds(30),
+                                                           "V_MPEG4/ISO/AVC",
+                                                           "kinesis_video",
+                                                           nullptr,
+                                                           0,
+                                                           MKV_TRACK_INFO_TYPE_VIDEO,
+                                                           vector<uint8_t>(),
+                                                           DEFAULT_TRACK_ID);
+
+    EXPECT_NE(nullptr, kinesis_video_producer_->createStream(move(stream_definition)));
+    kinesis_video_producer_->freeStreams();
+
+    // invalid - larger
+    segment_uuid = vector<uint8_t>(MKV_SEGMENT_UUID_LEN + 1);
+    memset(&segment_uuid[0], 0xab, MKV_SEGMENT_UUID_LEN + 1);
+    stream_definition = make_unique<StreamDefinition>(stream_name,
+                                                      hours(2),
+                                                      nullptr,
+                                                      "",
+                                                      STREAMING_TYPE_REALTIME,
+                                                      "video/h264",
+                                                      milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
+                                                      seconds(2),
+                                                      milliseconds(1),
+                                                      true,
+                                                      true,
+                                                      true,
+                                                      true,
+                                                      true,
+                                                      true,
+                                                      NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
+                                                      25,
+                                                      4 * 1024 * 1024,
+                                                      seconds(120),
+                                                      seconds(40),
+                                                      seconds(30),
+                                                      "V_MPEG4/ISO/AVC",
+                                                      "kinesis_video",
+                                                      nullptr,
+                                                      0,
+                                                      MKV_TRACK_INFO_TYPE_VIDEO,
+                                                      vector<uint8_t>(),
+                                                      DEFAULT_TRACK_ID);
+
+    EXPECT_NE(nullptr, kinesis_video_producer_->createStream(move(stream_definition)));
+    kinesis_video_producer_->freeStreams();
+
+    // shorter length
+    segment_uuid = vector<uint8_t>(MKV_SEGMENT_UUID_LEN - 1);
+    stream_definition = make_unique<StreamDefinition>(stream_name,
+                                                           hours(2),
+                                                           nullptr,
+                                                           "",
+                                                           STREAMING_TYPE_REALTIME,
+                                                           "video/h264",
+                                                           milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
+                                                           seconds(2),
+                                                           milliseconds(1),
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           true,
+                                                           NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
+                                                           25,
+                                                           4 * 1024 * 1024,
+                                                           seconds(120),
+                                                           seconds(40),
+                                                           seconds(30),
+                                                           "V_MPEG4/ISO/AVC",
+                                                           "kinesis_video",
+                                                           nullptr,
+                                                           0,
+                                                           MKV_TRACK_INFO_TYPE_VIDEO,
+                                                           segment_uuid,
+                                                           DEFAULT_TRACK_ID);
+
+    EXPECT_DEATH(kinesis_video_producer_->createStream(move(stream_definition)), "");
 }
 
 }  // namespace video

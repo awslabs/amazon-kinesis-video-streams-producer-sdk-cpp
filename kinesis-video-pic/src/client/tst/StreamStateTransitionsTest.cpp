@@ -9,7 +9,7 @@ TEST_F(StreamStateTransitionsTest, stopStateFromCreate)
     // Ensure the describe called
     EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
 
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_RESULT_OK));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_RESULT_OK));
 }
 
 TEST_F(StreamStateTransitionsTest, stopStateFromDescribe)
@@ -28,7 +28,7 @@ TEST_F(StreamStateTransitionsTest, stopStateFromDescribe)
     mStreamDescription.creationTime = GETTIME();
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_RESULT_OK));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_RESULT_OK));
 }
 
 TEST_F(StreamStateTransitionsTest, stopStateFromGetEndpoint)
@@ -48,7 +48,7 @@ TEST_F(StreamStateTransitionsTest, stopStateFromGetEndpoint)
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
     EXPECT_EQ(STATUS_SUCCESS, getStreamingEndpointResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT));
 
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_RESULT_OK));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_RESULT_OK));
 }
 
 TEST_F(StreamStateTransitionsTest, stopStateFromGetToken)
@@ -69,5 +69,5 @@ TEST_F(StreamStateTransitionsTest, stopStateFromGetToken)
     EXPECT_EQ(STATUS_SUCCESS, getStreamingEndpointResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT));
     EXPECT_EQ(STATUS_SUCCESS, getStreamingTokenResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, (PBYTE) TEST_STREAMING_TOKEN, SIZEOF(TEST_STREAMING_TOKEN), TEST_AUTH_EXPIRATION));
 
-    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_STREAMING_HANDLE, SERVICE_CALL_RESULT_OK));
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamTerminated(mCallContext.customData, TEST_UPLOAD_HANDLE, SERVICE_CALL_RESULT_OK));
 }

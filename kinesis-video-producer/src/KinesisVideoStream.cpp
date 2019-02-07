@@ -11,15 +11,25 @@ KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video
           stream_name_(stream_name),
           kinesis_video_producer_(kinesis_video_producer),
           stream_ready_(false),
-          stream_closed_(false){
+          stream_closed_(false),
+          debug_dump_frame_info_(false) {
     LOG_INFO("Creating Kinesis Video Stream " << stream_name_);
     // the handle is NULL to start. We will set it later once Kinesis Video PIC gives us a stream handle.
+
+    if (getenv(DEBUG_DUMP_FRAME_INFO)) {
+        debug_dump_frame_info_ = true;
+    }
 }
 
 bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
     if (!isReady()) {
         LOG_ERROR("Kinesis Video stream is not ready.");
         return false;
+    }
+
+    if (debug_dump_frame_info_) {
+        LOG_DEBUG("pts: " << frame.presentationTs << ", dts: " << frame.decodingTs << ", duration: " << frame.duration << ", size: " << frame.size << ", trackId: " << frame.trackId
+                          << ", isKey: " << CHECK_FRAME_FLAG_KEY_FRAME(frame.flags));
     }
 
     assert(0 != stream_handle_);
@@ -36,7 +46,8 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
     }
 
     // Print metrics on every key-frame
-    if ((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) {
+    // TODO: this will create too much spam in case of audio
+    if (CHECK_FRAME_FLAG_KEY_FRAME(frame.flags)) {
         // Extract metrics and print out
         auto stream_metrics = getMetrics();
         auto client_metrics = kinesis_video_producer_.getMetrics();

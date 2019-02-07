@@ -8,6 +8,24 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 class ProducerFunctionalityTest : public ProducerTestBase {
 };
 
+TEST_F(ProducerFunctionalityTest, start_stopsync_terminate) {
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    CreateProducer();
+
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME);
+    auto kinesis_video_stream = streams_[0];
+    EXPECT_TRUE(kinesis_video_stream->stopSync());
+
+    kinesis_video_producer_->freeStreams();
+    streams_[0] = nullptr;
+
+    THREAD_SLEEP(1 * HUNDREDS_OF_NANOS_IN_A_SECOND); // give time for curl thread to clean up.
+}
+
 TEST_F(ProducerFunctionalityTest, terminate_curl_at_token_rotation) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
@@ -170,7 +188,6 @@ TEST_F(ProducerFunctionalityTest, intermittent_pausing_putFrame_and_terminate_cu
     }
 }
 
-
 TEST_F(ProducerFunctionalityTest, pressure_on_buffer_duration_terminate_curl_at_token_rotation) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
@@ -240,9 +257,8 @@ TEST_F(ProducerFunctionalityTest, pressure_on_buffer_duration_terminate_curl_at_
         LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
         EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
         THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
-        EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
         EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-        EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+        // not checking for dropped frame because it can happen in REALTIME mode
         kinesis_video_producer_->freeStreams();
         streams_[0] = nullptr;
         testDefaultCallbackProvider->at_token_rotation = false;
@@ -340,7 +356,7 @@ TEST_F(ProducerFunctionalityTest, pressure_on_storage_terminate_curl_at_token_ro
     }
 }
 
-TEST_F(ProducerFunctionalityTest, one_hundred_mpbs_test) {
+TEST_F(ProducerFunctionalityTest, DISABLED_one_hundred_mpbs_test) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         return;
@@ -523,11 +539,11 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
         return;
     }
 
-    const int clip_duration_seconds = 15;
-    const int clip_count = 20;
-    const int frames_per_clip = clip_duration_seconds * fps_;
-    const int total_frames = frames_per_clip * clip_count;
-    const int pause_between_clip_seconds[] = {2, 15};
+    const uint32_t clip_duration_seconds = 15;
+    const uint32_t clip_count = 20;
+    const uint32_t frames_per_clip = clip_duration_seconds * (uint32_t) fps_;
+    const uint32_t total_frames = frames_per_clip * clip_count;
+    const uint32_t pause_between_clip_seconds[] = {2, 15};
 
     CreateProducer();
 

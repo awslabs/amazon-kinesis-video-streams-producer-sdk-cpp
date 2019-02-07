@@ -76,6 +76,17 @@ TEST_F(AnnexBCpdNalAdapterTest, nalAdapter_ValidSpsPps)
 
     EXPECT_EQ(STATUS_SUCCESS, adaptH264CpdNalsFromAnnexBToAvcc(cpd, cpdSize, NULL, &adaptedCpdSize));
     EXPECT_EQ(STATUS_SUCCESS, adaptH264CpdNalsFromAnnexBToAvcc(cpd, cpdSize, adaptedCpd, &adaptedCpdSize));
+
+    BYTE cpd2[] = {0x00, 0x00, 0x00, 0x01, 0x67, 0x64, 0x00, 0x34,
+                   0xAC, 0x2B, 0x40, 0x1E, 0x00, 0x78, 0xD8, 0x08,
+                   0x80, 0x00, 0x01, 0xF4, 0x00, 0x00, 0xEA, 0x60,
+                   0x47, 0xA5, 0x50, 0x00, 0x00, 0x00, 0x01, 0x68,
+                   0xEE, 0x3C, 0xB0};
+    cpdSize = SIZEOF(cpd2);
+    DLOGI("CPD size is %lu", cpdSize);
+
+    EXPECT_EQ(STATUS_SUCCESS, adaptH264CpdNalsFromAnnexBToAvcc(cpd2, cpdSize, NULL, &adaptedCpdSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptH264CpdNalsFromAnnexBToAvcc(cpd2, cpdSize, adaptedCpd, &adaptedCpdSize));
 }
 
 TEST_F(AnnexBCpdNalAdapterTest, nalAdapter_ValidH265) {

@@ -1,5 +1,5 @@
 #include "RotatingStaticCredentialProvider.h"
-
+#include "Logger.h"
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
 using namespace com::amazonaws::kinesis::video;

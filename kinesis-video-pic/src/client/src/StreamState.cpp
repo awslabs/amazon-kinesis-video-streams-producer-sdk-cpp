@@ -258,7 +258,7 @@ STATUS fromPutStreamState(UINT64 customData, PUINT64 pState) {
     PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
     UINT64 state = STREAM_STATE_PUT_STREAM;
     UINT64 duration, viewByteSize;
-    PUploadHandleInfo pUploadHandleInfo;
+    PUploadHandleInfo pUploadHandleInfo, pPreviousUploadHandle;
 
     CHK(pKinesisVideoStream != NULL && pState != NULL, STATUS_NULL_ARG);
 
@@ -275,17 +275,25 @@ STATUS fromPutStreamState(UINT64 customData, PUINT64 pState) {
             // to handle the case with the intermittent producer that's already finished putting frames and
             // is awaiting for the existing buffer to be streamed out.
 
-            // Get the duration and the size
-            CHK_STATUS(getAvailableViewSize(pKinesisVideoStream, &duration, &viewByteSize));
+            // first check if we already have a handle that is streaming or awaiting ack. If so then don't call data
+            // available for the new handle because it will take old handle's data and cause invalid mkv.
+            pPreviousUploadHandle = getStreamUploadInfoWithState(pKinesisVideoStream,
+                                                                 UPLOAD_HANDLE_STATE_STREAMING |
+                                                                 UPLOAD_HANDLE_STATE_AWAITING_ACK);
 
-            // Call the notification callback
-            CHK_STATUS(pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.streamDataAvailableFn(
-                    pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.customData,
-                    TO_STREAM_HANDLE(pKinesisVideoStream),
-                    pKinesisVideoStream->streamInfo.name,
-                    pUploadHandleInfo->handle,
-                    duration,
-                    viewByteSize));
+            if (pPreviousUploadHandle == NULL) {
+                // Get the duration and the size
+                CHK_STATUS(getAvailableViewSize(pKinesisVideoStream, &duration, &viewByteSize));
+
+                // Call the notification callback
+                CHK_STATUS(pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.streamDataAvailableFn(
+                        pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.customData,
+                        TO_STREAM_HANDLE(pKinesisVideoStream),
+                        pKinesisVideoStream->streamInfo.name,
+                        pUploadHandleInfo->handle,
+                        duration,
+                        viewByteSize));
+            }
         }
 
         state = STREAM_STATE_STREAMING;
@@ -671,11 +679,11 @@ STATUS executeStoppedStreamState(UINT64 customData, UINT64 time)
 
     CHK(pKinesisVideoStream != NULL, STATUS_NULL_ARG);
 
-    // Indicate that the stream has been terminated
-    pKinesisVideoStream->connectionDropped = TRUE;
-
     // Also store the connection stopping result
     pKinesisVideoStream->connectionDroppedResult = pKinesisVideoStream->base.result;
+
+    // Step the client state machine first
+    CHK_STATUS(stepStateMachine(pKinesisVideoStream->base.pStateMachine));
 
 CleanUp:
 

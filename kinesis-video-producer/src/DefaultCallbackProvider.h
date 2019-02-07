@@ -5,7 +5,6 @@
 #include "com/amazonaws/kinesis/video/client/Include.h"
 #include "AwsV4Signer.h"
 #include "CurlCallManager.h"
-#include "Logger.h"
 #include "CallbackProvider.h"
 #include "ClientCallbackProvider.h"
 #include "StreamCallbackProvider.h"
@@ -38,8 +37,6 @@ const std::string DEFAULT_USER_AGENT_NAME = "AWS-SDK-KVS";
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-#define CURL_CLOSE_HANDLE_DELAY_IN_MILLIS 10
-
 class DefaultCallbackProvider : public CallbackProvider, public ResponseAcceptor {
 public:
     explicit DefaultCallbackProvider(
@@ -50,7 +47,8 @@ public:
             const std::string &region = DEFAULT_AWS_REGION,
             const std::string &control_plane_uri = "",
             const std::string &user_agent_name = "",
-            const std::string &custom_user_agent = "");
+            const std::string &custom_user_agent = "",
+            const std::string &cert_path = "");
 
     virtual ~DefaultCallbackProvider();
 
@@ -561,6 +559,11 @@ protected:
      * Stores the service name
      */
     std::string service_;
+
+    /**
+     * Certificate directory path
+     */
+    const std::string cert_path_;
 
     /**
      * Upload handle value

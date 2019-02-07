@@ -112,6 +112,11 @@ extern "C" {
 #define MIN_TIMECODE_SCALE                  1
 
 /**
+ * The size of the Segment UUID in bytes.
+ */
+#define MKV_SEGMENT_UUID_LEN                16
+
+/**
  * Max possible timestamp - signed value. This is needed so we won't overflow
  * while multiplying by 100ns (default Kinesis Video time scale) and then divide it
  * by the value of the timecode scale before subtracting the cluster timecode
@@ -361,17 +366,16 @@ typedef UINT64 (*GetCurrentTimeFunc)(UINT64);
  * @UINT32 - The behavior flags
  * @UINT64 - Default timecode scale which will be applied to the generated MKV in 100ns
  * @UINT64 - Duration of the cluster in 100ns
- * @PCHAR - the codec ID of the track
- * @PCHAR - the track name
- * @PBYTE - codec private data
- * UINT32 - size of the codec private data
+ * @PBYTE - IN/OPT - Optional Segment UUID to use with size MKV_SEGMENT_UUID_LEN. Otherwise random UUID is generated
+ * @PTrackInfo - IN - List of TrackInfo structures
+ * @UINT32 - Number of the TrackInfo elements in the list
  * @GetCurrentTimeFunc - the time function callback
  * UINT64 - custom data to be passed to the callback
  * @PMkvGenerator* - returns the newly created object
  *
  * @return - STATUS code of the execution
  */
-PUBLIC_API STATUS createMkvGenerator(PCHAR, UINT32, UINT64, UINT64, PTrackInfo, UINT32, GetCurrentTimeFunc, UINT64, PMkvGenerator*);
+PUBLIC_API STATUS createMkvGenerator(PCHAR, UINT32, UINT64, UINT64, PBYTE, PTrackInfo, UINT32, GetCurrentTimeFunc, UINT64, PMkvGenerator*);
 
 /**
  * Frees and de-allocates the memory of the MkvGenerator and it's sub-objects

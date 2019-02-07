@@ -3,6 +3,7 @@
 
 #include <DefaultCallbackProvider.h>
 #include <chrono>
+#include <string>
 #define DEFAUL_CURL_TIMEOUT_MS 5
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
@@ -13,11 +14,17 @@ public:
     explicit TestDefaultCallbackProvider(
             std::unique_ptr <ClientCallbackProvider> client_callback_provider,
             std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
-            std::unique_ptr <CredentialProvider> credentials_provider):
+            std::unique_ptr <CredentialProvider> credentials_provider,
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME):
                 DefaultCallbackProvider(
                     move(client_callback_provider),
                     move(stream_callback_provider),
-                    move(credentials_provider)),
+                    move(credentials_provider),
+                    region,
+                    control_plane_uri,
+                    user_agent_name),
                 at_token_rotation(false),
                 terminate_previous_upload_at_putStream(false),
                 fault_inject_curl(false),

@@ -180,12 +180,17 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
  */
 #define TRANSFER_RATE_MEASURING_INTERVAL_EPSILON               (DOUBLE) 0.2
 
-/*
+/**
+ *
+ */
+#define FRAME_ALLOC_FRAGMENTATION_FACTOR                       (DOUBLE) 1.8
+
+/**
  * Definition that controls whether we enabled the persist ACK awaiting for the last cluster or not.
  * This needs to be changed to TRUE when the backend processing is enabled or the value should be
  * removed entirely from the WAIT_FOR_PERSISTED_ACK macro.
  */
-#define AWAIT_FOR_PERSISTED_ACK                 FALSE
+#define AWAIT_FOR_PERSISTED_ACK                 TRUE
 
 /**
  * Macro that checks whether to wait for the persistent ACK or not

@@ -1,5 +1,6 @@
 #include "KinesisVideoProducer.h"
 #include "Version.h"
+#include "Logger.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -20,7 +21,8 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
                                                                   region,
                                                                   control_plane_uri,
                                                                   user_agent_name,
-                                                                  device_info_provider->getCustomUserAgent());
+                                                                  device_info_provider->getCustomUserAgent(),
+                                                                  device_info_provider->getDeviceInfo().certPath);
 
     return KinesisVideoProducer::create(move(device_info_provider), move(callback_provider));
 }
@@ -110,7 +112,8 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
                                                                   region,
                                                                   control_plane_uri,
                                                                   user_agent_name,
-                                                                  device_info_provider->getCustomUserAgent());
+                                                                  device_info_provider->getCustomUserAgent(),
+                                                                  device_info_provider->getDeviceInfo().certPath);
 
     return KinesisVideoProducer::createSync(move(device_info_provider), move(callback_provider));
 }
@@ -218,14 +221,17 @@ void KinesisVideoProducer::freeStream(std::shared_ptr<KinesisVideoStream> kinesi
         LOG_AND_THROW("Kinesis Video stream can't be null");
     }
 
-    // Stop the ongoing CURL operations
-    callback_provider_->shutdownStream(*kinesis_video_stream->getStreamHandle());
+    // Get and save the stream handle
+    STREAM_HANDLE stream_handle = *kinesis_video_stream->getStreamHandle();
 
-    // Find the stream and remove it from the map
-    active_streams_.remove(*kinesis_video_stream->getStreamHandle());
+    // Stop the ongoing CURL operations
+    callback_provider_->shutdownStream(stream_handle);
 
     // Free the stream object itself
     kinesis_video_stream->free();
+
+    // Find the stream and remove it from the map
+    active_streams_.remove(stream_handle);
 }
 
 void KinesisVideoProducer::freeStreams() {
@@ -302,27 +308,35 @@ STATUS KinesisVideoProducer::streamReadyFunc(UINT64 custom_data,
 STATUS KinesisVideoProducer::streamClosedFunc(UINT64 custom_data,
                                               STREAM_HANDLE stream_handle,
                                               UINT64 stream_upload_handle) {
-    auto this_obj = reinterpret_cast<KinesisVideoProducer*>(custom_data);
+    auto this_obj = reinterpret_cast<KinesisVideoProducer *>(custom_data);
     auto kinesis_video_stream = this_obj->active_streams_.get(stream_handle);
     assert(nullptr != kinesis_video_stream);
     STATUS status = STATUS_SUCCESS;
 
-    // Call the stored callback if specified
-    if (nullptr != this_obj->stored_callbacks_.streamClosedFn) {
-        status = this_obj->stored_callbacks_.streamClosedFn(this_obj->stored_callbacks_.customData,
-                                                                   stream_handle,
-                                                                   stream_upload_handle);
-        if (STATUS_FAILED(status)) {
-            LOG_WARN("Failed to get call stream closed callback with: " << status);
+    auto close_curl_async_call = [](KinesisVideoProducer *this_obj,
+                                    shared_ptr<KinesisVideoStream> kinesis_video_stream,
+                                    STREAM_HANDLE stream_handle,
+                                    UPLOAD_HANDLE stream_upload_handle) -> auto {
+        // Call the stored callback if specified
+        if (nullptr != this_obj->stored_callbacks_.streamClosedFn) {
+            STATUS status = this_obj->stored_callbacks_.streamClosedFn(this_obj->stored_callbacks_.customData,
+                                                                stream_handle,
+                                                                stream_upload_handle);
+            if (STATUS_FAILED(status)) {
+                LOG_WARN("Failed to get call stream closed callback with: " << status);
+            }
         }
-    }
 
-    // Trigger the stream closed
-    {
-        std::lock_guard<std::mutex> lock(kinesis_video_stream->getStreamClosedMutex());
-        kinesis_video_stream->streamClosed();
-        kinesis_video_stream->getStreamClosedVar().notify_one();
-    }
+        // Trigger the stream closed
+        {
+            std::lock_guard<std::mutex> lock(kinesis_video_stream->getStreamClosedMutex());
+            kinesis_video_stream->streamClosed();
+            kinesis_video_stream->getStreamClosedVar().notify_one();
+        }
+    };
+
+    thread worker(close_curl_async_call, this_obj, kinesis_video_stream, stream_handle, stream_upload_handle);
+    worker.detach();
 
     return status;
 }

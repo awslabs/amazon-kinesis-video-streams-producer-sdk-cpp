@@ -12,7 +12,6 @@
 #include <mutex>
 #include <fstream>
 
-#include "Logger.h"
 #include "com/amazonaws/kinesis/video/client/Include.h"
 #include "CallbackProvider.h"
 #include "ResponseAcceptor.h"
@@ -98,6 +97,24 @@ public:
     void shutdown() {
         end_of_stream_ = true;
         shutdown_ = true;
+    }
+
+    /**
+     * Returns whether CURL has been terminated
+     */
+    bool isTerminated() {
+        return terminated_;
+    }
+
+    /**
+     * Close debug dump file and set termination flag.
+     */
+    void terminate() {
+        if (debug_dump_file_ && debug_dump_file_stream_.is_open()) {
+            debug_dump_file_stream_.close();
+        }
+
+        terminated_ = true;
     }
 
     /**
@@ -237,6 +254,21 @@ private:
      * Whether the debug dump file is opened and needs to be closed.
      */
     bool debug_dump_file_;
+
+    /**
+     * Whether data has become available to send to Kinesis Video PIC.
+     */
+    volatile bool data_available_;
+
+    /**
+     * Whether the session is waiting for the last persisted ack.
+     */
+    volatile bool awaiting_persisted_ack_;
+
+    /**
+     * Whether zero has been returned in the curl callback to terminate the underlying curl object.
+     */
+    volatile bool terminated_;
 };
 
 } // namespace video
