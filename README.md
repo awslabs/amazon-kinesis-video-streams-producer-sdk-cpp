@@ -45,6 +45,9 @@ This library is licensed under the Amazon Software License.
 ----
 ### Release notes
 
+#### Release 1.7.2 (8th Feb 2019)
+* JNI free object logic fix used by Java KVS SDK.
+
 #### Release 1.7.1 (6th Feb 2019)
 * Removed kinesis_video_gstreamer_sample_rtsp_app as the kinesis_video_gstreamer_sample_app has become multi-purposed for webcams, rtsp and video files.
 * stability fixes.
