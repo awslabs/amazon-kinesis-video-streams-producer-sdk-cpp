@@ -914,7 +914,7 @@ BOOL releaseStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBY
     CHECK(env != NULL);
 
     if (dataBuffer == NULL || pBuffer == NULL) {
-        return FALSE;
+        return TRUE;
     }
 
     // Release/commit the changes and free.
