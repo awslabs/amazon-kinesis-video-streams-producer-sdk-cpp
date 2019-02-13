@@ -168,7 +168,7 @@ typedef struct _CustomData {
             last_dts(0),
             pts_base(0),
             media_type(VIDEO_ONLY),
-            first_key_frame(true) {}
+            first_video_frame(true) {}
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
     shared_ptr<CallbackStateMachine> callback_state_machine;
@@ -176,7 +176,7 @@ typedef struct _CustomData {
     GstKvsSink *kvsSink;
     bool stream_created = false;
     MediaType media_type;
-    bool first_key_frame;
+    bool first_video_frame;
 
     atomic_bool stream_ready;
     atomic_uint stream_status;

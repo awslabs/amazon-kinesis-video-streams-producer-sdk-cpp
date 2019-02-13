@@ -130,8 +130,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
 #define DEFAULT_AUDIO_TRACK_NAME "audio"
 #define DEFAULT_AUDIO_CODEC_ID "A_AAC"
-#define DEFAULT_VIDEO_TRACKID 0
-#define DEFAULT_AUDIO_TRACKID 1
+#define KVS_SINK_DEFAULT_TRACKID 1
+#define KVS_SINK_DEFAULT_AUDIO_TRACKID 2
 
 enum {
     PROP_0,
@@ -388,10 +388,12 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
                                                            kvssink->track_name,
                                                            nullptr,
                                                            0,
-                                                           kvssink->track_info_type);
+                                                           kvssink->track_info_type,
+                                                           vector<uint8_t>(),
+                                                           KVS_SINK_DEFAULT_TRACKID);
 
     if (data->media_type == AUDIO_VIDEO) {
-        stream_definition->addTrack(DEFAULT_AUDIO_TRACKID, DEFAULT_AUDIO_TRACK_NAME, DEFAULT_AUDIO_CODEC_ID, MKV_TRACK_INFO_TYPE_AUDIO);
+        stream_definition->addTrack(KVS_SINK_DEFAULT_AUDIO_TRACKID, DEFAULT_AUDIO_TRACK_NAME, DEFAULT_AUDIO_CODEC_ID, MKV_TRACK_INFO_TYPE_AUDIO);
     }
 
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
@@ -1095,6 +1097,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         goto CleanUp;
     }
 
+    //LOG_DEBUG("flags" << GST_BUFFER_FLAGS(buf));
     isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
                     GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
                     (!GST_BUFFER_PTS_IS_VALID(buf)); //frame with invalid pts cannot be processed.
@@ -1134,13 +1137,10 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             }
             break;
         case AUDIO_VIDEO:
-            if(!delta) {
-                // Set key frame flag on first key frame. No matter audio or video.
-                // After that set key frame flag on video key frame only.
-                if (data->first_key_frame) {
-                    data->first_key_frame = false;
-                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
-                } else if (kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
+            if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
+                if (data->first_video_frame) {
+                    data->first_video_frame = false;
+                } else {
                     kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
                 }
             }
@@ -1267,7 +1267,7 @@ gst_kvs_sink_request_new_pad (GstElement * element, GstPadTemplate * templ,
                                       NULL, locked);
     kvs_sink_track_data->kvssink = kvssink;
     kvs_sink_track_data->track_type = track_type;
-    kvs_sink_track_data->track_id = DEFAULT_TRACK_ID;
+    kvs_sink_track_data->track_id = KVS_SINK_DEFAULT_TRACKID;
 
     if (!gst_element_add_pad (element, GST_PAD (newpad))) {
         gst_object_unref (newpad);
@@ -1323,8 +1323,8 @@ assign_track_id(GstKvsSink *kvssink) {
 
             // set up track id in kvs_sink_track_data
             kvs_sink_track_data->track_id = kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_AUDIO ?
-                                            DEFAULT_AUDIO_TRACKID :
-                                            DEFAULT_VIDEO_TRACKID;
+                                            KVS_SINK_DEFAULT_AUDIO_TRACKID :
+                                            KVS_SINK_DEFAULT_TRACKID;
         }
     }
 }

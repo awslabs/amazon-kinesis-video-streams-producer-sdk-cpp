@@ -150,17 +150,17 @@ TEST_F(StreamApiTest, createKinesisVideoStream_CodecPrivateData)
     PBYTE tempBuff = (PBYTE) MEMCALLOC(1, MKV_MAX_CODEC_PRIVATE_LEN + 1);
 
     mStreamInfo.name[0] = '\0';
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = cpd;
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateData = cpd;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateDataSize = SIZEOF(cpd);
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = NULL;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateData = NULL;
     EXPECT_NE(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = tempBuff;
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateData = tempBuff;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN;
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN + 1;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateDataSize = MKV_MAX_CODEC_PRIVATE_LEN + 1;
     EXPECT_NE(STATUS_SUCCESS, createKinesisVideoStream(mClientHandle, &mStreamInfo, &streamHandle));
 
     MEMFREE(tempBuff);
@@ -267,7 +267,7 @@ TEST_F(StreamApiTest, kinesisVideoPutFrame_InvalidTrackId)
     frame.presentationTs = timestamp;
     frame.duration = TEST_FRAME_DURATION;
     frame.size = SIZEOF(tempBuffer);
-    frame.trackId = 1; // invalid trackId
+    frame.trackId = TEST_INVALID_TRACK_ID; // invalid trackId
     frame.frameData = tempBuffer;
     frame.flags = FRAME_FLAG_KEY_FRAME;
 

@@ -64,6 +64,8 @@ extern "C" {
 #define STATUS_MKV_INVALID_AAC_CPD_CHANNEL_CONFIG                                   STATUS_MKVGEN_BASE + 0x00000024
 #define STATUS_MKV_INVALID_AAC_CPD                                                  STATUS_MKVGEN_BASE + 0x00000025
 #define STATUS_MKV_TRACK_INFO_NOT_FOUND                                             STATUS_MKVGEN_BASE + 0x00000026
+#define STATUS_MKV_INVALID_SEGMENT_UUID                                             STATUS_MKVGEN_BASE + 0x00000027
+#define STATUS_MKV_INVALID_TRACK_UID                                                STATUS_MKVGEN_BASE + 0x00000028
 
 ////////////////////////////////////////////////////
 // Main structure declarations

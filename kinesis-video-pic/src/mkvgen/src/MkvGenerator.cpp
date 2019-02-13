@@ -54,6 +54,7 @@ STATUS createMkvGenerator(PCHAR contentType, UINT32 behaviorFlags, UINT64 timeco
         CHK(STRNLEN(pTrackInfo->trackName, MKV_MAX_TRACK_NAME_LEN) < MKV_MAX_TRACK_NAME_LEN, STATUS_MKV_INVALID_TRACK_NAME_LENGTH);
         CHK(pTrackInfo->codecPrivateDataSize <= MKV_MAX_CODEC_PRIVATE_LEN, STATUS_MKV_INVALID_CODEC_PRIVATE_LENGTH);
         CHK(pTrackInfo->codecPrivateDataSize == 0 || pTrackInfo->codecPrivateData != NULL, STATUS_MKV_CODEC_PRIVATE_NULL);
+        CHK(pTrackInfo->trackId != 0, STATUS_MKV_INVALID_TRACK_UID);
     }
 
     // Initialize the endianness for the library
@@ -122,7 +123,10 @@ STATUS createMkvGenerator(PCHAR contentType, UINT32 behaviorFlags, UINT64 timeco
 
     // Segment UUID has been zeroed already by calloc
     if (segmentUuid != NULL) {
+        CHK(!checkBufferValues(segmentUuid, 0x00, MKV_SEGMENT_UUID_LEN), STATUS_MKV_INVALID_SEGMENT_UUID);
         MEMCPY(pMkvGenerator->segmentUuid, segmentUuid, MKV_SEGMENT_UUID_LEN);
+    } else {
+        MEMSET(pMkvGenerator->segmentUuid, MKV_SEGMENT_UUID_DEFAULT_VALUE, MKV_SEGMENT_UUID_LEN);
     }
 
     // Store the custom data as well

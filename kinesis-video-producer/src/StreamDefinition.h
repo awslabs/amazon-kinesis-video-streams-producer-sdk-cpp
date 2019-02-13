@@ -11,7 +11,7 @@
 
 #include "StreamTags.h"
 
-#define DEFAULT_TRACK_ID 0
+#define DEFAULT_TRACK_ID 1
 
 using namespace std;
 using namespace std::chrono;

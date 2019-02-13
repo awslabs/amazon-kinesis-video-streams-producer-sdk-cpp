@@ -17,6 +17,24 @@ UINT64 ClientTestBase::getCurrentTimeFunc(UINT64 customData)
     return pClient->mTime;
 }
 
+// Global variable which is used as a preset time
+UINT64 gPresetCurrentTime = 0;
+UINT64 ClientTestBase::getCurrentPresetTimeFunc(UINT64 customData)
+{
+    DLOGV("TID 0x%016llx getCurrentPresetTimeFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+
+    pClient->mGetCurrentTimeFuncCount++;
+    pClient->mTime = gPresetCurrentTime;
+
+    // Increment the preset time
+    gPresetCurrentTime++;
+
+    return pClient->mTime;
+}
+
 UINT32 ClientTestBase::getRandomNumberFunc(UINT64 customData)
 {
     DLOGV("TID 0x%016llx getRandomNumberFunc called.", GETTID());
@@ -29,6 +47,9 @@ UINT32 ClientTestBase::getRandomNumberFunc(UINT64 customData)
     return RAND();
 }
 
+// Global variable which is used for the random function that returns constant value for testing
+UINT32 gConstReturnFromRandomFunction = TEST_CONST_RAND_FUNC_BYTE;
+
 UINT32 ClientTestBase::getRandomNumberConstFunc(UINT64 customData)
 {
     DLOGV("TID 0x%016llx getRandomNumberConstFunc called.", GETTID());
@@ -38,7 +59,7 @@ UINT32 ClientTestBase::getRandomNumberConstFunc(UINT64 customData)
 
     pClient->mGetRandomNumberFuncCount++;
 
-    return TEST_CONST_RAND_FUNC_BYTE;
+    return gConstReturnFromRandomFunction;
 }
 
 VOID ClientTestBase::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt, ...)

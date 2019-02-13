@@ -928,8 +928,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
 
     // Set a CPD
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = cpd;
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateData = cpd;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateDataSize = SIZEOF(cpd);
 
     // Create and ready a stream
     ReadyStream();
@@ -1018,8 +1018,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
 
     // Set a CPD
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = cpd;
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateData = cpd;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateDataSize = SIZEOF(cpd);
 
     // Create and ready a stream
     ReadyStream();
@@ -1108,8 +1108,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
 
     // Set a CPD
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateData = cpd;
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACKID].codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateData = cpd;
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateDataSize = SIZEOF(cpd);
 
     // Create and ready a stream
     ReadyStream();
@@ -1240,6 +1240,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetSegmentUidCheck)
     MEMFREE(getDataBuffer);
 }
 
+extern UINT32 gConstReturnFromRandomFunction;
+
 TEST_F(StreamPutGetTest, putFrame_PutGetGeneratedSegmentUidCheck)
 {
     UINT32 i, filledSize;
@@ -1259,6 +1261,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetGeneratedSegmentUidCheck)
     mStreamInfo.streamCaps.segmentUuid = NULL;
 
     // Override the random gen function
+    gConstReturnFromRandomFunction = TEST_CONST_RAND_FUNC_BYTE;
     mClientCallbacks.getRandomNumberFn = getRandomNumberConstFunc;
 
     // Create and ready a stream

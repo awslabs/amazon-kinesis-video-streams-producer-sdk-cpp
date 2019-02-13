@@ -23,7 +23,9 @@
 #define TEST_CONTENT_TYPE               ((PCHAR) "TestContentType")
 #define TEST_CODEC_ID                   ((PCHAR) "TestCodec")
 #define TEST_TRACK_NAME                 ((PCHAR) "TestTrack")
-#define TEST_TRACKID                    0
+#define TEST_TRACKID                    1
+#define TEST_TRACK_INDEX                0
+#define TEST_INVALID_TRACK_ID           100
 
 #define TEST_DEVICE_ARN                 ((PCHAR) "TestDeviceARN")
 
@@ -578,6 +580,7 @@ protected:
     // Static callbacks definitions
     //////////////////////////////////////////////////////////////////////////////////////
     static UINT64 getCurrentTimeFunc(UINT64);
+    static UINT64 getCurrentPresetTimeFunc(UINT64);
     static UINT32 getRandomNumberFunc(UINT64);
     static UINT32 getRandomNumberConstFunc(UINT64);
     static VOID logPrintFunc(UINT32, PCHAR, PCHAR, ...);

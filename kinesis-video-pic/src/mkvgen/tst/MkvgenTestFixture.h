@@ -24,7 +24,7 @@
 
 #define MKV_TEST_TAG_COUNT          5
 #define MKV_TEST_TRACK_INFO_COUNT   1
-#define MKV_TEST_TRACKID            0
+#define MKV_TEST_TRACKID            1
 
 #define MKV_TEST_SEGMENT_UUID           ((PBYTE) "0123456789abcdef")
 

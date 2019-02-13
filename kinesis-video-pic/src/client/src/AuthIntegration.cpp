@@ -107,6 +107,32 @@ UINT64 getCurrentAuthExpiration(PKinesisVideoClient pKinesisVideoClient)
 }
 
 /**
+ * Randomizing or adding a jitter to the auth info expiration.
+ *
+ * NOTE: The parameters are assumed to have been validated
+ */
+UINT64 randomizeAuthInfoExpiration(PKinesisVideoClient pKinesisVideoClient, UINT64 expiration, UINT64 currentTime)
+{
+    UINT64 jitterInSec = (UINT64) ((expiration - currentTime) * AUTH_INFO_EXPIRATION_JITTER_RATIO / HUNDREDS_OF_NANOS_IN_A_SECOND);
+
+    // Quick check whether we need to do anything
+    if (!ENABLE_AUTH_INFO_EXPIRATION_RANDOMIZATION ||
+        jitterInSec == 0 ||
+        currentTime + AUTH_INFO_EXPIRATION_RANDOMIZATION_DURATION_THRESHOLD > expiration) {
+        return expiration;
+    }
+
+    // Calculate the jitter and take random part.
+    UINT64 randomizedJitter = pKinesisVideoClient->clientCallbacks.getRandomNumberFn(
+            pKinesisVideoClient->clientCallbacks.customData) % jitterInSec;
+
+    // Ensure no more than max jitter is applied
+    UINT64 jitter = MIN(randomizedJitter * HUNDREDS_OF_NANOS_IN_A_SECOND, MAX_AUTH_INFO_EXPIRATION_RANDOMIZATION);
+
+    return expiration - jitter;
+}
+
+/**
  * Performs the producer client provisioning
  * NOTE: This is a long running operation
  */

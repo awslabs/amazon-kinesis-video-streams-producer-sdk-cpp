@@ -1391,3 +1391,162 @@ TEST_F(StreamApiFunctionalityTest, PutGet_ConnectionStaleNotification)
         }
     }
 }
+
+extern UINT64 gPresetCurrentTime;
+TEST_F(StreamApiFunctionalityTest, streamingTokenJitter_none)
+{
+    CLIENT_HANDLE clientHandle;
+    STREAM_HANDLE streamHandle;
+
+    mClientCallbacks.getCurrentTimeFn = getCurrentPresetTimeFunc;
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, createDeviceResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_DEVICE_ARN));
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(clientHandle, &mStreamInfo, &streamHandle));
+
+    EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESOURCE_NOT_FOUND, NULL));
+    EXPECT_EQ(STATUS_SUCCESS, createStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAM_ARN));
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingEndpointResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT));
+
+    // Ensure it fails on less than min duration
+    EXPECT_EQ(STATUS_INVALID_TOKEN_EXPIRATION, getStreamingTokenResultEvent(mCallContext.customData,
+                                                           SERVICE_CALL_RESULT_OK,
+                                                           (PBYTE) TEST_STREAMING_TOKEN,
+                                                           SIZEOF(TEST_STREAMING_TOKEN),
+                                                           mTime + MIN_STREAMING_TOKEN_EXPIRATION_DURATION - 1));
+
+    UINT64 expiration = mTime + AUTH_INFO_EXPIRATION_RANDOMIZATION_DURATION_THRESHOLD;
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingTokenResultEvent(mCallContext.customData,
+                                                           SERVICE_CALL_RESULT_OK,
+                                                           (PBYTE) TEST_STREAMING_TOKEN,
+                                                           SIZEOF(TEST_STREAMING_TOKEN),
+                                                           expiration));
+
+    // Ensure no jitter has been introduced
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
+    EXPECT_EQ(expiration, pKinesisVideoStream->streamingAuthInfo.expiration);
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+}
+
+TEST_F(StreamApiFunctionalityTest, streamingTokenJitter_random)
+{
+    CLIENT_HANDLE clientHandle;
+    STREAM_HANDLE streamHandle;
+
+    gPresetCurrentTime = 1000000000;
+    mClientCallbacks.getCurrentTimeFn = getCurrentPresetTimeFunc;
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, createDeviceResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_DEVICE_ARN));
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(clientHandle, &mStreamInfo, &streamHandle));
+
+    EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESOURCE_NOT_FOUND, NULL));
+    EXPECT_EQ(STATUS_SUCCESS, createStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAM_ARN));
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingEndpointResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT));
+
+    // Ensure it fails on less than min duration
+    EXPECT_EQ(STATUS_INVALID_TOKEN_EXPIRATION, getStreamingTokenResultEvent(mCallContext.customData,
+                                                                            SERVICE_CALL_RESULT_OK,
+                                                                            (PBYTE) TEST_STREAMING_TOKEN,
+                                                                            SIZEOF(TEST_STREAMING_TOKEN),
+                                                                            mTime + MIN_STREAMING_TOKEN_EXPIRATION_DURATION - 1));
+
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingTokenResultEvent(mCallContext.customData,
+                                                           SERVICE_CALL_RESULT_OK,
+                                                           (PBYTE) TEST_STREAMING_TOKEN,
+                                                           SIZEOF(TEST_STREAMING_TOKEN),
+                                                           TEST_AUTH_EXPIRATION));
+
+    // Ensure random jitter has been introduced
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
+    EXPECT_NE(TEST_AUTH_EXPIRATION, pKinesisVideoStream->streamingAuthInfo.expiration);
+    EXPECT_NE(mTime + MAX_ENFORCED_TOKEN_EXPIRATION_DURATION, pKinesisVideoStream->streamingAuthInfo.expiration);
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+}
+
+extern UINT32 gConstReturnFromRandomFunction;
+TEST_F(StreamApiFunctionalityTest, streamingTokenJitter_preset_min)
+{
+    CLIENT_HANDLE clientHandle;
+    STREAM_HANDLE streamHandle;
+
+    gPresetCurrentTime = 5000000000;
+    gConstReturnFromRandomFunction = MAX_ENFORCED_TOKEN_EXPIRATION_DURATION / HUNDREDS_OF_NANOS_IN_A_SECOND;
+    mClientCallbacks.getRandomNumberFn = getRandomNumberConstFunc;
+    mClientCallbacks.getCurrentTimeFn = getCurrentPresetTimeFunc;
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, createDeviceResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_DEVICE_ARN));
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(clientHandle, &mStreamInfo, &streamHandle));
+
+    EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESOURCE_NOT_FOUND, NULL));
+    EXPECT_EQ(STATUS_SUCCESS, createStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAM_ARN));
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingEndpointResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT));
+
+    // Ensure it fails on less than min duration
+    EXPECT_EQ(STATUS_INVALID_TOKEN_EXPIRATION, getStreamingTokenResultEvent(mCallContext.customData,
+                                                                            SERVICE_CALL_RESULT_OK,
+                                                                            (PBYTE) TEST_STREAMING_TOKEN,
+                                                                            SIZEOF(TEST_STREAMING_TOKEN),
+                                                                            mTime + MIN_STREAMING_TOKEN_EXPIRATION_DURATION - 1));
+
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingTokenResultEvent(mCallContext.customData,
+                                                           SERVICE_CALL_RESULT_OK,
+                                                           (PBYTE) TEST_STREAMING_TOKEN,
+                                                           SIZEOF(TEST_STREAMING_TOKEN),
+                                                           TEST_AUTH_EXPIRATION));
+
+    // Ensure known jitter has been introduced as the overriden random generator function is returned
+    // an expected random value which we can validate here.
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
+    EXPECT_NE(TEST_AUTH_EXPIRATION, pKinesisVideoStream->streamingAuthInfo.expiration);
+    EXPECT_EQ(mTime + MAX_ENFORCED_TOKEN_EXPIRATION_DURATION - 1, pKinesisVideoStream->streamingAuthInfo.expiration);
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+}
+
+TEST_F(StreamApiFunctionalityTest, streamingTokenJitter_preset_max)
+{
+    CLIENT_HANDLE clientHandle;
+    STREAM_HANDLE streamHandle;
+
+    gConstReturnFromRandomFunction = MAX_ENFORCED_TOKEN_EXPIRATION_DURATION / HUNDREDS_OF_NANOS_IN_A_SECOND - 1;
+    mClientCallbacks.getRandomNumberFn = getRandomNumberConstFunc;
+    mClientCallbacks.getCurrentTimeFn = getCurrentPresetTimeFunc;
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, createDeviceResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_DEVICE_ARN));
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStream(clientHandle, &mStreamInfo, &streamHandle));
+
+    EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESOURCE_NOT_FOUND, NULL));
+    EXPECT_EQ(STATUS_SUCCESS, createStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAM_ARN));
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingEndpointResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT));
+
+    // Ensure it fails on less than min duration
+    EXPECT_EQ(STATUS_INVALID_TOKEN_EXPIRATION, getStreamingTokenResultEvent(mCallContext.customData,
+                                                                            SERVICE_CALL_RESULT_OK,
+                                                                            (PBYTE) TEST_STREAMING_TOKEN,
+                                                                            SIZEOF(TEST_STREAMING_TOKEN),
+                                                                            mTime + MIN_STREAMING_TOKEN_EXPIRATION_DURATION - 1));
+
+    EXPECT_EQ(STATUS_SUCCESS, getStreamingTokenResultEvent(mCallContext.customData,
+                                                           SERVICE_CALL_RESULT_OK,
+                                                           (PBYTE) TEST_STREAMING_TOKEN,
+                                                           SIZEOF(TEST_STREAMING_TOKEN),
+                                                           TEST_AUTH_EXPIRATION));
+
+    // Ensure max amount of jitter has been introduced as the controlled random function creates a jitter which
+    // is greater than the max permitted jitter value controlled by MAX_AUTH_INFO_EXPIRATION_RANDOMIZATION define.
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
+    EXPECT_NE(TEST_AUTH_EXPIRATION, pKinesisVideoStream->streamingAuthInfo.expiration);
+    EXPECT_EQ((mTime + MAX_ENFORCED_TOKEN_EXPIRATION_DURATION - MAX_AUTH_INFO_EXPIRATION_RANDOMIZATION) / HUNDREDS_OF_NANOS_IN_A_MINUTE,
+              pKinesisVideoStream->streamingAuthInfo.expiration / HUNDREDS_OF_NANOS_IN_A_MINUTE);
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+}
