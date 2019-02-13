@@ -8,7 +8,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_ClusterBoundaryKeyFrame)
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     BYTE frameBuf[10000];
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
     UINT32 i;
     EncodedFrameInfo encodedFrameInfo;
 
@@ -61,7 +61,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_LargeFrameTimecode)
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     BYTE frameBuf[10000];
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
     EncodedFrameInfo encodedFrameInfo;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MIN_TIMECODE_SCALE,
@@ -92,7 +92,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsH2
     PBYTE mkvBuffer = (PBYTE) MEMCALLOC(size, 1);
     PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     UINT64 frameDuration = 500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
-    Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, frameDuration, 0, frameBuf};
+    Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, frameDuration, 0, frameBuf, MKV_TEST_TRACKID};
     UINT32 i, cpdSize, index;
     UINT64 fileSize;
     BYTE cpd[] = {0x01, 0x42, 0x40, 0x15, 0xFF, 0xE1, 0x00, 0x09, 0x67, 0x42, 0x40, 0x28, 0x96, 0x54, 0x0a, 0x0f, 0xc8, 0x01, 0x00, 0x04, 0x68, 0xce, 0x3c, 0x80};
@@ -159,7 +159,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFo
     PBYTE mkvBuffer = (PBYTE) MEMCALLOC(size, 1);
     PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
     UINT64 frameDuration = 500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
-    Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, frameDuration, 0, frameBuf};
+    Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, frameDuration, 0, frameBuf, MKV_TEST_TRACKID};
     UINT32 i, cpdSize, index;
     UINT64 fileSize;
     BYTE cpd[] = {0x28, 0x00, 0x00, 0x00, 0x80, 0x02, 0x00, 0x00,
@@ -266,7 +266,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvMixedTags) {
     UINT32 size = 5000000, packagedSize;
     PBYTE mkvBuffer = (PBYTE) MEMCALLOC(size, 1);
     UINT64 frameDuration = 500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, frameDuration, SIZEOF(frameBuf), frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, frameDuration, SIZEOF(frameBuf), frameBuf, MKV_TEST_TRACKID};
     UINT32 frameIndex, i, cpdSize, index = 0;
     BYTE cpd[] = {0x28, 0x00, 0x00, 0x00, 0x80, 0x02, 0x00, 0x00,
                   0xe0, 0x01, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00,
@@ -351,7 +351,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CodecPrivateData)
     EncodedFrameInfo encodedFrameInfo;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
     UINT32 i, cpdSize;
     UINT32 cpdSizes[3] = {0x80 - 2, 0x4000 - 2, 0x4000 - 1}; // edge cases for 1, 2 and 3 byte sizes
     PBYTE tempBuffer = (PBYTE) MEMCALLOC(MKV_MAX_CODEC_PRIVATE_LEN, 1);
@@ -395,7 +395,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_ClusterBoundaryNonKeyFrame
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
     UINT32 i;
     EncodedFrameInfo encodedFrameInfo;
 
@@ -501,7 +501,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCalls)
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     UINT32 retSize;
     PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
-    Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
 
     EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_GEN_KEY_FRAME_PROCESSING, MKV_TEST_TIMECODE_SCALE,
                                                  MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo,
@@ -539,7 +539,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_TimeCallbackCallsNotCalled
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     UINT32 retSize;
     PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
-    Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_KEY_FRAME, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
 
     EXPECT_TRUE(STATUS_SUCCEEDED(createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS,
                                                     MKV_TEST_TIMECODE_SCALE, MKV_TEST_CLUSTER_DURATION,
@@ -573,7 +573,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGenerator_Variations)
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     PBYTE frameBuf = (PBYTE) MEMALLOC(MKV_TEST_BUFFER_SIZE);
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
     EncodedFrameInfo encodedFrameInfo;
 
     EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS,
@@ -639,7 +639,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGeneratorWithAvccAdaptation_Variat
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     PBYTE frameBuf = (PBYTE) MEMALLOC(size);
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
     UINT32 i, runSize = 100 - SIZEOF(UINT32);
     EncodedFrameInfo encodedFrameInfo;
 
@@ -711,7 +711,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenResetGeneratorWithAnnexBAdaptation_Vari
     PMkvGenerator mkvGenerator;
     UINT32 size = MKV_TEST_BUFFER_SIZE;
     BYTE frameBuf[10000];
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, 10000, frameBuf, MKV_TEST_TRACKID};
     UINT32 i, adaptedSize;
     EncodedFrameInfo encodedFrameInfo;
 
@@ -796,7 +796,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenMkvTracksHeaderWithMultipleTrack)
 
     TrackInfo testTrackInfo[2];
     // video track;
-    testTrackInfo[0].trackId = 0;
+    testTrackInfo[0].trackId = MKV_TEST_TRACKID;
     STRCPY(testTrackInfo[0].codecId, MKV_TEST_CODEC_ID);
     STRCPY(testTrackInfo[0].trackName, MKV_TEST_TRACK_NAME);
     testTrackInfo[0].codecPrivateDataSize = videoCpdSize;
@@ -806,7 +806,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenMkvTracksHeaderWithMultipleTrack)
     testTrackInfo[0].trackType = MKV_TRACK_INFO_TYPE_VIDEO;
 
     // audio track;
-    testTrackInfo[1].trackId = 1;
+    testTrackInfo[1].trackId = MKV_TEST_TRACKID + 1;
     STRCPY(testTrackInfo[1].codecId, MKV_TEST_CODEC_ID);
     STRCPY(testTrackInfo[1].trackName, MKV_TEST_TRACK_NAME);
     testTrackInfo[1].codecPrivateDataSize = audioCpdSize;
@@ -817,7 +817,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenMkvTracksHeaderWithMultipleTrack)
 
     UINT32 testTrackInfoCount = 2;
     BYTE frameBuf[10000];
-    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, SIZEOF(frameBuf), frameBuf};
+    Frame frame = {0, FRAME_FLAG_NONE, 0, 0, MKV_TEST_FRAME_DURATION, SIZEOF(frameBuf), frameBuf, MKV_TEST_TRACKID};
     EncodedFrameInfo encodedFrameInfo;
     PBYTE pCurrentPnt = NULL;
     BYTE tracksElementId[] = {0x16, 0x54, 0xae, 0x6b};

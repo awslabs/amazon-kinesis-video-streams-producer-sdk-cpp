@@ -200,6 +200,26 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
                                                     (x)->streamInfo.retention != RETENTION_PERIOD_SENTINEL)
 
 /**
+ * Controls whether we enable auth info expiration randomization
+ */
+#define ENABLE_AUTH_INFO_EXPIRATION_RANDOMIZATION       TRUE
+
+/**
+ * The threshold beyond which we won't do any auth info expiration randomization
+ */
+#define AUTH_INFO_EXPIRATION_RANDOMIZATION_DURATION_THRESHOLD       5 * HUNDREDS_OF_NANOS_IN_A_MINUTE
+
+/**
+ * Max randomization value to be added
+ */
+#define MAX_AUTH_INFO_EXPIRATION_RANDOMIZATION                      3 * HUNDREDS_OF_NANOS_IN_A_MINUTE
+
+/**
+ * Ratio of the expiration to use for jitter
+ */
+#define AUTH_INFO_EXPIRATION_JITTER_RATIO                           0.1L
+
+/**
  * Kinesis Video client internal structure
  */
 typedef struct __KinesisVideoClient KinesisVideoClient;
@@ -277,6 +297,11 @@ STATUS provisionKinesisVideoProducer(PKinesisVideoClient);
  * Returns the current auth integration type
  */
 AUTH_INFO_TYPE getCurrentAuthType(PKinesisVideoClient);
+
+/**
+ * Randomizing or adding a jitter to the auth info expiration
+ */
+UINT64 randomizeAuthInfoExpiration(PKinesisVideoClient, UINT64, UINT64);
 
 /**
  * Default implementations of some of the callbacks if the caller hasn't specified them

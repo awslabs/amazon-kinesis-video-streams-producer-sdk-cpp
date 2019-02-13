@@ -311,6 +311,11 @@ STATUS getStreamingTokenResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_
         // Ensure that we rotate before the max period is enforced
         pKinesisVideoStream->streamingAuthInfo.expiration = MIN(expiration, currentTime + MAX_ENFORCED_TOKEN_EXPIRATION_DURATION);
 
+        // Introduce jitter to the expiration time
+        pKinesisVideoStream->streamingAuthInfo.expiration = randomizeAuthInfoExpiration(pKinesisVideoClient,
+                                                                                        pKinesisVideoStream->streamingAuthInfo.expiration,
+                                                                                        currentTime);
+
         // If we don't have a token we assume there is no auth.
         if (pToken == NULL || tokenSize == 0) {
             pKinesisVideoStream->streamingAuthInfo.type = AUTH_INFO_NONE;

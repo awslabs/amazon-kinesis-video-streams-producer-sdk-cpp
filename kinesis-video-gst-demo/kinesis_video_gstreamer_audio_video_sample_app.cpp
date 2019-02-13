@@ -64,10 +64,10 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 #define DEFAULT_AUDIO_VIDEO_DRIFT_TIMEOUT_SECOND 5
 
-#define DEFAULT_VIDEO_TRACKID 0
+#define DEFAULT_VIDEO_TRACKID 1
 #define DEFAULT_AUDIO_TRACK_NAME "audio"
 #define DEFAULT_AUDIO_CODEC_ID "A_AAC"
-#define DEFAULT_AUDIO_TRACKID 1
+#define DEFAULT_AUDIO_TRACKID 2
 
 
 typedef struct _FileInfo {
@@ -703,7 +703,10 @@ void kinesis_video_stream_init(CustomData *data) {
                                                            DEFAULT_CODEC_ID,
                                                            DEFAULT_TRACKNAME,
                                                            nullptr,
-                                                           0);
+                                                           0,
+                                                           MKV_TRACK_INFO_TYPE_VIDEO,
+                                                           vector<uint8_t>(),
+                                                           DEFAULT_VIDEO_TRACKID);
 
     stream_definition->addTrack(DEFAULT_AUDIO_TRACKID, DEFAULT_AUDIO_TRACK_NAME, DEFAULT_AUDIO_CODEC_ID, MKV_TRACK_INFO_TYPE_AUDIO);
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
@@ -751,8 +754,8 @@ int gstreamer_init(int argc, char *argv[], CustomData &data) {
     gst_caps_unref(caps);
 
     // hardcoding appsink name and track id
-    const string video_appsink_name = "appsink_0";
-    const string audio_appsink_name = "appsink_1";
+    const string video_appsink_name = "appsink_" + to_string(DEFAULT_VIDEO_TRACKID);
+    const string audio_appsink_name = "appsink_" + to_string(DEFAULT_AUDIO_TRACKID);
 
     appsink_video = gst_element_factory_make("appsink", (gchar *) video_appsink_name.c_str());
     appsink_audio = gst_element_factory_make("appsink", (gchar *) audio_appsink_name.c_str());

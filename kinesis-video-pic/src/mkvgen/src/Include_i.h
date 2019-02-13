@@ -235,6 +235,11 @@ extern UINT32 gMkvTagStringBitsSize;
 #define MKV_TIMECODE_TO_TIMESTAMP(tc, tcs)   ((tc) * ((tcs) / DEFAULT_TIME_UNIT_IN_NANOS))
 
 /**
+ * Default value to set the segment uuid bytes to
+ */
+#define MKV_SEGMENT_UUID_DEFAULT_VALUE      0x55
+
+/**
  * The rest of the internal include files
  */
 #include "NalAdapter.h"

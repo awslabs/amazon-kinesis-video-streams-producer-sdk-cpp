@@ -37,7 +37,7 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
     frame.duration = TEST_PRODUCER_SLEEP_TIME;
     frame.size = SIZEOF(tempBuffer);
     frame.frameData = tempBuffer;
-    frame.trackId = 0;
+    frame.trackId = TEST_TRACKID;
 
     while(!mTerminate) {
         // Produce frames
