@@ -314,3 +314,34 @@ TEST_F(MkvgenApiTest, mkvgenGenerateTag_PositiveAndNegativeTest)
 
     MEMFREE(tempBuffer);
 }
+
+TEST_F(MkvgenApiTest, mkvgenContentType_GetContentType)
+{
+    EXPECT_EQ(MKV_CONTENT_TYPE_NONE, mkvgenGetContentTypeFromContentTypeString(NULL));
+    EXPECT_EQ(MKV_CONTENT_TYPE_NONE, mkvgenGetContentTypeFromContentTypeString((PCHAR) ""));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H265, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h265"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_X_MKV_VIDEO, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/x-matroska"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_X_MKV_AUDIO, mkvgenGetContentTypeFromContentTypeString((PCHAR) "audio/x-matroska"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_AAC, mkvgenGetContentTypeFromContentTypeString((PCHAR) "audio/aac"));
+
+    EXPECT_EQ(MKV_CONTENT_TYPE_UNKNOWN, mkvgenGetContentTypeFromContentTypeString((PCHAR) "audio/aa"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_UNKNOWN, mkvgenGetContentTypeFromContentTypeString((PCHAR) "udio/aac"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_UNKNOWN, mkvgenGetContentTypeFromContentTypeString((PCHAR) " audio/aac"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_UNKNOWN, mkvgenGetContentTypeFromContentTypeString((PCHAR) "audio/aac "));
+    EXPECT_EQ(MKV_CONTENT_TYPE_UNKNOWN, mkvgenGetContentTypeFromContentTypeString((PCHAR) "audio\aac"));
+
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264 | MKV_CONTENT_TYPE_AAC, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264,audio/aac"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264 | MKV_CONTENT_TYPE_H265, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264,video/h265"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264,video/h264"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264, mkvgenGetContentTypeFromContentTypeString((PCHAR) ",video/h264"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264,"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264 | MKV_CONTENT_TYPE_UNKNOWN, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264, video/h265"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_UNKNOWN | MKV_CONTENT_TYPE_H265, mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264 ,video/h265"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264 | MKV_CONTENT_TYPE_H265 | MKV_CONTENT_TYPE_AAC |
+              MKV_CONTENT_TYPE_X_MKV_VIDEO | MKV_CONTENT_TYPE_X_MKV_AUDIO,
+              mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264,video/h265,audio/aac,video/x-matroska,audio/x-matroska"));
+    EXPECT_EQ(MKV_CONTENT_TYPE_H264 | MKV_CONTENT_TYPE_H265 | MKV_CONTENT_TYPE_AAC |
+              MKV_CONTENT_TYPE_X_MKV_VIDEO | MKV_CONTENT_TYPE_X_MKV_AUDIO | MKV_CONTENT_TYPE_UNKNOWN,
+              mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264,video/h265,audio/aac,blah,video/x-matroska,audio/x-matroska"));
+}

@@ -45,6 +45,9 @@ This library is licensed under the Amazon Software License.
 ----
 ### Release notes
 
+#### Release 1.7.4 (14th Feb 2019)
+* Stability and bug fixes.
+
 #### Release 1.7.3 (12th Feb 2019)
 * Enforce non-zero TrackUid and SegmentUUID.
 

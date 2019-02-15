@@ -176,7 +176,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvFromJpegAsFo
     mTrackInfo.codecPrivateData = cpd;
 
     // This is a M-JPG to enforce the video width and height inclusion in the track info
-    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_X_MKV_CONTENT_TYPE, MKV_GEN_IN_STREAM_TIME, MKV_TEST_TIMECODE_SCALE,
+    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_X_MKV_VIDEO_CONTENT_TYPE, MKV_GEN_IN_STREAM_TIME, MKV_TEST_TIMECODE_SCALE,
                                                  2 * HUNDREDS_OF_NANOS_IN_A_SECOND, MKV_TEST_SEGMENT_UUID, &mTrackInfo,
                                                  mTrackInfoCount, NULL, 0, &mkvGenerator));
 
@@ -282,7 +282,7 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenPackageFrame_CreateStoreMkvMixedTags) {
     mTrackInfo.codecPrivateDataSize = cpdSize;
     mTrackInfo.codecPrivateData = cpd;
 
-    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_X_MKV_CONTENT_TYPE,
+    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_X_MKV_VIDEO_CONTENT_TYPE,
                                                  MKV_GEN_IN_STREAM_TIME | MKV_GEN_KEY_FRAME_PROCESSING,
                                                  MKV_TEST_TIMECODE_SCALE, 2 * HUNDREDS_OF_NANOS_IN_A_SECOND,
                                                  MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount,

@@ -23,25 +23,13 @@ extern "C" {
 ////////////////////////////////////////////////////
 
 /**
- * MKV track types
- * Default track type for MKV = complex
- */
-#define MKV_DEFAULT_TRACK_TYPE          0x03
-#define MKV_TRACK_TYPE_VIDEO            0x01
-#define MKV_TRACK_TYPE_AUDIO            0x02
-
-/**
- * Content type prefixes
- */
-#define MKV_CONTENT_TYPE_PREFIX_AUDIO       ((PCHAR) "audio/")
-#define MKV_CONTENT_TYPE_PREFIX_VIDEO       ((PCHAR) "video/")
-
-/**
  * Special processing for the types
  */
 #define MKV_H264_CONTENT_TYPE               ((PCHAR) "video/h264")
 #define MKV_H265_CONTENT_TYPE               ((PCHAR) "video/h265")
-#define MKV_X_MKV_CONTENT_TYPE              ((PCHAR) "video/x-matroska")
+#define MKV_X_MKV_VIDEO_CONTENT_TYPE        ((PCHAR) "video/x-matroska")
+#define MKV_X_MKV_AUDIO_CONTENT_TYPE        ((PCHAR) "audio/x-matroska")
+#define MKV_AAC_CONTENT_TYPE                ((PCHAR) "audio/aac")
 #define MKV_FOURCC_CODEC_ID                 ((PCHAR) "V_MS/VFW/FOURCC")
 
 /**
@@ -126,7 +114,7 @@ extern UINT32 gMkvTrackNameBitsSize;
 // Number of bytes to skip to get from begin of TrackEntry to TrackNumber
 #define MKV_TRACK_NUMBER_OFFSET 7
 
-// Number of bytes to skip to get from begin of TrackEntry to TrackNumber
+// Number of bytes to skip to get from begin of TrackEntry to TrackType
 #define MKV_TRACK_TYPE_OFFSET 21
 
 // Number of bytes to skip to get from begin of Audio to SamplingFrequency
@@ -257,6 +245,24 @@ typedef enum {
 } MKV_GENERATOR_STATE, *PMKV_GENERATOR_STATE;
 
 /**
+ * MKV track type used internally
+ */
+typedef enum {
+    MKV_CONTENT_TYPE_NONE = (UINT64) 0,
+    MKV_CONTENT_TYPE_UNKNOWN = (1 << 0),
+    MKV_CONTENT_TYPE_H264 = (1 << 1),
+    MKV_CONTENT_TYPE_H265 = (1 << 2),
+    MKV_CONTENT_TYPE_X_MKV_VIDEO = (1 << 3),
+    MKV_CONTENT_TYPE_X_MKV_AUDIO = (1 << 4),
+    MKV_CONTENT_TYPE_AAC = (1 << 5),
+} MKV_CONTENT_TYPE, *PMKV_CONTENT_TYPE;
+
+/**
+ * Content type delimiter character
+ */
+#define MKV_CONTENT_TYPE_DELIMITER          ','
+
+/**
  * MkvGenerator internal structure
  */
 typedef struct {
@@ -279,7 +285,7 @@ typedef struct {
     UINT64 clusterDuration;
 
     // The content type of the stream
-    BYTE trackType;
+    MKV_CONTENT_TYPE contentType;
 
     // Time function entry
     GetCurrentTimeFunc getTimeFn;
@@ -362,13 +368,23 @@ UINT32 mkvgenGetFrameOverhead(PStreamMkvGenerator, MKV_STREAM_STATE);
 STATUS mkvgenValidateFrame(PStreamMkvGenerator, PFrame, PUINT64, PUINT64, PUINT64, PMKV_STREAM_STATE);
 
 /**
- * Returns the MKV track type from the provided content type
+ * Returns the MKV content type from the provided content type string by tokenizing and matching the string
  *
- * @PCHAR - content type to convert
+ * @PCHAR - content type string to convert
  *
- * @return - MKV track type corresponding to the content type
+ * @return - MKV content type corresponding to the content type string
  */
-BYTE mkvgenGetTrackTypeFromContentType(PCHAR);
+MKV_CONTENT_TYPE mkvgenGetContentTypeFromContentTypeString(PCHAR);
+
+/**
+ * Returns the MKV content type for a given tokenized string
+ *
+ * @PCHAR - content type string token to convert
+ * @UINT32 - the length of the token
+ *
+ * @return - MKV content type corresponding to the content type string
+ */
+MKV_CONTENT_TYPE mkvgenGetContentTypeFromContentTypeTokenString(PCHAR, UINT32);
 
 /**
  * EBML encodes a number and stores in the buffer

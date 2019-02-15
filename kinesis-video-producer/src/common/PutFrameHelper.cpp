@@ -73,11 +73,9 @@ void PutFrameHelper::putFrameMultiTrack(Frame frame, bool isVideo) {
         audio_frame_queue.pop();
     }
 
-    // After all preceeding audio frames have been released, video_front can be released if it is not key frame.
-    // If video_front is key frame, then it needs to wait until a audio frame with larger pts is in the queue. Since
-    // we assume audio timestamp is monotonically increasing, it means we can release video_front.
-    if (!CHECK_FRAME_FLAG_KEY_FRAME(video_front.flags) ||
-        (CHECK_FRAME_FLAG_KEY_FRAME(video_front.flags) && !audio_frame_queue.empty())) {
+    // Sync audio frames to video frames. audio_frame_queue being not empty here means there is a audio frame whose timestamp
+    // is greater than video_front.
+    if (!audio_frame_queue.empty()) {
         if (!kinesis_video_stream->putFrame(video_front)) {
             put_frame_status = false;
             LOG_WARN("Failed to put video frame. Frame flag: " << video_front.flags);

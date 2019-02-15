@@ -1097,9 +1097,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         goto CleanUp;
     }
 
-    //LOG_DEBUG("flags" << GST_BUFFER_FLAGS(buf));
     isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
                     GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
+                    (GST_BUFFER_FLAGS(buf) == GST_BUFFER_FLAG_DISCONT) ||
                     (!GST_BUFFER_PTS_IS_VALID(buf)); //frame with invalid pts cannot be processed.
 
     if (isDroppable) {

@@ -348,12 +348,12 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     isHeader = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_HEADER);
     isDroppable = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_CORRUPTED) ||
                   GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DECODE_ONLY) ||
+                  (GST_BUFFER_FLAGS(buffer) == GST_BUFFER_FLAG_DISCONT) ||
                   // drop if buffer contains header only and has invalid timestamp
                   (isHeader && (!GST_BUFFER_PTS_IS_VALID(buffer) || !GST_BUFFER_DTS_IS_VALID(buffer)));
 
     if (!isDroppable) {
         buffer_size = gst_buffer_get_size(buffer);
-
         // resize data buffer if not enough storage
         if (buffer_size > data->frame_data_size) {
             delete [] data->frame_data;

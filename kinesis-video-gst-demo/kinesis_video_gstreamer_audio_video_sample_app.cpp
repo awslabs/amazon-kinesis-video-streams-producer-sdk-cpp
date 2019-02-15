@@ -441,6 +441,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
     dropFrame =  GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_CORRUPTED) ||
                  GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DECODE_ONLY) ||
+                 (GST_BUFFER_FLAGS(buffer) == GST_BUFFER_FLAG_DISCONT) ||
                  (!GST_BUFFER_PTS_IS_VALID(buffer)); //frame with invalid pts cannot be processed.
     if (dropFrame) {
         if (!GST_BUFFER_PTS_IS_VALID(buffer)) {
