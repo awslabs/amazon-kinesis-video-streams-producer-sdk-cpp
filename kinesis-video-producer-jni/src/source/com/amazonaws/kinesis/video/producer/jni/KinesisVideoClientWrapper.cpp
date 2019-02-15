@@ -1151,7 +1151,21 @@ UINT64 KinesisVideoClientWrapper::getCurrentTimeFunc(UINT64 customData)
     DLOGS("TID 0x%016" PRIx64 " getCurrentTimeFunc called.", GETTID());
     UNUSED_PARAM(customData);
 
+#if defined _WIN32 || defined _WIN64
+    // GETTIME implementation is the same as in Java for Windows platforms
     return GETTIME();
+#elif defined __MACH__ || defined __CYGWIN__
+    // GETTIME implementation is the same as in Java for Mac OSx platforms
+    return GETTIME();
+#else
+    timeval nowTime;
+    if (0 != gettimeofday(&nowTime, NULL)) {
+        return 0;
+    }
+
+    // The precision needs to be on a 100th nanosecond resolution
+    return (UINT64)nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64)nowTime.tv_usec * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
+#endif
 }
 
 UINT32 KinesisVideoClientWrapper::getRandomNumberFunc(UINT64 customData)

@@ -42,7 +42,7 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
                    0xEE, 0x3C, 0xB0};
     UINT32 cpdSize = SIZEOF(cpd2);
 
-    EXPECT_TRUE(kinesis_video_stream->start(cpd2, cpdSize, 0));
+    EXPECT_TRUE(kinesis_video_stream->start(cpd2, cpdSize, DEFAULT_TRACK_ID));
 
     while (!stop_producer_) {
         // Produce frames
@@ -540,7 +540,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
 
     // shorter length
     segment_uuid = vector<uint8_t>(MKV_SEGMENT_UUID_LEN - 1);
-    stream_definition = make_unique<StreamDefinition>(stream_name,
+    EXPECT_DEATH(stream_definition = make_unique<StreamDefinition>(stream_name,
                                                            hours(2),
                                                            nullptr,
                                                            "",
@@ -567,9 +567,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
                                                            0,
                                                            MKV_TRACK_INFO_TYPE_VIDEO,
                                                            segment_uuid,
-                                                           DEFAULT_TRACK_ID);
-
-    EXPECT_DEATH(kinesis_video_producer_->createStream(move(stream_definition)), "");
+                                                           DEFAULT_TRACK_ID), "");
 }
 
 }  // namespace video

@@ -202,18 +202,12 @@ STATUS createStream(PKinesisVideoClient pKinesisVideoClient, PStreamInfo pStream
     pCurPnt += MKV_SEGMENT_UUID_LEN;
 
     // Copy the structures in their entirety
+    // NOTE: This will copy the raw pointers, however, we will only use it in the duration of the call.
     MEMCPY(pCurPnt, pStreamInfo->streamCaps.trackInfoList, trackInfoSize);
     pKinesisVideoStream->streamInfo.streamCaps.trackInfoList = (PTrackInfo) pCurPnt;
+
     // Move pCurPnt to the end of pKinesisVideoStream->streamInfo.streamCaps.trackInfoList
     pCurPnt = (PBYTE) (pKinesisVideoStream->streamInfo.streamCaps.trackInfoList + pKinesisVideoStream->streamInfo.streamCaps.trackInfoCount);
-    for(i = 0; i < pKinesisVideoStream->streamInfo.streamCaps.trackInfoCount; ++i) {
-        PTrackInfo pTrackInfo = &pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i];
-        if (pStreamInfo->streamCaps.trackInfoList[i].codecPrivateDataSize != 0 && pStreamInfo->streamCaps.trackInfoList[i].codecPrivateData != NULL) {
-            pTrackInfo->codecPrivateData = (PBYTE) MEMALLOC(pTrackInfo->codecPrivateDataSize);
-            CHK(pTrackInfo->codecPrivateData != NULL, STATUS_NOT_ENOUGH_MEMORY);
-            MEMCPY(pTrackInfo->codecPrivateData, pStreamInfo->streamCaps.trackInfoList[i].codecPrivateData, pTrackInfo->codecPrivateDataSize);
-        }
-    }
 
     // Calculate the max items in the view
     maxViewItems = calculateViewItemCount(&pKinesisVideoStream->streamInfo);
@@ -322,15 +316,6 @@ STATUS freeStream(PKinesisVideoStream pKinesisVideoStream)
 
     // Free the metadata queue
     freeStackQueue(pKinesisVideoStream->pMetadataQueue);
-
-    // Free the codec private data for all tracks
-    for (i = 0; i < pKinesisVideoStream->streamInfo.streamCaps.trackInfoCount; ++i) {
-        if (pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i].codecPrivateData != NULL) {
-            MEMFREE(pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i].codecPrivateData);
-            pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i].codecPrivateData = NULL;
-        }
-        pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i].codecPrivateDataSize = 0;
-    }
 
     // Free the eosTracker and eofrTracker data if any
     freeMetadataTracker(&pKinesisVideoStream->eosTracker);
@@ -542,6 +527,7 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame) {
             break;
         }
     }
+
     CHK (trackInfoFound, STATUS_MKV_TRACK_INFO_NOT_FOUND);
 
     // Check if the stream has been stopped
@@ -1482,7 +1468,7 @@ STATUS streamFormatChanged(PKinesisVideoStream pKinesisVideoStream, UINT32 codec
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = NULL;
-    BOOL streamLocked = FALSE, trackInfoFound = FALSE;
+    BOOL streamLocked = FALSE;
     PTrackInfo pTrackInfo = NULL;
     UINT32 i;
 
@@ -1510,30 +1496,15 @@ STATUS streamFormatChanged(PKinesisVideoStream pKinesisVideoStream, UINT32 codec
     // Free the existing allocation if any.
     for(i = 0; i < pKinesisVideoStream->streamInfo.streamCaps.trackInfoCount; ++i) {
         if (pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i].trackId == trackId) {
-            trackInfoFound = TRUE;
             pTrackInfo = &pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i];
-            if (pTrackInfo->codecPrivateData != NULL) {
-                MEMFREE(pTrackInfo->codecPrivateData);
-                pTrackInfo->codecPrivateData = NULL;
-                pTrackInfo->codecPrivateDataSize = 0;
-            }
             break;
         }
     }
-    CHK(trackInfoFound, STATUS_MKV_TRACK_INFO_NOT_FOUND);
 
-    // Set the size first
-    // IMPORTANT: The CPD size could be set to 0 to clear any previous CPD.
+    CHK(pTrackInfo != NULL, STATUS_MKV_TRACK_INFO_NOT_FOUND);
+
     pTrackInfo->codecPrivateDataSize = codecPrivateDataSize;
-
-    // Check if we need to do anything
-    if (codecPrivateDataSize != 0) {
-        pTrackInfo->codecPrivateData = (PBYTE) MEMALLOC(codecPrivateDataSize);
-        CHK(pTrackInfo->codecPrivateData != NULL, STATUS_NOT_ENOUGH_MEMORY);
-
-        // Copy the bits
-        MEMCPY(pTrackInfo->codecPrivateData, codecPrivateData, codecPrivateDataSize);
-    }
+    pTrackInfo->codecPrivateData = codecPrivateData;
 
     // Need to free and re-create the packager
     if (pKinesisVideoStream->pMkvGenerator != NULL) {

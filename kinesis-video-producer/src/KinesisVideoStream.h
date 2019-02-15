@@ -10,6 +10,7 @@
 #include "com/amazonaws/kinesis/video/client/Include.h"
 #include "KinesisVideoProducer.h"
 #include "KinesisVideoStreamMetrics.h"
+#include "StreamDefinition.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -87,13 +88,13 @@ public:
      * Initializes the track identified by trackId with a hex-encoded codec private data
      * and puts the stream in a state that it is ready to receive frames via putFrame().
      */
-    bool start(const std::string& hexEncodedCodecPrivateData, uint64_t trackId = 0);
+    bool start(const std::string& hexEncodedCodecPrivateData, uint64_t trackId = DEFAULT_TRACK_ID);
 
     /**
      * Initializes the track identified by trackId  with a binary codec private data
      * and puts the stream in a state that it is ready to receive frames via putFrame().
      */
-    bool start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize, uint64_t trackId = 0);
+    bool start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize, uint64_t trackId = DEFAULT_TRACK_ID);
 
     /**
      * Initializes the stream and puts the stream in a state that it is ready to receive frames via putFrame().
