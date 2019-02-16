@@ -1469,13 +1469,13 @@ STATUS streamFormatChanged(PKinesisVideoStream pKinesisVideoStream, UINT32 codec
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = NULL;
     BOOL streamLocked = FALSE;
-    PTrackInfo pTrackInfo = NULL;
-    UINT32 i;
 
-    CHK(pKinesisVideoStream != NULL, STATUS_NULL_ARG);
-    // These checks are borrowed from MKV. TODO: Consolidate these at some stage.
-    CHK(codecPrivateDataSize <= MKV_MAX_CODEC_PRIVATE_LEN, STATUS_MKV_INVALID_CODEC_PRIVATE_LENGTH);
-    CHK(codecPrivateDataSize == 0 || codecPrivateData != NULL, STATUS_MKV_CODEC_PRIVATE_NULL);
+    CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
+    pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
+
+    // Lock the stream
+    pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
+    streamLocked = TRUE;
 
     // Ensure we are not in a streaming state
     CHK_STATUS(acceptStateMachineState(pKinesisVideoStream->base.pStateMachine,
@@ -1487,31 +1487,7 @@ STATUS streamFormatChanged(PKinesisVideoStream pKinesisVideoStream, UINT32 codec
                                             STREAM_STATE_GET_TOKEN |
                                             STREAM_STATE_STOPPED));
 
-    pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
-
-    // Lock the stream
-    pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
-    streamLocked = TRUE;
-
-    // Free the existing allocation if any.
-    for(i = 0; i < pKinesisVideoStream->streamInfo.streamCaps.trackInfoCount; ++i) {
-        if (pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i].trackId == trackId) {
-            pTrackInfo = &pKinesisVideoStream->streamInfo.streamCaps.trackInfoList[i];
-            break;
-        }
-    }
-
-    CHK(pTrackInfo != NULL, STATUS_MKV_TRACK_INFO_NOT_FOUND);
-
-    pTrackInfo->codecPrivateDataSize = codecPrivateDataSize;
-    pTrackInfo->codecPrivateData = codecPrivateData;
-
-    // Need to free and re-create the packager
-    if (pKinesisVideoStream->pMkvGenerator != NULL) {
-        freeMkvGenerator(pKinesisVideoStream->pMkvGenerator);
-    }
-
-    CHK_STATUS(createPackager(pKinesisVideoStream, &pKinesisVideoStream->pMkvGenerator));
+    CHK_STATUS(mkvgenSetCodecPrivateData(pKinesisVideoStream->pMkvGenerator, trackId, codecPrivateDataSize, codecPrivateData));
 
     // Unlock the stream (even though it will be unlocked in the cleanup
     pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);

@@ -89,7 +89,6 @@ cmake CMakeLists.txt
 make producer
 make start
 make kinesis_video_gstreamer_sample_app
-make kinesis_video_gstreamer_sample_rtsp_app
 # copy the kvssink plugin into the library folder
 cp libproducer* "$LIB_DESTINATION_FOLDER_PATH"
 

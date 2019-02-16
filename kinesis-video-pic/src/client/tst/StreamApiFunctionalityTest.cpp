@@ -1111,8 +1111,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
 
 TEST_F(StreamApiFunctionalityTest, putFrame_SubmitAckWithTimecodeZero)
 {
-    UINT32 i, remaining;
-    UINT32 frameSize = 100000;
+    UINT32 i, frameSize = 100000;
     PBYTE pData = (PBYTE) MEMALLOC(frameSize);
     UINT64 timestamp;
     Frame frame;
@@ -1165,7 +1164,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_SubmitAckWithTimecodeZero)
  */
 TEST_F(StreamApiFunctionalityTest, submitAck_shouldBeInWindowPutStreamResultAfterAllPutFrame)
 {
-    UINT32 i, remaining, filledSize;
+    UINT32 i, filledSize;
     UINT32 frameSize = 100000;
     PBYTE getDataBuffer = (PBYTE) MEMALLOC(frameSize * 4);
     PBYTE pData = (PBYTE) MEMALLOC(frameSize);

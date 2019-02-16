@@ -475,6 +475,18 @@ PUBLIC_API STATUS mkvgenGetMkvOverheadSize(PMkvGenerator, MKV_STREAM_STATE, PUIN
  */
 PUBLIC_API STATUS mkvgenGetCurrentTimestamps(PMkvGenerator, PUINT64, PUINT64, PUINT64);
 
+/**
+ * Sets the Codec Private Data for a particular track
+ *
+ * @PMkvGenerator - The generator object
+ * UINT64 - IN - Track ID to set the Codec Private Data for
+ * UINT32 - IN - Codec Private Data size
+ * PBYTE - IN - Codec private Data bytes
+ *
+ * @return - STATUS code of the execution
+ */
+PUBLIC_API STATUS mkvgenSetCodecPrivateData(PMkvGenerator, UINT64, UINT32, PBYTE);
+
 #pragma pack(pop, include)
 
 #ifdef  __cplusplus

@@ -548,6 +548,22 @@ UINT64 getTimeAdapter(UINT64);
  */
 STATUS getSamplingFreqAndChannelFromAacCpd(PBYTE, UINT32, PDOUBLE, PUINT16);
 
+/**
+ * Adapt Codec Private Data for the given track
+ *
+ * @PStreamMkvGenerator - IN - The MKV generator
+ * @MKV_TRACK_INFO_TYPE - IN - The track info type
+ * @PCHAR - IN - Codec ID string
+ * @UINT32 - IN - Input CPD size
+ * @PBYTE - IN - Input CPD bytes
+ * @PUINT32 - OUT - Output adapted CPD size
+ * @PBYTE* - OUT - Output adapted CPD bytes
+ * @PTrackCustomData - OUT - Track custom data to fill in
+ *
+ * @return Status of the operation
+ */
+STATUS mkvgenAdaptCodecPrivateData(PStreamMkvGenerator, MKV_TRACK_INFO_TYPE, PCHAR, UINT32, PBYTE, PUINT32, PBYTE*, PTrackCustomData);
+
 #pragma pack(pop, include_i)
 
 #ifdef  __cplusplus

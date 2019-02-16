@@ -163,8 +163,6 @@ msbuild start.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE%
 if ERRORLEVEL 1 goto :showerror
 msbuild kinesis_video_gstreamer_sample_app.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
 if ERRORLEVEL 1 goto :showerror
-msbuild kinesis_video_gstreamer_sample_rtsp_app.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
-if ERRORLEVEL 1 goto :showerror
 msbuild gstkvssink.vcxproj /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
 if ERRORLEVEL 1 goto :showerror
 msbuild kvs_producer_plugin_demo.vcxproj /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
