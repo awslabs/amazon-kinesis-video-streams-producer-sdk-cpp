@@ -460,3 +460,84 @@ TEST_F(StreamApiTest, kinesisVideoStreamFormatChanged_Valid)
 
     MEMFREE(pBuffer);
 }
+
+TEST_F(StreamApiTest, kinesisVideoStreamFormatChanged_Multitrack_free)
+{
+    UINT32 cpdSize = 1;
+    PBYTE pCpd = (PBYTE) MEMALLOC(cpdSize);
+    UINT32 cpd2Size = MKV_MAX_CODEC_PRIVATE_LEN;
+    PBYTE pCpd2 = (PBYTE) MEMALLOC(cpd2Size);
+
+    PTrackInfo trackInfos = (PTrackInfo) MEMALLOC(2 * SIZEOF(TrackInfo));
+
+    // Set the on-the-stack CPD to some values
+    MEMSET(pCpd, 0xab, cpdSize);
+    MEMSET(pCpd2, 0x55, cpd2Size);
+
+    trackInfos[0].trackId = TEST_TRACKID;
+    trackInfos[0].trackType = MKV_TRACK_INFO_TYPE_VIDEO;
+    trackInfos[0].codecPrivateDataSize = cpdSize;
+    trackInfos[0].codecPrivateData = pCpd;
+    STRCPY(trackInfos[0].codecId, (PCHAR) "TestCodec1");
+    STRCPY(trackInfos[0].trackName, (PCHAR) "TestTrack1");
+    trackInfos[0].trackCustomData.trackVideoConfig.videoWidth = 1280;
+    trackInfos[0].trackCustomData.trackVideoConfig.videoHeight = 720;
+
+    trackInfos[1].trackId = TEST_TRACKID + 1;
+    trackInfos[1].trackType = MKV_TRACK_INFO_TYPE_AUDIO;
+    trackInfos[1].codecPrivateDataSize = cpd2Size;
+    trackInfos[1].codecPrivateData = pCpd2;
+    STRCPY(trackInfos[1].codecId, (PCHAR) "TestCodec2");
+    STRCPY(trackInfos[1].trackName, (PCHAR) "TestTrack2");
+    trackInfos[1].trackCustomData.trackAudioConfig.channelConfig = 5;
+    trackInfos[1].trackCustomData.trackAudioConfig.samplingFrequency = 44000;
+
+    mStreamInfo.streamCaps.trackInfoCount = 2;
+    mStreamInfo.streamCaps.trackInfoList = trackInfos;
+
+    mStreamInfo.streamCaps.nalAdaptationFlags = NAL_ADAPTATION_ANNEXB_CPD_NALS;
+
+    // Create a stream
+    CreateStream();
+
+    // Free the codecs which were used in the stream creation track infos
+    MEMFREE(pCpd);
+    MEMFREE(pCpd2);
+    MEMFREE(trackInfos);
+
+    // Set the CPD for track 1
+    cpdSize = 3000;
+    pCpd = (PBYTE) MEMALLOC(cpdSize);
+    MEMSET(pCpd, 1, cpdSize);
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, cpdSize, pCpd, TEST_TRACKID));
+
+    // Free the CPD
+    MEMFREE(pCpd);
+
+    // Set the CPD for track 2
+    cpdSize = 5000;
+    pCpd = (PBYTE) MEMALLOC(cpdSize);
+    MEMSET(pCpd, 2, cpdSize);
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, cpdSize, pCpd, TEST_TRACKID + 1));
+
+    // Free the cpd
+    MEMFREE(pCpd);
+
+    // Set the CPD for track 1
+    cpdSize = 300;
+    pCpd = (PBYTE) MEMALLOC(cpdSize);
+    MEMSET(pCpd, 3, cpdSize);
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, cpdSize, pCpd, TEST_TRACKID));
+
+    // Free the CPD
+    MEMFREE(pCpd);
+
+    // Set the CPD for track 2
+    cpdSize = 50;
+    pCpd = (PBYTE) MEMALLOC(cpdSize);
+    MEMSET(pCpd, 4, cpdSize);
+    EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamFormatChanged(mStreamHandle, cpdSize, pCpd, TEST_TRACKID + 1));
+
+    // Free the cpd
+    MEMFREE(pCpd);
+}

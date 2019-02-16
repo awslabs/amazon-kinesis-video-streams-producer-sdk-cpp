@@ -345,3 +345,17 @@ TEST_F(MkvgenApiTest, mkvgenContentType_GetContentType)
               MKV_CONTENT_TYPE_X_MKV_VIDEO | MKV_CONTENT_TYPE_X_MKV_AUDIO | MKV_CONTENT_TYPE_UNKNOWN,
               mkvgenGetContentTypeFromContentTypeString((PCHAR) "video/h264,video/h265,audio/aac,blah,video/x-matroska,audio/x-matroska"));
 }
+
+TEST_F(MkvgenApiTest, mkvgenSetCodecPrivateData_variations)
+{
+    BYTE cpd[1000];
+    UINT32 cpdSize = SIZEOF(cpd);
+
+    EXPECT_NE(STATUS_SUCCESS, mkvgenSetCodecPrivateData(NULL, MKV_TEST_TRACKID, cpdSize, cpd));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenSetCodecPrivateData(mMkvGenerator, 0, cpdSize, cpd));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenSetCodecPrivateData(mMkvGenerator, MKV_TEST_TRACKID, MKV_MAX_CODEC_PRIVATE_LEN + 1, cpd));
+    EXPECT_NE(STATUS_SUCCESS, mkvgenSetCodecPrivateData(mMkvGenerator, MKV_TEST_TRACKID, MKV_MAX_CODEC_PRIVATE_LEN, NULL));
+
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenSetCodecPrivateData(mMkvGenerator, MKV_TEST_TRACKID, 0, NULL));
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenSetCodecPrivateData(mMkvGenerator, MKV_TEST_TRACKID, cpdSize, cpd));
+}

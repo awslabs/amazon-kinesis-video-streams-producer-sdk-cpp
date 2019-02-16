@@ -7,6 +7,7 @@ memFree globalMemFree = defaultMemFree;
 
 VOID dumpMemoryHex(PVOID pMem, UINT32 size)
 {
+#ifdef LOG_STREAMING
     DLOGS("============================================");
     DLOGS("Dumping memory: %p, size: %d", pMem, size);
     DLOGS("++++++++++++++++++++++++++++++++++++++++++++");
@@ -27,6 +28,7 @@ VOID dumpMemoryHex(PVOID pMem, UINT32 size)
     DLOGS("++++++++++++++++++++++++++++++++++++++++++++");
     DLOGS("Dumping memory done!");
     DLOGS("============================================");
+#endif
 }
 
 BOOL checkBufferValues(PVOID ptr, BYTE val, SIZE_T size)
