@@ -36,6 +36,8 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define SECRET_KEY_ENV_VAR "AWS_SECRET_ACCESS_KEY"
 #define SESSION_TOKEN_ENV_VAR "AWS_SESSION_TOKEN"
 #define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
+#define VIDEO_DEVICE_ENV_VAR "AWS_KVS_VIDEO_DEVICE"
+#define AUDIO_DEVICE_ENV_VAR "AWS_KVS_AUDIO_DEVICE"
 
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
 #define DEFAULT_KMS_KEY_ID ""
@@ -50,7 +52,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
-#define DEFAULT_STREAM_FRAMERATE 25
+#define DEFAULT_STREAM_FRAMERATE 100
 #define DEFAULT_AVG_BANDWIDTH_BPS (4 * 1024 * 1024)
 #define DEFAULT_BUFFER_DURATION_SECONDS 120
 #define DEFAULT_REPLAY_DURATION_SECONDS 40
@@ -68,7 +70,6 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_AUDIO_TRACK_NAME "audio"
 #define DEFAULT_AUDIO_CODEC_ID "A_AAC"
 #define DEFAULT_AUDIO_TRACKID 2
-
 
 typedef struct _FileInfo {
     _FileInfo():
@@ -376,6 +377,9 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     Frame frame;
     GstFlowReturn ret = GST_FLOW_OK;
     STATUS curr_stream_status = data->stream_status.load();
+    GstSegment *segment;
+    GstClockTime buf_pts, buf_dts;
+    gint dts_sign;
 
     if (STATUS_FAILED(curr_stream_status)) {
         // handle network outage in live streaming scenario
@@ -452,6 +456,26 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         goto CleanUp;
     }
 
+    // convert from segment timestamp to running time in live mode. In offline mode, dts_sign is always negative or 0,
+    // causing frame to always get dropped.
+    if (!data->uploading_file) {
+        segment = gst_sample_get_segment(sample);
+        buf_pts = gst_segment_to_running_time(segment, GST_FORMAT_TIME, buffer->pts);
+        if (!GST_CLOCK_TIME_IS_VALID(buf_pts)) {
+            LOG_DEBUG("Frame contains invalid PTS dropping the frame.");
+            goto CleanUp;
+        }
+
+        dts_sign = gst_segment_to_running_time_full(segment, GST_FORMAT_TIME, buffer->dts, &buf_dts);
+        if (!(dts_sign > 0)) {
+            LOG_DEBUG("Frame contains invalid DTS dropping the frame.");
+            goto CleanUp;
+        }
+
+        buffer->pts = buf_pts;
+        buffer->dts = buf_dts;
+    }
+
     delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
 
     kinesis_video_flags = FRAME_FLAG_NONE;
@@ -507,7 +531,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     }
     gst_buffer_extract(buffer, 0, data_buffer, buffer_size);
 
-    create_kinesis_video_frame(&frame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts),
+    create_kinesis_video_frame(&frame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->dts),
                                kinesis_video_flags, data_buffer, buffer_size, track_id);
 
     // when reading file using gstreamer, dts is undefined.
@@ -738,19 +762,18 @@ int gstreamer_init(int argc, char *argv[], CustomData &data) {
     gst_init(&argc, &argv);
 
     GstElement *appsink_video, *appsink_audio, *audio_queue, *video_queue, *pipeline, *video_filter, *audio_filter;
+    string video_caps_string, audio_caps_string;
+    GstCaps *caps;
 
+    video_caps_string = "video/x-h264, stream-format=(string) avc, alignment=(string) au";
+    audio_caps_string = "audio/mpeg, stream-format=(string) raw";
     video_filter = gst_element_factory_make("capsfilter", "video_filter");
-    GstCaps *caps = gst_caps_new_simple("video/x-h264",
-                                        "stream-format", G_TYPE_STRING, "avc",
-                                        "alignment", G_TYPE_STRING, "au",
-                                        NULL);
+    caps = gst_caps_from_string(video_caps_string.c_str());
     g_object_set(G_OBJECT (video_filter), "caps", caps, NULL);
     gst_caps_unref(caps);
 
     audio_filter = gst_element_factory_make("capsfilter", "audio_filter");
-    caps = gst_caps_new_simple("audio/mpeg",
-                               "stream-format", G_TYPE_STRING, "raw",
-                               NULL);
+    caps = gst_caps_from_string(audio_caps_string.c_str());
     g_object_set(G_OBJECT (audio_filter), "caps", caps, NULL);
     gst_caps_unref(caps);
 
@@ -839,31 +862,127 @@ int gstreamer_init(int argc, char *argv[], CustomData &data) {
         g_signal_connect(demux, "pad-added", G_CALLBACK(demux_pad_cb), &data);
 
     } else {
-        GstElement *videosrc, *videoconvert, *h264enc,  *audiosrc, *audioconvert, *aac_enc;
 
-        // avfvideosrc and vtenc_h264_hw are mac specific. Change them to corresponding plugins for your os.
-        videosrc = gst_element_factory_make("avfvideosrc", "avfvideosrc");
-        g_object_set(G_OBJECT (videosrc), "device-index", 0, NULL);
+        GstElement *videosrc, *videoconvert, *h264enc, *video_src_filter, *h264parse;
+        GstElement *audiosrc, *audioconvert, *aac_enc, *audio_resample, *audio_src_filter, *aac_parse;
+        string audio_device, video_device;
+
+        audio_device = (nullptr == getenv(AUDIO_DEVICE_ENV_VAR)) ? "" : string(getenv(AUDIO_DEVICE_ENV_VAR));
+        video_device = (nullptr == getenv(VIDEO_DEVICE_ENV_VAR)) ? "" : string(getenv(VIDEO_DEVICE_ENV_VAR));
+
+        video_caps_string = "video/x-raw, framerate=(fraction) [ 20/1, 35/1 ], format=I420";
+        audio_caps_string = "audio/x-raw, rate=(int) { 16000, 24000, 48000 }";
+
+        h264parse = gst_element_factory_make("h264parse", "h264parse");
+        aac_parse = gst_element_factory_make("aacparse", "aac_parse");
+
+#if defined _WIN32
+        videosrc = gst_element_factory_make("ksvideosrc", "videosrc");
+        if (!video_device.empty()) {
+            LOG_INFO("Using video device " << video_device);
+            // find your video device by running gst-device-monitor-1.0
+            g_object_set(G_OBJECT (videosrc), "device-path", video_device.c_str(), NULL);
+        } else {
+            LOG_INFO("Using default video device");
+        }
+        h264enc = gst_element_factory_make("x264enc", "h264enc");
+        g_object_set(G_OBJECT (h264enc), "bframes", 0, "key-int-max", 45, "bitrate", 512, NULL);
+        gst_util_set_object_arg(G_OBJECT (h264enc), "tune", "zerolatency");
+        audiosrc = gst_element_factory_make("wasapisrc", "audiosrc");
+        if (!audio_device.empty()) {
+            LOG_INFO("Using audio device " << audio_device);
+            // find your audio device by running gst-device-monitor-1.0
+            g_object_set(G_OBJECT (audiosrc), "device", audio_device.c_str(), "low-latency", TRUE, "use-audioclient3", TRUE, NULL);
+        } else {
+            LOG_ERROR("No audio device found. Please do export " << AUDIO_DEVICE_ENV_VAR << "=audio_device to config audio device");
+            return 1;
+        }
+
+#elif defined __APPLE__
+        gint audio_device_index = 0, video_device_index = 0; // default devices
+        if (!audio_device.empty()) {
+            stringstream ss(audio_device);
+            ss >> audio_device_index;
+        }
+        if (!video_device.empty()) {
+            stringstream ss(video_device);
+            ss >> video_device_index;
+        }
+
+        LOG_INFO("Using video device " << video_device_index);
+        LOG_INFO("Using audio device " << audio_device_index);
+
+        videosrc = gst_element_factory_make("avfvideosrc", "videosrc");
+        g_object_set(G_OBJECT (videosrc), "device-index", video_device_index, NULL);
         h264enc = gst_element_factory_make("vtenc_h264_hw", "h264enc");
-        g_object_set(G_OBJECT (h264enc), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval", 30, NULL);
+        g_object_set(G_OBJECT (h264enc), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval", 45, "bitrate", 512, NULL);
+        audiosrc = gst_element_factory_make("osxaudiosrc", "audiosrc");
+        g_object_set(G_OBJECT (audiosrc), "device", audio_device_index, NULL);
+
+        // mac quirk
+        video_caps_string += ", width=(int) 1280, height=(int) 720";
+
+#elif defined __linux__
+        videosrc = gst_element_factory_make("v4l2src", "videosrc");
+        if (!video_device.empty()) {
+            LOG_INFO("Using video device " << video_device);
+            // find your video device by running path/to/sdk/kinesis-video-native-build/downloads/local/bin/gst-device-monitor-1.0
+            g_object_set(G_OBJECT (videosrc), "device", video_device.c_str(), NULL);
+        } else {
+            LOG_INFO("Using default video device");
+        }
+
+        if (nullptr != (h264enc = gst_element_factory_make("omxh264enc", "h264enc"))) {
+            // setting target bitrate in omx is currently broken: https://gitlab.freedesktop.org/gstreamer/gst-omx/issues/21
+            g_object_set(G_OBJECT (h264enc), "periodicty-idr", 45, "inline-header", FALSE, NULL);
+        } else {
+            h264enc = gst_element_factory_make("x264enc", "h264enc");
+            g_object_set(G_OBJECT (h264enc), "bframes", 0, "key-int-max", 45, "bitrate", 512, NULL);
+            gst_util_set_object_arg(G_OBJECT (h264enc), "tune", "zerolatency");
+        }
+
+        audiosrc = gst_element_factory_make("alsasrc", "audiosrc");
+        if (!audio_device.empty()) {
+            LOG_INFO("Using audio device " << audio_device);
+            // find your audio recording device by running "arecord -l"
+            g_object_set(G_OBJECT (audiosrc), "device", audio_device.c_str(), NULL);
+        } else {
+            LOG_ERROR("No audio device found. Please do export " << AUDIO_DEVICE_ENV_VAR << "=audio_device to config audio device (e.g. export AWS_KVS_AUDIO_DEVICE=hw:1,0)");
+            return 1;
+        }
+
+#else
+        LOG_ERROR("Cannot determine the Operating system - this sample has been tested in MacOS, Linux, Windows and Raspberry Pi");
+        return 1;
+#endif
+
+        video_src_filter = gst_element_factory_make("capsfilter", "video_src_filter");
+        caps = gst_caps_from_string(video_caps_string.c_str());
+        g_object_set(G_OBJECT (video_src_filter), "caps", caps, NULL);
+        gst_caps_unref(caps);
+
+        audio_src_filter = gst_element_factory_make("capsfilter", "audio_src_filter");
+        caps = gst_caps_from_string(audio_caps_string.c_str());
+        g_object_set(G_OBJECT (audio_src_filter), "caps", caps, NULL);
+        gst_caps_unref(caps);
 
         videoconvert = gst_element_factory_make("videoconvert", "videoconvert");
-        audiosrc = gst_element_factory_make("autoaudiosrc", "audiosrc");
-
         audioconvert = gst_element_factory_make("audioconvert", "audioconvert");
         aac_enc = gst_element_factory_make("avenc_aac", "aac_enc");
+        audio_resample = gst_element_factory_make("audioresample", "audioresample");
 
-        if (!videosrc || !h264enc || !audiosrc || !audioconvert || !aac_enc || !videoconvert) {
+        if (!videosrc || !h264enc || !audiosrc || !audioconvert || !aac_enc || !videoconvert || !audio_resample ||
+            !audio_src_filter || !video_src_filter || !h264parse || !aac_parse) {
             g_printerr("Not all elements could be created:\n");
             return 1;
         }
 
         gst_bin_add_many(GST_BIN (pipeline), appsink_video,
                          appsink_audio, videosrc, h264enc, audiosrc, audioconvert, aac_enc, videoconvert, video_queue,
-                         audio_queue, video_filter, audio_filter,
-                         NULL);
+                         audio_queue, video_filter, audio_filter, audio_resample, audio_src_filter, video_src_filter,
+                         h264parse, aac_parse, NULL);
 
-        if (!gst_element_link_many(videosrc, videoconvert, h264enc, video_filter, video_queue,
+        if (!gst_element_link_many(videosrc, videoconvert, video_src_filter, h264enc, h264parse, video_filter, video_queue,
                                    appsink_video,
                                    NULL)) {
             g_printerr("Video elements could not be linked.\n");
@@ -871,7 +990,7 @@ int gstreamer_init(int argc, char *argv[], CustomData &data) {
             return 1;
         }
 
-        if (!gst_element_link_many(audiosrc, audioconvert, aac_enc, audio_filter, audio_queue,
+        if (!gst_element_link_many(audiosrc, audio_resample, audio_queue, audioconvert, audio_src_filter, aac_enc, aac_parse, audio_filter,
                                    appsink_audio,
                                    NULL)) {
             g_printerr("Audio elements could not be linked.\n");
@@ -915,7 +1034,8 @@ int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name file-name(optional)");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name /path/to/file"
+                        "AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name");
         return 1;
     }
 
@@ -932,9 +1052,9 @@ int main(int argc, char *argv[]) {
     STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
     stream_name[MAX_STREAM_NAME_LEN - 1] = '\0';
     data.stream_name = stream_name;
-
     data.total_track_count = 2;
     data.uploading_file = false;
+
     if (argc >= 3) {
         // skip over stream name
         for(int i = 2; i < argc; ++i) {

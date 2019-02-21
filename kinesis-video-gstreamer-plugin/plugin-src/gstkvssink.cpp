@@ -1351,12 +1351,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
                 goto CleanUp;
             }
 
-            if (kvssink->data->media_type == AUDIO_ONLY) {
-                GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL), ("Audio only is not supported yet"));
-                ret = GST_STATE_CHANGE_FAILURE;
-                goto CleanUp;
-            }
-
             assign_track_id(kvssink);
 
             if (false == kinesis_video_stream_init(kvssink, err_msg)) {

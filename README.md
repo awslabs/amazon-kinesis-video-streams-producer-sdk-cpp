@@ -45,6 +45,12 @@ This library is licensed under the Amazon Software License.
 ----
 ### Release notes
 
+#### Release 1.7.6 (21th Feb 2019)
+* Audio integration for Kinesis Video Stream. Now Kinesis Video Streams Producer SDK CPP supports ingesting video and audio.
+
+#### Release 1.7.5 (16th Feb 2019)
+* Stability and bug fixes.
+
 #### Release 1.7.4 (14th Feb 2019)
 * Stability and bug fixes.
 
