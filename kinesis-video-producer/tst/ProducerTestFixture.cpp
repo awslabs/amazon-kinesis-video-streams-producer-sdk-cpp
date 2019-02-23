@@ -49,9 +49,6 @@ STATUS TestStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, 
     if (STATUS_FAILED(ret)) {
         return ret;
     }
-    if (status == STATUS_ACK_ERR_INVALID_MKV_DATA) {
-        testBase->mkv_error_fragment_ts_ = errored_timecode;
-    }
     testBase->setErrorStatus(status);
 
     return validateCallback(custom_data);
@@ -105,15 +102,6 @@ STATUS TestStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data
             testBase->buffering_ack_in_sequence_ = false;
         }
 
-        // clear error status if we have successfully recovered
-        if (testBase->getErrorStatus() == STATUS_ACK_ERR_INVALID_MKV_DATA && (fragment_ack->timestamp == testBase->mkv_error_fragment_ts_)) {
-            LOG_DEBUG("Successfully restreamed fragment " << testBase->mkv_error_fragment_ts_ << " that had INVALID_MKV_ERROR.");
-            testBase->setErrorStatus(STATUS_SUCCESS);
-            testBase->mkv_error_fragment_ts_ = TEST_TIMESTAMP_SENTINEL;
-
-        } else if (testBase->getErrorStatus() == STATUS_ACK_ERR_INVALID_MKV_DATA) {
-            LOG_WARN("Did not restream fragment caused invalid mkv. current ack fragment timestamp: " << fragment_ack->timestamp << ", error fragment timestamp: " << testBase->mkv_error_fragment_ts_);
-        }
         testBase->previous_buffering_ack_timestamp_[upload_handle] = fragment_ack->timestamp;
     }
 

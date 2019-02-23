@@ -3,9 +3,6 @@ FROM resin/rpi-raspbian:stretch
 RUN apt-get update && apt-get install -y \
 	git \
 	curl \
-	ca-certificates-java \
-	openjdk-8-jre \
-	openjdk-8-jdk \
 	pkg-config \
 	cmake \
 	vim \
@@ -16,8 +13,6 @@ RUN apt-get update && apt-get install -y \
 	g++ \
 	python \
 	bzip2
-
-ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-armhf/
 
 WORKDIR /opt/
 RUN curl -OL https://github.com/raspberrypi/firmware/archive/1.20180417.tar.gz
