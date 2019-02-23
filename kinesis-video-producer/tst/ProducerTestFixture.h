@@ -193,7 +193,6 @@ public:
                          total_frame_count_(TEST_TOTAL_FRAME_COUNT),
                          current_pressure_state_(OK),
                          buffering_ack_in_sequence_(true),
-                         mkv_error_fragment_ts_(TEST_TIMESTAMP_SENTINEL),
                          key_frame_interval_(TEST_FPS),
                          token_rotation_seconds_(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS) {
 
@@ -237,8 +236,7 @@ public:
     atomic_bool storage_overflow_;
     atomic_bool buffering_ack_in_sequence_;
     atomic_uint error_status_;
-    map<UPLOAD_HANDLE, atomic_llong> previous_buffering_ack_timestamp_;
-    atomic_llong mkv_error_fragment_ts_;
+    map<UPLOAD_HANDLE, uint64_t> previous_buffering_ack_timestamp_;
 
 protected:
 

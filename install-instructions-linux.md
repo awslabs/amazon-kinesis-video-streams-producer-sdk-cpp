@@ -303,7 +303,7 @@ if your camera supports outputting h264 encoded stream directly, then you can us
 gst-launch-1.0 -v v4l2src device=/dev/video0 ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="my-stream-name" access-key="YourAccessKey" secret-key="YourSecretKey" alsasrc device=hw:1,0 ! audioconvert ! avenc_aac ! queue ! sink.
 ```
 
-if you get errors like `WARNING: erroneous pipeline: no element "alsasrc"`, make sure that **libasound2-dev** was installed and run the **install-script** again.
+if you get errors like `WARNING: erroneous pipeline: no element "alsasrc"`, make sure that **libasound2-dev** was installed, then delete `<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/lib/libgstvideo-1.0.so` to trigger rebuilding gst-plugin-base and run the **install-script** again.
 
 ##### Running the GStreamer webcam sample application
 The sample application `kinesis_video_gstreamer_sample_app` in the `kinesis-video-native-build` directory uses GStreamer pipeline to get video data from the camera. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution (width and height) through command line arguments.
@@ -509,3 +509,6 @@ make clean
 make
 make install
 ```
+
+##### When `kinesis_video_gstreamer_audio_video_sample_app` failed with: `WARNING: erroneous pipeline: no element "alsasrc"`
+if you get errors like `WARNING: erroneous pipeline: no element "alsasrc"`, make sure that **libasound2-dev** was installed, then delete `<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/lib/libgstvideo-1.0.so` to trigger rebuilding gst-plugin-base and run the **install-script** again.

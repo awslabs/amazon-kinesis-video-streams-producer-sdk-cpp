@@ -1348,7 +1348,7 @@ STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 alloc
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
-    BOOL streamLocked = TRUE, availability = FALSE;
+    BOOL streamLocked = TRUE, availability = FALSE, bufferAvailabilityLocked = FALSE;
 
     // Quick check if we need to do any awaiting
     CHK(IS_OFFLINE_STREAMING_MODE(pKinesisVideoStream->streamInfo.streamCaps.streamingType), STATUS_SUCCESS);
@@ -1364,11 +1364,23 @@ STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 alloc
         pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
                                                            pKinesisVideoStream->base.lock);
         streamLocked = FALSE;
+
+        // Acquire bufferAvailabilityLock before blocking
+        pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                         pKinesisVideoStream->bufferAvailabilityLock);
+        bufferAvailabilityLocked = TRUE;
+
         // Long path which will await for the availability notification or cancellation
         CHK_STATUS(pKinesisVideoClient->clientCallbacks.waitConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
                                                                                 pKinesisVideoStream->bufferAvailabilityCondition,
                                                                                 pKinesisVideoStream->bufferAvailabilityLock,
                                                                                 MAX_BLOCKING_PUT_WAIT));
+
+        // Release bufferAvailabilityLock after been signaled.
+        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                           pKinesisVideoStream->bufferAvailabilityLock);
+        bufferAvailabilityLocked = FALSE;
+
         // Lock the stream again in order to proceed
         pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
                                                          pKinesisVideoStream->base.lock);
@@ -1379,6 +1391,12 @@ STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 alloc
     }
 
 CleanUp:
+
+    // Unlock the bufferAvailabilityLock if lockec
+    if (bufferAvailabilityLocked) {
+        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                           pKinesisVideoStream->bufferAvailabilityLock);
+    }
 
     // Lock the stream again in order to proceed
     if (!streamLocked) {

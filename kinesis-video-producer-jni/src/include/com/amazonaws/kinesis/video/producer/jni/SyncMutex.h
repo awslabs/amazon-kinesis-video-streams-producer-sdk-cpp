@@ -100,6 +100,8 @@ public:
     // Acquire the mutex and wait on the condition variable.
     void wait(const char* function)
     {
+        MUTEX_LOCK(mMutex);
+
         UINT64 before = 0;
         if (mLogsEnabled)
         {
@@ -116,6 +118,8 @@ public:
             UINT64 elapsed_ms = (after - before) / HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
             DLOGI("%s: waited %ldms for %s", function, elapsed_ms, mMutexDescription);
         }
+
+        MUTEX_UNLOCK(mMutex);
     }
 
     // Signal the condition variable, allowing all blocked threads to continue.
