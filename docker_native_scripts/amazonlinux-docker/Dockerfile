@@ -43,7 +43,7 @@ RUN chmod a+x ./install-script
 # ================  Build producer sdk and gstreamer plugin ================================================
 #
 RUN chmod +x install-script
-RUN ./install-script -a -j 4 -d
+RUN ./install-script -j 4 -d
 
 # Set environment variables for plugin and libraries
 ENV LD_LIBRARY_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$LD_LIBRARY_PATH
