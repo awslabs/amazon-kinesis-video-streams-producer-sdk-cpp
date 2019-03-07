@@ -1,52 +1,88 @@
 #!/bin/bash
-set -e
-# --------- create required directories ---------------------------------------
+
+# KINESIS_VIDEO_ROOT should point to kinesis-video-native-build directory
 if [ -z $KINESIS_VIDEO_ROOT ]; then
   KINESIS_VIDEO_ROOT=`pwd`
 fi
 
-if [[ "$KINESIS_VIDEO_ROOT" == *\ * ]]; then
-    echo "Current working path cannot have space in it !"
-    exit
+if [[ ! $KINESIS_VIDEO_ROOT =~ kinesis-video-native-build$ ]]; then
+  echo "Please set KINESIS_VIDEO_ROOT environment variable to /path/to/kvssdk/kinesis-video-native-build or run the min-install-script inside kinesis-video-native-build directory"
+  exit 1
 fi
 
-DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
-if [ ! -d "$DOWNLOADS" ]; then
-    mkdir "$DOWNLOADS"
+source $KINESIS_VIDEO_ROOT/install-script-common.sh
+
+set -e
+
+# --------- process args -----------------------------------------------------
+max_parallel=2
+build_type=Release
+build_test=FALSE
+build_gst_artifact=TRUE
+parse_args $@
+
+setup
+
+# --------- check platform -----------------------------------------------------
+PLATFORM='unknown'
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+   PLATFORM='linux'
+   echo "======= make sure the following libraries have been installed ======="
+   echo "* pkg-config"
+   echo "* libssl-dev"
+   echo "* cmake"
+   echo "* libgstreamer1.0-dev"
+   echo "* libgstreamer-plugins-base1.0-dev"
+   echo "* gstreamer1.0-plugins-base-apps"
+   echo "* gstreamer1.0-plugins-bad"
+   echo "* gstreamer1.0-plugins-good"
+   echo "* gstreamer1.0-plugins-ugly"
+   echo "* gstreamer1.0-omx (if on raspberry pi)"
+   echo "* gstreamer1.0-tools"
+   echo "* libcurl4-openssl-dev"
+   echo "* liblog4cplus-1.1-9"
+   echo "* liblog4cplus-dev"
+
+elif [[ "$unamestr" =~ ^MINGW ]]; then
+   PLATFORM='mingw'
+   if [[ ! -d ${MINGW_PREFIX}/lib/gstreamer-1.0 ]]; then
+      echo "Installing dependencies"
+      pacman -S --needed --noconfirm base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain \
+                    git \
+                    mingw-w64-i686-cmake mingw-w64-x86_64-cmake \
+                    mingw-w64-i686-gstreamer mingw-w64-x86_64-gstreamer \
+                    mingw-w64-i686-gst-libav mingw-w64-x86_64-gst-libav \
+                    mingw-w64-i686-gst-plugins-bad mingw-w64-x86_64-gst-plugins-bad \
+                    mingw-w64-i686-gst-plugins-base mingw-w64-x86_64-gst-plugins-base \
+                    mingw-w64-i686-gst-plugins-good mingw-w64-x86_64-gst-plugins-good \
+                    mingw-w64-i686-gst-plugins-ugly mingw-w64-x86_64-gst-plugins-ugly \
+                    mingw-w64-i686-gtest mingw-w64-x86_64-gtest \
+                    mingw-w64-i686-curl mingw-w64-x86_64-curl
+   fi
+
+elif [[ "$unamestr" == 'Darwin' ]]; then
+   PLATFORM='mac'
+   echo "======= make sure the following libraries have been installed (library name from homebrew) ======="
+   echo "* pkg-config"
+   echo "* openssl"
+   echo "* cmake"
+   echo "* gstreamer"
+   echo "* gst-plugins-base"
+   echo "* gst-plugins-good"
+   echo "* gst-plugins-bad"
+   echo "* gst-plugins-ugly"
+   echo "* log4cplus"
+else
+   PLATFORM='unknown'
+   echo "Required libraries for $unamestr unknown"
 fi
-
-LIB_DESTINATION_FOLDER_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib"
-
-# --------- check if cmake version is applicable ------------------------------
-
-CMAKE_VERSION_STRING=`cmake --version`
-echo $CMAKE_VERSION_STRING
-CMAKE_EXPECTED_MAJOR_VERSION=3
-VERSION_ARRAY=( $CMAKE_VERSION_STRING )
-CMAKE_VERSION=${VERSION_ARRAY[2]}
-CMAKE_MAJOR_VERSION=${CMAKE_VERSION:0:1}
-
-if [ "$CMAKE_MAJOR_VERSION" \< "$CMAKE_EXPECTED_MAJOR_VERSION" ]; then
-  echo "CMake 3.x or higher is required.  You are running $CMAKE_VERSION"
-  exit
-fi
-
-# -------- Check if cert.pem exists in the /etc/ssl/ directory ----------------
-# In the case if the curl is already installed by the user or install-script is already run with /etc/ssl/cert.pem ca-bundle setting
- if [ ! -f "$KINESIS_VIDEO_ROOT/cert.pem" ];then
-  echo "cert.pem" file does not exist in the current directory
-  echo "Downloading the https://www.amazontrust.com/repository/SFSRootCAG2.pem ..."
-  curl -L "https://www.amazontrust.com/repository/SFSRootCAG2.pem" -o "cert.pem"
-  echo "Copy or append the cert.pem to /etc/ssl/cert.pem if libcurl refers this location for certificate"
-fi
-
-# --------- download libs -----------------------------------------------------
 
 # --------- build + install libs ----------------------------------------------
-
-echo "Checking log4cplus at $DOWNLOADS/local/lib/liblog4cplus.dylib/.so"
-if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.dylib ]; then
-  if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.so ]; then
+if [[ "$PLATFORM" == 'mingw' ]]; then
+  # mingw doesnt have prebuilt log4cplus
+  echo "Checking log4cplus at ${MINGW_PREFIX}/lib/liblog4cplus.dll.a"
+  if [ ! -f ${MINGW_PREFIX}/lib/liblog4cplus.dll.a ]; then
     echo "log4cplus lib not found. Installing"
     if [ ! -f $DOWNLOADS/log4cplus-1.2.0.tar.xz ]; then
       cd $DOWNLOADS
@@ -55,49 +91,49 @@ if [ ! -f $DOWNLOADS/local/lib/liblog4cplus.dylib ]; then
     cd $DOWNLOADS
     tar -xvf log4cplus-1.2.0.tar.xz
     cd $DOWNLOADS/log4cplus-1.2.0
-    ./configure --prefix=$DOWNLOADS/local/ --with-pic
+    if [ "${MINGW_PREFIX}" = "/mingw32" ]; then
+      echo "Building 32 bit version of liblog4cplus.dll.a"
+      export CXXFLAGS="-m32"
+      export LDFLAGS="-m32"
+    fi
+    ./configure --prefix=${MINGW_PREFIX}
     make
     make install
   fi
-fi
 
-echo "Checking googletest at $DOWNLOADS/local/lib/libgtest.a"
-if [ ! -f $DOWNLOADS/local/lib/libgtest.dylib ]; then
-  if [ ! -f $DOWNLOADS/local/lib/libgtest.so ]; then
+else
+
+  # mingw has prebuilt gtest
+  echo "Checking googletest at $DOWNLOADS"
+  if [ ! -d $DOWNLOADS/googletest-release-1.8.0 ]; then
     echo "gtest lib not found. Installing"
     if [ ! -f $DOWNLOADS/google-test-1.8.0.gz ]; then
       cd $DOWNLOADS
-      curl -L "https://github.com/google/googletest/archive/release-1.8.0.tar.gz" -o "google-test-1.8.0.gz"
+      $SYS_CURL -L "https://github.com/google/googletest/archive/release-1.8.0.tar.gz" -o "google-test-1.8.0.gz"
     fi
     cd $DOWNLOADS
     tar -xvf google-test-1.8.0.gz
-    cd googletest-release-1.8.0/googletest
-    cmake -DBUILD_SHARED_LIBS=ON .
-    make
-    mkdir -p $DOWNLOADS/local/lib
-    cp -r ./include $DOWNLOADS/local
-    cp ./lib* $DOWNLOADS/local/lib
   fi
 fi
-# ---Setting environment variables for cmake ----------------------------------
-export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:$PATH"
-export CMAKE_PREFIX_PATH="$DOWNLOADS/local"
+
+if [ -d $DOWNLOADS/local ]; then
+  echo "Please remove $DOWNLOADS/local or the Gstreamer there may conflict with system Gstreamer."
+  exit 0
+fi
 
 ## --------- build kinesis video ----------------------------------------------
 cd $KINESIS_VIDEO_ROOT
-cmake CMakeLists.txt
-make producer
-make start
-make kinesis_video_gstreamer_sample_app
-# copy the kvssink plugin into the library folder
-cp libproducer* "$LIB_DESTINATION_FOLDER_PATH"
+clean_up
+if [[ "$PLATFORM" == 'mingw' ]]; then
+  cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=${build_type} -DUSE_SYS_LIBRARIES=TRUE \
+  -DBUILD_TEST=${build_test} -DBUILD_GST_ARTIFACT=${build_gst_artifact} CMakeLists.txt
+else
+  cmake -DCMAKE_BUILD_TYPE=${build_type} -DUSE_SYS_LIBRARIES=TRUE \
+  -DBUILD_TEST=${build_test} -DBUILD_GST_ARTIFACT=${build_gst_artifact} CMakeLists.txt
+fi
 
-#  Environment variables in ~/.bashrc or ~/.bash_profile or ~/.zshrc
-echo you may want to add the following environment variables 
-echo in ~/.bashrc or ~/.bash_profile or ~/.zshrc 
+make -j ${max_parallel}
 
-export LD_LIBRARY_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib":$LD_LIBRARY_PATH
-export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin":$PATH
 
 echo "**********************************************************"
 echo Success!!!

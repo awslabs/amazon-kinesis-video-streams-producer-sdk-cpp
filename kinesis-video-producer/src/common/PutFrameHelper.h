@@ -50,6 +50,7 @@ class PutFrameHelper {
 
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
     bool put_frame_status;
+    bool is_processing_eofr;
 
 public:
     PutFrameHelper(
@@ -79,6 +80,8 @@ public:
     void flush();
 
     bool putFrameFailed();
+
+    void putEofr();
 };
 
 }

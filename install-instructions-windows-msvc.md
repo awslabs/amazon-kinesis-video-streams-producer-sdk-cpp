@@ -163,13 +163,13 @@ gst-launch-1.0 -v ksvideosrc ! h264parse ! video/x-h264,stream-format=avc,alignm
 gst-launch-1.0 -v filesrc location="YourAudioVideo.mkv" ! matroskademux name=demux ! queue ! h264parse ! kvssink name=sink stream-name="my_stream_name" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
-###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video*.
+###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video*.
 
 ```
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.mp4" ! qtdemux name=demux ! queue ! h264parse !  video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
-###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video*.
+###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video*.
 
 ```
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! queue ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.

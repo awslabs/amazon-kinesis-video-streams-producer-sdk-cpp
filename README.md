@@ -1,5 +1,10 @@
 ### Amazon Kinesis Video Streams Producer SDK C/C++
 ----
+### Attention
+----
+If you are updating from any release before 1.7.0, you need to specify a track id for each Frame as shown in [sample](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/kinesis-video-gst-demo/kinesis_video_gstreamer_sample_app.cpp#L312), otherwise you will get a 0x32000026 which means track not found.
+
+----
 ### Introduction
 ----
 Amazon Kinesis Video Streams makes it easy to securely stream video from connected devices to AWS for analytics, machine learning (ML), and other processing.
@@ -45,6 +50,10 @@ This library is licensed under the Amazon Software License.
 ----
 ### Release notes
 
+#### Release 1.7.8 (6th Mar 2019)
+* Updated CMakeLists.txt and install scripts to be able to link against libraries in default system path.
+* Optimization and bug fixes.
+
 #### Release 1.7.7 (22th Feb 2019)
 * Stability and bug fixes.
 
@@ -68,6 +77,7 @@ This library is licensed under the Amazon Software License.
 * stability fixes.
 
 #### Release 1.7.0 (14th Dec 2018)
+* Applications need to specify a trackId for every Frame as shown in create_kinesis_video_frame function in the samples
 * Added support for uploading files(offline mode) to Kinesis Video Stream
 * Additional fixes
 

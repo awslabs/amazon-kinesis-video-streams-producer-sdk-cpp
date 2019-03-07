@@ -34,6 +34,8 @@ Many platforms come with a cert file with a lot of the well-known public certs i
 ----
 ### Build the Kinesis Video Producer SDK and sample applications:
 
+##### Build the SDK and sample applications using open source library dependencies built from source
+
 The **install-script** will download and build the dependent open source components (from the source) into the **downloads** directory within `kinesis-video-native-build` directory (e.g. `/home/<myuser>/downloads/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads`) and link against it.
 
 **After you've downloaded the code from GitHub, you can build it on Linux by running `./install-script` (which is inside the `kinesis-video-native-build` directory)**.
@@ -44,20 +46,11 @@ The **install-script** will download and build the dependent open source compone
 
 Note that the install-script also builds the Kinesis Video Streams producer SDK as a **GStreamer plugin** (**kvssink**).
 
-----
 ##### Alternate option to build the SDK and sample applications using system versions of open source library dependencies
 
-The bulk of the **install-script** is building the open source dependencies. The project is based on **CMake**. So the open source components building can be skipped if the system versions of the open source dependencies are already installed that can be used for linking. See the section **Install Steps for Ubuntu 17.x using apt-get** for detailed instructions on how to install using `apt-get install` on **Ubuntu** .
+The bulk of the **install-script** is building the open source dependencies. The project is based on **CMake**. So the open source components building can be skipped if the system versions of the open source dependencies are already installed that can be used for linking. See the section **Install Steps for Ubuntu 17.x and Raspbian Stretch using apt-get** for detailed instructions on how to install using `apt-get install` on **Ubuntu** .
 
-Running
-
-```
-$ cmake .
-$ make
-```
-from the `kinesis-video-native-build` directory will build and link the SDK.
-
-The `./min-install-script` inside the `kinesis-video-native-build` captures these steps for installing the Kinesis Video Streams Producer SDK with the system versions for linking.
+The `./min-install-script` inside the `kinesis-video-native-build` captures these steps for building the Kinesis Video Streams Producer SDK with the system versions for linking.
 
 ##### Optionally build the native library (KinesisVideoProducerJNI) to run Java demo streaming application
 
@@ -65,52 +58,20 @@ The `./java-install-script` inside `kinesis-video-native-build` will build the K
 
 ----
 
-### Install Steps for Ubuntu 17.x using apt-get
+### Install Steps for Ubuntu 17.x and Raspbian Stretch using apt-get
 
-The following section provides guidance for installing the build tools and open source dependencies using `apt-get` in **Ubuntu Linux**.
-
-The following are the steps to install the build-time prerequisites for Ubuntu 17.x
+The following section provides guidance for installing the build tools and open source dependencies using `apt-get` and has been tested in **Ubuntu Linux** and **Raspbian Stretch**.
 
 Install **git**:
 
 ```
+$ sudo apt-get update
 $ sudo apt-get install git
-$ git --version
-git version 2.14.1
 ```
 Install **cmake**:
 ```
+sudo apt-get update
 $ sudo apt-get install cmake
-$ cmake --version
-cmake version 3.9.1
-```
-
-CMake suite maintained and supported by Kitware (kitware.com/cmake).
-
-Install **libtool**:  (some images come preinstalled) amd **libtool-bin**
-```
-$ sudo apt-get install libtool
-$ sudo apt-get install libtool-bin
-$ libtool --version
-libtool (GNU libtool) 2.4.6
-Written by Gordon Matzigkeit, 1996
-
-Copyright (C) 2014 Free Software Foundation, Inc.
-This is free software; see the source for copying conditions.  There is NO
-warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-```
-Install **automake**:
-```
-$ sudo apt-get install automake
-$ automake --version
-automake (GNU automake) 1.15
-Copyright (C) 2014 Free Software Foundation, Inc.
-License GPLv2+: GNU GPL version 2 or later <http://gnu.org/licenses/gpl-2.0.html>
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-Written by Tom Tromey <tromey@redhat.com>
-       and Alexandre Duret-Lutz <adl@gnu.org>.
 ```
 Install **g++**:
 ```
@@ -121,39 +82,28 @@ Copyright (C) 2017 Free Software Foundation, Inc.
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ```
-Install **curl**:
-```
-$ sudo apt-get install curl
-$ curl --version
-curl 7.55.1 (x86_64-pc-linux-gnu) libcurl/7.55.1 OpenSSL/1.0.2g zlib/1.2.11 libidn2/2.0.2 libpsl/0.18.0 (+libidn2/2.0.2) librtmp/2.3
-Release-Date: 2017-08-14
-Protocols: dict file ftp ftps gopher http https imap imaps ldap ldaps pop3 pop3s rtmp rtsp smb smbs smtp smtps telnet tftp
-Features: AsynchDNS IDN IPv6 Largefile GSS-API Kerberos SPNEGO NTLM NTLM_WB SSL libz TLS-SRP UnixSockets HTTPS-proxy PSL
-```
-Install **pkg-config**:
-```
-$ sudo apt-get install pkg-config
-$ pkg-config --version
-0.29.1
-```
-Install **flex**:
-```
-$ sudo apt-get install flex
-$ flex --version
-flex 2.6.1
-```
-Install **bison**:
-```
-$ sudo apt-get install bison
-$ bison -V
-bison (GNU Bison) 3.0.4
-Written by Robert Corbett and Richard Stallman.
+Install **Producer Library Dependencies**:
 
-Copyright (C) 2015 Free Software Foundation, Inc.
-This is free software; see the source for copying conditions.  There is NO
-warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ```
-Install **Open JDK**:
+$ sudo apt-get update
+$ sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-1.1-9 liblog4cplus-dev
+```
+Install **Gstreamer Artifact Dependencies**:
+```
+$ sudo apt-get update
+$ sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps
+$ sudo apt-get install gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+```
+If you are using Raspberry pi, you can also install the `gstreamer1.0-omx` package to get the omxh264enc hardware encoder
+```
+sudo apt-get install gstreamer1.0-omx
+```
+Run the build script: (within `kinesis-video-native-build` folder)
+```
+./min-install-script
+```
+
+Install **Open JDK** (if you are building the JNI library):
 ```
 $ sudo apt-get install openjdk-8-jdk
 $ java -showversion
@@ -165,9 +115,10 @@ Set **JAVA_HOME** environment variable:
 ```
 $ export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 ```
+
 Run the build script: (within `kinesis-video-native-build` folder)
 ```
-./install-script
+$ ./java-install-script
 ```
 
 ----
@@ -190,7 +141,7 @@ the LD_LIBRARY_PATH as below:
 ```
 export LD_LIBRARY_PATH=/opt/awssdk/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$LD_LIBRARY_PATH
 ```
-* The `gst-launch-1.0` and `gst-inspect-1.0` binaries are built inside the folder `<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/bin`. You can either run the following commands from that folder using `./gst-launch-1.0` or you can include that in your **PATH** environment variable using the following export command and run `gst-launch-1.0`
+* (Skip this if you installed gstreamer using apt-get) The `gst-launch-1.0` and `gst-inspect-1.0` binaries are built inside the folder `<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/bin`. You can either run the following commands from that folder using `./gst-launch-1.0` or you can include that in your **PATH** environment variable using the following export command and run `gst-launch-1.0`
 ```
 $ export PATH=<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/bin:$PATH
 ```
@@ -337,13 +288,13 @@ AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./ki
 gst-launch-1.0 -v filesrc location="YourAudioVideo.mkv" ! matroskademux name=demux ! queue ! h264parse ! kvssink name=sink stream-name="my_stream_name" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
-###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video* in **Raspberry-PI**.
+###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video* in **Raspberry-PI**.
 
 ```
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.mp4" ! qtdemux name=demux ! queue ! h264parse !  video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
-###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video* in **Raspberry-PI**.
+###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video* in **Raspberry-PI**.
 
 ```
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! queue ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.

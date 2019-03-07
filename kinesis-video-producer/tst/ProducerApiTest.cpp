@@ -540,7 +540,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
 
     // shorter length
     segment_uuid = vector<uint8_t>(MKV_SEGMENT_UUID_LEN - 1);
-    EXPECT_DEATH(stream_definition = make_unique<StreamDefinition>(stream_name,
+    EXPECT_ANY_THROW(stream_definition = make_unique<StreamDefinition>(stream_name,
                                                            hours(2),
                                                            nullptr,
                                                            "",
@@ -567,7 +567,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
                                                            0,
                                                            MKV_TRACK_INFO_TYPE_VIDEO,
                                                            segment_uuid,
-                                                           DEFAULT_TRACK_ID), "");
+                                                           DEFAULT_TRACK_ID));
 }
 
 }  // namespace video

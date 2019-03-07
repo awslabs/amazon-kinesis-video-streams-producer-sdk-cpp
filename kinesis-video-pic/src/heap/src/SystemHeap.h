@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 #pragma once
+#pragma pack(push, include, 1) // for byte alignment
 
 #define SYS_ALLOCATION_TYPE 1
 
@@ -32,6 +33,11 @@ DEFINE_HEAP_FREE(sysHeapFree);
  * Gets the allocation size
  */
 DEFINE_HEAP_GET_ALLOC_SIZE(sysHeapGetAllocSize);
+
+/**
+ * Sets the allocation size
+ */
+DEFINE_HEAP_SET_ALLOC_SIZE(sysHeapSetAllocSize);
 
 /**
  * Maps the allocation handle to memory. This is needed for in-direct allocation on vRAM
@@ -65,6 +71,8 @@ DEFINE_HEADER_SIZE(sysGetAllocationHeaderSize);
 DEFINE_FOOTER_SIZE(sysGetAllocationFooterSize);
 DEFINE_ALLOC_SIZE(sysGetAllocationSize);
 DEFINE_HEAP_LIMITS(sysGetHeapLimits);
+
+#pragma pack(pop, include) // pop the existing settings
 
 #ifdef __cplusplus
 }
