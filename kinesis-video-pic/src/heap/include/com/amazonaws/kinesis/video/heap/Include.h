@@ -141,6 +141,7 @@ typedef struct
 #define STATUS_HEAP_VRAM_UNMAP_FAILED                           STATUS_HEAP_BASE + 0x00000013
 #define STATUS_HEAP_VRAM_UNINIT_FAILED                          STATUS_HEAP_BASE + 0x00000014
 #define STATUS_INVALID_ALLOCATION_SIZE                          STATUS_HEAP_BASE + 0x00000015
+#define STATUS_HEAP_REALLOC_ERROR                               STATUS_HEAP_BASE + 0x00000016
 
 //////////////////////////////////////////////////////////////////////////
 // Public functions
@@ -175,6 +176,12 @@ PUBLIC_API STATUS heapFree(PHeap, ALLOCATION_HANDLE);
  * Gets the size of the allocation
  */
 PUBLIC_API STATUS heapGetAllocSize(PHeap, ALLOCATION_HANDLE, PUINT64);
+
+/**
+ * Sets the size of the allocation and returns a new handle
+ * NOTE: pHandle is IN/OUT param and will be updated on success.
+ */
+PUBLIC_API STATUS heapSetAllocSize(PHeap, PALLOCATION_HANDLE, UINT64);
 
 /**
  * Maps the allocated handle and retrieves a memory address

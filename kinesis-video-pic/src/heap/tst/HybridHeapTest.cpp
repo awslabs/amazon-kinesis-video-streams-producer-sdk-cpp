@@ -427,3 +427,62 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamFreeError)
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
 }
+
+TEST_F(HybridHeapTest, hybridFillResizeAlloc)
+{
+    PHeap pHeap;
+    ALLOCATION_HANDLE handle, storedHandle;
+    UINT32 memHeapLimit;
+    UINT32 vramHeapLimit;
+    UINT32 vramAllocSize;
+    UINT32 ramAllocSize;
+    UINT32 heapSize = MIN_HEAP_SIZE * 2 + 100000;
+    UINT32 spillRatio = 50;
+    UINT32 numAlloc = 50;
+
+    // Split the 50% and allocate half from ram and half from vram
+    memHeapLimit = (UINT32)(heapSize * ((DOUBLE)spillRatio / 100));
+    vramHeapLimit = heapSize - memHeapLimit;
+    vramAllocSize = vramHeapLimit / numAlloc;
+    ramAllocSize = memHeapLimit / numAlloc;
+
+    EXPECT_EQ(STATUS_SUCCESS, heapInitialize(heapSize,
+                                             spillRatio,
+                                             FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP,
+                                             &pHeap));
+
+    // Allocate from ram - account for the service structs
+    // Store an allocation handle somewhere in the middle
+    for (UINT32 i = 0; i < numAlloc; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, heapAlloc(pHeap, ramAllocSize, &handle));
+        EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
+
+        // Store a handle somewhere in the middle
+        if (i == numAlloc / 2) {
+            storedHandle = handle;
+        }
+    }
+
+    // Allocate from vram and account for the service structs.
+    for (UINT32 i = 0; i < numAlloc - 1; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, heapAlloc(pHeap, vramAllocSize, &handle));
+        EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
+    }
+
+    // Set to produce an error if vram allocation is called
+    mVramAlloc = 0;
+
+    // Try to allocate and ensure we fail
+    EXPECT_EQ(STATUS_SUCCESS, heapAlloc(pHeap, ramAllocSize - 200, &handle));
+    EXPECT_FALSE(IS_VALID_ALLOCATION_HANDLE(handle));
+
+    // Resize the stored handle
+    EXPECT_EQ(STATUS_SUCCESS, heapSetAllocSize(pHeap, &storedHandle, 100));
+    EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(storedHandle));
+
+    // Ensure we are able to allocate from direct RAM
+    EXPECT_EQ(STATUS_SUCCESS, heapAlloc(pHeap, ramAllocSize - 200, &handle));
+    EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
+
+    EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
+}

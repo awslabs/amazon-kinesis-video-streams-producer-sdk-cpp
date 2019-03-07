@@ -20,15 +20,9 @@ extern "C" {
  * Invalid allocation value
  */
 #ifndef INVALID_ALLOCATION_VALUE
-#define INVALID_ALLOCATION_VALUE MAX_UINT32
+#define INVALID_ALLOCATION_VALUE MAX_UINT64
 #endif
 
-/**
- * Diable string warnings
- */
-#if 0
-#pragma GCC diagnostic ignored "-Wwrite-strings"
-#endif
 ////////////////////////////////////////////////////////////////////
 // Forward declaration of the functions
 ////////////////////////////////////////////////////////////////////
@@ -53,6 +47,11 @@ typedef STATUS (*HeapGetSizeFunc)(PHeap, PUINT64);
  * Gets the allocation size
  */
 typedef STATUS (*HeapGetAllocSizeFunc)(PHeap, ALLOCATION_HANDLE, PUINT64);
+
+/**
+ * Sets the allocation size
+ */
+typedef STATUS (*HeapSetAllocSizeFunc)(PHeap, PALLOCATION_HANDLE, UINT64, UINT64);
 
 /**
  * Allocates memory from the heap
@@ -109,6 +108,7 @@ typedef VOID (*GetHeapLimitsFunc)(PUINT64, PUINT64);
 #define DEFINE_HEAP_ALLOC(name)           STATUS name(PHeap pHeap, UINT64 size, PALLOCATION_HANDLE pHandle)
 #define DEFINE_HEAP_FREE(name)            STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle)
 #define DEFINE_HEAP_GET_ALLOC_SIZE(name)  STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT64 pAllocSize)
+#define DEFINE_HEAP_SET_ALLOC_SIZE(name)  STATUS name(PHeap pHeap, PALLOCATION_HANDLE pHandle, UINT64 size, UINT64 newSize)
 #define DEFINE_HEAP_MAP(name)             STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PVOID* ppAllocation, PUINT64 pSize)
 #define DEFINE_HEAP_UNMAP(name)           STATUS name(PHeap pHeap, PVOID pAllocation)
 #define DEFINE_HEAP_CHK(name)             STATUS name(PHeap pHeap, BOOL dump)
@@ -132,6 +132,7 @@ typedef struct
     HeapGetSizeFunc heapGetSizeFn;
     HeapFreeFunc heapFreeFn;
     HeapGetAllocSizeFunc heapGetAllocSizeFn;
+    HeapSetAllocSizeFunc heapSetAllocSizeFn;
     HeapAllocFunc heapAllocFn;
     HeapMapFunc heapMapFn;
     HeapUnmapFunc heapUnmapFn;

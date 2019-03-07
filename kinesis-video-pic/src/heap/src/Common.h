@@ -9,11 +9,14 @@
 extern "C" {
 #endif
 
+#pragma once
+#pragma pack(push, include, 1) // for byte alignment
+
 /**
  * 'Magic' - aka a sentinel which will be added as a guard band for each allocation in debug mode
  */
-#define ALLOCATION_HEADER_MAGIC "__HEADER_MAGIC__GUARD__"
-#define ALLOCATION_FOOTER_MAGIC "__FOOTER_MAGIC__GUARD__"
+#define ALLOCATION_HEADER_MAGIC "__HEADER_MAGIC_GUARD_BAND__"
+#define ALLOCATION_FOOTER_MAGIC "__FOOTER_MAGIC_GUARD_BAND__"
 
 typedef struct
 {
@@ -27,7 +30,7 @@ typedef struct
 
 typedef struct
 {
-    BYTE __dummy; // For non-zero allocation in C
+    UINT64 size;
 #ifdef HEAP_DEBUG
     BYTE magic[SIZEOF(ALLOCATION_FOOTER_MAGIC)];
 #endif
@@ -52,6 +55,11 @@ DEFINE_GET_HEAP_SIZE(commonHeapGetSize);
  * Gets the allocation size
  */
 DEFINE_HEAP_GET_ALLOC_SIZE(commonHeapGetAllocSize);
+
+/**
+ * Sets the allocation size
+ */
+DEFINE_HEAP_SET_ALLOC_SIZE(commonHeapSetAllocSize);
 
 /**
  * Maps the allocation handle to memory. This is needed for in-direct allocation on vRAM
@@ -97,6 +105,8 @@ STATUS commonHeapCreate(PHeap*, UINT32);
  * Validate heap
  */
 STATUS validateHeap(PHeap);
+
+#pragma pack(pop, include) // pop the existing settings
 
 #ifdef __cplusplus
 }

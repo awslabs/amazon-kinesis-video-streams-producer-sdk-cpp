@@ -106,6 +106,7 @@ STATUS hybridCreateHeap(PHeap pHeap, UINT32 spillRatio, UINT32 behaviorFlags, PH
     pBaseHeap->heapAllocFn = hybridHeapAlloc;
     pBaseHeap->heapFreeFn = hybridHeapFree;
     pBaseHeap->heapGetAllocSizeFn = hybridHeapGetAllocSize;
+    pBaseHeap->heapSetAllocSizeFn = hybridHeapSetAllocSize;
     pBaseHeap->heapMapFn = hybridHeapMap;
     pBaseHeap->heapUnmapFn = hybridHeapUnmap;
     pBaseHeap->heapDebugCheckAllocatorFn = hybridHeapDebugCheckAllocator;
@@ -162,7 +163,6 @@ DEFINE_INIT_HEAP(hybridHeapInit)
     // Calculate the in-memory and vram based heap sizes
     memHeapLimit = (UINT32) (heapLimit * pHybridHeap->spillRatio);
     vramHeapLimit = (UINT32) (heapLimit - memHeapLimit);
-    maxVramSize = 0;
 
     // Try to see if we can allocate enough vram
     maxVramSize = pHybridHeap->vramGetMax();
@@ -262,6 +262,15 @@ DEFINE_HEAP_ALLOC(hybridHeapAlloc)
     UINT32 handle = 0;
     ALLOCATION_HANDLE retHandle;
 
+    // Call the base class for the accounting
+    retStatus = commonHeapAlloc(pHeap, size, pHandle);
+    CHK(retStatus == STATUS_NOT_ENOUGH_MEMORY || retStatus == STATUS_SUCCESS, retStatus);
+    if (retStatus == STATUS_NOT_ENOUGH_MEMORY) {
+        // If we are out of memory then we don't need to return a failure - just
+        // Early return with success
+        CHK(FALSE, STATUS_SUCCESS);
+    }
+
     DLOGS("Trying to allocate from direct memory heap.");
     // Try to allocate from the memory first. pHandle is not NULL if we have passed the base checks
     // Check for the pHandle not being null for successful allocation
@@ -273,15 +282,6 @@ DEFINE_HEAP_ALLOC(hybridHeapAlloc)
         DLOGS("Successfully allocated from direct memory.");
 
         // Early exit with success
-        CHK(FALSE, STATUS_SUCCESS);
-    }
-
-    // Call the base class for the accounting
-    retStatus = commonHeapAlloc(pHeap, size, pHandle);
-    CHK(retStatus == STATUS_NOT_ENOUGH_MEMORY || retStatus == STATUS_SUCCESS, retStatus);
-    if (retStatus == STATUS_NOT_ENOUGH_MEMORY) {
-        // If we are out of memory then we don't need to return a failure - just
-        // Early return with success
         CHK(FALSE, STATUS_SUCCESS);
     }
 
@@ -350,6 +350,9 @@ DEFINE_HEAP_FREE(hybridHeapFree)
     UINT32 vramHandle;
     UINT32 ret;
 
+    // Calling the base first - this should do the accounting
+    CHK_STATUS(commonHeapFree(pHeap, handle));
+
     // If this is a direct allocation then we handle that separately
     if (IS_DIRECT_ALLOCATION_HANDLE(handle)) {
         DLOGS("Direct allocation");
@@ -358,9 +361,6 @@ DEFINE_HEAP_FREE(hybridHeapFree)
         // Exit on success
         CHK(FALSE, STATUS_SUCCESS);
     }
-
-    // Calling the base first - this should do the accounting
-    CHK_STATUS(commonHeapFree(pHeap, handle));
 
     // In case it's a direct allocation handle use the encapsulated direct memory heap
     DLOGS("Indirect allocation");
@@ -419,6 +419,70 @@ DEFINE_HEAP_GET_ALLOC_SIZE(hybridHeapGetAllocSize)
     }
 
 CleanUp:
+    LEAVES();
+    return retStatus;
+}
+
+/**
+ * Sets the allocation size
+ */
+DEFINE_HEAP_SET_ALLOC_SIZE(hybridHeapSetAllocSize)
+{
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    PHybridHeap pHybridHeap = (PHybridHeap) pHeap;
+    ALLOCATION_HANDLE existingAllocationHandle, newAllocationHandle = INVALID_ALLOCATION_HANDLE_VALUE;
+    PVOID pExistingBuffer = NULL, pNewBuffer = NULL;
+
+    // Call the base class to ensure the params are ok and set the default ret values
+    CHK_STATUS(commonHeapSetAllocSize(pHeap, pHandle, size, newSize));
+
+    existingAllocationHandle = *pHandle;
+    // In case it's a direct allocation handle use the encapsulated direct memory heap
+    if (IS_DIRECT_ALLOCATION_HANDLE(existingAllocationHandle)) {
+        DLOGS("Direct allocation 0x%016" PRIx64, handle);
+        retStatus = pHybridHeap->pMemHeap->heapSetAllocSizeFn((PHeap) pHybridHeap->pMemHeap, pHandle, size, newSize);
+        CHK(retStatus == STATUS_SUCCESS || retStatus == STATUS_HEAP_REALLOC_ERROR, retStatus);
+
+        // Exit on success
+        CHK(!STATUS_SUCCEEDED(retStatus), STATUS_SUCCESS);
+
+        // Reset the status
+        retStatus = STATUS_SUCCESS;
+    }
+
+    // Perform the VRAM slow re-allocation
+    // 1) Allocating new buffer
+    // 2) Mapping the existing allocation
+    // 3) Mapping the new allocation
+    // 4) Copying the data from old to new
+    // 5) Unmapping the existing allocation
+    // 6) Unmapping the new allocation
+    // 7) Free-ing the old allocation
+
+    DLOGS("Sets new allocation size %\" PRIu64 \" for handle 0x%016"
+                  PRIx64, newSize, existingAllocationHandle);
+
+    CHK_STATUS(hybridHeapAlloc(pHeap, newSize, &newAllocationHandle));
+    CHK(IS_VALID_ALLOCATION_HANDLE(newAllocationHandle), STATUS_NOT_ENOUGH_MEMORY);
+    CHK_STATUS(hybridHeapMap(pHeap, existingAllocationHandle, &pExistingBuffer, &size));
+    CHK_STATUS(hybridHeapMap(pHeap, newAllocationHandle, &pNewBuffer, &newSize));
+    MEMCPY(pNewBuffer, pExistingBuffer, MIN(size, newSize));
+    CHK_STATUS(hybridHeapUnmap(pHeap, pExistingBuffer));
+    CHK_STATUS(hybridHeapUnmap(pHeap, pNewBuffer));
+    CHK_STATUS(hybridHeapFree(pHeap, existingAllocationHandle));
+
+    // Set the return
+    *pHandle = newAllocationHandle;
+
+CleanUp:
+
+    // Clean-up in case of failure
+    if (STATUS_FAILED(retStatus) && !IS_VALID_ALLOCATION_HANDLE(newAllocationHandle)) {
+        // Free the allocation before returning
+        hybridHeapFree(pHeap, newAllocationHandle);
+    }
+
     LEAVES();
     return retStatus;
 }
@@ -523,7 +587,11 @@ DEFINE_ALLOC_SIZE(hybridGetAllocationSize)
 
     // Check if this is a direct allocation
     if (IS_DIRECT_ALLOCATION_HANDLE(handle)) {
-        return pHybridHeap->pMemHeap->getAllocationSizeFn((PHeap) pHybridHeap->pMemHeap, handle);
+        // Get the allocation header and footer in order to compensate the accounting for vram header and footer.
+        UINT64 memSizes = pHybridHeap->pMemHeap->getAllocationHeaderSizeFn() + pHybridHeap->pMemHeap->getAllocationFooterSizeFn();
+        UINT64 vramSizes = hybridGetAllocationHeaderSize() + hybridGetAllocationFooterSize();
+        UINT64 memHeapAllocationSize = pHybridHeap->pMemHeap->getAllocationSizeFn((PHeap) pHybridHeap->pMemHeap, handle);
+        return memHeapAllocationSize - memSizes + vramSizes;
     }
 
     // In case of VRAM allocation we need to map the memory first to access the size info

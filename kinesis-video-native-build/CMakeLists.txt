@@ -72,8 +72,10 @@ message(STATUS "Kinesis Video Open Source path is ${KINESIS_VIDEO_OPEN_SOURCE_SR
 
 message(STATUS "Configuration ${CMAKE_GENERATOR}")
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+
 if(CMAKE_SIZEOF_VOID_P STREQUAL 4)
-    message(STATUS "Bitness 32 bits")
+  message(STATUS "Bitness 32 bits")
 	set(KINESIS_VIDEO_BUILD_BITNESS "x86")
 	set(KINESIS_VIDEO_BUILD_BITNESS_TYPE "Win32")
 	set(KINESIS_VIDEO_BUILD_BITNESS_NAME "x86")
@@ -95,8 +97,8 @@ STRING(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 #add_definitions(-DLOG_STREAMING)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -127,12 +129,15 @@ endif()
 if(NOT BUILD_JNI_ONLY AND (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
   find_package(PkgConfig REQUIRED)
 
-  pkg_check_modules (CRYPTO       REQUIRED   libcrypto)
-  pkg_check_modules (CURL         REQUIRED   libcurl)
-  pkg_check_modules (LOG4CPLUS    REQUIRED   log4cplus=1.2.0)
-  pkg_check_modules (SSL          REQUIRED   libssl)
+  if (USE_SYS_LIBRARIES AND ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+  endif()
 
-  if (NOT BUILD_PRODUCER_ONLY)
+  find_package(Log4cplus  REQUIRED)
+  find_package(OpenSSL    REQUIRED)
+  find_package(CURL       REQUIRED)
+
+  if (BUILD_GST_ARTIFACT)
     pkg_check_modules (GLIB2        REQUIRED   glib-2.0)
     pkg_check_modules (GST          REQUIRED   gstreamer-1.0)
     pkg_check_modules (GST_APP      REQUIRED   gstreamer-app-1.0)
@@ -141,62 +146,55 @@ if(NOT BUILD_JNI_ONLY AND (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows" OR "${CMAK
     pkg_check_modules (GST_BASE     REQUIRED   gstreamer-base-1.0)
   endif()
 
-  if (NOT NO_UNIT_TEST)
-    find_library(GTEST NAMES gtest REQUIRED HINTS ${LIBRARY_PATH} PATH_SUFFIXES lib)
-    find_library(GTEST_MAIN NAMES gtest_main REQUIRED HINTS ${LIBRARY_PATH} PATH_SUFFIXES lib)
+  if (BUILD_TEST)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+      # in mingw, gtest is pre-built
+      find_package(GTest       REQUIRED)
+    else()
+      add_subdirectory(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/googletest-release-1.8.0)
+    endif()
   endif()
 
   set(OPEN_SRC_INCLUDE_DIRS
           ${GLIB2_INCLUDE_DIRS}
-          ${CRYPTO_INCLUDE_DIRS}
           ${CURL_INCLUDE_DIRS}
           ${GST_APP_INCLUDE_DIRS}
           ${GST_INCLUDE_DIRS}
-          ${LOG4CPLUS_INCLUDE_DIRS}
+          ${LOG4CPLUS_INCLUDE_DIR}
           ${GOBJ2_INCLUDE_DIRS}
-          ${SSL_INCLUDE_DIRS}
-          ${GTEST_INCLUDE_DIRS}
-          ${GTEST_MAIN_INCLUDE_DIRS}
+          ${OPENSSL_INCLUDE_DIR}
           ${GST_CHECK_INCLUDE_DIRS}
           ${GST_BASE_INCLUDE_DIRS})
 
   set(OPEN_SRC_LIBRARY_DIRS
           ${GLIB2_LIBRARY_DIRS}
-          ${CRYPTO_LIBRARY_DIRS}
           ${CURL_LIBRARY_DIRS}
           ${GST_APP_LIBRARY_DIRS}
           ${GST_LIBRARY_DIRS}
           ${LOG4CPLUS_LIBRARY_DIRS}
           ${GOBJ2_LIBRARY_DIRS}
-          ${SSL_LIBRARY_DIRS}
-          ${GTEST_LIBRARY_DIRS}
-          ${GTEST_MAIN_LIBRARY_DIRS}
           ${GST_CHECK_LIBRARY_DIRS}
           ${GST_BASE_LIBRARY_DIRS})
 
   set(PRODUCER_LIBRARIES
-          ${CRYPTO_LIBRARIES}
-          ${SSL_LIBRARIES}
+          ${OPENSSL_CRYPTO_LIBRARY}
+          ${OPENSSL_SSL_LIBRARY}
           ${CURL_LIBRARIES}
-          ${LOG4CPLUS_LIBRARIES}
-          ${GOBJ2_LIBRARIES})
+          ${LOG4CPLUS_LIBRARIES})
 
   set(GST_DEMO_LIBRARIES
+          ${GST_LIBRARIES}
           ${GLIB2_LIBRARIES}
           ${GST_APP_LIBRARIES}
-          ${GST_LIBRARIES}
           ${GOBJ2_LIBRARIES}
           ${EXE_LIBRARIES})
 
   set(KVSSINK_LIBRARIES
           ${GST_LIBRARIES}
-          ${GST_APP_LIBRARIES}
           ${GLIB2_LIBRARIES}
-          ${LOG4CPLUS_LIBRARIES}
+          ${GST_APP_LIBRARIES}
           ${GOBJ2_LIBRARIES}
-          ${GST_BASE_LIBRARIES}
-          ${CURL_LIBRARIES}
-          ${CRYPTO_LIBRARIES})
+          ${GST_BASE_LIBRARIES})
 
   set(KVSSINK_DEMO_LIBRARIES
           ${GLIB2_LIBRARIES}
@@ -306,6 +304,7 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/Request.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/Response.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/Response.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/StreamDefinition.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/StreamDefinition.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/StreamTags.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/StreamTags.h
@@ -314,7 +313,7 @@ set(PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/Version.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/GetTime.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/GetTime.cpp
-	    ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/CredentialProviderUtil.h
+        ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/CredentialProviderUtil.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/CredentialProviderUtil.cpp
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/IotCertCredentialProvider.h
         ${KINESIS_VIDEO_PRODUCER_SRC}/src/credential-providers/IotCertCredentialProvider.cpp
@@ -372,7 +371,7 @@ set(TST_PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/StackQueue.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/StringToInteger.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/utils/tst/UtilTestFixture.cpp
-	#${KINESIS_VIDEO_PIC_SRC}/src/view/tst/main.cpp
+        #${KINESIS_VIDEO_PIC_SRC}/src/view/tst/main.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewApiFunctionalityTest.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewApiTest.cpp
         ${KINESIS_VIDEO_PIC_SRC}/src/view/tst/ViewTestFixture.cpp
@@ -408,7 +407,7 @@ set(GST_PLUGIN_SOURCE_FILES
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/ConnectionStaleStateMachine.h
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/ConnectionStaleStateMachine.cpp
         ${KINESIS_VIDEO_GST_PLUGIN_SRC}/Util/KvsSinkUtil.h
-	${KINESIS_VIDEO_GST_PLUGIN_SRC}/Util/KvsSinkUtil.cpp)
+        ${KINESIS_VIDEO_GST_PLUGIN_SRC}/Util/KvsSinkUtil.cpp)
 
 include_directories(${KINESIS_VIDEO_PIC_SRC})
 include_directories(${KINESIS_VIDEO_PIC_SRC}/src/client/include)
@@ -561,55 +560,63 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND NOT "${CMAKE_CXX_COMPILER_ID}" STR
           gobject-2.0
           glib-2.0)
 else()
-  link_directories(${OPEN_SRC_LIBRARY_DIRS})
+  if (NOT USE_SYS_LIBRARIES)
+    link_directories(${OPEN_SRC_LIBRARY_DIRS})
+  elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    # location for libintl on mac
+    link_directories("/usr/local/opt/gettext/lib")
+  endif()
 
   add_library(producer SHARED ${PRODUCER_SOURCE_FILES})
   target_link_libraries(producer
-          ${PRODUCER_LIBRARIES}
-          ${GTEST}
-          ${GTEST_MAIN})
+          ${PRODUCER_LIBRARIES})
 
   add_library(KinesisVideoProducerJNI SHARED EXCLUDE_FROM_ALL ${PRODUCER_SOURCE_FILES_JNI} ${PIC_SOURCE_FILES})
   target_link_libraries(KinesisVideoProducerJNI)
 
-  add_executable(start ${TST_PRODUCER_SOURCE_FILES})
-  target_link_libraries(start
-          producer
-          Threads::Threads
-          ${CMAKE_DL_LIBS}
-          ${LOG4CPLUS_LIBRARIES})
+  if (BUILD_TEST)
+    add_executable(start ${TST_PRODUCER_SOURCE_FILES})
+    target_link_libraries(start
+            producer
+            Threads::Threads
+            gtest
+            gtest_main
+            ${CMAKE_DL_LIBS})
+  endif()
 
-  add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
-  target_link_libraries(kinesis_video_gstreamer_sample_app
-          producer
-          ${GST_DEMO_LIBRARIES})
+  if (BUILD_GST_ARTIFACT)
+    add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
+    target_link_libraries(kinesis_video_gstreamer_sample_app
+            producer
+            ${GST_DEMO_LIBRARIES})
 
-  add_executable(kinesis_video_gstreamer_sample_multistream_app ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_multistream_app.cpp)
-  target_link_libraries(kinesis_video_gstreamer_sample_multistream_app
-          producer
-          ${GST_DEMO_LIBRARIES})
+    add_executable(kinesis_video_gstreamer_sample_multistream_app ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_multistream_app.cpp)
+    target_link_libraries(kinesis_video_gstreamer_sample_multistream_app
+            producer
+            ${GST_DEMO_LIBRARIES})
 
-  add_executable(kinesis_video_gstreamer_audio_video_sample_app ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_audio_video_sample_app.cpp)
-  target_link_libraries(kinesis_video_gstreamer_audio_video_sample_app
-          producer
-          ${GST_DEMO_LIBRARIES})
+    add_executable(kinesis_video_gstreamer_audio_video_sample_app ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_audio_video_sample_app.cpp)
+    target_link_libraries(kinesis_video_gstreamer_audio_video_sample_app
+            producer
+            ${GST_DEMO_LIBRARIES})
 
-  add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
-  target_link_libraries(gstkvssink
-          ${KVSSINK_LIBRARIES}
-          producer)
+    add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
+    target_link_libraries(gstkvssink
+            ${KVSSINK_LIBRARIES}
+            producer)
 
-  add_executable(kvs_producer_plugin_demo ${KINESIS_VIDEO_GST_PLUGIN_DEMO_SRC}/kvs_producer_plugin_demo.cpp)
-  target_link_libraries(kvs_producer_plugin_demo
-          ${KVSSINK_DEMO_LIBRARIES}
-          producer)
+    add_executable(kvs_producer_plugin_demo ${KINESIS_VIDEO_GST_PLUGIN_DEMO_SRC}/kvs_producer_plugin_demo.cpp)
+    target_link_libraries(kvs_producer_plugin_demo
+            ${KVSSINK_DEMO_LIBRARIES}
+            producer)
 
-  add_executable(kvs_producer_plugin_rtsp_demo ${KINESIS_VIDEO_GST_PLUGIN_DEMO_SRC}/kvs_producer_plugin_rtsp_demo.cpp)
-  target_link_libraries(kvs_producer_plugin_rtsp_demo
-          ${KVSSINK_DEMO_LIBRARIES})
+    add_executable(kvs_producer_plugin_rtsp_demo ${KINESIS_VIDEO_GST_PLUGIN_DEMO_SRC}/kvs_producer_plugin_rtsp_demo.cpp)
+    target_link_libraries(kvs_producer_plugin_rtsp_demo
+            ${KVSSINK_DEMO_LIBRARIES})
 
-  add_executable(gstkvsplugintest ${KINESIS_VIDEO_GST_PLUGIN_SRC}/gstkvstest.cpp)
-  target_link_libraries(gstkvsplugintest
-         ${GST_CHECK_LIBRARIES}
-         ${KVSSINK_DEMO_LIBRARIES})
+    add_executable(gstkvsplugintest ${KINESIS_VIDEO_GST_PLUGIN_SRC}/gstkvstest.cpp)
+    target_link_libraries(gstkvsplugintest
+           ${GST_CHECK_LIBRARIES}
+           ${KVSSINK_DEMO_LIBRARIES})
+  endif()
 endif()

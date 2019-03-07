@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 #pragma once
+#pragma pack(push, include, 1) // for byte alignment
 
 /**
  * VRAM function definitions with their symbol names
@@ -110,6 +111,11 @@ DEFINE_HEAP_FREE(hybridHeapFree);
 DEFINE_HEAP_GET_ALLOC_SIZE(hybridHeapGetAllocSize);
 
 /**
+ * Sets the allocation size
+ */
+DEFINE_HEAP_SET_ALLOC_SIZE(hybridHeapSetAllocSize);
+
+/**
  * Maps the allocation handle to memory. This is needed for in-direct allocation on vRAM
  */
 DEFINE_HEAP_MAP(hybridHeapMap);
@@ -141,6 +147,8 @@ DEFINE_HEADER_SIZE(hybridGetAllocationHeaderSize);
 DEFINE_FOOTER_SIZE(hybridGetAllocationFooterSize);
 DEFINE_ALLOC_SIZE(hybridGetAllocationSize);
 DEFINE_HEAP_LIMITS(hybridGetHeapLimits);
+
+#pragma pack(pop, include) // pop the existing settings
 
 #ifdef __cplusplus
 }

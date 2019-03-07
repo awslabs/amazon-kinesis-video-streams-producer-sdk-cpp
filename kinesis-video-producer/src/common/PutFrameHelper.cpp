@@ -20,7 +20,8 @@ PutFrameHelper::PutFrameHelper(
             INITIAL_BUFFER_SIZE_VIDEO(initial_buffer_size_video),
             next_available_buffer_audio(0),
             next_available_buffer_video(0),
-            put_frame_status(true) {
+            put_frame_status(true),
+            is_processing_eofr(false) {
 
     for(uint32_t i = 0; i < MAX_VIDEO_QUEUE_SIZE; i++) {
         FrameDataBuffer frameDataBuffer;
@@ -38,6 +39,12 @@ PutFrameHelper::PutFrameHelper(
 }
 
 void PutFrameHelper::putFrameMultiTrack(Frame frame, bool isVideo) {
+    if (CHECK_FRAME_FLAG_END_OF_FRAGMENT(frame.flags)) {
+        put_frame_status = false;
+        LOG_ERROR("Client should not use putFrameMultiTrack to put EOFR frame. Use putEofr instead.");
+        return;
+    }
+
     if (isVideo) {
         if (video_frame_queue.size() == MAX_VIDEO_QUEUE_SIZE) {
             video_frame_queue.pop();
@@ -66,6 +73,14 @@ void PutFrameHelper::putFrameMultiTrack(Frame frame, bool isVideo) {
         if (audio_pts >= video_pts) {
             break;
         }
+
+        // If user is using eofr frames, then they should not set any FRAME_FLAG_KEY_FRAME in frame flags.
+        // First frame to be put after the eofr frame will have the FRAME_FLAG_KEY_FRAME flag.
+        if (is_processing_eofr) {
+            audio_frame.flags = (FRAME_FLAGS) (audio_frame.flags | FRAME_FLAG_KEY_FRAME);
+            is_processing_eofr = false;
+        }
+
         if (!kinesis_video_stream->putFrame(audio_frame)) {
             put_frame_status = false;
             LOG_WARN("Failed to put audio frame");
@@ -76,6 +91,14 @@ void PutFrameHelper::putFrameMultiTrack(Frame frame, bool isVideo) {
     // Sync audio frames to video frames. audio_frame_queue being not empty here means there is a audio frame whose timestamp
     // is greater than video_front.
     if (!audio_frame_queue.empty()) {
+
+        // If user is using eofr frames, then they should not set any FRAME_FLAG_KEY_FRAME in frame flags.
+        // First frame to be put after the eofr frame will have the FRAME_FLAG_KEY_FRAME flag.
+        if (is_processing_eofr) {
+            video_front.flags = (FRAME_FLAGS) (video_front.flags | FRAME_FLAG_KEY_FRAME);
+            is_processing_eofr = false;
+        }
+
         if (!kinesis_video_stream->putFrame(video_front)) {
             put_frame_status = false;
             LOG_WARN("Failed to put video frame. Frame flag: " << video_front.flags);
@@ -147,6 +170,16 @@ uint8_t *PutFrameHelper::getFrameDataBuffer(uint32_t requested_buffer_size, bool
 
 bool PutFrameHelper::putFrameFailed() {
     return put_frame_status;
+}
+
+void PutFrameHelper::putEofr() {
+    is_processing_eofr = true;
+    Frame frame = EOFR_FRAME_INITIALIZER;
+    if (!kinesis_video_stream->putFrame(frame)) {
+        put_frame_status = false;
+        LOG_WARN("Failed to put eofr frame");
+        is_processing_eofr = false;
+    }
 }
 
 PutFrameHelper::~PutFrameHelper() {

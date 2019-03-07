@@ -29,14 +29,6 @@ In order to build the Producer SDK and download open source dependencies the fol
 _**Note:**_ If you have installed these build tools using `brew` you need to set the PATH environment variable to include the installed location.
 e.g. To incldue the latest `bison` you can run `export PATH=/usr/local/Cellar/bison/3.0.4_1/bin/:$PATH`
 
-##### Install the certificate in the operating system certificate store
-Kinesis Video Streams Producer SDK for C++ needs to establish trust with the backend service through TLS. This is done through validating the CAs in the public certificate store. On Linux-based models, this store is located in `/etc/ssl/` directory by default.
-
-Please download the PEM file from [SFSRootCAG2.pem](https://www.amazontrust.com/repository/SFSRootCAG2.pem)
-to `/etc/ssl/cert.pem`. If the file already exists `/etc/ssl/cert.pem` then you can append it by running `sudo cat SFSRootCAG2.pem >> /etc/ssl/cert.pem`.
-
-Many platforms come with a cert file with a lot of the well-known public certs in them.
-
 ----
 ### Build the Kinesis Video Producer SDK and sample applications:
 The **install-script** will download and build the dependent open source components (from the source) into the **downloads** directory within `kinesis-video-native-build` directory (e.g. `/Users/<myuser>/downloads/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads`) and link against it.
@@ -50,15 +42,19 @@ The **install-script** will download and build the dependent open source compone
 Note that the install-script also builds the Kinesis Video Streams producer SDK as a **GStreamer plugin** (**kvssink**).
 
 ----
-##### Alternate option to build the SDK and sample applications using system versions of open source library dependencies
+### Alternate option to build the SDK and sample applications using libraries installed by Homebrew
 
 The bulk of the **install script** is building the open source dependencies. The project is based on **CMake**. So the open source components building can be skipped if the system versions of the open source dependencies are already installed that can be used for linking.
 
-Running
+First make sure that the following libraries have been installed using Homebrew
+```
+brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus
+```
+
+After all required libraries have been installed, run
 
 ```
-$ cmake .
-$ make
+$ ./min-install-script
 ```
 from the `kinesis-video-native-build` directory will build and link the SDK.
 
@@ -182,13 +178,13 @@ AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./ki
 gst-launch-1.0 -v filesrc location="YourAudioVideo.mkv" ! matroskademux name=demux ! queue ! h264parse ! kvssink name=sink stream-name="my_stream_name" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
-###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video* in **Mac-OS**.
+###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video* in **Mac-OS**.
 
 ```
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.mp4" ! qtdemux name=demux ! queue ! h264parse !  video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
-###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video* in **Mac-OS**.
+###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video* in **Mac-OS**.
 
 ```
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! queue ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.

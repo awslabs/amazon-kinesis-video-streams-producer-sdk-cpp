@@ -528,7 +528,7 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame) {
         }
     }
 
-    CHK (trackInfoFound, STATUS_MKV_TRACK_INFO_NOT_FOUND);
+    CHK (trackInfoFound || CHECK_FRAME_FLAG_END_OF_FRAGMENT(pFrame->flags), STATUS_MKV_TRACK_INFO_NOT_FOUND);
 
     // Check if the stream has been stopped
     CHK(!pKinesisVideoStream->streamStopped, STATUS_STREAM_HAS_BEEN_STOPPED);

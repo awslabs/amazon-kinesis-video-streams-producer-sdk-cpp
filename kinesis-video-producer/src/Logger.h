@@ -5,6 +5,7 @@
 #include <log4cplus/logger.h>
 #include <log4cplus/consoleappender.h>
 #include <log4cplus/layout.h>
+#include <log4cplus/version.h>
 #include <sstream>
 #include <stdexcept>
 
@@ -19,13 +20,22 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
     LOG4CPLUS_ERROR(log4cplus::Logger::getRoot(), "Exception occured while opening " << filename); \
   }
 
-#define _LOG_CONFIGURE_CONSOLE(level, logToStdErr) \
+#if LOG4CPLUS_VERSION < LOG4CPLUS_MAKE_VERSION(2,0,0)
+  #define _LOG_CONFIGURE_CONSOLE(level, logToStdErr) \
     log4cplus::helpers::SharedObjectPtr<log4cplus::Appender> _appender(new log4cplus::ConsoleAppender()); \
     std::auto_ptr<log4cplus::Layout> _layout(new log4cplus::PatternLayout("%D [%t] ")); \
     _appender->setLayout(_layout); \
     log4cplus::BasicConfigurator::doConfigure(log4cplus::Logger::getDefaultHierarchy(), logToStdErr); \
     log4cplus::Logger::getRoot().addAppender(_appender); \
     log4cplus::Logger::getRoot().setLogLevel(log4cplus::getLogLevelManager().fromString(level));
+#else
+  #define _LOG_CONFIGURE_CONSOLE(level, logToStdErr) \
+    log4cplus::helpers::SharedObjectPtr<log4cplus::Appender> _appender(new log4cplus::ConsoleAppender()); \
+    _appender->setLayout(move(std::make_unique<log4cplus::PatternLayout>("%D [%t] "))); \
+    log4cplus::BasicConfigurator::doConfigure(log4cplus::Logger::getDefaultHierarchy(), logToStdErr); \
+    log4cplus::Logger::getRoot().addAppender(_appender); \
+    log4cplus::Logger::getRoot().setLogLevel(log4cplus::getLogLevelManager().fromString(level));
+#endif
 
 #define LOG_CONFIGURE_STDOUT(level) _LOG_CONFIGURE_CONSOLE(level, false)
 

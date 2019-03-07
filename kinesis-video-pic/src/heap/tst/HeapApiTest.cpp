@@ -323,3 +323,33 @@ TEST_F(HeapApiTest, InvalidHeapUnmap_InvalidAllocation) {
     EXPECT_TRUE(STATUS_FAILED(heapUnmap(pHeap, NULL)));
     EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
 }
+
+TEST_F(HeapApiTest, InvalidHeapResize_InvalidValues) {
+    PHeap pHeap;
+    ALLOCATION_HANDLE handle, storedHandle, invalidHandle = INVALID_ALLOCATION_HANDLE_VALUE;
+    UINT64 heapSize = MIN_HEAP_SIZE * 2 + 100000;
+    UINT32 heapTypes[4] = {FLAGS_USE_AIV_HEAP,
+                           FLAGS_USE_SYSTEM_HEAP,
+                           FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP,
+                           FLAGS_USE_SYSTEM_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP};
+
+    for (UINT32 heapType = 0; heapType < SIZEOF(heapTypes) / SIZEOF(HEAP_BEHAVIOR_FLAGS); heapType++) {
+        EXPECT_EQ(STATUS_SUCCESS, heapInitialize(heapSize, 50, heapTypes[heapType], &pHeap));
+        EXPECT_EQ(STATUS_SUCCESS, heapAlloc(pHeap, 1000, &handle));
+        EXPECT_NE(INVALID_ALLOCATION_HANDLE_VALUE, handle);
+        storedHandle = handle;
+
+        EXPECT_NE(STATUS_SUCCESS, heapSetAllocSize(pHeap, NULL, 10000));
+        EXPECT_NE(STATUS_SUCCESS, heapSetAllocSize(pHeap, &invalidHandle, 10000));
+        EXPECT_NE(STATUS_SUCCESS, heapSetAllocSize(pHeap, &invalidHandle, 0));
+        EXPECT_NE(STATUS_SUCCESS, heapSetAllocSize(pHeap, &handle, 0));
+        EXPECT_EQ(storedHandle, handle);
+
+        // Same size
+        EXPECT_EQ(STATUS_SUCCESS, heapSetAllocSize(pHeap, &handle, 1000));
+        EXPECT_EQ(storedHandle, handle);
+
+        EXPECT_EQ(STATUS_SUCCESS, heapFree(pHeap, handle));
+        EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
+    }
+}

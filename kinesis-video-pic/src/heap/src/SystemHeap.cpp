@@ -55,6 +55,7 @@ DEFINE_CREATE_HEAP(sysHeapCreate)
     pBaseHeap->heapAllocFn = sysHeapAlloc;
     pBaseHeap->heapFreeFn = sysHeapFree;
     pBaseHeap->heapGetAllocSizeFn = sysHeapGetAllocSize;
+    pBaseHeap->heapSetAllocSizeFn = sysHeapSetAllocSize;
     pBaseHeap->heapMapFn = sysHeapMap;
     pBaseHeap->heapUnmapFn = sysHeapUnmap;
     pBaseHeap->heapDebugCheckAllocatorFn = sysHeapDebugCheckAllocator;
@@ -206,6 +207,62 @@ DEFINE_HEAP_GET_ALLOC_SIZE(sysHeapGetAllocSize)
 
     // Set the size
     *pAllocSize = pHeader->size;
+
+CleanUp:
+    LEAVES();
+    return retStatus;
+}
+
+/**
+ * Sets the allocation size
+ */
+DEFINE_HEAP_SET_ALLOC_SIZE(sysHeapSetAllocSize)
+{
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    PALLOCATION_HEADER pExistingHeader, pNewHeader;
+    PVOID pAllocation = NULL;
+    UINT64 overallSize;
+
+    // Call the common heap function
+    CHK_STATUS(commonHeapSetAllocSize(pHeap, pHandle, size, newSize));
+
+    // overall allocation size
+    overallSize = SYS_ALLOCATION_HEADER_SIZE + size + SYS_ALLOCATION_FOOTER_SIZE;
+
+    // This heap implementation uses a direct memory allocation so no mapping really needed - just conversion from a handle to memory pointer
+    pAllocation = (PVOID)HANDLE_TO_POINTER(*pHandle);
+
+    pExistingHeader = (PALLOCATION_HEADER)pAllocation - 1;
+
+    // Re-allocation might return a different pointer
+    if (NULL == (pNewHeader = (PALLOCATION_HEADER)MEMREALLOC(pExistingHeader, (SIZE_T) overallSize))) {
+        DLOGV("Failed to reallocate %" PRIu64 "bytes from the heap", overallSize);
+
+        // Make sure we reset the overall size on failure
+        if (newSize > size) {
+            decrementUsage(pHeap, newSize - size);
+        } else {
+            incrementUsage(pHeap, size - newSize);
+        }
+
+        // Early return with success
+        CHK(FALSE, STATUS_HEAP_REALLOC_ERROR);
+    }
+
+#ifdef HEAP_DEBUG
+        // Null the memory in debug mode
+    MEMSET(pNewHeader, 0x00, (SIZE_T) overallSize);
+#endif
+    // Set up the header and footer
+    MEMCPY(pNewHeader, &gSysHeader, SYS_ALLOCATION_HEADER_SIZE);
+    MEMCPY((PBYTE)pNewHeader + SYS_ALLOCATION_HEADER_SIZE + newSize, &gSysFooter, SYS_ALLOCATION_FOOTER_SIZE);
+
+    // Fix-up the allocation size
+    pNewHeader->size = newSize;
+
+    // Setting the return value
+    *pHandle = (ALLOCATION_HANDLE)((PBYTE)pNewHeader + SYS_ALLOCATION_HEADER_SIZE);
 
 CleanUp:
     LEAVES();

@@ -3,6 +3,7 @@
 memAlloc globalMemAlloc = defaultMemAlloc;
 memAlignAlloc globalMemAlignAlloc = defaultMemAlignAlloc;
 memCalloc globalMemCalloc = defaultMemCalloc;
+memRealloc globalMemRealloc = defaultMemRealloc;
 memFree globalMemFree = defaultMemFree;
 
 VOID dumpMemoryHex(PVOID pMem, UINT32 size)

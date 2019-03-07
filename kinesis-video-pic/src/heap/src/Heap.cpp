@@ -143,7 +143,6 @@ STATUS heapGetSize(PHeap pHeap, PUINT64 pHeapSize)
     CHK(pBase != NULL && pHeapSize != NULL, STATUS_NULL_ARG);
 
     DLOGS("Getting the size of the heap.");
-
     CHK_STATUS(pBase->heapGetSizeFn(pHeap, pHeapSize));
 
 CleanUp:
@@ -201,7 +200,7 @@ CleanUp:
 }
 
 /**
- * Returns the allocation size.
+ * Gets the allocation size.
  *
  * Param:
  *      @pHeap - The heap pointer
@@ -217,8 +216,38 @@ STATUS heapGetAllocSize(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT64 pAllocSiz
     CHK(pBase != NULL && pAllocSize != NULL, STATUS_NULL_ARG);
     CHK(IS_VALID_ALLOCATION_HANDLE(handle), STATUS_INVALID_ARG);
 
-    DLOGS("Gets allocation size for handle 0x%016" PRIx64, handle);
+    DLOGS("Getting allocation size for handle 0x%016" PRIx64, handle);
     CHK_STATUS(pBase->heapGetAllocSizeFn(pHeap, handle, pAllocSize));
+
+CleanUp:
+    LEAVES();
+    return retStatus;
+}
+
+/**
+ * Sets the allocation size.
+ *
+ * Param:
+ *      @pHeap - The heap pointer
+ *      @pHandle - IN/OUT - The allocated memory handle to set and return a new handle
+ *      @allocSize - The new allocation size
+ */
+STATUS heapSetAllocSize(PHeap pHeap, PALLOCATION_HANDLE pHandle, UINT64 allocSize)
+{
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    PBaseHeap pBase = (PBaseHeap) pHeap;
+    UINT64 existingSize;
+
+    CHK(pBase != NULL && pHandle != NULL, STATUS_NULL_ARG);
+    CHK(allocSize != 0 && IS_VALID_ALLOCATION_HANDLE(*pHandle), STATUS_INVALID_ARG);
+
+    // Check if we need to do anything. Early return if the sizes are the same
+    CHK_STATUS(pBase->heapGetAllocSizeFn(pHeap, *pHandle, &existingSize));
+    CHK(existingSize != allocSize, retStatus);
+
+    DLOGS("Setting new allocation size %\" PRIu64 \" for handle 0x%016" PRIx64, allocSize, *pHandle);
+    CHK_STATUS(pBase->heapSetAllocSizeFn(pHeap, pHandle, existingSize, allocSize));
 
 CleanUp:
     LEAVES();

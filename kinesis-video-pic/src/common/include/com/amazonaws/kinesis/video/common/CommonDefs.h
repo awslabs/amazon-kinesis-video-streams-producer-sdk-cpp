@@ -375,6 +375,10 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
     #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
+#ifndef ABS
+#define ABS(a) ((a) > (0) ? (a) : (-a))
+#endif
+
 #ifndef IS_ALIGNED_TO
     #define IS_ALIGNED_TO(m, n) ((m) % (n) == 0)
 #endif
@@ -493,6 +497,7 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 typedef PVOID (*memAlloc)(SIZE_T size);
 typedef PVOID (*memAlignAlloc)(SIZE_T size, SIZE_T alignment);
 typedef PVOID (*memCalloc)(SIZE_T num, SIZE_T size);
+typedef PVOID (*memRealloc)(PVOID ptr, SIZE_T size);
 typedef VOID (*memFree)(PVOID ptr);
 
 typedef BOOL (*memChk)(PVOID ptr, BYTE val, SIZE_T size);
@@ -523,6 +528,11 @@ INLINE PVOID defaultMemCalloc(SIZE_T num, SIZE_T size)
     return calloc(num, size);
 }
 
+INLINE PVOID defaultMemRealloc(PVOID ptr, SIZE_T size)
+{
+    return realloc(ptr, size);
+}
+
 INLINE VOID defaultMemFree(VOID* ptr)
 {
     free(ptr);
@@ -534,6 +544,7 @@ INLINE VOID defaultMemFree(VOID* ptr)
 extern memAlloc globalMemAlloc;
 extern memAlignAlloc globalMemAlignAlloc;
 extern memCalloc globalMemCalloc;
+extern memRealloc globalMemRealloc;
 extern memFree globalMemFree;
 
 extern memChk globalMemChk;
@@ -668,6 +679,7 @@ extern freeConditionVariable globalConditionVariableFree;
 #define MEMALLOC                   globalMemAlloc
 #define MEMALIGNALLOC              globalMemAlignAlloc
 #define MEMCALLOC                  globalMemCalloc
+#define MEMREALLOC                 globalMemRealloc
 #define MEMFREE                    globalMemFree
 #define MEMCMP                     memcmp
 #define MEMCPY                     memcpy

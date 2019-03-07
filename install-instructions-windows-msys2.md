@@ -45,8 +45,8 @@ Now the MingW shell prompt will look similar to the one below.
 $
 ```
 
-###### Step 6: Build the Kinesis Video Streams Producer SDK using msys2-install-script.
-Build the SDK by running the command  `./msys2-install-script -a`
+###### Step 6: Build the Kinesis Video Streams Producer SDK using min-install-script.
+Build the SDK by running the command  `./min-install-script`
 Press Enter to all prompts that show up during the install the process. When the install script finishes, the demo executables and libraries will be in the kinesis-video-native-build directory. Please note that this step could take about **25 mins**.
 
 ----
@@ -160,13 +160,13 @@ AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./ki
 gst-launch-1.0 -v filesrc location="YourAudioVideo.mkv" ! matroskademux name=demux ! queue ! h264parse ! kvssink name=sink stream-name="my_stream_name" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
-###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video* in **Mingw Shell**.
+###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video* in **Mingw Shell**.
 
 ```
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.mp4" ! qtdemux name=demux ! queue ! h264parse !  video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
-###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video* in **Mingw Shell**.
+###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video* in **Mingw Shell**.
 
 ```
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! queue ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
