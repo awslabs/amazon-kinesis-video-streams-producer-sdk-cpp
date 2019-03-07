@@ -37,7 +37,7 @@ WORKDIR /opt/
 RUN git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp
 WORKDIR /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
 RUN chmod a+x install-script
-RUN ./install-script -a -j 4 -d
+RUN ./install-script -j 4 -d
 
 WORKDIR /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
 ENV PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/bin:$PATH
