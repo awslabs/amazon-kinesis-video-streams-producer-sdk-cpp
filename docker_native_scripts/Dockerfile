@@ -51,7 +51,7 @@ ENTRYPOINT ["/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-na
 # rtspdockertest      latest              54f0d65f69b2        Less than a second ago   2.82GB
 #
 # === Start the container with credentials ===
-# $ docker run -it 54f0d65f69b2 <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <RTSP_URL> <STREAM_NAME>
+# $ docker run -it 54f0d65f69b2 <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <STREAM_NAME> <RTSP_URL>
 #
 #
 #
