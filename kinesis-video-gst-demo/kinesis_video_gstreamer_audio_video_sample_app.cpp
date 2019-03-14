@@ -101,7 +101,6 @@ typedef struct _CustomData {
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
-    vector<GstElement *> pipelines;
 
     // queue elements to be linked to demuxer's sometimes pad in demux_pad_cb
     GstElement *video_queue, *audio_queue;
@@ -371,8 +370,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     size_t buffer_size;
     bool delta, dropFrame;
     FRAME_FLAGS kinesis_video_flags;
-    gchar *g_stream_handle_key = gst_element_get_name(sink);
-    int track_id = (string(g_stream_handle_key).back()) - '0';
     uint8_t *data_buffer;
     Frame frame;
     GstFlowReturn ret = GST_FLOW_OK;
@@ -380,6 +377,9 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     GstSegment *segment;
     GstClockTime buf_pts, buf_dts;
     gint dts_sign;
+    gchar *g_stream_handle_key = gst_element_get_name(sink);
+    int track_id = (string(g_stream_handle_key).back()) - '0';
+    g_free(g_stream_handle_key);
 
     if (STATUS_FAILED(curr_stream_status)) {
         // handle network outage in live streaming scenario
@@ -1022,6 +1022,7 @@ CleanUp:
      * Known Issue: In live streaming mode on mac. a null pointer exception from osxaudiosrc will be thrown when the
      * next line is executed.
      */
+    gst_bus_remove_signal_watch(bus);
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(GST_OBJECT (pipeline));
     g_main_loop_unref(data.main_loop);

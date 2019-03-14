@@ -30,7 +30,7 @@ Download the `Dockerfile` and `start_rtsp_in_docker.sh` into a folder.  Once the
 
 *  Start the Kinesis Video Streams Docker container using the following command:
 ```
-   $ docker run -it <IMAGE_ID> <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <STREAM_NAME> <RTSP_URL>
+   $ docker run -it <IMAGE_ID> <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <RTSP_URL> <STREAM_NAME>
 ```
 
 

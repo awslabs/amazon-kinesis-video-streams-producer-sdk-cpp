@@ -50,6 +50,9 @@ This library is licensed under the Amazon Software License.
 ----
 ### Release notes
 
+#### Release 1.7.9 (13th Mar 2019)
+* Fix memory leak in kinesis_video_gstreamer_audio_video_sample_app.
+
 #### Release 1.7.8 (6th Mar 2019)
 * Updated CMakeLists.txt and install scripts to be able to link against libraries in default system path.
 * Optimization and bug fixes.

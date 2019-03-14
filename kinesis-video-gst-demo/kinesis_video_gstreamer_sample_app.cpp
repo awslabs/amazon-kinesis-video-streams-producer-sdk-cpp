@@ -1014,6 +1014,7 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
     g_main_loop_run(data->main_loop);
 
     /* free resources */
+    gst_bus_remove_signal_watch(bus);
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
     return 0;

@@ -8,5 +8,5 @@ set PATH=%PATH%;C:\opt\amazon-kinesis-video-streams-producer-sdk-cpp\kinesis-vid
 set AWS_ACCESS_KEY_ID=%1
 set AWS_SECRET_ACCESS_KEY=%2
 
-REM %3 is RTSP_URL and %4 for STREAM_NAME
-kinesis_video_gstreamer_sample_app.exe %3 %4
+REM %3 for STREAM_NAME and %4 is RTSP_URL
+kinesis_video_gstreamer_sample_app.exe %4 %3

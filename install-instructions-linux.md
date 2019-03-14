@@ -394,10 +394,6 @@ Ubuntu bulds link against the system versions of the open source component libra
 ```
    to rebuild and re-link the project only.
 
-##### Certificate issues during install-script build
-If you see errors during the build as  _curl failed with 'unable to get local issuer certificate'_ then you can either follow the resolution steps in [81](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/issues/81)  or you can download the [cacert.pem](https://curl.haxx.se/ca/cacert.pem) into the `kinesis-video-native-build` folder and run
-`./install-script -c`.
-
 ##### Library not found error when running the demo application
 If any error similar to the following shows that the library path is not properly set:
 ```

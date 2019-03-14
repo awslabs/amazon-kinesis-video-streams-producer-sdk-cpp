@@ -1,6 +1,6 @@
 #include "Version.h"
 
-#define AWS_SDK_KVS_PRODUCER_VERSION_STRING "1.7.8"
+#define AWS_SDK_KVS_PRODUCER_VERSION_STRING "1.7.9"
 
 #if defined _WIN32 || defined _WIN64
 #include <windows.h>
