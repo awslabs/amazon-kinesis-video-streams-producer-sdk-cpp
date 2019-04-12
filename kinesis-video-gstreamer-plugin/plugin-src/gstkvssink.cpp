@@ -671,8 +671,10 @@ static void
 gst_kvs_sink_finalize(GObject *object) {
     GstKvsSink *kvssink = GST_KVS_SINK (object);
     auto data = kvssink->data;
-
-    data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+    
+    if(data->kinesis_video_stream) {
+        data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+    }
 
     g_free(kvssink->stream_name);
     g_free(kvssink->content_type);
