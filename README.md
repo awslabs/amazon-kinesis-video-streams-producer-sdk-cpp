@@ -45,7 +45,7 @@ Please follow the **installation instructions** applicable to your operating sys
 
 ### License
 
-This library is licensed under the Amazon Software License.
+This library is licensed under the Apache License, 2.0. 
 
 ----
 ### Release notes
