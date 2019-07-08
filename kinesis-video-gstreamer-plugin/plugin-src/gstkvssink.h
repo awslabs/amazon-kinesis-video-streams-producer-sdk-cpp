@@ -156,6 +156,7 @@ typedef struct _CustomData {
             stream_created(false),
             stream_ready(false),
             stream_status(STATUS_SUCCESS),
+            stream_error_code(STATUS_SUCCESS),
             last_dts(0),
             pts_base(0),
             media_type(VIDEO_ONLY),
@@ -171,6 +172,8 @@ typedef struct _CustomData {
 
     atomic_bool stream_ready;
     atomic_uint stream_status;
+    // variable to store stream errors that will be sent to bus
+    atomic_uint stream_error_code;
 
     uint64_t last_dts;
     uint64_t pts_base;

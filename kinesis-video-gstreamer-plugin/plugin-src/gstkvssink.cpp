@@ -1064,8 +1064,12 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     if (!data->stream_ready.load()) {
         goto CleanUp;
     }
-
     if (STATUS_FAILED(stream_status)) {
+		// Modified: send all error messages and their associated status codes
+		// to out gstreamer pipeline
+        GST_ELEMENT_ERROR (kvssink, STREAM, FAILED
+                           , ("Stream error occurred. Status: %#08x", stream_status)
+                           , (NULL));
         if (IS_RETRIABLE_ERROR(stream_status)) {
 
             data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
@@ -1081,10 +1085,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             goto CleanUp;
         }
 
-        // received unrecoverable error
-        GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL),
-                           ("Stream error occurred. Status: 0x%08x", stream_status));
-        ret = GST_FLOW_ERROR;
+        // If received unrecoverable error, then return a GST_FLOW_ERROR
+        if ( !IS_RECOVERABLE_ERROR(stream_status))
+            ret = GST_FLOW_ERROR;
         goto CleanUp;
     }
 
@@ -1326,6 +1329,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     GstKvsSink *kvssink = GST_KVS_SINK (element);
     auto data = kvssink->data;
     string err_msg = "";
+    STATUS status_code;
 
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
@@ -1343,9 +1347,9 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             }
 
             assign_track_id(kvssink);
-
             if (false == kinesis_video_stream_init(kvssink, err_msg)) {
-                GST_ELEMENT_ERROR (kvssink, LIBRARY, INIT, (NULL), ("%s", err_msg.c_str()));
+                status_code = data->stream_error_code.load();
+                GST_ELEMENT_ERROR (kvssink, LIBRARY, INIT, ("%s Status: %#08x)", err_msg.c_str(), status_code), (NULL));
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto CleanUp;
             }
