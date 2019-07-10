@@ -78,7 +78,9 @@ public:
             std::unique_ptr<CredentialProvider> credential_provider,
             const std::string &region = DEFAULT_AWS_REGION,
             const std::string &control_plane_uri = "",
-            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME);
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
+            bool is_caching_endpoint = false,
+            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
 
     static std::unique_ptr<KinesisVideoProducer> createSync(
             std::unique_ptr<DeviceInfoProvider> device_info_provider,
@@ -149,9 +151,7 @@ protected:
     /**
      * Initializes an empty class. The real initialization happens through the static functions.
      */
-    KinesisVideoProducer() : client_handle_(INVALID_CLIENT_HANDLE_VALUE),
-                             client_ready_(false),
-                             stored_callbacks_({}) {
+    KinesisVideoProducer() : client_handle_(INVALID_CLIENT_HANDLE_VALUE) {
     }
 
     /**
@@ -177,26 +177,6 @@ protected:
     std::unique_ptr<CallbackProvider> callback_provider_;
 
     /**
-     * Stored callbacks from the client
-     */
-    ClientCallbacks stored_callbacks_;
-
-    /**
-     * Mutex needed for the condition variable for client ready locking.
-     */
-    std::mutex client_ready_mutex_;
-
-    /**
-     * Condition variable used to signal the client being ready.
-     */
-    std::condition_variable client_ready_var_;
-
-    /**
-     * Indicating that the client is ready
-     */
-    volatile bool client_ready_;
-
-    /**
      * Client metrics
      */
     KinesisVideoProducerMetrics client_metrics_;
@@ -205,122 +185,6 @@ protected:
      * Map of the handle to stream object
      */
     ThreadSafeMap<STREAM_HANDLE, shared_ptr<KinesisVideoStream>> active_streams_;
-
-    /**
-     * Callback overrides
-     */
-    static MUTEX createMutexFunc(UINT64,
-                                 BOOL);
-    static VOID lockMutexFunc(UINT64,
-                              MUTEX);
-    static VOID unlockMutexFunc(UINT64,
-                                MUTEX);
-    static BOOL tryLockMutexFunc(UINT64,
-                                 MUTEX);
-    static VOID freeMutexFunc(UINT64,
-                              MUTEX);
-    static CVAR createConditionVariableFunc(UINT64);
-    static STATUS signalConditionVariableFunc(UINT64,
-                                              CVAR);
-    static STATUS broadcastConditionVariableFunc(UINT64,
-                                                 CVAR);
-    static STATUS waitConditionVariableFunc(UINT64,
-                                            CVAR,
-                                            MUTEX,
-                                            UINT64);
-    static VOID freeConditionVariableFunc(UINT64,
-                                          CVAR);
-    static UINT64 getCurrentTimeFunc(UINT64);
-    static UINT32 getRandomNumberFunc(UINT64);
-    static VOID logPrintFunc(UINT32, PCHAR, PCHAR, ...);
-    static STATUS getSecurityTokenFunc(UINT64,
-                                       PBYTE*,
-                                       PUINT32,
-                                       PUINT64);
-    static STATUS getDeviceCertificateFunc(UINT64,
-                                           PBYTE*,
-                                           PUINT32,
-                                           PUINT64);
-    static STATUS getDeviceFingerprintFunc(UINT64,
-                                           PCHAR*);
-    static STATUS streamUnderflowReportFunc(UINT64,
-                                            STREAM_HANDLE);
-    static STATUS storageOverflowPressureFunc(UINT64,
-                                              UINT64);
-    static STATUS streamLatencyPressureFunc(UINT64,
-                                            STREAM_HANDLE,
-                                            UINT64);
-    static STATUS droppedFrameReportFunc(UINT64,
-                                         STREAM_HANDLE,
-                                         UINT64);
-    static STATUS droppedFragmentReportFunc(UINT64,
-                                            STREAM_HANDLE,
-                                            UINT64);
-    static STATUS streamErrorReportFunc(UINT64,
-                                        STREAM_HANDLE,
-                                        UPLOAD_HANDLE,
-                                        UINT64,
-                                        STATUS);
-    static STATUS streamReadyFunc(UINT64,
-                                  STREAM_HANDLE);
-    static STATUS streamClosedFunc(UINT64,
-                                   STREAM_HANDLE,
-                                   UINT64);
-    static STATUS createStreamFunc(UINT64,
-                                   PCHAR,
-                                   PCHAR,
-                                   PCHAR,
-                                   PCHAR,
-                                   UINT64,
-                                   PServiceCallContext);
-    static STATUS describeStreamFunc(UINT64,
-                                     PCHAR,
-                                     PServiceCallContext);
-    static STATUS getStreamingEndpointFunc(UINT64,
-                                           PCHAR,
-                                           PCHAR,
-                                           PServiceCallContext);
-    static STATUS getStreamingTokenFunc(UINT64,
-                                        PCHAR,
-                                        STREAM_ACCESS_MODE,
-                                        PServiceCallContext);
-    static STATUS putStreamFunc(UINT64,
-                                PCHAR,
-                                PCHAR,
-                                UINT64,
-                                BOOL,
-                                BOOL,
-                                PCHAR,
-                                PServiceCallContext);
-    static STATUS tagResourceFunc(UINT64,
-                                  PCHAR,
-                                  UINT32,
-                                  PTag,
-                                  PServiceCallContext);
-    static STATUS clientReadyFunc(UINT64,
-                                  CLIENT_HANDLE);
-    static STATUS createDeviceFunc(UINT64,
-                                   PCHAR,
-                                   PServiceCallContext);
-    static STATUS deviceCertToTokenFunc(UINT64,
-                                        PCHAR,
-                                        PServiceCallContext);
-    static STATUS streamDataAvailableFunc(UINT64,
-                                          STREAM_HANDLE,
-                                          PCHAR,
-                                          UINT64,
-                                          UINT64,
-                                          UINT64);
-    static STATUS streamConnectionStaleFunc(UINT64,
-                                            STREAM_HANDLE,
-                                            UINT64);
-    static STATUS fragmentAckReceivedFunc(UINT64,
-                                          STREAM_HANDLE,
-                                          UPLOAD_HANDLE,
-                                          PFragmentAck);
-    static STATUS bufferDurationOverflowPressureFunc(UINT64,
-                                                     STREAM_HANDLE,
-                                                     UINT64);
 };
 
 } // namespace video

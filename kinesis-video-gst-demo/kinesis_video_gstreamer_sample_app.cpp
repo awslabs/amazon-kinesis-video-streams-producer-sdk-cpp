@@ -25,11 +25,6 @@ int gstreamer_init(int, char **);
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
-#define ACCESS_KEY_ENV_VAR "AWS_ACCESS_KEY_ID"
-#define SECRET_KEY_ENV_VAR "AWS_SECRET_ACCESS_KEY"
-#define SESSION_TOKEN_ENV_VAR "AWS_SESSION_TOKEN"
-#define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
-
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
 #define DEFAULT_KMS_KEY_ID ""
 #define DEFAULT_STREAMING_TYPE STREAMING_TYPE_REALTIME
@@ -51,8 +46,6 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CODEC_ID "V_MPEG4/ISO/AVC"
 #define DEFAULT_TRACKNAME "kinesis_video"
 #define DEFAULT_FRAME_DURATION_MS 1
-#define DEFAULT_FRAME_DATA_SIZE_BYTE 5000
-#define FRAME_DATA_SIZE_MULTIPLIER 1.5
 #define DEFAULT_CREDENTIAL_ROTATION_SECONDS 2400
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
@@ -74,7 +67,6 @@ typedef struct _CustomData {
 
     _CustomData():
             streamSource(LIVE_SOURCE),
-            put_frame_failed(false),
             h264_stream_supported(false),
             synthetic_dts(0),
             last_unpersisted_file_idx(0),
@@ -82,7 +74,7 @@ typedef struct _CustomData {
             base_pts(0),
             max_frame_pts(0),
             key_frame_pts(0),
-            frame_data_size(DEFAULT_FRAME_DATA_SIZE_BYTE){
+            main_loop(NULL) {
         producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
     }
 
@@ -133,12 +125,7 @@ typedef struct _CustomData {
 
     unique_ptr<Credentials> credential;
 
-    bool put_frame_failed;
-
     uint64_t synthetic_dts;
-
-    uint8_t *frame_data;
-    uint32_t frame_data_size;
 } CustomData;
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
@@ -249,10 +236,25 @@ SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREA
                                                        UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status_code) {
     LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: "
                                                            << status_code);
-    if (!IS_RECOVERABLE_ERROR(status_code)) {
-        CustomData *data = reinterpret_cast<CustomData *>(custom_data);
+    CustomData *data = reinterpret_cast<CustomData *>(custom_data);
+    bool terminate_pipeline = false;
+
+    // Terminate pipeline if error is not retriable or if error is retriable but we are streaming file.
+    // When streaming file, we choose to terminate the pipeline on error because the easiest way to recover
+    // is to stream the file from the beginning again.
+    // In realtime streaming, retriable error can be handled underneath. Otherwise terminate pipeline
+    // and store error status if error is fatal.
+    if ((IS_RETRIABLE_ERROR(status_code) && data->streamSource == FILE_SOURCE) ||
+        (!IS_RETRIABLE_ERROR(status_code) && !IS_RECOVERABLE_ERROR(status_code))) {
         data->stream_status = status_code;
+        terminate_pipeline = true;
     }
+
+    if (terminate_pipeline && data->main_loop != NULL) {
+        LOG_WARN("Terminating pipeline due to unrecoverable stream error: " << status_code);
+        g_main_loop_quit(data->main_loop);
+    }
+
     return STATUS_SUCCESS;
 }
 
@@ -277,7 +279,7 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
             LOG_INFO("Successfully persisted file " << data->file_list.at(last_unpersisted_file_idx).path);
         }
     }
-    LOG_WARN("Reporting fragment ack received. Ack timecode " << pFragmentAck->timestamp);
+    LOG_DEBUG("Reporting fragment ack received. Ack timecode " << pFragmentAck->timestamp);
     return STATUS_SUCCESS;
 }
 
@@ -325,6 +327,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     GstFlowReturn ret = GST_FLOW_OK;
     STATUS curr_stream_status = data->stream_status.load();
     GstSample *sample = nullptr;
+    GstMapInfo info;
 
     if (STATUS_FAILED(curr_stream_status)) {
         LOG_ERROR("Received stream error: " << curr_stream_status);
@@ -332,6 +335,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         goto CleanUp;
     }
 
+    info.data = nullptr;
     sample = gst_app_sink_pull_sample(GST_APP_SINK (sink));
 
     // capture cpd at the first frame
@@ -349,19 +353,11 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     isDroppable = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_CORRUPTED) ||
                   GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DECODE_ONLY) ||
                   (GST_BUFFER_FLAGS(buffer) == GST_BUFFER_FLAG_DISCONT) ||
+                  (GST_BUFFER_FLAGS(buffer) == (GST_BUFFER_FLAG_DISCONT | GST_BUFFER_FLAG_HEADER)) ||
                   // drop if buffer contains header only and has invalid timestamp
                   (isHeader && (!GST_BUFFER_PTS_IS_VALID(buffer) || !GST_BUFFER_DTS_IS_VALID(buffer)));
 
     if (!isDroppable) {
-        buffer_size = gst_buffer_get_size(buffer);
-        // resize data buffer if not enough storage
-        if (buffer_size > data->frame_data_size) {
-            delete [] data->frame_data;
-            data->frame_data_size = buffer_size * FRAME_DATA_SIZE_MULTIPLIER;
-            data->frame_data = new uint8_t[data->frame_data_size];
-        }
-
-        gst_buffer_extract(buffer, 0, data->frame_data, buffer_size);
 
         delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
 
@@ -369,11 +365,11 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
         // Always synthesize dts for file sources because file sources dont have meaningful dts.
         // For some rtsp sources the dts is invalid, therefore synthesize.
-        if (!GST_BUFFER_DTS_IS_VALID(buffer) ||
-            data->streamSource == FILE_SOURCE) {
-            buffer->dts = data->synthetic_dts;
-
+        if (data->streamSource == FILE_SOURCE || !GST_BUFFER_DTS_IS_VALID(buffer)) {
             data->synthetic_dts += DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
+            buffer->dts = data->synthetic_dts;
+        } else if (GST_BUFFER_DTS_IS_VALID(buffer)) {
+            data->synthetic_dts = buffer->dts;
         }
 
         if (data->streamSource == FILE_SOURCE) {
@@ -387,20 +383,20 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             }
         }
 
-        if (false == put_frame(data->kinesis_video_stream, data->frame_data, buffer_size, std::chrono::nanoseconds(buffer->pts),
-                               std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
-            data->put_frame_failed = true;
-            g_printerr("Failed to submit frame to kinesis video stream\n");
+        if (!gst_buffer_map(buffer, &info, GST_MAP_READ)){
+            goto CleanUp;
         }
-    }
 
-    if (data->streamSource == FILE_SOURCE && data->put_frame_failed) {
-        LOG_ERROR("Put frame failed while uploading file.");
-        ret = GST_FLOW_ERROR;
-        goto CleanUp;
+        put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
+                               std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
     }
 
 CleanUp:
+
+    if (info.data != nullptr) {
+        gst_buffer_unmap(buffer, &info);
+    }
+
     if (sample != nullptr) {
         gst_sample_unref(sample);
     }
@@ -455,10 +451,10 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 }
 
 void kinesis_video_init(CustomData *data) {
-    unique_ptr<DeviceInfoProvider> device_info_provider = make_unique<SampleDeviceInfoProvider>();
-    unique_ptr<ClientCallbackProvider> client_callback_provider = make_unique<SampleClientCallbackProvider>();
-    unique_ptr<StreamCallbackProvider> stream_callback_provider = make_unique<SampleStreamCallbackProvider>(
-            reinterpret_cast<UINT64>(data));
+    unique_ptr<DeviceInfoProvider> device_info_provider(new SampleDeviceInfoProvider());
+    unique_ptr<ClientCallbackProvider> client_callback_provider(new SampleClientCallbackProvider());
+    unique_ptr<StreamCallbackProvider> stream_callback_provider(new SampleStreamCallbackProvider(
+            reinterpret_cast<UINT64>(data)));
 
     char const *accessKey;
     char const *secretKey;
@@ -494,11 +490,11 @@ void kinesis_video_init(CustomData *data) {
             sessionTokenStr = "";
         }
 
-        data->credential = make_unique<Credentials>(string(accessKey),
-                                                    string(secretKey),
-                                                    sessionTokenStr,
-                                                    std::chrono::seconds(DEFAULT_CREDENTIAL_EXPIRATION_SECONDS));
-        credential_provider = make_unique<SampleCredentialProvider>(*data->credential.get());
+        data->credential.reset(new Credentials(string(accessKey),
+                                               string(secretKey),
+                                               sessionTokenStr,
+                                               std::chrono::seconds(DEFAULT_CREDENTIAL_EXPIRATION_SECONDS)));
+        credential_provider.reset(new SampleCredentialProvider(*data->credential.get()));
 
     } else if (nullptr != (iot_get_credential_endpoint = getenv("IOT_GET_CREDENTIAL_ENDPOINT")) &&
                nullptr != (cert_path = getenv("CERT_PATH")) &&
@@ -506,12 +502,12 @@ void kinesis_video_init(CustomData *data) {
                nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
                nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
         LOG_INFO("Using IoT credentials for Kinesis Video Streams");
-        credential_provider = make_unique<IotCertCredentialProvider>(iot_get_credential_endpoint,
-                                                                     cert_path,
-                                                                     private_key_path,
-                                                                     role_alias,
-                                                                     ca_cert_path,
-                                                                     data->stream_name);
+        credential_provider.reset(new IotCertCredentialProvider(iot_get_credential_endpoint,
+                                                                cert_path,
+                                                                private_key_path,
+                                                                role_alias,
+                                                                ca_cert_path,
+                                                                data->stream_name));
 
     } else {
         LOG_AND_THROW("No valid credential method was found");
@@ -542,31 +538,32 @@ void kinesis_video_stream_init(CustomData *data) {
         use_absolute_fragment_times = true;
     }
 
-    auto stream_definition = make_unique<StreamDefinition>(data->stream_name,
-                                                           hours(DEFAULT_RETENTION_PERIOD_HOURS),
-                                                           &tags,
-                                                           DEFAULT_KMS_KEY_ID,
-                                                           streaming_type,
-                                                           DEFAULT_CONTENT_TYPE,
-                                                           duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
-                                                           milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
-                                                           milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
-                                                           DEFAULT_KEY_FRAME_FRAGMENTATION,
-                                                           DEFAULT_FRAME_TIMECODES,
-                                                           use_absolute_fragment_times,
-                                                           DEFAULT_FRAGMENT_ACKS,
-                                                           DEFAULT_RESTART_ON_ERROR,
-                                                           DEFAULT_RECALCULATE_METRICS,
-                                                           0,
-                                                           DEFAULT_STREAM_FRAMERATE,
-                                                           DEFAULT_AVG_BANDWIDTH_BPS,
-                                                           seconds(DEFAULT_BUFFER_DURATION_SECONDS),
-                                                           seconds(DEFAULT_REPLAY_DURATION_SECONDS),
-                                                           seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
-                                                           DEFAULT_CODEC_ID,
-                                                           DEFAULT_TRACKNAME,
-                                                           nullptr,
-                                                           0);
+    unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
+        data->stream_name,
+        hours(DEFAULT_RETENTION_PERIOD_HOURS),
+        &tags,
+        DEFAULT_KMS_KEY_ID,
+        streaming_type,
+        DEFAULT_CONTENT_TYPE,
+        duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
+        milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
+        milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
+        DEFAULT_KEY_FRAME_FRAGMENTATION,
+        DEFAULT_FRAME_TIMECODES,
+        use_absolute_fragment_times,
+        DEFAULT_FRAGMENT_ACKS,
+        DEFAULT_RESTART_ON_ERROR,
+        DEFAULT_RECALCULATE_METRICS,
+        0,
+        DEFAULT_STREAM_FRAMERATE,
+        DEFAULT_AVG_BANDWIDTH_BPS,
+        seconds(DEFAULT_BUFFER_DURATION_SECONDS),
+        seconds(DEFAULT_REPLAY_DURATION_SECONDS),
+        seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
+        DEFAULT_CODEC_ID,
+        DEFAULT_TRACKNAME,
+        nullptr,
+        0));
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
 
     // reset state
@@ -840,14 +837,15 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
 
 int gstreamer_rtsp_source_init(CustomData *data, GstElement *pipeline) {
 
-    GstElement *filter, *appsink, *depay, *source;
+    GstElement *filter, *appsink, *depay, *source, *h264parse;
 
     filter = gst_element_factory_make("capsfilter", "filter");
     appsink = gst_element_factory_make("appsink", "appsink");
     depay = gst_element_factory_make("rtph264depay", "depay");
     source = gst_element_factory_make("rtspsrc", "source");
+    h264parse = gst_element_factory_make("h264parse", "h264parse");
 
-    if (!pipeline || !source || !depay || !appsink || !filter) {
+    if (!pipeline || !source || !depay || !appsink || !filter || !h264parse) {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
@@ -874,11 +872,11 @@ int gstreamer_rtsp_source_init(CustomData *data, GstElement *pipeline) {
 
     /* build the pipeline */
     gst_bin_add_many(GST_BIN (pipeline), source,
-                     depay, filter, appsink,
+                     depay, h264parse, filter, appsink,
                      NULL);
 
     /* Leave the actual source out - this will be done when the pad is added */
-    if (!gst_element_link_many(depay, filter,
+    if (!gst_element_link_many(depay, filter, h264parse,
                                appsink,
                                NULL)) {
 
@@ -895,9 +893,6 @@ int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
     GstElement *demux, *appsink, *filesrc, *h264parse, *filter, *queue;
     string file_suffix;
     string file_path = data->file_list.at(data->current_file_idx).path;
-
-    //reset state
-    data->put_frame_failed = false;
 
     filter = gst_element_factory_make("capsfilter", "filter");
     appsink = gst_element_factory_make("appsink", "appsink");
@@ -1017,23 +1012,9 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
     gst_bus_remove_signal_watch(bus);
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
+    g_main_loop_unref(data->main_loop);
+    data->main_loop = NULL;
     return 0;
-}
-
-void recreate_stream(CustomData *data) {
-    data->kinesis_video_stream->stopSync();
-    data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
-    bool do_repeat = true;
-    do {
-        LOG_INFO("Attempt to recreate kinesis video stream");
-        try {
-            kinesis_video_stream_init(data);
-            do_repeat = false;
-        } catch (runtime_error &err) {
-            LOG_INFO("Failed to create kinesis video stream");
-            this_thread::sleep_for(std::chrono::seconds(2));
-        }
-    } while(do_repeat);
 }
 
 int main(int argc, char* argv[]) {
@@ -1100,10 +1081,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    data.frame_data = new uint8_t[data.frame_data_size];
     bool do_retry = true;
-    do {
-        if (data.streamSource == FILE_SOURCE) {
+
+    if (data.streamSource == FILE_SOURCE) {
+        do {
             uint32_t i = data.last_unpersisted_file_idx.load();
             bool continue_uploading = true;
 
@@ -1118,60 +1099,62 @@ int main(int argc, char* argv[]) {
                 // check if any stream error occurred.
                 stream_status = data.stream_status.load();
 
-                // fatal cases
-                if (data.put_frame_failed && file_retry_count == 0) {
-                    LOG_ERROR("Failed to upload file " << data.file_list[i].path << " after retrying. Terminating.");
-                    do_retry = false;           // exit while loop
-                    continue_uploading = false; // exit file uploading for loop
-                } else if (STATUS_FAILED(stream_status) &&
-                           !IS_RETRIABLE_ERROR(stream_status)) {
-                    LOG_ERROR("Fatal stream error occurred: " << stream_status << ". Terminating.");
-                    do_retry = false;
+                if (STATUS_FAILED(stream_status)) {
                     continue_uploading = false;
-                }
-
-                // file upload successfully or start retrying
-                if (STATUS_SUCCEEDED(stream_status) && !data.put_frame_failed) {
-                    LOG_INFO("Finished uploading file: " << data.file_list[i].path);
-                    file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
-                } else {
-                    if (data.put_frame_failed) {
-                        file_retry_count--;
+                    // fatal cases
+                    if (!IS_RETRIABLE_ERROR(stream_status)) {
+                        LOG_ERROR("Fatal stream error occurred: " << stream_status << ". Terminating.");
+                        do_retry = false;
+                    } else {
+                        do_retry = true;
                     }
-                    continue_uploading = false;
+                    data.kinesis_video_stream->stop();
+                } else {
+                    LOG_INFO("Finished sending file to kvs producer: " << data.file_list[i].path);
+                    // check if we just finished sending the last file.
+                    if (i == data.file_list.size() - 1) {
+                        // stop sync will send out remaining frames. If stopSync
+                        // succeeds then everything is done, otherwise do retry
+                        if (data.kinesis_video_stream->stopSync()) {
+                            LOG_INFO("All files have been persisted");
+                            do_retry = false;
+                        } else {
+                            do_retry = true;
+                        }
+                    }
                 }
             }
 
-            // check if we successfully uploaded everything.
-            if (STATUS_SUCCEEDED(stream_status) && !data.put_frame_failed) {
-                this_thread::sleep_for(seconds(20)); // hack before we have waiting for acks
-                LOG_INFO("File uploading complete.");
-                do_retry = false; // exit while loop.
+            if (do_retry) {
+                file_retry_count--;
+                if (file_retry_count == 0) {
+                    i = data.last_unpersisted_file_idx.load();
+                    LOG_ERROR("Failed to upload file " << data.file_list[i].path << " after retrying. Terminating.");
+                    data.kinesis_video_stream->stop();
+                    do_retry = false;           // exit while loop
+                } else {
+                    // flush out buffers
+                    data.kinesis_video_stream->resetStream();
+                    // reset state
+                    data.stream_status = STATUS_SUCCESS;
+                    data.stream_started = false;
+                }
             }
+        } while(do_retry);
+
+    } else {
+        // non file uploading scenario
+        gstreamer_init(argc, argv, &data);
+        if (STATUS_SUCCEEDED(stream_status)) {
+            // if stream_status is success after eos, send out remaining frames.
+            data.kinesis_video_stream->stopSync();
         } else {
-            // non file uploading scenario
-            ret = gstreamer_init(argc, argv, &data);
-            if (ret != 0) {
-                return ret;
-            }
-
-            if (STATUS_FAILED(stream_status) &&
-                !IS_RETRIABLE_ERROR(stream_status)) {
-                LOG_ERROR("Fatal stream error occurred: " << stream_status << ". Terminating.");
-                do_retry = false;
-            }
+            data.kinesis_video_stream->stop();
         }
-
-        if (do_retry) {
-            recreate_stream(&data);
-        }
-
-    } while(do_retry);
+    }
 
     // CleanUp
-    data.kinesis_video_stream->stopSync();
     data.kinesis_video_producer->freeStream(data.kinesis_video_stream);
-    delete [] data.frame_data;
 
     return 0;
 }

@@ -17,6 +17,7 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ makes it easy to build an on
 Amazon Kinesis Video Streams Producer SDK for C/C++ contains the following sub-directories/projects:
 * kinesis-video-pic - The Platform Independent Codebase which is the basic building block for the C++/Java producer SDK. The project includes multiple sub-projects for each sub-component with unit tests.
 * kinesis-video-producer - The C++ Producer SDK with unit test.
+* kinesis-video-c-producer - The C Producer SDK with unit test.
 * kinesis-video-producer-jni - The C++ wrapper for JNI to expose the functionality to Java/Android.
 * kinesis-video-gst-demo - C++ GStreamer sample application (for webcam, USB camera and RTSP) .
 * kinesis-video-gstreamer-plugin - GStreamer plugin sink element (kvssink) and demo application.
@@ -24,7 +25,24 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ contains the following sub-d
   * This should be your **current working directory** for running the install-scripts.
 
 ----
+### Supported Platforms
+----
+Kinesis Video Streams Producer SDK was tested on following platforms:
+```
+    Ubuntu 16
+    Ubuntu 17
+    Ubuntu 18
+    Raspberry Raspbian
+    MacOS El Captian
+    MacOS Sierra
+    MacOS High Sierra
+    Windows 7 Enterprise
+    Windows 10 Enterprise
+    Windows Server 2012 R2
+    Windows Server 2016
+```
 
+----
 ### Build and install Kinesis Video Streams Producer SDK and sample applications
 ----
 There are few build-time tools/dependencies which need to be installed in order to compile the core producer SDK libraries and the sample applications. Sample applications are provided to demonstrate _**how to send video**_ from **webcam**, **USB camera**, or **IP camera** (RTSP).
@@ -49,6 +67,32 @@ This library is licensed under the Apache License, 2.0.
 
 ----
 ### Release notes
+
+#### Release 2.0.0 (9th Jul 2019)
+* License update: KVS SDK and GStreamer kvssink plugin are under Apache 2.0 license now.
+* C-Producer - New feature
+  * Language level is C89. It should work for all GCC versions, tested minimum GCC version is 4.1.
+  * The Kinesis Video Streams C producer library wraps kinesis-video-pic (Platform Independent Code) with additional layer of API that allows scenario and platform-specific callbacks and events.
+  * Callbacks for sample retry logic implementation are now supported through C Producer
+* CPP Producer - Updates
+  * Language level is C++11 instead of C++14. Required minimum GCC version is 4.8.
+  * Kinesis Video Producer CPP (kinesis-video-producer directory) is now revised to a wrapper of C Producer SDK which interfaces with the Platform Independent Repository (PIC, kinesis-video-pic directory).
+* Platform Independent Code - New functionality
+  * Automatic CPD (codec private data) extraction from the stream
+  * Reset stream and reset connection functionality in PIC - In case of unrecoverable errors users can simply call reset stream; internally SDK will free & create the stream.
+  * Log level supported in PIC. It can be set in member variable of DeviceInfo.ClientInfo.
+* Platform Independent Code - Bug Fixes
+  * Skip over error fragments - SDK will continue skip any invalid fragments are ingested through SDK earlier and continue streaming with valid ingested fragments. It will not just loop back and keep resending the broken fragment now.
+* All unit tests (pic_test, cproducer_test, producer_test) are at C++11 level. Required minimum GCC version is 4.8.
+
+* Please note the following changes if you have customized the SDK for your integration and not using samples directly.
+  * Changes to utility functions:
+    * RotatingStaticCredentialProvider is removed from C++ producer. Customer can use StaticCredentialProvider instead. 
+    * CredentialProviderUtil and SerializedCredentials are removed from C++ producer.
+  * Following functions are removed from DefaultCallbackProvider: sleepUntilWithTimeCallback, shutdownStream, notifyResult, getControlPlaneUri, safeFreeBuffer, getStreamStatusFromString.
+  * Changes to the object model:
+    * Following attributes have been added: Version number is added to TrackInfo, Frame, StreamDescription, DeviceInfo, StreamInfo.
+    * Following attributes have been removed: certPath is removed from DeviceInfo in PIC.
 
 #### Release 1.7.9 (13th Mar 2019)
 * Fix memory leak in kinesis_video_gstreamer_audio_video_sample_app.

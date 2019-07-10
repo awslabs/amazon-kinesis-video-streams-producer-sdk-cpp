@@ -20,6 +20,7 @@ IF %BITWIDTH%==32 (
     )
 )
 
+if not exist "Release" mkdir Release
 if not exist "downloads" mkdir downloads
 cd downloads
 SET "CURRENTDIR=%cd%"
@@ -47,6 +48,24 @@ if ERRORLEVEL 1 (
         set "path=%path%;C:\BuildTools\VC\Tools\MSVC\14.14.26428\bin\Hostx64\x64"
     )
 )
+
+if not exist "jsmn-1.0.0" (
+    echo "Jsmn doesn't exist, installing into %CURRENTDIR%"
+    if not exist "jsmn-1.0.0.zip" (
+        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri https://github.com/zserge/jsmn/archive/v1.0.0.zip -OutFile jsmn-1.0.0.zip"
+    )
+    powershell -NoP -NonI -Command "Expand-Archive '.\jsmn-1.0.0.zip' '.\'"
+    copy "%CURRENTDIR%\..\projectFiles\jsmn\CMakeLists.txt" "%CURRENTDIR%\jsmn-1.0.0\" /y
+    cd jsmn-1.0.0
+    IF %BITWIDTH%==32 (
+        cmake -G "Visual Studio 15 2017"
+    ) ELSE (
+        cmake -G "Visual Studio 15 2017 Win64"
+    )
+    msbuild jsmn.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
+    cd "%CURRENTDIR%\"
+)
+echo "Jsmn installed"
 
 if not exist "curl-7.60.0" (
     echo "Curl doesn't exist, installing into %CURRENTDIR%"
@@ -100,8 +119,8 @@ if not exist "openssl-OpenSSL_1_1_0f" (
     if not exist "openssl-1.1.0f.zip" (
         powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest https://github.com/openssl/openssl/archive/OpenSSL_1_1_0f.zip -OutFile openssl-1.1.0f.zip"
     )
-    if not exist "strawberry-perl-5.28.0.1-%BITWIDTH%bit.msi" (
-        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri http://strawberryperl.com/download/5.28.0.1/strawberry-perl-5.28.0.1-%BITWIDTH%bit.msi -OutFile strawberry-perl-5.28.0.1-%BITWIDTH%bit.msi"
+    if not exist "strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi" (
+        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri http://strawberryperl.com/download/5.28.2.1/strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi -OutFile strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi"
     )
     if not exist "nasm-2.13-win%BITWIDTH%.zip" (
         powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri https://www.nasm.us/pub/nasm/releasebuilds/2.13/win%BITWIDTH%/nasm-2.13-win%BITWIDTH%.zip -OutFile nasm-2.13-win%BITWIDTH%.zip"
@@ -110,8 +129,8 @@ if not exist "openssl-OpenSSL_1_1_0f" (
     powershell -NoP -NonI -Command "Expand-Archive '.\openssl-1.1.0f.zip' '.\'"
     powershell -NoP -NonI -Command "Expand-Archive '.\nasm-2.13-win%BITWIDTH%.zip' '.\'"
 
-    msiexec /x strawberry-perl-5.28.0.1-%BITWIDTH%bit.msi /qn
-    msiexec /i strawberry-perl-5.28.0.1-%BITWIDTH%bit.msi INSTALLDIR="%CURRENTDIR%\StrawberryPerl" /qb
+    msiexec /x strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi /qn
+    msiexec /i strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi INSTALLDIR="%CURRENTDIR%\StrawberryPerl" /qb
 
     cd "%CURRENTDIR%\openssl-OpenSSL_1_1_0f"
 
@@ -129,6 +148,8 @@ if not exist "openssl-OpenSSL_1_1_0f" (
 
     cd "%CURRENTDIR%\"
 )
+copy openssl-OpenSSL_1_1_0f\libcrypto-1_1-x64.dll ..\Release\ /Y
+copy openssl-OpenSSL_1_1_0f\libssl-1_1-x64.dll ..\Release\ /Y
 echo "Openssl installed"
 
 
@@ -157,9 +178,18 @@ IF %BITWIDTH%==32 (
 ) ELSE (
     cmake -G "Visual Studio 15 2017 Win64"
 )
+
+msbuild pic_test.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
+if ERRORLEVEL 1 goto :showerror
+msbuild cproducer.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
+if ERRORLEVEL 1 goto :showerror
+msbuild cproducer_test.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
+if ERRORLEVEL 1 goto :showerror
 msbuild producer.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
 if ERRORLEVEL 1 goto :showerror
-msbuild start.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
+msbuild producer_test.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
+if ERRORLEVEL 1 goto :showerror
+msbuild kinesis_video_cproducer_video_only_sample.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
 if ERRORLEVEL 1 goto :showerror
 msbuild kinesis_video_gstreamer_sample_app.vcxproj  /p:Configuration=Release /p:Platform=%BUILD_BITNESS_TYPE% /m
 if ERRORLEVEL 1 goto :showerror

@@ -1,4 +1,13 @@
 cmake_minimum_required (VERSION 2.6)
+project(PlatformIndependentNativeRepository LANGUAGES CXX)
+get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 project (clientTest)
 file (GLOB ClientTestSources *.cpp)
 

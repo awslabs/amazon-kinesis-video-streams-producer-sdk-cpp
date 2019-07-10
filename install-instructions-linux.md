@@ -1,3 +1,4 @@
+
 #### Instructions for installing Kinesis Video Streams Producer SDK on Linux (Ubuntu, Raspberry PI)
 
 ----
@@ -98,6 +99,10 @@ If you are using Raspberry pi, you can also install the `gstreamer1.0-omx` packa
 ```
 sudo apt-get install gstreamer1.0-omx
 ```
+If `make` is not installed already you can install `make` using
+```
+sudo apt-get install make
+```
 Run the build script: (within `kinesis-video-native-build` folder)
 ```
 ./min-install-script
@@ -122,7 +127,8 @@ $ ./java-install-script
 ```
 
 ----
-### Running Examples:
+### How to run sample applications for sending media to KVS using [GStreamer](https://gstreamer.freedesktop.org/):
+
 ##### Setting credentials in environment variables
 Define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables with the AWS access key id and secret key:
 
@@ -141,7 +147,7 @@ the LD_LIBRARY_PATH as below:
 ```
 export LD_LIBRARY_PATH=/opt/awssdk/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$LD_LIBRARY_PATH
 ```
-* (Skip this if you installed gstreamer using apt-get) The `gst-launch-1.0` and `gst-inspect-1.0` binaries are built inside the folder `<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/bin`. You can either run the following commands from that folder using `./gst-launch-1.0` or you can include that in your **PATH** environment variable using the following export command and run `gst-launch-1.0`
+* (Skip this if you installed GStreamer using `apt-get`) The `gst-launch-1.0` and `gst-inspect-1.0` binaries are built inside the folder `<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/bin`. You can either run the following commands from that folder using `./gst-launch-1.0` or you can include that in your **PATH** environment variable using the following export command and run `gst-launch-1.0`
 ```
 $ export PATH=<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/bin:$PATH
 ```
@@ -150,7 +156,7 @@ $ export PATH=<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/bin
 $ export GST_PLUGIN_PATH=<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/lib:$GST_PLUGIN_PATH
 ```
 
-###### Discovering available devices.
+###### Discovering audio and video devices available in your system.
 Change your current working directory to `<YourSdkFolderPath>/kinesis-video-native-build/downloads/local/bin`;
 then run the `gst-device-monitor-1.0` command to identify available media devices in your system. An example output as follows:
 ```
@@ -182,15 +188,15 @@ Device found:
 	gst-launch-1.0 v4l2src device=/dev/video4 ! ...
 ```
 
-###### Running the `gst-launch-1.0` command to start streaming from RTSP camera source.
+###### Running the `gst-launch-1.0` command to start streaming from a RTSP camera source.
 ```
-$ gst-launch-1.0 -v rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=128
+$ gst-launch-1.0 -v rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! h264parse ! kvssink stream-name=YourStreamName storage-size=128
 ```
 
 **Note:** If you are using **IoT credentials** then you can pass them as parameters to the gst-launch-1.0 command
 ```
 $ gst-launch-1.0 -v rtspsrc location="rtsp://YourCameraRtspUrl" short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
- kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
+ h264parse ! kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
 ```
 You can find the RTSP URL from your IP camera manual or manufacturers product page.
 
@@ -206,7 +212,7 @@ $ gst-launch-1.0 -v v4l2src device=/dev/video0 ! h264parse ! video/x-h264,stream
 ###### Running the `gst-launch-1.0` command to start streaming from camera source in **Raspberry-PI**.
 
 ```
-$ gst-launch-1.0 -v v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! omxh264enc periodicity-idr=45 inline-header=FALSE ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName access-key="YourAccessKey" secret-key="YourSecretKey"
+$ gst-launch-1.0 -v v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! omxh264enc periodicty-idr=45 inline-header=FALSE ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName access-key="YourAccessKey" secret-key="YourSecretKey"
 ```
 or use a different encoder
 ```
@@ -320,7 +326,7 @@ You can also choose to use other video devices by doing
 
 `export AWS_KVS_VIDEO_DEVICE=/dev/video1`
 
-If no `AWS_KVS_VIDEO_DEVICE` environment variable was detected, the sample app will use the default video device.
+If no `AWS_KVS_VIDEO_DEVICE` environment variable was detected, the sample application will use the default video device.
 After the environment variables are set, launch the sample application with a stream name and it will start streaming.
 ```
 AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_audio_video_sample_app <my-stream>
@@ -329,6 +335,15 @@ AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./ki
 ##### 4. Run the demo application from Docker
 
 Refer the **README.md** file in the  *docker_native_scripts* folder for running the build and RTSP demo application within Docker container.
+
+### How to run sample applications for sending H264 video files to KVS
+
+The sample application `kinesis_video_cproducer_video_only_sample` sends h264  video frames inside the folder `kinesis-video-c-producer/samples/h264SampleFrames` to KVS.
+The following command sends the video frames in a loop for ten seconds to KVS.
+`./kinesis_video_cproducer_video_only_sample YourStreamName 10`
+
+If you want to send H264 files from another folder (`MyH264FramesFolder`) you can run the sample with the following arguments
+`./kinesis_video_cproducer_video_only_sample YourStreamName 10 MyH264FramesFolder`
 
 ##### Additional examples
 
@@ -339,13 +354,22 @@ For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Vid
 ##### [Kinesis Video Streams Android SDK](https://github.com/awslabs/aws-sdk-android-samples/tree/master/AmazonKinesisVideoDemoApp)
 ----
 
-##### Running C++ Unit tests
+##### Running C++ unit tests
 
-The executable for **unit tests** will be built in `./start` inside the `kinesis-video-native-build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
+**Note:** Please set the [credentials](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/install-instructions-linux.md#setting-credentials-in-environment-variables) before running the unit tests.
+
+The executable for **unit tests** will be built as `./producer_test` inside the `kinesis-video-native-build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
+
+##### Running C unit tests
+
+The executable for **unit tests** will be built as `./cproducer_test` inside the `kinesis-video-native-build` directory.
+
+##### Running PIC unit tests
+
+The executable for **unit tests** will be built as `./pic_test` inside the `kinesis-video-native-build` directory.
 
 ##### Enabling verbose logs
 Define `HEAP_DEBUG` and `LOG_STREAMING` C-defines by uncommenting the appropriate lines in CMakeList.txt in the kinesis-video-native-build directory.
-
 
 ----
 #####  How to configure logging for producer SDK sample applications.

@@ -26,7 +26,7 @@ Additional details for upgrading existing **.Net Framework** can be found in [Mi
 3. If you already have Kinesis Video Streams SDK with **MinGW** installed, then you have to run clean up the SDK directory before installing the SDK using MSVC (**Microsoft Visual C++**) by using the steps below.
   * Clean up steps:
     *  If any issue happens in the install process, or if you have already installed and built the Kinesis Video Streams SDK, then delete the directories inside the ` kinesis-video-native-build/downloads ` before starting a new build.
-      *  Remove **CMakeFiles** directory and **CMakeCachedList.txt** in `kinesis-video-native-build` directory.
+      *  Remove **CMakeFiles** directory and **CMakeCache.txt** in `kinesis-video-native-build` directory.
 
 ----
 #### Install Steps:
@@ -57,7 +57,7 @@ You can use **any one** of the following instructions to open windows command pr
 * Press `win` key to open the [windows start menu](https://support.microsoft.com/en-us/help/4028294/windows-open-the-start-menu). Type in `cmd` to search for **Command Prompt**. Press the keys `ctrl+shift+enter` to launch **Command Prompt** as administrator.
 * Type ` runas /user:Administrator cmd `  and the password for the administrator account.
 
-###### Step 7. Change current work directory to C:\Users\myuser\Downloads\amazon-kinesis-video-streams-producer-sdk-cp\kinesis-video-native-build
+###### Step 7. Change current work directory to C:\Users\<myuser>\Downloads\amazon-kinesis-video-streams-producer-sdk-cp\kinesis-video-native-build
   `cd C:\Users\<myuser>\Downloads\amazon-kinesis-video-streams-producer-sdk-cpp\kinesis-video-native-build`
 
 ###### Step 8. Install Kinesis Video Producer by running `windows-install.bat 64` **(recommended)** to build the SDK for Windows OS 64 bit (or `windows-install.bat 32` Windows OS 32 bit).
@@ -124,7 +124,7 @@ Start sample application to send video stream to KVS using gstreamer plugin by e
 1.  Before running the demo applications, set the environment by following the instructions below.
 
 ```
-set PATH=%PATH%:C:\Users\<myuser\Downloads\amazon-kinesis-video-streams-producer-sdk-cpp\kinesis-video-native-build\downloads\gstreamer\1.0\x86_64\bin
+set PATH=%PATH%;C:\Users\<myuser>\Downloads\amazon-kinesis-video-streams-producer-sdk-cpp\kinesis-video-native-build\downloads\gstreamer\1.0\x86_64\bin
 set GST_PLUGIN_PATH=C:\Users\<myuser>\Downloads\amazon-kinesis-video-streams-producer-sdk-cpp\kinesis-video-native-build\Release
 set GST_PLUGIN_SYSTEM_PATH=C:\Users\<myuser>\Downloads\amazon-kinesis-video-streams-producer-sdk-cpp\kinesis-video-native-build\downloads\gstreamer\1.0\x86_64\lib\gstreamer-1.0
 ```
@@ -140,7 +140,7 @@ gst-launch-1.0 ksvideosrc do-timestamp=TRUE ! video/x-raw,width=640,height=480,f
 **Note:** If you are using IoT credentials then you can pass them as parameters to the gst-launch-1.0 command
 
 ```
-gst-launch-1.0 rtspsrc location="rtsp://YourCameraRtspUrl" short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
+gst-launch-1.0 rtspsrc location="rtsp://YourCameraRtspUrl" short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! h264parse ! kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
 ```
 
 2.2 Use `gst-launch-1.0` to send audio and raw video to Kinesis Video Streams
@@ -214,3 +214,18 @@ gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! q
           * **Example**:
             * Run the sample demo application for sending **webcam audio and video** by executing ` kinesis_video_gstreamer_audio_video_sample_app.exe my-test-stream `  or
             * Run the sample application for sending a MKV, MP4 or TS, file containing H264 video and AAC audio by executing  `kinesis_video_gstreamer_audio_video_sample_app.exe my-test-stream </path/to/file.mkv>`
+
+#### Running sample applications for sending H264 video files to KVS
+   * Change your current working directory to Release directory first.
+      * ` cd C:\Users\<myuser>\Downloads\amazon-kinesis-video-streams-producer-sdk-cpp\kinesis-video-native-build\Release `
+      * export your access key and secret key by doing:
+
+      ```
+      set AWS_ACCESS_KEY_ID=YourAccessKeyId
+      set AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
+      ```
+
+   * Run the demo
+      * **Example**:
+        * The sample application kinesis_video_cproducer_video_only_sample sends h264 video frames inside the folder C:\Users\<myuser>\Downloads\amazon-kinesis-video-streams-producer-sdk-cpp\kinesis-video-c-producer\samples\h264SampleFrames to KVS. The following command sends the video frames in a loop for ten seconds to KVS. `kinesis_video_cproducer_video_only_sample.exe YourStreamName 10`, or
+        * If you want to send H264 files from another folder (MyH264FramesFolder) you can run the sample with the following arguments `kinesis_video_cproducer_video_only_sample.exe YourStreamName 10 <PathToMyH264FramesFolder>`

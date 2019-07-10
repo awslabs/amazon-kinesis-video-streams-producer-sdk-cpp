@@ -12,7 +12,7 @@ get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTO
 add_library(${PROJECT_NAME} SHARED ${HEADERS} ${SOURCE})
 
 # FIXME
-# Brazil path doesn't pick up the kinesis video platform independent libs (client, duration, heap, etc.)
+# pipeline path doesn't pick up the kinesis video platform independent libs (client, duration, heap, etc.)
 # because they are built as static libraries and not shared. Consider changing that package to 
 # build shared libraries.
 target_link_libraries(${PROJECT_NAME} ${BP_BUILD_LINK_LIBS} client duration heap mkvgen trace utils view)

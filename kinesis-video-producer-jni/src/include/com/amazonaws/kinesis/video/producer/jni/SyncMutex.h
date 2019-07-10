@@ -6,6 +6,8 @@
 #ifndef __SYNC_MUTEX_H__
 #define __SYNC_MUTEX_H__
 
+#include <com/amazonaws/kinesis/video/client/Include.h>
+
 static const size_t gMaxMutexDescriptionSize = 100;
 static const char* const gDefaultMutexDescription = "mutex";
 

@@ -5,51 +5,51 @@
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 CallbackProvider::callback_t CallbackProvider::getCallbacks() {
-    CallbackProvider::callback_t callbacks;
-    callbacks.customData = reinterpret_cast<uintptr_t>(this);
-    callbacks.version = CALLBACKS_CURRENT_VERSION;  // from kinesis video client include
-    callbacks.getDeviceCertificateFn = getDeviceCertificateCallback();
-    callbacks.getSecurityTokenFn = getSecurityTokenCallback();
-    callbacks.getDeviceFingerprintFn = getDeviceFingerprintCallback();
-    callbacks.streamUnderflowReportFn = getStreamUnderflowReportCallback();
-    callbacks.storageOverflowPressureFn = getStorageOverflowPressureCallback();
-    callbacks.streamLatencyPressureFn = getStreamLatencyPressureCallback();
-    callbacks.droppedFrameReportFn = getDroppedFrameReportCallback();
-    callbacks.droppedFragmentReportFn = getDroppedFragmentReportCallback();
-    callbacks.bufferDurationOverflowPressureFn = getBufferDurationOverflowPressureCallback();
-    callbacks.streamErrorReportFn = getStreamErrorReportCallback();
-    callbacks.streamReadyFn = getStreamReadyCallback();
-    callbacks.streamClosedFn = getStreamClosedCallback();
-    callbacks.createStreamFn = getCreateStreamCallback();
-    callbacks.describeStreamFn = getDescribeStreamCallback();
-    callbacks.getStreamingEndpointFn = getStreamingEndpointCallback();
-    callbacks.getStreamingTokenFn = getStreamingTokenCallback();
-    callbacks.putStreamFn = getPutStreamCallback();
-    callbacks.tagResourceFn = getTagResourceCallback();
-    callbacks.clientReadyFn = getClientReadyCallback();
-    callbacks.createDeviceFn = getCreateDeviceCallback();
-    callbacks.deviceCertToTokenFn = getDeviceCertToTokenCallback();
-    callbacks.streamConnectionStaleFn = getStreamConnectionStaleCallback();
-    callbacks.fragmentAckReceivedFn = getFragmentAckReceivedCallback();
-    callbacks.streamDataAvailableFn = getStreamDataAvailableCallback();
+    MEMSET(&callbacks_, 0, SIZEOF(callbacks_));
+    callbacks_.customData = reinterpret_cast<uintptr_t>(this);
+    callbacks_.version = CALLBACKS_CURRENT_VERSION;  // from kinesis video client include
+    callbacks_.getDeviceCertificateFn = getDeviceCertificateCallback();
+    callbacks_.getSecurityTokenFn = getSecurityTokenCallback();
+    callbacks_.getDeviceFingerprintFn = getDeviceFingerprintCallback();
+    callbacks_.streamUnderflowReportFn = getStreamUnderflowReportCallback();
+    callbacks_.storageOverflowPressureFn = getStorageOverflowPressureCallback();
+    callbacks_.streamLatencyPressureFn = getStreamLatencyPressureCallback();
+    callbacks_.droppedFrameReportFn = getDroppedFrameReportCallback();
+    callbacks_.droppedFragmentReportFn = getDroppedFragmentReportCallback();
+    callbacks_.bufferDurationOverflowPressureFn = getBufferDurationOverflowPressureCallback();
+    callbacks_.streamErrorReportFn = getStreamErrorReportCallback();
+    callbacks_.streamReadyFn = getStreamReadyCallback();
+    callbacks_.streamClosedFn = getStreamClosedCallback();
+    callbacks_.createStreamFn = getCreateStreamCallback();
+    callbacks_.describeStreamFn = getDescribeStreamCallback();
+    callbacks_.getStreamingEndpointFn = getStreamingEndpointCallback();
+    callbacks_.getStreamingTokenFn = getStreamingTokenCallback();
+    callbacks_.putStreamFn = getPutStreamCallback();
+    callbacks_.tagResourceFn = getTagResourceCallback();
+    callbacks_.clientReadyFn = getClientReadyCallback();
+    callbacks_.createDeviceFn = getCreateDeviceCallback();
+    callbacks_.deviceCertToTokenFn = getDeviceCertToTokenCallback();
+    callbacks_.streamConnectionStaleFn = getStreamConnectionStaleCallback();
+    callbacks_.fragmentAckReceivedFn = getFragmentAckReceivedCallback();
+    callbacks_.streamDataAvailableFn = getStreamDataAvailableCallback();
 
     // These callbacks are optional and platform specific defaults are provided by
     // the SDK if  the callback function pointers are defined as NULL.
-    callbacks.createMutexFn = getCreateMutexCallback();
-    callbacks.lockMutexFn = getLockMutexCallback();
-    callbacks.unlockMutexFn = getUnlockMutexCallback();
-    callbacks.tryLockMutexFn = getTryLockMutexCallback();
-    callbacks.freeMutexFn = getFreeMutexCallback();
-    callbacks.createConditionVariableFn = getCreateConditionVariableCallback();
-    callbacks.signalConditionVariableFn = getSignalConditionVariableCallback();
-    callbacks.broadcastConditionVariableFn = getBroadcastConditionVariableCallback();
-    callbacks.waitConditionVariableFn = getWaitConditionVariableCallback();
-    callbacks.freeConditionVariableFn = getFreeConditionVariableCallback();
-    callbacks.getCurrentTimeFn = getCurrentTimeCallback();
-    callbacks.getRandomNumberFn = getRandomNumberCallback();
-    callbacks.logPrintFn = getLogPrintCallback();
+    callbacks_.createMutexFn = getCreateMutexCallback();
+    callbacks_.lockMutexFn = getLockMutexCallback();
+    callbacks_.unlockMutexFn = getUnlockMutexCallback();
+    callbacks_.tryLockMutexFn = getTryLockMutexCallback();
+    callbacks_.freeMutexFn = getFreeMutexCallback();
+    callbacks_.createConditionVariableFn = getCreateConditionVariableCallback();
+    callbacks_.signalConditionVariableFn = getSignalConditionVariableCallback();
+    callbacks_.broadcastConditionVariableFn = getBroadcastConditionVariableCallback();
+    callbacks_.waitConditionVariableFn = getWaitConditionVariableCallback();
+    callbacks_.freeConditionVariableFn = getFreeConditionVariableCallback();
+    callbacks_.getCurrentTimeFn = getCurrentTimeCallback();
+    callbacks_.getRandomNumberFn = getRandomNumberCallback();
+    callbacks_.logPrintFn = getLogPrintCallback();
 
-    return callbacks;
+    return callbacks_;
 }
 
 void CallbackProvider::shutdown() {
@@ -178,6 +178,14 @@ GetDeviceCertificateFunc CallbackProvider::getDeviceCertificateCallback() {
 }
 
 DeviceCertToTokenFunc CallbackProvider::getDeviceCertToTokenCallback() {
+    return nullptr;
+}
+
+StreamShutdownFunc CallbackProvider::getStreamShutdownCallback() {
+    return nullptr;
+}
+
+ClientShutdownFunc CallbackProvider::getClientShutdownCallback() {
     return nullptr;
 }
 

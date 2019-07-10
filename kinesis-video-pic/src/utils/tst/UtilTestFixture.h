@@ -100,7 +100,7 @@ public:
         // Validate the allocations cleanup
         DLOGI("Final remaining allocation size is %llu\n", gTotalUtilsMemoryUsage);
 
-        EXPECT_EQ(0, gTotalUtilsMemoryUsage);
+        EXPECT_EQ((UINT64) 0, gTotalUtilsMemoryUsage);
         globalMemAlloc = storedMemAlloc;
         globalMemAlignAlloc = storedMemAlignAlloc;
         globalMemCalloc = storedMemCalloc;

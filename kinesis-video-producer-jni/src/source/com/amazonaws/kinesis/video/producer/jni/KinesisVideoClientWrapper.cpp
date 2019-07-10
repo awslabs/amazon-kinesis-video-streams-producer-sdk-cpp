@@ -372,6 +372,27 @@ void KinesisVideoClientWrapper::putKinesisVideoFrame(jlong streamHandle, jobject
         return;
     }
 
+    PStreamInfo pStreamInfo;
+    UINT32 zeroCount = 0;
+    ::kinesisVideoStreamGetStreamInfo(streamHandle, &pStreamInfo);
+
+    if ((pStreamInfo->streamCaps.nalAdaptationFlags & NAL_ADAPTATION_ANNEXB_NALS) != NAL_ADAPTATION_FLAG_NONE) {
+        // In some devices encoder would generate annexb frames with more than 3 trailing zeros
+        // which is not allowed by AnnexB specification
+        while (frame.size > zeroCount) {
+            if (frame.frameData[frame.size - 1 - zeroCount] != 0) {
+                break;
+            } else {
+                zeroCount++;
+            }
+        }
+
+        // Only remove zeros when zero count is more than 2
+        if (zeroCount > 2) {
+            frame.size -= zeroCount;
+        }
+    }
+
     if (STATUS_FAILED(retStatus = ::putKinesisVideoFrame(streamHandle, &frame)))
     {
         DLOGE("Failed to put a frame with status code 0x%08x", retStatus);
@@ -975,6 +996,11 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mClientCallbacks.clientReadyFn = clientReadyFunc;
     mClientCallbacks.createDeviceFn = createDeviceFunc;
     mClientCallbacks.deviceCertToTokenFn = deviceCertToTokenFunc;
+
+    // TODO: Currently we set the shutdown callbacks to NULL.
+    // We need to expose these in the near future
+    mClientCallbacks.clientShutdownFn = NULL;
+    mClientCallbacks.streamShutdownFn = NULL;
 
     // We do not expose logging functionality to Java
     // as the signature of the function does not have "custom_data"
@@ -1655,7 +1681,7 @@ STATUS KinesisVideoClientWrapper::streamErrorReportFunc(UINT64 customData, STREA
                         fragmentTimecode, statusCode);
     CHK_JVM_EXCEPTION(env);
 
-    CleanUp:
+CleanUp:
 
     // Detach the thread if we have attached it to JVM
     if (detached) {
@@ -1723,7 +1749,7 @@ STATUS KinesisVideoClientWrapper::streamClosedFunc(UINT64 customData, STREAM_HAN
     env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamClosedMethodId, streamHandle, uploadHandle);
     CHK_JVM_EXCEPTION(env);
 
-    CleanUp:
+CleanUp:
 
     // Detach the thread if we have attached it to JVM
     if (detached) {

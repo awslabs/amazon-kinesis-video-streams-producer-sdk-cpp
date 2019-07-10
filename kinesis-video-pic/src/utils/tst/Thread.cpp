@@ -6,6 +6,7 @@ class ThreadFunctionalityTest : public UtilTestBase {
 #define TEST_THREAD_COUNT       500
 
 UINT64 gThreadCurrentCount = 0;
+UINT64 gThreadSleepTimes[TEST_THREAD_COUNT];
 BOOL gThreadVisited[TEST_THREAD_COUNT];
 BOOL gThreadCleared[TEST_THREAD_COUNT];
 MUTEX gThreadMutex;
@@ -22,7 +23,7 @@ PVOID testThreadRoutine(PVOID arg)
     gThreadVisited[index] = TRUE;
 
     // Just sleep for some time
-    THREAD_SLEEP(index * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    THREAD_SLEEP(gThreadSleepTimes[index]);
 
     // Mark as cleared
     gThreadCleared[index] = TRUE;
@@ -30,7 +31,7 @@ PVOID testThreadRoutine(PVOID arg)
     MUTEX_LOCK(gThreadMutex);
     gThreadCurrentCount--;
     MUTEX_UNLOCK(gThreadMutex);
-    
+
     return NULL;
 }
 
@@ -39,9 +40,12 @@ TEST_F(ThreadFunctionalityTest, ThreadCreateAndReleaseSimpleCheck)
     UINT64 index;
     TID threads[TEST_THREAD_COUNT];
     gThreadMutex = MUTEX_CREATE(FALSE);
+
+    // Create the threads
     for (index = 0; index < TEST_THREAD_COUNT; index++) {
         gThreadVisited[index] = FALSE;
         gThreadCleared[index] = FALSE;
+        gThreadSleepTimes[index] = index * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&threads[index], testThreadRoutine, (PVOID)index));
     }
 
@@ -57,5 +61,37 @@ TEST_F(ThreadFunctionalityTest, ThreadCreateAndReleaseSimpleCheck)
         EXPECT_TRUE(gThreadCleared[index]) << "Thread didn't clear index " << index;
     }
 
+    MUTEX_FREE(gThreadMutex);
+}
+
+TEST_F(ThreadFunctionalityTest, ThreadCreateAndCancel)
+{
+    UINT64 index;
+    TID threads[TEST_THREAD_COUNT];
+    gThreadMutex = MUTEX_CREATE(FALSE);
+
+    // Create the threads
+    for (index = 0; index < TEST_THREAD_COUNT; index++) {
+        gThreadVisited[index] = FALSE;
+        gThreadCleared[index] = FALSE;
+        // Long sleep
+        gThreadSleepTimes[index] = 20 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&threads[index], testThreadRoutine, (PVOID)index));
+    }
+
+    // Cancel all the threads
+    for (index = 0; index < TEST_THREAD_COUNT; index++) {
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CANCEL(threads[index]));
+    }
+
+    // Validate that threads have been killed and didn't finish successfully
+    EXPECT_EQ(TEST_THREAD_COUNT, gThreadCurrentCount);
+
+    for (index = 0; index < TEST_THREAD_COUNT; index++) {
+        EXPECT_TRUE(gThreadVisited[index]) << "Thread didn't visit index " << index;
+        EXPECT_FALSE(gThreadCleared[index]) << "Thread shouldn't have cleared index " << index;
+    }
+
+    gThreadCurrentCount = 0;
     MUTEX_FREE(gThreadMutex);
 }

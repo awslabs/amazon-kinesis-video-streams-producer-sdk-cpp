@@ -12,6 +12,6 @@ link_directories(${BP_BUILD_LIB})
 
 add_executable(${PROJECT_NAME} ${ProducerTestSources})
 target_link_libraries(${PROJECT_NAME} KinesisVideoProducer ${BP_TEST_BUILD_LINK_LIBS})
-target_link_libraries(${PROJECT_NAME} gtest)
+target_link_libraries(${PROJECT_NAME} gtest client heap trace view mkvgen utils)
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

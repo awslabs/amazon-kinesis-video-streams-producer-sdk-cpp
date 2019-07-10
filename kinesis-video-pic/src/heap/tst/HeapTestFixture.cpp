@@ -77,7 +77,7 @@ PVOID HeapTestBase::mockDlOpen(PCHAR filename, UINT32 flag)
 {
     UNUSED_PARAM(filename);
     UNUSED_PARAM(flag);
-    DLOGI("Calling mock dlOpen()");
+    DLOGV("Calling mock dlOpen()");
     mDlOpenCount++;
     return mDlOpen;
 }
@@ -85,7 +85,7 @@ PVOID HeapTestBase::mockDlOpen(PCHAR filename, UINT32 flag)
 INT32 HeapTestBase::mockDlClose(PVOID handle)
 {
     UNUSED_PARAM(handle);
-    DLOGI("Calling mock dlClose()");
+    DLOGV("Calling mock dlClose()");
     mDlCloseCount++;
     return mDlClose;
 }
@@ -93,7 +93,7 @@ INT32 HeapTestBase::mockDlClose(PVOID handle)
 PVOID HeapTestBase::mockDlSym(PVOID handle, PCHAR symbol)
 {
     UNUSED_PARAM(handle);
-    DLOGI("Calling mock dlSym() with symbol %s", symbol);
+    DLOGV("Calling mock dlSym() with symbol %s", symbol);
     mDlSymCount++;
     if (!mDlSym) {
         return NULL;
@@ -118,7 +118,7 @@ PVOID HeapTestBase::mockDlSym(PVOID handle, PCHAR symbol)
 
 PCHAR HeapTestBase::mockDlError()
 {
-    DLOGI("Calling mock dlError()");
+    DLOGV("Calling mock dlError()");
     mDlErrorCount++;
     return (PCHAR) "Mock error from the dlError() function";
 }

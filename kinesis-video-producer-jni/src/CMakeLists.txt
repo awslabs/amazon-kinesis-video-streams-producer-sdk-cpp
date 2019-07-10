@@ -16,3 +16,7 @@ target_link_libraries(${PROJECT_NAME} ${BP_BUILD_LIB_DIRS}
   client heap trace view mkvgen utils)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
+          DESTINATION .
+                FILES_MATCHING PATTERN "*.h")
+

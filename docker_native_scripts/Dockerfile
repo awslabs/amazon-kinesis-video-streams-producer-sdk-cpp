@@ -1,6 +1,8 @@
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 
+RUN apt-get upgrade
 RUN apt-get update
+
 RUN apt-get install -y git && \
     apt-get install -y vim  && \
     apt-get install -y curl && \

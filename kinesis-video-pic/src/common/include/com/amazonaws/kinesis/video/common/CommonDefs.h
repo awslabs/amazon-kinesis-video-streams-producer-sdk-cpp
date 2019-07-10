@@ -87,7 +87,7 @@ extern "C" {
         #include <Windows.h>
         #include <direct.h>
     #elif defined (__MINGW64__) || defined (__MINGW32__)
-        #define WINVER 0x0A00  
+        #define WINVER 0x0A00
         #define _WIN32_WINNT 0x0A00
         #include <windows.h>
     #else
@@ -200,8 +200,24 @@ typedef FLOAT*               PFLOAT;
 typedef UINT64              TID;
 typedef TID*                PTID;
 
+#ifndef INVALID_TID_VALUE
+#define INVALID_TID_VALUE ((UINT64) NULL)
+#endif
+
+#ifndef IS_VALID_TID_VALUE
+#define IS_VALID_TID_VALUE(t) ((t) != INVALID_TID_VALUE)
+#endif
+
 // Mutex typedef
 typedef UINT64              MUTEX;
+
+#ifndef INVALID_MUTEX_VALUE
+#define INVALID_MUTEX_VALUE ((UINT64) NULL)
+#endif
+
+#ifndef IS_VALID_MUTEX_VALUE
+#define IS_VALID_MUTEX_VALUE(m) ((m) != INVALID_MUTEX_VALUE)
+#endif
 
 // Conditional variable
 #if defined __WINDOWS_BUILD__
@@ -209,6 +225,14 @@ typedef PCONDITION_VARIABLE CVAR;
 #else
 #include <pthread.h>
 typedef pthread_cond_t* CVAR;
+#endif
+
+#ifndef INVALID_CVAR_VALUE
+#define INVALID_CVAR_VALUE ((CVAR) NULL)
+#endif
+
+#ifndef IS_VALID_CVAR_VALUE
+#define IS_VALID_CVAR_VALUE(c) ((c) != INVALID_CVAR_VALUE)
 #endif
 
 // Max thread name buffer length - similar to Linux platforms
@@ -284,13 +308,29 @@ typedef CID*                PCID;
     #error "Environment not 32 or 64-bit."
 #endif
 
+//
 // Define pointer width size types
+//
 #ifndef _SIZE_T_DEFINED_IN_COMMON
-typedef ULONG_PTR SIZE_T, *PSIZE_T;
-typedef LONG_PTR SSIZE_T, *PSSIZE_T;
-#define _SIZE_T_DEFINED_IN_COMMON
+    #if defined (__MINGW32__)
+        typedef ULONG_PTR SIZE_T, *PSIZE_T;
+        typedef LONG_PTR SSIZE_T, *PSSIZE_T;
+    #else
+        typedef UINT_PTR SIZE_T, *PSIZE_T;
+        typedef INT_PTR SSIZE_T, *PSSIZE_T;
+    #endif
+    #define _SIZE_T_DEFINED_IN_COMMON
 #endif
 
+//
+// Stringification macro
+//
+#define STR_(s) #s
+#define STR(s) STR_(s)
+
+//
+// NULL definition
+//
 #ifndef NULL
     #ifdef __cplusplus
         #define NULL    0
@@ -388,7 +428,7 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 ////////////////////////////////////////////////////
 #define STATUS UINT32
 
-#define STATUS_SUCCESS    0x00000000
+#define STATUS_SUCCESS    ((STATUS) 0x00000000)
 
 #define STATUS_FAILED(x) (((STATUS)(x)) != STATUS_SUCCESS)
 #define STATUS_SUCCEEDED(x) (!STATUS_FAILED(x))
@@ -418,6 +458,9 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 #define STATUS_THREAD_DOES_NOT_EXIST                STATUS_BASE + 0x00000016
 #define STATUS_JOIN_THREAD_FAILED                   STATUS_BASE + 0x00000017
 #define STATUS_WAIT_FAILED                          STATUS_BASE + 0x00000018
+#define STATUS_CANCEL_THREAD_FAILED                 STATUS_BASE + 0x00000019
+#define STATUS_THREAD_IS_NOT_JOINABLE               STATUS_BASE + 0x0000001a
+#define STATUS_DETACH_THREAD_FAILED                 STATUS_BASE + 0x0000001b
 
 #include <stdlib.h>
 #include <string.h>
@@ -425,11 +468,14 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 #include <stdio.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <ctype.h>
+#include <time.h>
 
 #if !(defined _WIN32 || defined _WIN64)
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/time.h>
+#include <sys/utsname.h>
 #endif
 
 #if !defined(_MSC_VER) && !defined(__MINGW64__) && !defined(__MINGW32__) && !defined (__MACH__)
@@ -448,7 +494,8 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 #define GLOBAL_MKDIR(p1, p2) _mkdir(p1)
 
 // Definition of the case insensitive string compare
-#define GLOBAL_STRCMPI strcmpi
+#define GLOBAL_STRCMPI _strcmpi
+#define GLOBAL_STRNCMPI _strnicmp
 
 #if defined (__MINGW64__) || defined(__MINGW32__)
     #define GLOBAL_RMDIR rmdir
@@ -475,18 +522,24 @@ typedef LONG_PTR SSIZE_T, *PSSIZE_T;
 
 // Definition of the case insensitive string compare
 #define GLOBAL_STRCMPI strcasecmp
+#define GLOBAL_STRNCMPI strncasecmp
 
 // Definition of rmdir for non-Windows platforms
 #define GLOBAL_RMDIR rmdir
 
 // NOTE!!! Some of the libraries don't have a definition of PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 #ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER
+
+#ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP {{PTHREAD_MUTEX_RECURSIVE}}
+#endif
+
 #define GLOBAL_MUTEX_INIT_RECURSIVE             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #else
 #define GLOBAL_MUTEX_INIT_RECURSIVE             PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 #endif
-#define GLOBAL_MUTEX_INIT                       PTHREAD_MUTEX_INITIALIZER
 
+#define GLOBAL_MUTEX_INIT                       PTHREAD_MUTEX_INITIALIZER
 #define GLOBAL_CVAR_INIT                        PTHREAD_COND_INITIALIZER
 
 #endif
@@ -505,38 +558,11 @@ typedef BOOL (*memChk)(PVOID ptr, BYTE val, SIZE_T size);
 //
 // Default allocator functions
 //
-INLINE PVOID defaultMemAlloc(SIZE_T size)
-{
-    return malloc(size);
-}
-
-INLINE PVOID defaultMemAlignAlloc(SIZE_T size, SIZE_T alignment)
-{
-#if defined (__MACH__)
-    // On Mac allocations are 16 byte aligned. There is hardly an equivalent anyway
-    UNUSED_PARAM(alignment);
-    return malloc(size);
-#elif defined(_MSC_VER) || defined(__MINGW64__) || defined(__MINGW32__)
-    return _aligned_malloc(size, alignment);
-#else
-    return memalign(size, alignment);
-#endif
-}
-
-INLINE PVOID defaultMemCalloc(SIZE_T num, SIZE_T size)
-{
-    return calloc(num, size);
-}
-
-INLINE PVOID defaultMemRealloc(PVOID ptr, SIZE_T size)
-{
-    return realloc(ptr, size);
-}
-
-INLINE VOID defaultMemFree(VOID* ptr)
-{
-    free(ptr);
-}
+INLINE PVOID defaultMemAlloc(SIZE_T size);
+INLINE PVOID defaultMemAlignAlloc(SIZE_T size, SIZE_T alignment);
+INLINE PVOID defaultMemCalloc(SIZE_T num, SIZE_T size);
+INLINE PVOID defaultMemRealloc(PVOID ptr, SIZE_T size);
+INLINE VOID defaultMemFree(VOID* ptr);
 
 //
 // Global allocator function pointers
@@ -560,25 +586,10 @@ typedef PCHAR (*dlError)();
 //
 // Default dynamic library loading functions
 //
-INLINE PVOID defaultDlOpen(PCHAR filename, UINT32 flag)
-{
-    return dlopen((const PCHAR) filename, flag);
-}
-
-INLINE INT32 defaultDlClose(PVOID handle)
-{
-    return dlclose(handle);
-}
-
-INLINE PVOID defaultDlSym(PVOID handle, PCHAR symbol)
-{
-    return dlsym(handle, symbol);
-}
-
-INLINE PCHAR defaultDlError()
-{
-    return (PCHAR) dlerror();
-}
+INLINE PVOID defaultDlOpen(PCHAR filename, UINT32 flag);
+INLINE INT32 defaultDlClose(PVOID handle);
+INLINE PVOID defaultDlSym(PVOID handle, PCHAR symbol);
+INLINE PCHAR defaultDlError();
 
 //
 // Global dynamic library loading function pointers
@@ -610,28 +621,7 @@ typedef UINT64 (*getTime)();
 //
 #define TIME_DIFF_UNIX_WINDOWS_TIME     116444736000000000ULL
 
-INLINE UINT64 defaultGetTime()
-{
-#if defined _WIN32 || defined _WIN64
-    FILETIME fileTime;
-    GetSystemTimeAsFileTime(&fileTime);
-
-    return ((((UINT64)fileTime.dwHighDateTime << 32) | fileTime.dwLowDateTime) - TIME_DIFF_UNIX_WINDOWS_TIME);
-#elif defined __MACH__ || defined __CYGWIN__
-    struct timeval nowTime;
-    if (0 != gettimeofday(&nowTime, NULL)) {
-        return 0;
-    }
-
-    return (UINT64)nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64)nowTime.tv_usec * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
-#else
-    struct timespec nowTime;
-    clock_gettime(CLOCK_MONOTONIC, &nowTime);
-
-    // The precision needs to be on a 100th nanosecond resolution
-    return (UINT64)nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64)nowTime.tv_nsec / DEFAULT_TIME_UNIT_IN_NANOS;
-#endif
-}
+PUBLIC_API INLINE UINT64 defaultGetTime();
 
 //
 // Thread related functionality
@@ -650,11 +640,21 @@ typedef VOID (*freeMutex)(MUTEX);
 typedef STATUS (*createThread)(PTID, startRoutine, PVOID);
 typedef STATUS (*joinThread)(TID, PVOID*);
 typedef VOID (*threadSleep)(UINT64);
+typedef VOID (*threadSleepUntil)(UINT64);
+typedef STATUS (*cancelThread)(TID);
+typedef STATUS (*detachThread)(TID);
 typedef CVAR (*createConditionVariable)();
 typedef STATUS (*signalConditionVariable)(CVAR);
 typedef STATUS (*broadcastConditionVariable)(CVAR);
 typedef STATUS (*waitConditionVariable)(CVAR, MUTEX, UINT64);
 typedef VOID (*freeConditionVariable)(CVAR);
+
+//
+// Version functions
+//
+typedef STATUS (*getPlatformName)(PCHAR, UINT32);
+typedef STATUS (*getOsVersion)(PCHAR, UINT32);
+typedef STATUS (*getCompilerInfo)(PCHAR, UINT32);
 
 //
 // Thread and Mutex related functionality
@@ -667,11 +667,37 @@ extern freeMutex globalFreeMutex;
 extern createThread globalCreateThread;
 extern joinThread globalJoinThread;
 extern threadSleep globalThreadSleep;
+extern threadSleepUntil globalThreadSleepUntil;
+extern cancelThread globalCancelThread;
+extern detachThread globalDetachThread;
 extern createConditionVariable globalConditionVariableCreate;
 extern signalConditionVariable globalConditionVariableSignal;
 extern broadcastConditionVariable globalConditionVariableBroadcast;
 extern waitConditionVariable globalConditionVariableWait;
 extern freeConditionVariable globalConditionVariableFree;
+
+//
+// Version information
+//
+extern getPlatformName globalGetPlatformName;
+extern getOsVersion globalGetOsVersion;
+extern getCompilerInfo globalGetCompilerInfo;
+
+// Max string length for platform name
+#define MAX_PLATFORM_NAME_STRING_LEN            128
+
+// Max string length for the OS version
+#define MAX_OS_VERSION_STRING_LEN               128
+
+// Max string length for the compiler info
+#define MAX_COMPILER_INFO_STRING_LEN            128
+
+//
+// Version macros
+//
+#define GET_PLATFORM_NAME          globalGetPlatformName
+#define GET_OS_VERSION             globalGetOsVersion
+#define GET_COMPILER_INFO          globalGetCompilerInfo
 
 //
 // Memory allocation and operations
@@ -685,6 +711,7 @@ extern freeConditionVariable globalConditionVariableFree;
 #define MEMCPY                     memcpy
 #define MEMSET                     memset
 #define MEMMOVE                    memmove
+#define REALLOC                    realloc
 
 //
 // Whether the buffer contains the same char
@@ -701,13 +728,35 @@ extern freeConditionVariable globalConditionVariableFree;
 #define STRLEN                     strlen
 #define STRNLEN                    strnlen
 #define STRCHR                     strchr
+#define STRNCHR                    strnchr
 #define STRRCHR                    strrchr
 #define STRCMP                     strcmp
 #define STRCMPI                    GLOBAL_STRCMPI
+#define STRNCMPI                   GLOBAL_STRNCMPI
 #define STRNCMP                    strncmp
 #define PRINTF                     printf
 #define SPRINTF                    sprintf
 #define SNPRINTF                   snprintf
+#define TRIMSTRALL                 trimstrall
+#define LTRIMSTR                   ltrimstr
+#define RTRIMSTR                   rtrimstr
+#define STRSTR                     strstr
+#define TOLOWER                    tolower
+#define TOUPPER                    toupper
+#define TOLOWERSTR                 tolowerstr
+#define TOUPPERSTR                 toupperstr
+
+#define MKTIME                     mktime
+
+//
+// Environment variables
+//
+#define GETENV                     getenv
+
+//
+// Empty string definition
+//
+#define EMPTY_STRING                ((PCHAR) "")
 
 //
 // Pseudo-random functionality
@@ -786,6 +835,9 @@ extern freeConditionVariable globalConditionVariableFree;
 #ifndef FSTAT
     #define FSTAT                       stat
 #endif
+#ifndef FSCANF
+    #define FSCANF                      fscanf
+#endif
 
 #if defined _WIN32 || defined _WIN64 || defined __CYGWIN__
     #define FPATHSEPARATOR              '\\'
@@ -820,6 +872,8 @@ extern freeConditionVariable globalConditionVariableFree;
 // Time functionality
 //
 #define GETTIME                     globalGetTime
+#define STRFTIME                    strftime
+#define GMTIME                      gmtime
 
 //
 // Mutex functionality
@@ -845,6 +899,9 @@ extern freeConditionVariable globalConditionVariableFree;
 #define THREAD_CREATE                globalCreateThread
 #define THREAD_JOIN                  globalJoinThread
 #define THREAD_SLEEP                 globalThreadSleep
+#define THREAD_SLEEP_UNTIL           globalThreadSleepUntil
+#define THREAD_CANCEL                globalCancelThread
+#define THREAD_DETACH                globalDetachThread
 
 //
 // Static initializers
@@ -965,6 +1022,14 @@ typedef UINT64 HANDLE;
         if (STATUS_FAILED(__status)) { \
             retStatus = (__status); \
             goto CleanUp; \
+        } \
+    } while (FALSE)
+
+#define CHK_STATUS_CONTINUE(condition) \
+    do { \
+        STATUS __status = condition; \
+        if (STATUS_FAILED(__status)) { \
+            retStatus = __status; \
         } \
     } while (FALSE)
 

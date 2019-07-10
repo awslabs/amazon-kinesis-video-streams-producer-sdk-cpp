@@ -40,7 +40,7 @@ TEST_F(HybridHeapTest, hybridCreateHeap)
     EXPECT_EQ(mDlErrorCount, 0);
     EXPECT_EQ(mDlSymCount, 7);
 
-    DLOGI("Allocating from RAM");
+    DLOGV("Allocating from RAM");
 
     // Allocate from ram - should be 1 less due to service structs
     for (UINT32 i = 0; i < numAlloc - 1; i++) {
@@ -61,7 +61,7 @@ TEST_F(HybridHeapTest, hybridCreateHeap)
     EXPECT_EQ(mDlErrorCount, 0);
     EXPECT_EQ(mDlSymCount, 7);
 
-    DLOGI("Allocating from VRAM");
+    DLOGV("Allocating from VRAM");
 
     // Allocate from vram
     for (UINT32 i = 0; i < numAlloc; i++) {
@@ -257,7 +257,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamAllocError)
                                                 FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP,
                                                 &pHeap)));
 
-    DLOGI("Allocating from RAM");
+    DLOGV("Allocating from RAM");
 
     // Allocate from ram - should be 1 less due to service structs
     for (UINT32 i = 0; i < numAlloc - 1; i++) {
@@ -265,7 +265,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamAllocError)
         EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
     }
 
-    DLOGI("Allocating from VRAM");
+    DLOGV("Allocating from VRAM");
 
     // Allocate from vram
     for (UINT32 i = 0; i < numAlloc; i++) {
@@ -300,7 +300,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamMapError)
                                                 FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP,
                                                 &pHeap)));
 
-    DLOGI("Allocating from RAM");
+    DLOGV("Allocating from RAM");
 
     // Allocate from ram - should be 1 less due to service structs
     for (UINT32 i = 0; i < numAlloc - 1; i++) {
@@ -308,7 +308,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamMapError)
         EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
     }
 
-    DLOGI("Allocating from VRAM");
+    DLOGV("Allocating from VRAM");
 
     // Allocate from vram
     for (UINT32 i = 0; i < numAlloc; i++) {
@@ -346,7 +346,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamUnmapError)
                                                 FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP,
                                                 &pHeap)));
 
-    DLOGI("Allocating from RAM");
+    DLOGV("Allocating from RAM");
 
     // Allocate from ram - should be 1 less due to service structs
     for (UINT32 i = 0; i < numAlloc - 1; i++) {
@@ -354,7 +354,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamUnmapError)
         EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
     }
 
-    DLOGI("Allocating from VRAM");
+    DLOGV("Allocating from VRAM");
 
     // Allocate from vram
     for (UINT32 i = 0; i < numAlloc; i++) {
@@ -399,7 +399,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamFreeError)
                                                 FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP,
                                                 &pHeap)));
 
-    DLOGI("Allocating from RAM");
+    DLOGV("Allocating from RAM");
 
     // Allocate from ram - should be 1 less due to service structs
     for (UINT32 i = 0; i < numAlloc - 1; i++) {
@@ -407,7 +407,7 @@ TEST_F(HybridHeapTest, hybridCreateHeapVRamFreeError)
         EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
     }
 
-    DLOGI("Allocating from VRAM");
+    DLOGV("Allocating from VRAM");
 
     // Allocate from vram
     for (UINT32 i = 0; i < numAlloc; i++) {

@@ -23,7 +23,9 @@ TEST_F(StreamDeviceTagsTest, createDeviceTagsValid)
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
     EXPECT_EQ(STATUS_SUCCESS, createDeviceResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_DEVICE_ARN));
     EXPECT_EQ(STATUS_SUCCESS, tagResourceResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK));
-    EXPECT_EQ(tagCount, mTagCount);
+
+    // Fixme: The count should be equal when tagging devices is enabled
+    EXPECT_EQ(0, mTagCount);
 
     // Free the tags
     for(i = 0; i < tagCount; i++) {

@@ -27,21 +27,23 @@ extern "C" {
 /**
  * Error values
  */
-#define STATUS_UTILS_BASE                           0x40000000
-#define STATUS_INVALID_BASE64_ENCODE                STATUS_UTILS_BASE + 0x00000001
-#define STATUS_INVALID_BASE                         STATUS_UTILS_BASE + 0x00000002
-#define STATUS_INVALID_DIGIT                        STATUS_UTILS_BASE + 0x00000003
-#define STATUS_INT_OVERFLOW                         STATUS_UTILS_BASE + 0x00000004
-#define STATUS_EMPTY_STRING                         STATUS_UTILS_BASE + 0x00000005
-#define STATUS_DIRECTORY_OPEN_FAILED                STATUS_UTILS_BASE + 0x00000006
-#define STATUS_PATH_TOO_LONG                        STATUS_UTILS_BASE + 0x00000007
-#define STATUS_UNKNOWN_DIR_ENTRY_TYPE               STATUS_UTILS_BASE + 0x00000008
-#define STATUS_REMOVE_DIRECTORY_FAILED              STATUS_UTILS_BASE + 0x00000009
-#define STATUS_REMOVE_FILE_FAILED                   STATUS_UTILS_BASE + 0x0000000a
-#define STATUS_REMOVE_LINK_FAILED                   STATUS_UTILS_BASE + 0x0000000b
-#define STATUS_DIRECTORY_ACCESS_DENIED              STATUS_UTILS_BASE + 0x0000000c
-#define STATUS_DIRECTORY_MISSING_PATH               STATUS_UTILS_BASE + 0x0000000d
-#define STATUS_DIRECTORY_ENTRY_STAT_ERROR           STATUS_UTILS_BASE + 0x0000000e
+#define STATUS_UTILS_BASE                               0x40000000
+#define STATUS_INVALID_BASE64_ENCODE                    STATUS_UTILS_BASE + 0x00000001
+#define STATUS_INVALID_BASE                             STATUS_UTILS_BASE + 0x00000002
+#define STATUS_INVALID_DIGIT                            STATUS_UTILS_BASE + 0x00000003
+#define STATUS_INT_OVERFLOW                             STATUS_UTILS_BASE + 0x00000004
+#define STATUS_EMPTY_STRING                             STATUS_UTILS_BASE + 0x00000005
+#define STATUS_DIRECTORY_OPEN_FAILED                    STATUS_UTILS_BASE + 0x00000006
+#define STATUS_PATH_TOO_LONG                            STATUS_UTILS_BASE + 0x00000007
+#define STATUS_UNKNOWN_DIR_ENTRY_TYPE                   STATUS_UTILS_BASE + 0x00000008
+#define STATUS_REMOVE_DIRECTORY_FAILED                  STATUS_UTILS_BASE + 0x00000009
+#define STATUS_REMOVE_FILE_FAILED                       STATUS_UTILS_BASE + 0x0000000a
+#define STATUS_REMOVE_LINK_FAILED                       STATUS_UTILS_BASE + 0x0000000b
+#define STATUS_DIRECTORY_ACCESS_DENIED                  STATUS_UTILS_BASE + 0x0000000c
+#define STATUS_DIRECTORY_MISSING_PATH                   STATUS_UTILS_BASE + 0x0000000d
+#define STATUS_DIRECTORY_ENTRY_STAT_ERROR               STATUS_UTILS_BASE + 0x0000000e
+#define STATUS_STRFTIME_FALIED                          STATUS_UTILS_BASE + 0x0000000f
+#define STATUS_MAX_TIMESTAMP_FORMAT_STR_LEN_EXCEEDED    STATUS_UTILS_BASE + 0x00000010
 
 /**
  * Base64 encode/decode functionality
@@ -53,6 +55,7 @@ PUBLIC_API STATUS base64Decode(PCHAR, PBYTE, PUINT32);
  * Hex encode/decode functionality
  */
 PUBLIC_API STATUS hexEncode(PVOID, UINT32, PCHAR, PUINT32);
+PUBLIC_API STATUS hexEncodeCase(PVOID, UINT32, PCHAR, PUINT32, BOOL);
 PUBLIC_API STATUS hexDecode(PCHAR, PBYTE, PUINT32);
 
 /**
@@ -63,6 +66,11 @@ PUBLIC_API STATUS ultostr(UINT32, PCHAR, UINT32, UINT32, PUINT32);
 
 /**
  * String to integer conversion routines. NOTE: The base is in [2-36]
+ *
+ * @param 1 - IN - Input string to process
+ * @param 2 - IN/OPT - Pointer to the end of the string. If NULL, the NULL terminator would be used
+ * @param 3 - IN - Base of the number (10 - for decimal)
+ * @param 4 - OUT - The resulting value
  */
 PUBLIC_API STATUS strtoui32(PCHAR, PCHAR, UINT32, PUINT32);
 PUBLIC_API STATUS strtoui64(PCHAR, PCHAR, UINT32, PUINT64);
@@ -70,11 +78,59 @@ PUBLIC_API STATUS strtoi32(PCHAR, PCHAR, UINT32, PINT32);
 PUBLIC_API STATUS strtoi64(PCHAR, PCHAR, UINT32, PINT64);
 
 /**
+ * Safe variant of strchr
+ *
+ * @param 1 - IN - Input string to process
+ * @param 2 - IN/OPT - String length. 0 if NULL terminated and the length is calculated.
+ * @param 3 - IN - The character to look for
+ *
+ * @return - Pointer to the first occurrence or NULL
+ */
+PUBLIC_API PCHAR strnchr(PCHAR, UINT32, CHAR);
+
+/**
+ * Left and right trim of the whitespace
+ *
+ * @param 1 - IN - Input string to process
+ * @param 2 - IN/OPT - String length. 0 if NULL terminated and the length is calculated.
+ * @param 3 and 4 - OUT - The pointer to the trimmed start and/or end
+ *
+ * @return Status of the operation
+ */
+PUBLIC_API STATUS ltrimstr(PCHAR, UINT32, PCHAR*);
+PUBLIC_API STATUS rtrimstr(PCHAR, UINT32, PCHAR*);
+PUBLIC_API STATUS trimstrall(PCHAR, UINT32, PCHAR*, PCHAR*);
+
+/**
+ * To lower and to upper string conversion
+ *
+ * @param 1 - IN - Input string to convert
+ * @param 2 - IN - String length. 0 if NULL terminated and the length is calculated.
+ * @param 3 - OUT - The pointer to the converted string - can be pointing to the same location. Size should be enough
+ *
+ * @return Status of the operation
+ */
+PUBLIC_API STATUS tolowerstr(PCHAR, UINT32, PCHAR);
+PUBLIC_API STATUS toupperstr(PCHAR, UINT32, PCHAR);
+
+/**
+ * To lower/upper string conversion internal function
+ *
+ * @param 1 - IN - Input string to convert
+ * @param 2 - IN - String length. 0 if NULL terminated and the length is calculated.
+ * @param 3 - INT - Whether to upper (TRUE) or to lower (FALSE)
+ * @param 4 - OUT - The pointer to the converted string - can be pointing to the same location. Size should be enough
+ *
+ * @return Status of the operation
+ */
+STATUS tolowerupperstr(PCHAR, UINT32, BOOL, PCHAR);
+
+/**
  * File I/O functionality
  */
 PUBLIC_API STATUS readFile(PCHAR filePath, BOOL binMode, PBYTE pBuffer, PUINT64 pSize);
 PUBLIC_API STATUS readFileSegment(PCHAR filePath, BOOL binMode, PBYTE pBuffer, UINT64 offset, UINT64 readSize);
-PUBLIC_API STATUS writeFile(PCHAR filePath, BOOL binMode, PBYTE pBuffer, UINT64 size);
+PUBLIC_API STATUS writeFile(PCHAR filePath, BOOL binMode, BOOL append, PBYTE pBuffer, UINT64 size);
 PUBLIC_API STATUS getFileLength(PCHAR filePath, PUINT64 pSize);
 PUBLIC_API STATUS fileExists(PCHAR filePath, PBOOL pExists);
 PUBLIC_API STATUS createFile(PCHAR filePath, UINT64 size);
@@ -129,8 +185,8 @@ PUBLIC_API STATUS getDirectorySize(PCHAR, PUINT64);
  * Double-linked list definition
  */
 typedef struct __DoubleListNode {
-    __DoubleListNode* pNext;
-    __DoubleListNode* pPrev;
+    struct __DoubleListNode* pNext;
+    struct __DoubleListNode* pPrev;
     UINT64 data;
 } DoubleListNode, *PDoubleListNode;
 
@@ -141,7 +197,7 @@ typedef struct {
 } DoubleList, *PDoubleList;
 
 typedef struct __SingleListNode {
-    __SingleListNode* pNext;
+    struct __SingleListNode* pNext;
     UINT64 data;
 } SingleListNode, *PSingleListNode;
 
@@ -717,6 +773,31 @@ VOID dumpMemoryHex(PVOID, UINT32);
 // Check memory content
 ////////////////////////////////////////////////////
 BOOL checkBufferValues(PVOID, BYTE, SIZE_T);
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// Time functionality
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * @UINT64  - IN - timestamp in 100ns to be converted to string
+ * @PCHAR   - IN - timestamp format string
+ * @PCHAR   - IN - buffer to hold the resulting string
+ * @UINT32  - IN - buffer size
+ * @PUINT32 - OUT - actual number of characters in the result string not including null terminator
+ * @return  - STATUS code of the execution
+ */
+PUBLIC_API STATUS generateTimestampStr(UINT64, PCHAR, PCHAR, UINT32, PUINT32);
+
+// yyyy-mm-dd HH:MM:SS
+#define MAX_TIMESTAMP_FORMAT_STR_LEN                    19
+
+// Max timestamp string length including null terminator
+#define MAX_TIMESTAMP_STR_LEN                           17
+
+// (thread-0x7000076b3000)
+#define MAX_THREAD_ID_STR_LEN                    23
+
+// Max log message length
+#define MAX_LOG_LENGTH                            300
 
 #pragma pack(pop, include)
 

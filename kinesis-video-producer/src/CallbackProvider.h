@@ -161,10 +161,11 @@ public:
 
     /**
      * The function returned by this callback takes three arguments:
-     *  - UINT64 custom_data: A handle to this class.
-     *  - PBYTE* buffer: A pointer that is to be set with a pointer to a buffer containing the STS token.
-     *  - PUINT32 size: The size of the buffer.
-     *  - PUINT64 expiration: Device certificate expiration.
+     *
+     *  @param 1 UINT64 - Custom handle passed by the caller.
+     *  @param 2 PBYTE* - A pointer that is to be set with a pointer to a buffer containing the STS token.
+     *  @param 3 PUINT32 - The size of the buffer.
+     *  @param 4 PUINT64 - Device certificate expiration.
      *
      * Optional Callback.
      *
@@ -177,10 +178,10 @@ public:
 
     /**
      * The function returned by this callback takes three arguments:
-     *  - UINT64 custom_data: A handle to this class.
-     *  - PBYTE* buffer: A pointer that is to be set with a pointer to a buffer containing the device certificate.
-     *  - PUINT32 size: The size of the buffer.
-     *  - PUINT64 expiration: Device certificate expiration.
+     *  @param 1 UINT64 - Custom handle passed by the caller.
+     *  @param 2 PBYTE* - A pointer that is to be set with a pointer to a buffer containing the device certificate.
+     *  @param 3 PUINT32 - The size of the buffer.
+     *  @param 4 PUINT64 - Device certificate expiration.
      *
      * Optional Callback.
      *
@@ -206,8 +207,8 @@ public:
 
     /**
      * The function returned by this callback takes two arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which is reporting underflow.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which is reporting underflow.
      *
      * Optional Callback.
      *
@@ -220,8 +221,8 @@ public:
 
     /**
      * The function returned by this callback takes two arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - UINT64 bytes_remaining: The number of bytes left before storage is exhausted.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 UINT64 - The number of bytes left before storage is exhausted.
      *
      * Optional Callback.
      *
@@ -234,9 +235,9 @@ public:
 
     /**
      * The function returned by this callback takes three arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which is reporting latency pressure.
-     * - UINT64 buffer_depth: The current buffer backlog depth (duration of time) in 100ns.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which is reporting latency pressure.
+     * @param 3 UINT64 - The current buffer backlog depth (duration of time) in 100ns.
      *
      * Optional Callback.
      *
@@ -249,9 +250,9 @@ public:
 
     /**
      * The function returned by this callback takes three arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which is reporting received ACK.
-     * - PFragmentAck fragment ack: The fragment ACK received
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which is reporting received ACK.
+     * @param 3 PFragmentAck - The fragment ACK received
      *
      * Optional Callback.
      *
@@ -264,9 +265,9 @@ public:
 
     /**
      * The function returned by this callback takes three arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which is reporting a dropped frame.
-     * - UINT64 timestamp: Timestamp of the dropped frame in 100ns.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which is reporting a dropped frame.
+     * @param 3 UINT64 - Timestamp of the dropped frame in 100ns.
      *
      * Optional Callback.
      *
@@ -278,8 +279,8 @@ public:
 
     /**
      * The function returned by this callback takes two arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - UINT64 remaining_duration: duration remaining in buffer in 100ns.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 UINT64 - duration remaining in buffer in 100ns.
      *
      * Optional Callback.
      *
@@ -292,9 +293,9 @@ public:
 
     /**
      * The function returned by this callback takes three arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which reports an error for.
-     * - UINT64 timestamp: Timestamp of the errored fragment in 100ns.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which reports an error for.
+     * @param 3 UINT64 - Timestamp of the errored fragment in 100ns.
      *
      * Optional Callback.
      *
@@ -307,9 +308,9 @@ public:
 
     /**
     * The function returned by this callback takes three arguments:
-    * - UINT64 custom_data: A handle to this class.
-    * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which is reporting a stale connection.
-    * - UINT64 timestamp: Duration of the last buffering ACK received in 100ns.
+    * @param 1 UINT64 - Custom handle passed by the caller.
+    * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which is reporting a stale connection.
+    * @param 3 UINT64 - Duration of the last buffering ACK received in 100ns.
     *
     * Optional Callback.
     *
@@ -321,9 +322,9 @@ public:
 
     /**
      * The function returned by this callback takes three arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - STREAM_HANDLE stream_handle: Kinesis Video metadata for the stream which is reporting a dropped fragment.
-     * - UINT64 timestamp: Timestamp of the dropped fragment in 100ns.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which is reporting a dropped fragment.
+     * @param 3 UINT64 - Timestamp of the dropped fragment in 100ns.
      *
      * Optional Callback.
      *
@@ -336,8 +337,8 @@ public:
 
     /**
      * The function returned by this callback takes two arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - STREAM_HANDLE stream_handle: Kinesis Video handle for the stream which is ready.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video handle for the stream which is ready.
      *
      * Optional Callback.
      *
@@ -350,8 +351,8 @@ public:
 
     /**
      * The function returned by this callback takes two arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - STREAM_HANDLE stream_handle: Kinesis Video handle for the stream for which EOS is reported.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video handle for the stream for which EOS is reported.
      *
      * Optional Callback.
      *
@@ -365,13 +366,13 @@ public:
 
     /**
      * The function returned by this callback takes five arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - PCHAR device_name: Device name.
-     * - PCHAR stream_name: Stream name.
-     * - PCHAR content_type: Content type.
-     * - PCHAR kms_arn: KMS Key ID ARN Optional (to be filled in, you still need the parameter).
-     * - UINT64 retention_period: Stream retention period in 100ns.
-     * - PServiceCallContext service_call_ctx: Service call context struct used by Kinesis Video.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 PCHAR - Device name.
+     * @param 3 PCHAR - Stream name.
+     * @param 4 PCHAR - Content type.
+     * @param 5 PCHAR - KMS Key ID ARN Optional (to be filled in, you still need the parameter).
+     * @param 6 UINT64 - Stream retention period in 100ns.
+     * @param 7 PServiceCallContext - Service call context struct used by Kinesis Video.
      *
      * The callback returned shall invoke the Kinesis Video create stream API routine and
      * return control to Kinesis Video client by invoking the createStreamResultEvent()
@@ -384,9 +385,9 @@ public:
 
     /**
      * The function returned by this callback takes three arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - PCHAR stream_name: Stream name.
-     * - PServiceCallContext service_call_ctx: Service call context struct used by Kinesis Video.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 PCHAR - Stream name.
+     * @param 3 PServiceCallContext - Service call context struct used by Kinesis Video.
      *
      * The callback returned shall invoke the Kinesis Video describe stream API routine and
      * return control to Kinesis Video client by invoking the describeStreamResultEvent() call
@@ -399,10 +400,10 @@ public:
 
     /**
      * The function returned by this callback takes four arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - PCHAR stream_name: Stream name.
-     * - PCHAR api_name: API enum
-     * - PServiceCallContext service_call_ctx: Service call context struct used by Kinesis Video.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 PCHAR - Stream name.
+     * @param 3 PCHAR - API enum
+     * @param 4 PServiceCallContext - Service call context struct used by Kinesis Video.
      *
      * The callback returned shall lookup the Kinesis Video endpoint to use based on the API enum and
      * return control to Kinesis Video client by invoking the getStreamingEndpointResultEvent() call
@@ -414,10 +415,10 @@ public:
 
     /**
      * The function returned by this callback takes four arguments:
-     * - UINT64 custom_data: A handle to this class.
-     * - PCHAR stream_name: Stream name.
-     * - STREAM_ACCESS_MODE  access_made: whether this stream will be in read or write mode..
-     * - PServiceCallContext service_call_ctx: Service call context struct used by Kinesis Video.
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 PCHAR - Stream name.
+     * @param 3 STREAM_ACCESS_MODE - whether this stream will be in read or write mode..
+     * @param 4 PServiceCallContext - Service call context struct used by Kinesis Video.
      *
      * The callback returned shall exchange the security token in the context with a streaming token which might have
      * limited expiration period as well as limited privilege allowing only putting media into a specified stream.
@@ -429,37 +430,37 @@ public:
     virtual GetStreamingTokenFunc getStreamingTokenCallback() = 0;
 
     /**
-    * The function returned by this callback takes six arguments:
-    * - UINT64 custom_data: A handle to this class.
-    * - PCHAR stream_name: Name of the stream to which data will be put.
-    * - PCHAR container_type: Container type enum.
-    * - UINT64 start_timestamp: Stream start timestamp.
-    * - BOOL do_ack: Application level ACK required.
-    * - PServiceCallContext service_call_ctx: Service call context struct used by Kinesis Video.
-    *
-    * The callback shall invoke the Kinesis Video put stream API routine and maintain
+     * The function returned by this callback takes six arguments:
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 PCHAR - Name of the stream to which data will be put.
+     * @param 3 PCHAR - Container type enum.
+     * @param 4 UINT64 - Stream start timestamp.
+     * @param 5 BOOL - Application level ACK required.
+     * @param 6 PServiceCallContext - Service call context struct used by Kinesis Video.
+     *
+     * The callback shall invoke the Kinesis Video put stream API routine and maintain
      * a persistent connection to the Kinesis Video service.
-    * NOTE the function will be called once each time the connection is established.
-    *
-    *  @return a function pointer conforming to the description above.
-    */
+     * NOTE the function will be called once each time the connection is established.
+     *
+     *  @return a function pointer conforming to the description above.
+     */
     virtual PutStreamFunc getPutStreamCallback() = 0;
 
     /**
-    * The function returned by this callback takes five arguments:
-    * - UINT64 custom_data: A handle to this class.
-    * - PCHAR stream_arn: ARN of the stream to tag.
-    * - UINT32 num_tags: The number of tags contained in the tags array.
-    * - PTag tags: array of resource tags corresponding to the num_tags.
-    * - PServiceCallContext service_call_ctx: Service call context struct used by Kinesis Video.
-    *
-    * The callback shall invoke the Kinesis Video tag resource API routine and pass the tags specified by the tags
-    * parameter in the POST body and the return control to the Kinesis Video client by invoking
-    * the tagResourceResultEvent() call with the customData field from the service context and
-    * the service call result  from the API call.
-    *
-    *  @return a function pointer conforming to the description above.
-    */
+     * The function returned by this callback takes five arguments:
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 PCHAR - ARN of the stream to tag.
+     * @param 3 UINT32 - The number of tags contained in the tags array.
+     * @param 4 PTag - array of resource tags corresponding to the num_tags.
+     * @param 5 PServiceCallContext - Service call context struct used by Kinesis Video.
+     *
+     * The callback shall invoke the Kinesis Video tag resource API routine and pass the tags specified by the tags
+     * parameter in the POST body and the return control to the Kinesis Video client by invoking
+     * the tagResourceResultEvent() call with the customData field from the service context and
+     * the service call result  from the API call.
+     *
+     *  @return a function pointer conforming to the description above.
+     */
     virtual TagResourceFunc getTagResourceCallback() = 0;
 
     /**
@@ -519,6 +520,37 @@ public:
      *  @return a function pointer conforming to the description above.
      */
     virtual DeviceCertToTokenFunc getDeviceCertToTokenCallback();
+
+    /**
+    * Shuts down a stream.
+    *
+    * The function returned by this callback takes two arguments:
+    *
+    * Optional Callback.
+    *
+    * @param 1 UINT64 - Custom handle passed by the caller.
+    * @param 2 STREAM_HANDLE -  - The stream to shutdown.
+    *
+    *  @return a function pointer conforming to the description above.
+    */
+    virtual StreamShutdownFunc getStreamShutdownCallback();
+
+    /**
+    * Shuts down a client.
+    *
+    * The function returned by this callback takes two arguments:
+    *
+    * Optional Callback.
+    *
+    * @param 1 UINT64 - Custom handle passed by the caller.
+    * @param 2 CLIENT_HANDLE - The client handle.
+    *
+    *  @return a function pointer conforming to the description above.
+    */
+    virtual ClientShutdownFunc getClientShutdownCallback();
+
+protected:
+    callback_t callbacks_;
 };
 
 } // namespace video

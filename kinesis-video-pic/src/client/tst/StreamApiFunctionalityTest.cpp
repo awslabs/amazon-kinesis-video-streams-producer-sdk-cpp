@@ -1105,7 +1105,7 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StreamDataAvailable)
     EXPECT_EQ(TEST_FRAME_DURATION * 2, mDataReadyDuration);
 
     // Should be encoded size
-    EXPECT_EQ(SIZEOF(tempBuffer) + mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount) +
+    EXPECT_EQ(SIZEOF(tempBuffer) + mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator) +
               SIZEOF(tempBuffer) + MKV_SIMPLE_BLOCK_OVERHEAD, mDataReadySize);
 }
 
@@ -1549,3 +1549,5 @@ TEST_F(StreamApiFunctionalityTest, streamingTokenJitter_preset_max)
 
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
 }
+
+

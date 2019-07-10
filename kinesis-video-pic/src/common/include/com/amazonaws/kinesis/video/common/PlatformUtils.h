@@ -21,16 +21,7 @@ typedef VOID(*logPrintFunc) (UINT32, PCHAR, PCHAR, ...);
 //
 // Default logger function
 //
-INLINE VOID defaultLogPrintFn(UINT32 level, PCHAR tag, PCHAR fmt, ...)
-{
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(tag);
-
-    va_list valist;
-    va_start(valist, fmt);
-    vprintf(fmt, valist);
-    va_end(valist);
-}
+PUBLIC_API INLINE VOID defaultLogPrint(UINT32 level, PCHAR tag, PCHAR fmt, ...);
 
 extern logPrintFunc globalCustomLogPrintFn;
 
@@ -58,16 +49,19 @@ extern logPrintFunc globalCustomLogPrintFn;
 
 // Extra logging macros
 #ifndef DLOGE
-#define DLOGE(fmt, ...) __LOG(LOG_LEVEL_ERROR, (PCHAR) LOG_TAG, (PCHAR) "\n%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGE(fmt, ...) __LOG(LOG_LEVEL_ERROR, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef DLOGW
-#define DLOGW(fmt, ...) __LOG(LOG_LEVEL_WARN, (PCHAR) LOG_TAG, (PCHAR) "\n%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGW(fmt, ...) __LOG(LOG_LEVEL_WARN, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef DLOGI
-#define DLOGI(fmt, ...) __LOG(LOG_LEVEL_INFO, (PCHAR) LOG_TAG, (PCHAR) "\n%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGI(fmt, ...) __LOG(LOG_LEVEL_INFO, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#endif
+#ifndef DLOGD
+#define DLOGD(fmt, ...) __LOG(LOG_LEVEL_DEBUG, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef DLOGV
-#define DLOGV(fmt, ...) __LOG(LOG_LEVEL_VERBOSE, (PCHAR) LOG_TAG, (PCHAR) "\n%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGV(fmt, ...) __LOG(LOG_LEVEL_VERBOSE, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef ENTER
 #define ENTER() DLOGV("Enter")

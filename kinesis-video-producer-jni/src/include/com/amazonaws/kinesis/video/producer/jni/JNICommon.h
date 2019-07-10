@@ -5,6 +5,11 @@
 #ifndef __JNICOMMON_H__
 #define __JNICOMMON_H__
 
+#include <jni.h>                  // Basic native API
+#include <string.h>
+
+#define EXCEPTION_NAME "com/amazonaws/kinesisvideo/producer/ProducerException"
+
 inline void throwNativeException(JNIEnv* env, const char* name, const char* msg, STATUS status)
 {
     if (env->ExceptionCheck())

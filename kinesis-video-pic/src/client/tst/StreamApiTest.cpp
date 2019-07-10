@@ -12,6 +12,15 @@ TEST_F(StreamApiTest, createKinesisVideoStream_NullInput)
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoStream(mClientHandle, &mStreamInfo, NULL)));
 }
 
+TEST_F(StreamApiTest, createKinesisVideoStreamSync_NullInput)
+{
+    STREAM_HANDLE streamHandle;
+
+    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoStreamSync(INVALID_CLIENT_HANDLE_VALUE, &mStreamInfo, &streamHandle)));
+    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoStreamSync(mClientHandle, NULL, &streamHandle)));
+    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoStreamSync(mClientHandle, &mStreamInfo, NULL)));
+}
+
 TEST_F(StreamApiTest, createKinesisVideoStream_MaxStreams)
 {
     STREAM_HANDLE streamHandle;
@@ -239,6 +248,11 @@ TEST_F(StreamApiTest, freeKinesisVideoStream_NULL_Invalid)
 TEST_F(StreamApiTest, stopKinesisVideoStream_Invalid)
 {
     EXPECT_NE(STATUS_SUCCESS, stopKinesisVideoStream(INVALID_STREAM_HANDLE_VALUE));
+}
+
+TEST_F(StreamApiTest, stopKinesisVideoStreamSync_Invalid)
+{
+    EXPECT_NE(STATUS_SUCCESS, stopKinesisVideoStreamSync(INVALID_STREAM_HANDLE_VALUE));
 }
 
 TEST_F(StreamApiTest, kinesisVideoPutFrame_NULL_Invalid)
@@ -540,4 +554,90 @@ TEST_F(StreamApiTest, kinesisVideoStreamFormatChanged_Multitrack_free)
 
     // Free the cpd
     MEMFREE(pCpd);
+}
+
+PVOID streamStopNotifier(PVOID arg)
+{
+    STREAM_HANDLE streamHandle = (STREAM_HANDLE) arg;
+    THREAD_SLEEP(200 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    DLOGI("Indicating stream closed");
+    notifyStreamClosed(FROM_STREAM_HANDLE(streamHandle), 0);
+    return 0;
+}
+
+TEST_F(StreamApiTest, kinesisVideoStreamCreateSync_Valid)
+{
+    // Create synchronously
+    CreateStreamSync();
+
+    // Produce a frame to enforce awaiting for the stop stream
+    BYTE temp[100];
+    Frame frame;
+    frame.trackId = 1;
+    frame.size = SIZEOF(temp);
+    frame.duration = 0;
+    frame.index = 0;
+    frame.flags = FRAME_FLAG_KEY_FRAME;
+    frame.presentationTs = 0;
+    frame.decodingTs = 0;
+    frame.frameData = temp;
+    EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
+
+    // Spin up a thread to act as a delayed notification
+    TID tid;
+    EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&tid, streamStopNotifier, (PVOID) mStreamHandle));
+
+    // Stop synchronously
+    EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStreamSync(mStreamHandle));
+}
+
+TEST_F(StreamApiTest, kinesisVideoStreamCreateSync_Valid_Timeout)
+{
+    CLIENT_HANDLE clientHandle;
+
+    // Create a client with appropriate timeout so we don't block on test.
+    mClientSyncMode = TRUE;
+    mDeviceInfo.clientInfo.createStreamTimeout = 20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+
+    // Create synchronously
+    EXPECT_EQ(STATUS_OPERATION_TIMED_OUT, createKinesisVideoStreamSync(clientHandle, &mStreamInfo, &mStreamHandle));
+
+    EXPECT_FALSE(IS_VALID_STREAM_HANDLE(mStreamHandle));
+
+    // Stop synchronously - will fail as we should have invalid handle
+    EXPECT_NE(STATUS_SUCCESS, stopKinesisVideoStreamSync(mStreamHandle));
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+}
+
+TEST_F(StreamApiTest, kinesisVideoStreamCreateSyncStopSync_Valid_Timeout)
+{
+    CLIENT_HANDLE clientHandle;
+
+    // Create a client with appropriate timeout so we don't block on test.
+    mClientSyncMode = TRUE;
+    mDeviceInfo.clientInfo.stopStreamTimeout = 20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+
+    // Create synchronously
+    CreateStreamSync(clientHandle);
+
+    // Produce a frame to enforce awaiting for the stop stream
+    BYTE temp[100];
+    Frame frame;
+    frame.trackId = 1;
+    frame.size = SIZEOF(temp);
+    frame.duration = 0;
+    frame.index = 0;
+    frame.flags = FRAME_FLAG_KEY_FRAME;
+    frame.presentationTs = 0;
+    frame.decodingTs = 0;
+    frame.frameData = temp;
+    EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
+
+    // Stop synchronously
+    EXPECT_EQ(STATUS_OPERATION_TIMED_OUT, stopKinesisVideoStreamSync(mStreamHandle));
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
 }

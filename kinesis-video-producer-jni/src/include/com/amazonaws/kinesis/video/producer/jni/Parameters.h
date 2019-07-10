@@ -7,6 +7,7 @@
 #pragma once
 
 BOOL setDeviceInfo(JNIEnv* env, jobject deviceInfo, PDeviceInfo pDeviceInfo);
+BOOL setClientInfo(JNIEnv* env, jobject clientInfo, PClientInfo pClientInfo);
 BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo);
 BOOL setFrame(JNIEnv* env, jobject kinesisVideoFrame, PFrame pFrame);
 BOOL setFragmentAck(JNIEnv* env, jobject fragmentAck, PFragmentAck pFragmentAck);

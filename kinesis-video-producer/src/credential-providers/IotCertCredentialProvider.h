@@ -5,9 +5,9 @@
 #include <Auth.h>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
-
     class IotCertCredentialProvider : public CredentialProvider {
-        const std::string iot_get_credential_endpoint_, cert_path_, private_key_path_, ca_cert_path_, 
+        PAuthCallbacks iot_callbacks;
+        const std::string iot_get_credential_endpoint_, cert_path_, private_key_path_, ca_cert_path_,
 	                  role_alias_,stream_name_;
 
     public:
@@ -22,11 +22,13 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
                 private_key_path_(private_key_path),
                 role_alias_(role_alias),
                 ca_cert_path_(ca_cert_path),
-	          stream_name_(stream_name){}
-        void updateCredentials(Credentials &credentials) override;
+	          stream_name_(stream_name) {}
 
-    private:
-        void dumpCurlEasyInfo(CURL *curl_easy);
+        void updateCredentials(Credentials& credentials) override {
+            // no-op as credential update is handled in c producer iot auth callbacks
+        }
+
+        callback_t getCallbacks(PClientCallbacks) override;
     };
 
 }
