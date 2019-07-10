@@ -66,6 +66,8 @@ extern "C" {
 #define STATUS_MKV_TRACK_INFO_NOT_FOUND                                             STATUS_MKVGEN_BASE + 0x00000026
 #define STATUS_MKV_INVALID_SEGMENT_UUID                                             STATUS_MKVGEN_BASE + 0x00000027
 #define STATUS_MKV_INVALID_TRACK_UID                                                STATUS_MKVGEN_BASE + 0x00000028
+#define STATUS_MKV_INVALID_CLIENT_ID_LENGTH                                         STATUS_MKVGEN_BASE + 0x00000029
+#define STATUS_MKV_INVALID_AMS_ACM_CPD                                              STATUS_MKVGEN_BASE + 0x0000002a
 
 ////////////////////////////////////////////////////
 // Main structure declarations
@@ -89,7 +91,7 @@ extern "C" {
 /**
  * Max codec private data length
  */
-#define MKV_MAX_CODEC_PRIVATE_LEN       1 * 1024 * 1024
+#define MKV_MAX_CODEC_PRIVATE_LEN       (1 * 1024 * 1024)
 
 /**
  * Max tag name length
@@ -125,6 +127,44 @@ extern "C" {
  * as the frame timecodes are relative to the beginning of the cluster.
  */
 #define MAX_TIMESTAMP_VALUE                 (MAX_INT64 / DEFAULT_TIME_UNIT_IN_NANOS)
+
+/**
+ * Max frame queue per track definition
+ */
+#define DEFAULT_MAX_FRAME_QUEUE_SIZE_PER_TRACK              60
+
+/**
+ * Max MKV client id length
+ */
+#define MAX_MKV_CLIENT_ID_STRING_LEN                        64
+
+/**
+ * Constant definition for some known content types
+ */
+#define MKV_H264_CONTENT_TYPE               ((PCHAR) "video/h264")
+#define MKV_H265_CONTENT_TYPE               ((PCHAR) "video/h265")
+#define MKV_X_MKV_VIDEO_CONTENT_TYPE        ((PCHAR) "video/x-matroska")
+#define MKV_X_MKV_AUDIO_CONTENT_TYPE        ((PCHAR) "audio/x-matroska")
+#define MKV_AAC_CONTENT_TYPE                ((PCHAR) "audio/aac")
+#define MKV_ALAW_CONTENT_TYPE               ((PCHAR) "audio/alaw")
+#define MKV_AVC_CONTENT_TYPE                ((PCHAR) "video/avc")
+#define MKV_HEVC_CONTENT_TYPE               ((PCHAR) "video/hevc")
+#define MKV_H264_AAC_MULTI_CONTENT_TYPE     ((PCHAR) "video/h264,audio/aac")
+
+/**
+ * Constant definitions for some known codec IDs
+ */
+#define MKV_FOURCC_CODEC_ID                 ((PCHAR) "V_MS/VFW/FOURCC")
+#define MKV_H264_AVC_CODEC_ID               ((PCHAR) "V_MPEG4/ISO/AVC")
+#define MKV_H265_HEVC_CODEC_ID              ((PCHAR) "V_MPEG4/ISO/AP")
+#define MKV_AAC_MPEG4_MAIN_CODEC_ID         ((PCHAR) "A_AAC/MPEG4/MAIN")
+#define MKV_AAC_CODEC_ID                    ((PCHAR) "A_AAC")
+
+/**
+ * Current versions of the public facing structures
+ */
+#define TRACK_INFO_CURRENT_VERSION                          0
+#define FRAME_CURRENT_VERSION                               0
 
 /**
  * Frame types enum
@@ -182,6 +222,16 @@ typedef enum {
 #define CHECK_FRAME_FLAG_INVISIBLE_FRAME(f)                    (((f) & FRAME_FLAG_INVISIBLE_FRAME) != FRAME_FLAG_NONE)
 #define CHECK_FRAME_FLAG_END_OF_FRAGMENT(f)                    (((f) & FRAME_FLAG_END_OF_FRAGMENT) != FRAME_FLAG_NONE)
 
+#define SET_FRAME_FLAG_KEY_FRAME(f)                             ((f) = (FRAME_FLAGS) (f | FRAME_FLAG_KEY_FRAME))
+#define SET_FRAME_FLAG_DISCARDABLE_FRAME(f)                     ((f) = (FRAME_FLAGS) (f | FRAME_FLAG_DISCARDABLE_FRAME))
+#define SET_FRAME_FLAG_INVISIBLE_FRAME(f)                       ((f) = (FRAME_FLAGS) (f | FRAME_FLAG_INVISIBLE_FRAME))
+#define SET_FRAME_FLAG_END_OF_FRAGMENT(f)                       ((f) = (FRAME_FLAGS) (f | FRAME_FLAG_END_OF_FRAGMENT))
+
+#define CLEAR_FRAME_FLAG_KEY_FRAME(f)                           ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_KEY_FRAME))
+#define CLEAR_FRAME_FLAG_DISCARDABLE_FRAME(f)                   ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_DISCARDABLE_FRAME))
+#define CLEAR_FRAME_FLAG_INVISIBLE_FRAME(f)                     ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_INVISIBLE_FRAME))
+#define CLEAR_FRAME_FLAG_END_OF_FRAGMENT(f)                     ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_END_OF_FRAGMENT))
+
 /**
  * Frame types enum
  */
@@ -226,6 +276,8 @@ typedef enum {
  * The representation of the Frame
  */
 typedef struct {
+    UINT32 version;
+
     // Id of the frame
     UINT32 index;
 
@@ -258,7 +310,7 @@ typedef struct {
  *
  * The initializer will zero all the fields and set the EoFr flag in flags.
  */
-#define EOFR_FRAME_INITIALIZER {0, FRAME_FLAG_END_OF_FRAGMENT, 0, 0, 0, 0, NULL, 0}
+#define EOFR_FRAME_INITIALIZER {FRAME_CURRENT_VERSION, 0, FRAME_FLAG_END_OF_FRAGMENT, 0, 0, 0, 0, NULL, 0}
 
 /**
  * The representation of mkv video element
@@ -274,6 +326,7 @@ typedef struct {
 typedef struct {
     DOUBLE samplingFrequency;
     UINT16 channelConfig;
+    UINT16 bitDepth;
 } TrackAudioConfig, *PTrackAudioConfig;
 
 /**
@@ -285,6 +338,8 @@ typedef union {
 } TrackCustomData, *PTrackCustomData;
 
 typedef struct {
+    UINT32 version;
+
     // Unique Identifier for TrackInfo
     UINT64 trackId;
 
@@ -306,6 +361,7 @@ typedef struct {
     // Track type specific data.
     TrackCustomData trackCustomData;
 
+    // ------------------------------- V0 compat ----------------------
 } TrackInfo, *PTrackInfo;
 
 /**
@@ -347,7 +403,7 @@ struct __MkvGenerator {
     // NOTE: The internal structure follows
 };
 
-typedef __MkvGenerator* PMkvGenerator;
+typedef struct __MkvGenerator* PMkvGenerator;
 
 ////////////////////////////////////////////////////
 // Callbacks definitions
@@ -375,13 +431,14 @@ typedef UINT64 (*GetCurrentTimeFunc)(UINT64);
  * @PBYTE - IN/OPT - Optional Segment UUID to use with size MKV_SEGMENT_UUID_LEN. Otherwise random UUID is generated
  * @PTrackInfo - IN - List of TrackInfo structures
  * @UINT32 - Number of the TrackInfo elements in the list
+ * PCHAR - IN/OPT - Optional client id string. Null terminated if specified.
  * @GetCurrentTimeFunc - the time function callback
  * UINT64 - custom data to be passed to the callback
  * @PMkvGenerator* - returns the newly created object
  *
  * @return - STATUS code of the execution
  */
-PUBLIC_API STATUS createMkvGenerator(PCHAR, UINT32, UINT64, UINT64, PBYTE, PTrackInfo, UINT32, GetCurrentTimeFunc, UINT64, PMkvGenerator*);
+PUBLIC_API STATUS createMkvGenerator(PCHAR, UINT32, UINT64, UINT64, PBYTE, PTrackInfo, UINT32, PCHAR, GetCurrentTimeFunc, UINT64, PMkvGenerator*);
 
 /**
  * Frees and de-allocates the memory of the MkvGenerator and it's sub-objects
@@ -433,13 +490,14 @@ PUBLIC_API STATUS mkvgenGenerateTag(PMkvGenerator, PBYTE, PCHAR, PCHAR, PUINT32)
  *
  * @PMkvGenerator - The generator object
  * @PFrame - Frame to package
+ * @PTrackInfo - IN - The track info object the frame belongs to
  * @PBYTE - Buffer to hold the packaged bits
  * @PUINT32 - IN/OUT - Size of the produced packaged bits
  * @PEncodedFrameInfo - OUT OPT - Information about the encoded frame - optional.
  *
  * @return - STATUS code of the execution
  */
-PUBLIC_API STATUS mkvgenPackageFrame(PMkvGenerator, PFrame, PBYTE, PUINT32, PEncodedFrameInfo);
+PUBLIC_API STATUS mkvgenPackageFrame(PMkvGenerator, PFrame, PTrackInfo, PBYTE, PUINT32, PEncodedFrameInfo);
 
 /**
  * Converts an MKV timecode to a timestamp
@@ -486,6 +544,19 @@ PUBLIC_API STATUS mkvgenGetCurrentTimestamps(PMkvGenerator, PUINT64, PUINT64, PU
  * @return - STATUS code of the execution
  */
 PUBLIC_API STATUS mkvgenSetCodecPrivateData(PMkvGenerator, UINT64, UINT32, PBYTE);
+
+/**
+ * Gets the track info for a specified track id
+ *
+ * @PTrackInfo - IN - Track info array
+ * @UINT32 - IN - Track info count
+ * @UINT64 - IN - Track ID
+ * @PTrackInfo* - OUT/OPT - Track info object matching the track id
+ * @PUINT32 - OUT/OPT - Track index
+ *
+ * @return Status of the operation
+ */
+PUBLIC_API STATUS mkvgenGetTrackInfo(PTrackInfo, UINT32, UINT64, PTrackInfo*, PUINT32);
 
 #pragma pack(pop, include)
 

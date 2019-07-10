@@ -48,7 +48,7 @@ The bulk of the **install script** is building the open source dependencies. The
 
 First make sure that the following libraries have been installed using Homebrew
 ```
-brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus
+brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
 ```
 
 After all required libraries have been installed, run
@@ -111,14 +111,14 @@ Device found:
 ###### Running the `gst-launch-1.0` command to start streaming from RTSP camera source.
 
 ```
-$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
+$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! h264parse ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
 ```
 
 **Note:** If you are using **IoT credentials** then you can pass them as parameters to the gst-launch-1.0 command
 
 ```
 $ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
- kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
+ h264parse ! kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
 ```
 You can find the RTSP URL from your IP camera manual or manufacturers product page.
 
@@ -219,6 +219,17 @@ AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./ki
 ##### Using Docker to run the sample application
 Refer the **README.md** file in the  *docker_native_scripts* folder for running the build and **RTSP sample application** to start streaming from **IP camera** within Docker container.
 
+### How to run sample applications for sending H264 video files to KVS 
+ 
+The sample application `kinesis_video_cproducer_video_only_sample` sends h264  video frames inside the folder `kinesis-video-c-producer/samples/h264SampleFrames` to KVS.
+The following command sends the video frames in a loop for ten seconds to KVS. 
+you can run `./kinesis_video_cproducer_video_only_sample YourStreamName 10`
+`./kinesis_video_cproducer_video_only_sample YourStreamName 10`
+ 
+If you want to send H264 files from another folder (`MyH264FramesFolder`) you can run the sample with the following arguments
+`./kinesis_video_cproducer_video_only_sample YourStreamName 10 MyH264FramesFolder`
+
+
 ##### Additional examples
 For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Video Streams Parsing Library refer:
 
@@ -228,7 +239,19 @@ For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Vid
 -----
 
 ##### Running C++ Unit tests
-The executable for **unit tests** will be built in `./start` inside the `kinesis-video-native-build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
+
+**Note:** Please set the [credentials](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/install-instructions-macos.md#setting-credentials-in-environment-variables) before running the unit tests. 
+
+The executable for **unit tests** will be built as `./producer_test` inside the `kinesis-video-native-build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
+
+##### Running C unit tests
+
+The executable for **unit tests** will be built as `./cproducer_test` inside the `kinesis-video-native-build` directory. 
+
+##### Running PIC unit tests
+
+The executable for **unit tests** will be built as `./pic_test` inside the `kinesis-video-native-build` directory. 
+
 
 ##### Enabling verbose logs
 Define `HEAP_DEBUG` and `LOG_STREAMING` C-defines by uncommenting the appropriate lines in CMakeList.txt in the kinesis-video-native-build directory.

@@ -180,6 +180,10 @@ extern "C" {
 #define STATUS_UPLOAD_HANDLE_ABORTED                                                STATUS_CLIENT_BASE + 0x0000007f
 #define STATUS_INVALID_CERT_PATH_LENGTH                                             STATUS_CLIENT_BASE + 0x00000080
 #define STATUS_DUPLICATE_TRACK_ID_FOUND                                             STATUS_CLIENT_BASE + 0x00000081
+#define STATUS_INVALID_CLIENT_INFO_VERSION                                          STATUS_CLIENT_BASE + 0x00000082
+#define STATUS_INVALID_CLIENT_ID_STRING_LENGTH                                      STATUS_CLIENT_BASE + 0x00000083
+#define STATUS_SETTING_KEY_FRAME_FLAG_WHILE_USING_EOFR                              STATUS_CLIENT_BASE + 0x00000084
+#define STATUS_MAX_FRAME_TIMESTAMP_DELTA_BETWEEN_TRACKS_EXCEEDED                    STATUS_CLIENT_BASE + 0x00000085
 
 #define IS_RECOVERABLE_ERROR(error)     ((error) == STATUS_ACK_ERR_INVALID_MKV_DATA ||          \
                                         (error) == STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR ||    \
@@ -191,6 +195,9 @@ extern "C" {
                                         (error) == STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED)
 
 #define IS_RETRIABLE_ERROR(error)       ((error) == STATUS_DESCRIBE_STREAM_CALL_FAILED ||        \
+                                        (error) == STATUS_CREATE_STREAM_CALL_FAILED ||           \
+                                        (error) == STATUS_GET_STREAMING_TOKEN_CALL_FAILED ||     \
+                                        (error) == STATUS_PUT_STREAM_CALL_FAILED ||              \
                                         (error) == STATUS_GET_STREAMING_ENDPOINT_CALL_FAILED)
 
 ////////////////////////////////////////////////////
@@ -207,9 +214,9 @@ extern "C" {
 #define MAX_TAG_COUNT                            50
 
 /**
- * Max stream count for sanity validation
+ * Max stream count for sanity validation - 1M
  */
-#define MAX_STREAM_COUNT                         1024 * 1024
+#define MAX_STREAM_COUNT                         1000000
 
 /**
  * Max stream name length chars
@@ -234,7 +241,7 @@ extern "C" {
 /**
  * Max ARN len in chars
  */
-#define MAX_ARN_LEN                              1024
+#define MAX_ARN_LEN                              2048
 
 /**
  * Max len of the auth data (STS or Cert) in bytes
@@ -361,6 +368,11 @@ extern "C" {
 #define MAX_DEVICE_FINGERPRINT_LENGTH               32
 
 /**
+ * Max client id string length
+ */
+#define MAX_CLIENT_ID_STRING_LENGTH                 64
+
+/**
  * Default timecode scale sentinel value
  * The actual value of the timecode scale might be
  * different for different packaging types
@@ -396,20 +408,41 @@ extern "C" {
 #define MAX_SUPPORTED_TRACK_COUNT_PER_STREAM                  3
 
 /**
+ * Client ready timeout duration.
+ **/
+#define CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS 15
+
+/**
+ * Stream ready timeout duration.
+ **/
+#define STREAM_READY_TIMEOUT_DURATION_IN_SECONDS 30
+
+/**
+ * Stream closed timeout duration.
+ */
+#define STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS 120
+
+/**
+ * Default logger log level
+ */
+#define DEFAULT_LOGGER_LOG_LEVEL LOG_LEVEL_WARN
+
+/**
  * Current versions for the public structs
  */
-#define DEVICE_INFO_CURRENT_VERSION                         0
+#define DEVICE_INFO_CURRENT_VERSION                         1
 #define CALLBACKS_CURRENT_VERSION                           0
-#define STREAM_INFO_CURRENT_VERSION                         0
+#define STREAM_INFO_CURRENT_VERSION                         1
 #define TAG_CURRENT_VERSION                                 0
 #define SEGMENT_INFO_CURRENT_VERSION                        0
 #define STORAGE_INFO_CURRENT_VERSION                        0
 #define AUTH_INFO_CURRENT_VERSION                           0
 #define SERVICE_CALL_CONTEXT_CURRENT_VERSION                0
-#define STREAM_DESCRIPTION_CURRENT_VERSION                  0
+#define STREAM_DESCRIPTION_CURRENT_VERSION                  1
 #define FRAGMENT_ACK_CURRENT_VERSION                        0
 #define STREAM_METRICS_CURRENT_VERSION                      0
 #define CLIENT_METRICS_CURRENT_VERSION                      0
+#define CLIENT_INFO_CURRENT_VERSION                         0
 
 /**
  * Definition of the client handle
@@ -757,7 +790,7 @@ struct __FragmentAck {
     SERVICE_CALL_RESULT result;
 };
 
-typedef __FragmentAck* PFragmentAck;
+typedef struct __FragmentAck* PFragmentAck;
 
 /**
  * Tag declaration
@@ -774,7 +807,7 @@ struct __Tag {
     PCHAR value; // pointer to a string with MAX_TAG_VALUE_LEN chars max including the NULL terminator
 };
 
-typedef __Tag* PTag;
+typedef struct __Tag* PTag;
 
 /**
  * NAL adaptation types enum. The bit flags correspond to the ones defined in the
@@ -801,6 +834,31 @@ typedef enum {
      */
     NAL_ADAPTATION_ANNEXB_CPD_NALS              = (1 << 5),
 } NAL_ADAPTATION_FLAGS;
+
+typedef enum {
+    /**
+     * When in FRAME_ORDER_MODE_PASS_THROUGH, when putKinesisVideoFrame is called, the frame is submitted immediately
+     */
+    FRAME_ORDER_MODE_PASS_THROUGH                           = 0,
+    /**
+     * When in FRAME_ORDERING_MODE_MULTI_TRACK_AV, frames are submitted in the order of their dts. In case of two frames
+     * having the same mkv timestamp, and one of them being key frame, the key frame flag is moved to the earliest frame
+     * to make sure we dont have cluster end timestamp being equal to the next cluster beginning timestamp.
+     */
+    FRAME_ORDERING_MODE_MULTI_TRACK_AV                      = 1,
+
+    /**
+     * If frames from different tracks have dts difference less than mkv timecode scale, then add 1 unit of mkv timecode
+     * scale to the latter frame to avoid backend reporting fragment overlap. This will be deprecated once backend is
+     * fixed.
+     */
+    FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_DTS_ONE_MS_COMPENSATE    = 2,
+
+    /**
+     * same as the dts counter part, but compares pts instead.
+     */
+    FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE    = 3,
+} FRAME_ORDER_MODE;
 
 /**
  * Stream capabilities declaration
@@ -882,9 +940,14 @@ struct __StreamCaps {
 
     // Number of TrackInfo in trackInfoList
     UINT32 trackInfoCount;
+
+    // ------------------------------- V0 compat ----------------------
+
+    // How incoming frames are reordered
+    FRAME_ORDER_MODE frameOrderingMode;
 };
 
-typedef __StreamCaps* PStreamCaps;
+typedef struct __StreamCaps* PStreamCaps;
 
 /**
  * Stream info declaration
@@ -915,8 +978,8 @@ struct __StreamInfo {
     StreamCaps streamCaps;
 };
 
-typedef __StreamInfo* PStreamInfo;
-typedef __StreamInfo** PPStreamInfo;
+typedef struct __StreamInfo* PStreamInfo;
+typedef struct __StreamInfo** PPStreamInfo;
 
 /**
  * Storage info declaration
@@ -939,13 +1002,38 @@ struct __StorageInfo {
     CHAR rootDirectory[MAX_PATH_LEN + 1];
 };
 
-typedef __StorageInfo* PStorageInfo;
+typedef struct __StorageInfo* PStorageInfo;
+
+/**
+ * Client Info
+ */
+typedef struct __ClientInfo {
+    // Version of the struct
+    UINT32 version;
+
+    // Client sync creation timeout. 0 or INVALID_TIMESTAMP_VALUE = use default
+    UINT64 createClientTimeout;
+
+    // Stream sync creation timeout. 0 or INVALID_TIMESTAMP_VALUE= use default
+    UINT64 createStreamTimeout;
+
+    // Stream sync stopping timeout. 0 or INVALID_TIMESTAMP_VALUE= use default
+    UINT64 stopStreamTimeout;
+
+    // Offline mode wait for buffer availability timeout. 0 or INVALID_TIMESTAMP_VALUE= use default
+    UINT64 offlineBufferAvailabilityTimeout;
+
+    // Logger log level. 0 = use default
+    UINT32 loggerLogLevel;
+
+    // whether to log metric or not
+    BOOL logMetric;
+} ClientInfo, *PClientInfo;
 
 /**
  * Device info declaration
  */
-typedef struct __DeviceInfo DeviceInfo;
-struct __DeviceInfo {
+typedef struct __DeviceInfo {
     // Version of the struct
     UINT32 version;
 
@@ -965,11 +1053,14 @@ struct __DeviceInfo {
     // Number of declared streams.
     UINT32 streamCount;
 
-    // Certificate store directory holding CA certificates
-    CHAR certPath[MAX_PATH_LEN + 1];
-};
+    // ------------------------------- V0 compat ----------------------
 
-typedef __DeviceInfo* PDeviceInfo;
+    // Client ID used as an identifier when generating MKV header
+    CHAR clientId[MAX_CLIENT_ID_STRING_LENGTH + 1];
+
+    // Client info
+    ClientInfo clientInfo;
+} DeviceInfo, *PDeviceInfo;
 
 /**
  * Client metrics
@@ -998,7 +1089,7 @@ struct __ClientMetrics {
     UINT64 totalTransferRate;
 };
 
-typedef __ClientMetrics* PClientMetrics;
+typedef struct __ClientMetrics* PClientMetrics;
 
 /**
  * Stream metrics
@@ -1027,7 +1118,7 @@ struct __StreamMetrics {
     UINT64 currentTransferRate;
 };
 
-typedef __StreamMetrics* PStreamMetrics;
+typedef struct __StreamMetrics* PStreamMetrics;
 
 /**
  * Fragment metadata declaration
@@ -1047,7 +1138,7 @@ struct __FragmentMetadata {
     UINT64 duration;
 };
 
-typedef __FragmentMetadata* PFragmentMetadata;
+typedef struct __FragmentMetadata* PFragmentMetadata;
 
 /**
  * Segment info declaration
@@ -1070,7 +1161,7 @@ struct __SegmentInfo {
     PBYTE fragmentData;
 };
 
-typedef __SegmentInfo* PSegmentInfo;
+typedef struct __SegmentInfo* PSegmentInfo;
 
 /**
  * Stream description declaration
@@ -1102,9 +1193,17 @@ struct __StreamDescription {
 
     // Stream creation time
     UINT64 creationTime;
+
+    // ------------------------------- V0 compat ----------------------
+
+    // Data retention in hours
+    UINT64 retention;
+
+    // KMS key id ARN
+    CHAR kmsKeyId[MAX_ARN_LEN + 1];
 };
 
-typedef __StreamDescription* PStreamDescription;
+typedef struct __StreamDescription* PStreamDescription;
 
 /**
  * Auth info - either STS token or a Certificate
@@ -1127,7 +1226,7 @@ struct __AuthInfo {
     UINT64 expiration;
 };
 
-typedef __AuthInfo* PAuthInfo;
+typedef struct __AuthInfo* PAuthInfo;
 
 /**
  * Service API call context
@@ -1150,7 +1249,7 @@ struct __ServiceCallContext {
     PAuthInfo pAuthInfo;
 };
 
-typedef __ServiceCallContext* PServiceCallContext;
+typedef struct __ServiceCallContext* PServiceCallContext;
 
 ////////////////////////////////////////////////////
 // General callbacks definitions
@@ -1387,7 +1486,7 @@ typedef STATUS (*StreamDataAvailableFunc)(UINT64,
  * @return MUTEX object to use
  */
 typedef MUTEX (*CreateMutexFunc)(UINT64,
-                                  BOOL);
+                                 BOOL);
 
 /**
  * Lock the mutex
@@ -1640,6 +1739,27 @@ typedef STATUS (*TagResourceFunc)(UINT64,
                                   PServiceCallContext);
 
 /**
+ * Client shutdown function.
+ *
+ * @param 1 UINT64 - Custom handle passed by the caller.
+ * @param 2 CLIENT_HANDLE - The client handle.
+ *
+ * @return Status of the callback
+ */
+typedef STATUS (*ClientShutdownFunc)(UINT64, CLIENT_HANDLE);
+
+/**
+ * Stream shutdown function.
+ *
+ * @param 1 UINT64 - Custom handle passed by the caller.
+ * @param 2 STREAM_HANDLE - The stream to shutdown.
+ * @param 3 BOOL - Whether {@link kinesisVideoStreamResetStream} or {@link freeKinesisVideoStream} is called
+ *
+ * @return Status of the callback
+ */
+typedef STATUS (*StreamShutdownFunc)(UINT64, STREAM_HANDLE, BOOL);
+
+/**
  * The callbacks structure to be passed in to the client
  */
 typedef struct __ClientCallbacks ClientCallbacks;
@@ -1688,8 +1808,10 @@ struct __ClientCallbacks {
     DeviceCertToTokenFunc deviceCertToTokenFn;
     ClientReadyFunc clientReadyFn;
     LogPrintFunc logPrintFn;
+    ClientShutdownFunc clientShutdownFn;
+    StreamShutdownFunc streamShutdownFn;
 };
-typedef __ClientCallbacks* PClientCallbacks;
+typedef struct __ClientCallbacks* PClientCallbacks;
 
 ////////////////////////////////////////////////////
 // Public functions
@@ -1705,6 +1827,17 @@ typedef __ClientCallbacks* PClientCallbacks;
  * @return - STATUS code of the execution
  */
 PUBLIC_API STATUS createKinesisVideoClient(PDeviceInfo, PClientCallbacks, PCLIENT_HANDLE);
+
+/**
+ * Create a client object synchronously awaiting for the Ready state.
+ *
+ * @PDeviceInfo - Device info structure
+ * @PClientCallbacks - Client callbacks structure with the function pointers
+ * @PCLIENT_HANDLE - OUT - returns the newly created objects handle
+ *
+ * @return - STATUS code of the execution
+ */
+PUBLIC_API STATUS createKinesisVideoClientSync(PDeviceInfo, PClientCallbacks, PCLIENT_HANDLE);
 
 /**
  * Frees and de-allocates the memory of the client and it's sub-objects
@@ -1738,6 +1871,17 @@ PUBLIC_API STATUS stopKinesisVideoStreams(CLIENT_HANDLE);
 PUBLIC_API STATUS createKinesisVideoStream(CLIENT_HANDLE, PStreamInfo, PSTREAM_HANDLE);
 
 /**
+ * Create a stream object syncronously awaiting for the stream to enter Ready state.
+ *
+ * @CLIENT_HANDLE - Client objects handle
+ * @PStreamInfo - Stream info object
+ * @PSTREAM_HANDLE - OUT - returns the newly created stream objects handle
+ *
+ * @return - STATUS code of the execution
+ */
+PUBLIC_API STATUS createKinesisVideoStreamSync(CLIENT_HANDLE, PStreamInfo, PSTREAM_HANDLE);
+
+/**
  * Stops and frees the stream
  *
  * @param 1 PSTREAM_HANDLE - the stream handle pointer.
@@ -1754,6 +1898,16 @@ PUBLIC_API STATUS freeKinesisVideoStream(PSTREAM_HANDLE);
  * @return Status of the function call.
  */
 PUBLIC_API STATUS stopKinesisVideoStream(STREAM_HANDLE);
+
+/**
+ * Stops the stream processing. This is a SYNC api and the call will block until the last bits
+ * of the buffer are streamed out and the stream stopped notification is called.
+ *
+ * @param 1 STREAM_HANDLE - the client handle.
+ *
+ * @return Status of the function call.
+ */
+PUBLIC_API STATUS stopKinesisVideoStreamSync(STREAM_HANDLE);
 
 /**
  * Puts a frame into the stream
@@ -2005,8 +2159,50 @@ PUBLIC_API STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE,
 PUBLIC_API STATUS kinesisVideoStreamGetStreamInfo(STREAM_HANDLE,
                                                   PPStreamInfo);
 
+/**
+ * Restart/Reset a stream by dropping remaining data and reset stream state machine.
+ * Note: The buffered frames will be deleted without being sent.
+ *
+ * @param 1 STREAM_HANDLE - The stream handle to reset
+ *
+ * @return - The status of the function call.
+ */
+PUBLIC_API STATUS kinesisVideoStreamResetStream(STREAM_HANDLE);
 
+/**
+ * Reset connection for stream, continue sending existing data in buffer with new connection
+ *
+ * @param 1 STREAM_HANDLE - The stream handle to reset
+ *
+ * @return - The status of the function call.
+ */
+PUBLIC_API STATUS kinesisVideoStreamResetConnection(STREAM_HANDLE);
 
+///////////////////////////////////////////////////
+// Default implementations of the platform callbacks
+///////////////////////////////////////////////////
+PUBLIC_API UINT64 kinesisVideoStreamDefaultGetCurrentTime(UINT64 customData);
+PUBLIC_API UINT32 kinesisVideoStreamDefaultGetRandomNumber(UINT64 customData);
+PUBLIC_API MUTEX kinesisVideoStreamDefaultCreateMutex(UINT64 customData, BOOL reentrant);
+PUBLIC_API VOID kinesisVideoStreamDefaultLockMutex(UINT64 customData, MUTEX mutex);
+PUBLIC_API VOID kinesisVideoStreamDefaultUnlockMutex(UINT64 customData, MUTEX mutex);
+PUBLIC_API BOOL kinesisVideoStreamDefaultTryLockMutex(UINT64 customData, MUTEX mutex);
+PUBLIC_API VOID kinesisVideoStreamDefaultFreeMutex(UINT64 customData, MUTEX mutex);
+PUBLIC_API CVAR kinesisVideoStreamDefaultCreateConditionVariable(UINT64 customData);
+PUBLIC_API STATUS kinesisVideoStreamDefaultSignalConditionVariable(UINT64 customData, CVAR cvar);
+PUBLIC_API STATUS kinesisVideoStreamDefaultBroadcastConditionVariable(UINT64 customData, CVAR cvar);
+PUBLIC_API STATUS kinesisVideoStreamDefaultWaitConditionVariable(UINT64 customData, CVAR cvar, MUTEX mutex,
+                                                                 UINT64 timeout);
+PUBLIC_API VOID kinesisVideoStreamDefaultFreeConditionVariable(UINT64 customData, CVAR cvar);
+PUBLIC_API STATUS kinesisVideoStreamDefaultStreamReady(UINT64 customData, STREAM_HANDLE streamHandle);
+PUBLIC_API STATUS kinesisVideoStreamDefaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle,
+                                                       UPLOAD_HANDLE streamUploadHandle);
+PUBLIC_API STATUS kinesisVideoStreamDefaultClientReady(UINT64 customData, CLIENT_HANDLE clientHandle);
+PUBLIC_API STATUS kinesisVideoStreamDefaultStreamDataAvailable(UINT64 customData, STREAM_HANDLE streamHandle,
+                                                               PCHAR streamName, UINT64 uploadHandle, UINT64 duration,
+                                                               UINT64 size);
+PUBLIC_API STATUS kinesisVideoStreamDefaultClientShutdown(UINT64 customData, CLIENT_HANDLE clientHandle);
+PUBLIC_API STATUS kinesisVideoStreamDefaultStreamShutdown(UINT64 customData, STREAM_HANDLE streamHandle, BOOL resetStream);
 
 #pragma pack(pop, include)
 

@@ -3,7 +3,9 @@ project (utilsTest)
 file (GLOB UtilsTestSources *.cpp)
 
 add_executable(${PROJECT_NAME} ${UtilsTestSources})
-target_link_libraries(${PROJECT_NAME} utils)
-target_link_libraries(${PROJECT_NAME} gtest)
-
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    target_link_libraries(${PROJECT_NAME} utils gtest rt)
+else()
+    target_link_libraries(${PROJECT_NAME} utils gtest)
+endif()
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

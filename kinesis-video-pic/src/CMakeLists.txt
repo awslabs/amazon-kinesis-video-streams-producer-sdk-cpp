@@ -5,7 +5,7 @@ set(KINESIS_VIDEO_DOMAIN com/amazonaws/kinesis/video)
 function(kinesis_video_library_setup LIBRARY_NAME)
   set(LIBRARY_HEADERS_DIR include/${KINESIS_VIDEO_DOMAIN}/${LIBRARY_NAME})
   file(GLOB LIBRARY_HEADERS ${LIBRARY_HEADERS_DIR}/*.h)
-  file(GLOB LIBRARY_SOURCE src/*.cpp)
+  file(GLOB LIBRARY_SOURCE src/*.c)
   add_library(${LIBRARY_NAME} STATIC ${LIBRARY_HEADERS} ${LIBRARY_SOURCE})
 
   target_include_directories(${LIBRARY_NAME} PRIVATE
@@ -16,7 +16,9 @@ function(kinesis_video_library_setup LIBRARY_NAME)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-  add_subdirectory(tst)
+  if ((NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.4.6"))
+      add_subdirectory(tst)
+  endif()
 endfunction(kinesis_video_library_setup)
 
 function(kinesis_video_library_install)

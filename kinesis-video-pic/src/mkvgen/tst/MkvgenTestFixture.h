@@ -20,11 +20,16 @@
 #define MKV_TEST_CODEC_ID               ((PCHAR) "TestCodec")
 #define MKV_TEST_TRACK_NAME             ((PCHAR) "TestTrack")
 
+#define MKV_TEST_CLIENT_ID              ((PCHAR) "TestClientId")
+
 #define MKV_TEST_CUSTOM_DATA            0x12345
 
 #define MKV_TEST_TAG_COUNT          5
 #define MKV_TEST_TRACK_INFO_COUNT   1
 #define MKV_TEST_TRACKID            1
+
+#define MKV_TEST_DEFAULT_TRACK_WIDTH        1280
+#define MKV_TEST_DEFAULT_TRACK_HEIGHT       720
 
 #define MKV_TEST_SEGMENT_UUID           ((PBYTE) "0123456789abcdef")
 
@@ -52,7 +57,8 @@ protected:
 
         // Create the MKV generator
         retStatus = createMkvGenerator(MKV_TEST_CONTENT_TYPE, MKV_TEST_BEHAVIOR_FLAGS, MKV_TEST_TIMECODE_SCALE,
-            MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount, NULL, 0, &mMkvGenerator);
+                                       MKV_TEST_CLUSTER_DURATION, MKV_TEST_SEGMENT_UUID, &mTrackInfo, mTrackInfoCount,
+                                       MKV_TEST_CLIENT_ID, NULL, 0, &mMkvGenerator);
         EXPECT_EQ(STATUS_SUCCESS, retStatus);
 
         return retStatus;
@@ -61,14 +67,15 @@ protected:
     virtual void SetUp()
     {
         mTrackInfoCount = MKV_TEST_TRACK_INFO_COUNT;
+        mTrackInfo.version = TRACK_INFO_CURRENT_VERSION;
         mTrackInfo.trackId = MKV_TEST_TRACKID;
         STRCPY(mTrackInfo.codecId, MKV_TEST_CODEC_ID);
         STRCPY(mTrackInfo.trackName, MKV_TEST_TRACK_NAME);
         mTrackInfo.codecPrivateData = NULL;
         mTrackInfo.codecPrivateDataSize = 0;
         mTrackInfo.trackType = MKV_TRACK_INFO_TYPE_VIDEO;
-        mTrackInfo.trackCustomData.trackVideoConfig.videoWidth = 1280;
-        mTrackInfo.trackCustomData.trackVideoConfig.videoHeight = 720;
+        mTrackInfo.trackCustomData.trackVideoConfig.videoWidth = MKV_TEST_DEFAULT_TRACK_WIDTH;
+        mTrackInfo.trackCustomData.trackVideoConfig.videoHeight = MKV_TEST_DEFAULT_TRACK_HEIGHT;
 
         DLOGI("\nSetting up test: %s\n", GetTestName());
         ASSERT_TRUE(STATUS_SUCCEEDED(CreateMkvGenerator()));

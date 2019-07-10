@@ -9,7 +9,6 @@
 #include "StreamCallbackProvider.h"
 #include "Auth.h"
 #include "StreamDefinition.h"
-#include "TestDefaultCallbackProvider.h"
 #include "CachingEndpointOnlyCallbackProvider.h"
 #include "Logger.h"
 
@@ -22,11 +21,6 @@ using namespace std::chrono;
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
-
-#define ACCESS_KEY_ENV_VAR  "AWS_ACCESS_KEY_ID"
-#define SECRET_KEY_ENV_VAR  "AWS_SECRET_ACCESS_KEY"
-#define SESSION_TOKEN_ENV_VAR "AWS_SESSION_TOKEN"
-#define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 
 #define TEST_FRAME_DURATION                                 (40 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 #define TEST_EXECUTION_DURATION                             (120 * HUNDREDS_OF_NANOS_IN_A_SECOND)
@@ -187,6 +181,7 @@ public:
                          access_key_set_(true),
                          buffer_duration_pressure_(false),
                          defaultRegion_(DEFAULT_AWS_REGION),
+                         caCertPath_(""),
                          error_status_(STATUS_SUCCESS),
                          device_storage_size_(TEST_STORAGE_SIZE_IN_BYTES),
                          fps_(TEST_FPS),
@@ -279,6 +274,7 @@ protected:
         char const *secretKey;
         char const *sessionToken;
         char const *defaultRegion;
+        char const *caCertPath;
         string sessionTokenStr;
         if (nullptr == (accessKey = getenv(ACCESS_KEY_ENV_VAR))) {
             accessKey = "AccessKey";
@@ -299,26 +295,30 @@ protected:
             defaultRegion_ = string(defaultRegion);
         }
 
-        credentials_ = make_unique<Credentials>(string(accessKey),
-                                                string(secretKey),
-                                                sessionTokenStr,
-                                                std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
+        if (nullptr != (caCertPath = getenv(CACERT_PATH_ENV_VAR))) {
+            caCertPath_ = string(caCertPath);
+        }
 
-        credential_provider_ = make_unique<TestCredentialProvider>(*credentials_.get(), token_rotation_seconds_);
+        credentials_.reset(new Credentials(string(accessKey),
+                string(secretKey),
+                sessionTokenStr,
+                std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+
+        credential_provider_.reset(new TestCredentialProvider(*credentials_.get(), token_rotation_seconds_));
     }
 
 
     void CreateProducer(bool cachingEndpoingProvider = false) {
         // Create the producer client
         CreateCredentialProvider();
-        device_provider_ = make_unique<TestDeviceInfoProvider>(device_storage_size_);
-        client_callback_provider_ = make_unique<TestClientCallbackProvider>(this);
-        stream_callback_provider_ = make_unique<TestStreamCallbackProvider>(this);
+        device_provider_.reset(new TestDeviceInfoProvider(device_storage_size_));
+        client_callback_provider_.reset(new TestClientCallbackProvider(this));
+        stream_callback_provider_.reset(new TestStreamCallbackProvider(this));
 
         try {
             unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
             if (cachingEndpoingProvider) {
-                defaultCallbackProvider = make_unique<CachingEndpointOnlyCallbackProvider>(
+                defaultCallbackProvider.reset(new CachingEndpointOnlyCallbackProvider(
                         move(client_callback_provider_),
                         move(stream_callback_provider_),
                         move(credential_provider_),
@@ -326,17 +326,21 @@ protected:
                         "",
                         "",
                         "",
-                        "",
-                        DEFAULT_CACHE_UPDATE_PERIOD_IN_SECONDS);
+                        caCertPath_,
+                        DEFAULT_CACHE_UPDATE_PERIOD_IN_SECONDS));
             } else {
-                defaultCallbackProvider = make_unique<TestDefaultCallbackProvider>(
+                defaultCallbackProvider.reset(new DefaultCallbackProvider(
                         move(client_callback_provider_),
                         move(stream_callback_provider_),
                         move(credential_provider_),
-                        defaultRegion_);
+                        defaultRegion_,
+                        "",
+                        "",
+                        "",
+                        caCertPath_));
             }
 
-            testDefaultCallbackProvider = reinterpret_cast<TestDefaultCallbackProvider *>(defaultCallbackProvider.get());
+            // testDefaultCallbackProvider = reinterpret_cast<TestDefaultCallbackProvider *>(defaultCallbackProvider.get());
             kinesis_video_producer_ = KinesisVideoProducer::createSync(move(device_provider_),
                                                                        move(defaultCallbackProvider));
         } catch (std::runtime_error) {
@@ -360,27 +364,27 @@ protected:
             tags.emplace(std::make_pair(tag_name, tag_val));
         }
 
-        auto stream_definition = make_unique<StreamDefinition>(stream_name,
-                                                               hours(2),
-                                                               &tags,
-                                                               "",
-                                                               streaming_type,
-                                                               "video/h264",
-                                                               milliseconds(max_stream_latency_ms),
-                                                               seconds(2),
-                                                               milliseconds(1),
-                                                               true,
-                                                               true,
-                                                               true,
-                                                               true,
-                                                               true,
-                                                               true,
-                                                               0,
-                                                               25,
-                                                               4 * 1024 * 1024,
-                                                               seconds(buffer_duration_seconds),
-                                                               seconds(buffer_duration_seconds),
-                                                                    seconds(50));
+        unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(stream_name,
+                hours(2),
+                &tags,
+                "",
+                streaming_type,
+                "video/h264",
+                milliseconds(max_stream_latency_ms),
+                seconds(2),
+                milliseconds(1),
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                0,
+                25,
+                4 * 1024 * 1024,
+                seconds(buffer_duration_seconds),
+                seconds(buffer_duration_seconds),
+                seconds(50)));
         return kinesis_video_producer_->createStreamSync(move(stream_definition));
     };
 
@@ -389,7 +393,8 @@ protected:
     };
 
     virtual void TearDown() {
-        kinesis_video_producer_.release();
+        auto producer_ptr = kinesis_video_producer_.release();
+        delete producer_ptr;
         previous_buffering_ack_timestamp_.clear();
         buffering_ack_in_sequence_ = true;
         frame_dropped_ = false;
@@ -413,6 +418,7 @@ protected:
     unique_ptr<CredentialProvider> credential_provider_;
 
     string defaultRegion_;
+    string caCertPath_;
 
     bool access_key_set_;
 
@@ -422,7 +428,6 @@ protected:
     volatile bool producer_stopped_;
 
     uint32_t token_rotation_seconds_;
-    TestDefaultCallbackProvider *testDefaultCallbackProvider;
     uint64_t device_storage_size_;
     uint64_t fps_;
     uint64_t total_frame_count_;

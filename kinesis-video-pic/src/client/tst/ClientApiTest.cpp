@@ -12,6 +12,17 @@ TEST_F(ClientApiTest, createKinesisVideoClient_NullInput)
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, NULL)));
 }
 
+TEST_F(ClientApiTest, createKinesisVideoClientSync_NullInput)
+{
+    CLIENT_HANDLE clientHandle;
+
+    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClientSync(NULL, &mClientCallbacks, &clientHandle)));
+    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClientSync(&mDeviceInfo, NULL, &clientHandle)));
+    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, NULL)));
+    mDeviceInfo.clientInfo.createClientTimeout = 20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    EXPECT_EQ(STATUS_OPERATION_TIMED_OUT, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+}
+
 TEST_F(ClientApiTest, createKinesisVideoClient_ValiateCallbacks)
 {
     CLIENT_HANDLE clientHandle;
@@ -88,6 +99,16 @@ TEST_F(ClientApiTest, createKinesisVideoClient_ValiateCallbacks)
     EXPECT_TRUE(STATUS_SUCCEEDED(freeKinesisVideoClient(&clientHandle)));
     mClientCallbacks.streamReadyFn = streamReadyFunc;
 
+    mClientCallbacks.clientShutdownFn = NULL;
+    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(freeKinesisVideoClient(&clientHandle)));
+    mClientCallbacks.clientShutdownFn = clientShutdownFunc;
+
+    mClientCallbacks.streamShutdownFn = NULL;
+    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(freeKinesisVideoClient(&clientHandle)));
+    mClientCallbacks.streamShutdownFn = streamShutdownFunc;
+
     mClientCallbacks.createMutexFn = NULL;
     EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     EXPECT_TRUE(STATUS_SUCCEEDED(freeKinesisVideoClient(&clientHandle)));
@@ -143,6 +164,11 @@ TEST_F(ClientApiTest, createKinesisVideoClient_ValiateDeviceInfo)
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     mDeviceInfo.version = DEVICE_INFO_CURRENT_VERSION;
 
+    // Set various device info members to invalid and check the behavior
+    mDeviceInfo.clientInfo.version = CLIENT_INFO_CURRENT_VERSION + 1;
+    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
+    mDeviceInfo.clientInfo.version = CLIENT_INFO_CURRENT_VERSION;
+
     mDeviceInfo.streamCount = 0;
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     mDeviceInfo.streamCount = MAX_STREAM_COUNT + 1;
@@ -180,18 +206,84 @@ TEST_F(ClientApiTest, createKinesisVideoClient_ValiateDeviceInfo)
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     mDeviceInfo.storageInfo.rootDirectory[0] = '\0';
 
-    MEMSET(mDeviceInfo.certPath, 'a', (MAX_PATH_LEN + 1) * SIZEOF(CHAR));
-    EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
-    mDeviceInfo.certPath[0] = '\0';
-
     MEMSET(mDeviceInfo.name, 'a', (MAX_DEVICE_NAME_LEN + 1) * SIZEOF(CHAR));
     EXPECT_TRUE(STATUS_FAILED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     STRCPY(mDeviceInfo.name, TEST_DEVICE_NAME);
+
+    MEMSET(mDeviceInfo.clientId, 'a', (MAX_CLIENT_ID_STRING_LENGTH + 1) * SIZEOF(CHAR));
+    EXPECT_EQ(STATUS_INVALID_CLIENT_ID_STRING_LENGTH, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    STRCPY(mDeviceInfo.clientId, TEST_CLIENT_ID);
 
     mDeviceInfo.name[0] = '\0';
     // Should still succeed by generating random name
     EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
     STRCPY(mDeviceInfo.name, TEST_DEVICE_NAME);
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    // Validate the default client timeouts with 0
+    mDeviceInfo.clientInfo.createClientTimeout = mDeviceInfo.clientInfo.createStreamTimeout = mDeviceInfo.clientInfo.stopStreamTimeout = 0;
+    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
+    PKinesisVideoClient pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
+    EXPECT_EQ(CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.createClientTimeout);
+    EXPECT_EQ(STREAM_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.createStreamTimeout);
+    EXPECT_EQ(STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.stopStreamTimeout);
+    mDeviceInfo.clientInfo.createClientTimeout = TEST_DEFAULT_CREATE_CLIENT_TIMEOUT;
+    mDeviceInfo.clientInfo.createStreamTimeout = TEST_DEFAULT_CREATE_STREAM_TIMEOUT;
+    mDeviceInfo.clientInfo.stopStreamTimeout = TEST_DEFAULT_STOP_STREAM_TIMEOUT;
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    // Validate the default client timeouts with INVALID_TIMESTAMP_VALUE
+    mDeviceInfo.clientInfo.createClientTimeout = mDeviceInfo.clientInfo.createStreamTimeout = mDeviceInfo.clientInfo.stopStreamTimeout = INVALID_TIMESTAMP_VALUE;
+    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
+    pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
+    EXPECT_EQ(CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.createClientTimeout);
+    EXPECT_EQ(STREAM_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.createStreamTimeout);
+    EXPECT_EQ(STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.stopStreamTimeout);
+    mDeviceInfo.clientInfo.createClientTimeout = TEST_DEFAULT_CREATE_CLIENT_TIMEOUT;
+    mDeviceInfo.clientInfo.createStreamTimeout = TEST_DEFAULT_CREATE_STREAM_TIMEOUT;
+    mDeviceInfo.clientInfo.stopStreamTimeout = TEST_DEFAULT_STOP_STREAM_TIMEOUT;
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    // Validate the default client timeouts for earlier version
+    mDeviceInfo.version = DEVICE_INFO_CURRENT_VERSION - 1;
+    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle)));
+    pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
+    EXPECT_EQ(CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.createClientTimeout);
+    EXPECT_EQ(STREAM_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.createStreamTimeout);
+    EXPECT_EQ(STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.stopStreamTimeout);
+    mDeviceInfo.version = DEVICE_INFO_CURRENT_VERSION;
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    // Try the older version directly
+    DeviceInfo_V0 deviceInfo_v0;
+    // Copy the existing stuff
+    MEMCPY(&deviceInfo_v0, &mDeviceInfo, SIZEOF(DeviceInfo_V0));
+    // Set the version
+    deviceInfo_v0.version = DEVICE_INFO_CURRENT_VERSION - 1;
+    EXPECT_TRUE(STATUS_SUCCEEDED(createKinesisVideoClient((PDeviceInfo) &deviceInfo_v0, &mClientCallbacks, &clientHandle)));
+    pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
+    EXPECT_EQ(CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.createClientTimeout);
+    EXPECT_EQ(STREAM_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.createStreamTimeout);
+    EXPECT_EQ(STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, pKinesisVideoClient->deviceInfo.clientInfo.stopStreamTimeout);
+    EXPECT_EQ('\0', pKinesisVideoClient->deviceInfo.clientId[0]);
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+}
+
+TEST_F(ClientApiTest, kinesisVideoClientCreateSync_Valid_Timeout)
+{
+    CLIENT_HANDLE clientHandle;
+
+    mClientSyncMode = TRUE;
+    mDeviceInfo.clientInfo.createClientTimeout = 20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_TRUE(IS_VALID_CLIENT_HANDLE(clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    // Create synchronously to timeout
+    mClientSyncMode = FALSE;
+    EXPECT_EQ(STATUS_OPERATION_TIMED_OUT, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_FALSE(IS_VALID_CLIENT_HANDLE(clientHandle));
+    // Freeing is invariant and should succeed on freed handle
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
 }
 

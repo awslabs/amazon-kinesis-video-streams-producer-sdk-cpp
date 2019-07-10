@@ -1,15 +1,20 @@
 #pragma once
 
-#include "Request.h"
-
 #include <chrono>
 #include <mutex>
 
 #include <cstdlib>
 #include <cstring>
 #include <assert.h>
+#include <string>
+#include "com/amazonaws/kinesis/video/cproducer/Include.h"
+
+#include <Logger.h>
+#include "GetTime.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
+
+#define STRING_TO_PCHAR(s) ((PCHAR) ((s).c_str()))
 
 /**
 * Simple data object around aws credentials
@@ -58,6 +63,14 @@ public:
     inline const std::string& getSessionToken() const
     {
         return session_token_;
+    }
+
+    /**
+    * Gets the underlying session token, return NULL if not exist
+    */
+    inline const PCHAR getSessionTokenIfExist() const
+    {
+        return session_token_ == "" ? NULL : (PCHAR) session_token_.c_str();
     }
 
     /**
@@ -116,97 +129,46 @@ private:
     std::chrono::duration<uint64_t> expiration_;
 };
 
-struct SerializedCredentials {
-    uint32_t access_key_offset_;
-    uint32_t access_key_length_;
-    uint32_t secret_key_offset_;
-    uint32_t secret_key_length_;
-    uint32_t session_token_offset_;
-    uint32_t session_token_length_;
-    uint64_t expiration_seconds_;
-
-public:
-
-    static void serialize(const Credentials &credentials, uint8_t **ppBuffer, uint32_t *pSize) {
-        auto access_key = credentials.getAccessKey();
-        auto access_key_len = access_key.length();
-        auto secret_key = credentials.getSecretKey();
-        auto secret_key_len = secret_key.length();
-        auto session_token = credentials.getSessionToken();
-        auto session_token_len = session_token.length();
-        auto expiration_seconds = credentials.getExpiration().count();
-
-        auto size = sizeof(SerializedCredentials) + access_key_len + secret_key_len + session_token_len;
-
-        char *pBuffer = reinterpret_cast<char *>(malloc(size));
-
-        if (!pBuffer) {
-            throw std::runtime_error("Failed to allocate a buffer for the serialized credentials.");
-        }
-
-        SerializedCredentials *serializedCredentials = reinterpret_cast<SerializedCredentials *>(pBuffer);
-
-        serializedCredentials->access_key_offset_ = sizeof(SerializedCredentials);
-        serializedCredentials->access_key_length_ = (uint32_t)access_key_len;
-        serializedCredentials->secret_key_offset_ =
-                serializedCredentials->access_key_offset_ + serializedCredentials->access_key_length_;
-        serializedCredentials->secret_key_length_ = (uint32_t)secret_key_len;
-        serializedCredentials->session_token_offset_ =
-                serializedCredentials->secret_key_offset_ + serializedCredentials->secret_key_length_;
-        serializedCredentials->session_token_length_ = (uint32_t)session_token_len;
-        serializedCredentials->expiration_seconds_ = expiration_seconds;
-
-        char *pCurPtr = pBuffer + serializedCredentials->access_key_offset_;
-        std::memcpy(pCurPtr, access_key.c_str(), access_key_len);
-        pCurPtr += access_key_len;
-        std::memcpy(pCurPtr, secret_key.c_str(), secret_key_len);
-        pCurPtr += secret_key_len;
-        std::memcpy(pCurPtr, session_token.c_str(), session_token_len);
-        pCurPtr += session_token_len;
-        assert(pCurPtr <= pBuffer + size);
-
-        *ppBuffer = reinterpret_cast<uint8_t *>(pBuffer);
-        *pSize = (uint32_t)size;
-    }
-
-    static void deSerialize(uint8_t *pBuffer, uint32_t size, Credentials &credentials) {
-        std::string accessKey = "";
-        std::string secretKey = "";
-        std::string sessionToken = "";
-        std::chrono::duration<uint64_t> expiration = std::chrono::seconds(MAX_UINT64);
-
-        if (pBuffer != NULL && size != 0) {
-            // Extract the credentials only if the buffer is not empty
-            SerializedCredentials *pCreds = reinterpret_cast<SerializedCredentials *>(pBuffer);
-            if (sizeof(SerializedCredentials) > size ||
-                    (uint64_t) pCreds->access_key_offset_ + pCreds->access_key_length_ > size ||
-                    (uint64_t) pCreds->secret_key_offset_ + pCreds->secret_key_length_ > size ||
-                    (uint64_t) pCreds->session_token_offset_ + pCreds->session_token_length_ > size) {
-                throw std::runtime_error("invalid serialized credentials.");
-            }
-
-            accessKey = std::string(reinterpret_cast<char *>(pBuffer + pCreds->access_key_offset_),
-                                    pCreds->access_key_length_);
-            secretKey = std::string(reinterpret_cast<char *>(pBuffer + pCreds->secret_key_offset_),
-                                    pCreds->secret_key_length_);
-            sessionToken = std::string(reinterpret_cast<char *>(pBuffer + pCreds->session_token_offset_),
-                                       pCreds->session_token_length_);
-            expiration = std::chrono::seconds(pCreds->expiration_seconds_);
-        }
-
-        credentials.setAccessKey(accessKey);
-        credentials.setSecretKey(secretKey);
-        credentials.setSessionToken(sessionToken);
-        credentials.setExpiration(expiration);
-    }
-};
-
 class CredentialProvider {
 public:
-    void getCredentials(Credentials& credentials);
-    void getUpdatedCredentials(Credentials& credentials);
-    virtual ~CredentialProvider() {}
-    
+    using callback_t = AuthCallbacks;
+    virtual void getCredentials(Credentials& credentials);
+    virtual void getUpdatedCredentials(Credentials& credentials);
+    virtual ~CredentialProvider();
+
+    /**
+     * Gets the callbacks
+     *
+     * @param PClientCallbacks - Required client callbacks to create auth callbacks
+     *
+     * @return AuthCallbacks
+     */
+    virtual callback_t getCallbacks(PClientCallbacks);
+
+    /**
+     * @return Kinesis Video credential provider default implementation
+     */
+    virtual GetDeviceCertificateFunc getDeviceCertificateCallback();
+
+    /**
+     * @return Kinesis Video credential provider default implementation
+     */
+    virtual GetDeviceFingerprintFunc getDeviceFingerPrintCallback();
+
+    /**
+     * @return Kinesis Video credential provider default implementation
+     */
+    virtual GetSecurityTokenFunc getSecurityTokenCallback();
+    /**
+     * @return Kinesis Video credential provider default implementation
+     */
+    virtual GetStreamingTokenFunc getStreamingTokenCallback();
+
+    /**
+     * @return Kinesis Video credential provider default implementation
+     */
+    virtual DeviceCertToTokenFunc deviceCertToTokenCallback();
+
 protected:
     CredentialProvider();
 
@@ -218,6 +180,15 @@ private:
     std::mutex credential_mutex_;
     std::chrono::duration<uint64_t> next_rotation_time_;
     Credentials credentials_;
+    /**
+     * Storage for the serialized security token
+     */
+    PAwsCredentials security_token_;
+
+    callback_t callbacks_;
+
+    static STATUS getStreamingTokenHandler(UINT64, PCHAR, STREAM_ACCESS_MODE, PServiceCallContext);
+    static STATUS getSecurityTokenHandler(UINT64, PBYTE*, PUINT32, PUINT64);
 };
 
 class EmptyCredentialProvider : public CredentialProvider {
@@ -238,19 +209,14 @@ public:
 protected:
 
     void updateCredentials(Credentials& credentials) override {
+        // Copy the stored creds forward
         credentials = credentials_;
+
+        // Always use maximum expiration for static credentials
+        credentials.setExpiration(std::chrono::seconds(MAX_UINT64));
     }
 
     const Credentials credentials_;
-};
-
-class RequestSigner {
-public:
-
-    virtual ~RequestSigner() {}
-
-    /// Sign the request by setting appropriate auth headers.
-    virtual void signRequest(Request &request) const = 0;
 };
 
 } // namespace video

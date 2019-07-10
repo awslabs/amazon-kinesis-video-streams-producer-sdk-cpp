@@ -9,6 +9,11 @@ extern "C" {
 #endif
 
 #pragma once
+////////////////////////////////////////////////////
+// Project include files
+////////////////////////////////////////////////////
+#include "FrameOrderCoordinator.h"
+#include "AckParser.h"
 
 ////////////////////////////////////////////////////
 // General defines and data structures
@@ -16,46 +21,27 @@ extern "C" {
 /**
  * Kinesis Video stream states definitions
  */
-#define STREAM_STATE_NONE                               ((UINT64) 0)
-#define STREAM_STATE_NEW                                ((UINT64) (1 << 0))
-#define STREAM_STATE_DESCRIBE                           ((UINT64) (1 << 1))
-#define STREAM_STATE_CREATE                             ((UINT64) (1 << 2))
-#define STREAM_STATE_TAG_STREAM                         ((UINT64) (1 << 3))
-#define STREAM_STATE_GET_TOKEN                          ((UINT64) (1 << 4))
-#define STREAM_STATE_GET_ENDPOINT                       ((UINT64) (1 << 5))
-#define STREAM_STATE_READY                              ((UINT64) (1 << 6))
-#define STREAM_STATE_PUT_STREAM                         ((UINT64) (1 << 7))
-#define STREAM_STATE_STREAMING                          ((UINT64) (1 << 8))
-#define STREAM_STATE_STOPPED                            ((UINT64) (1 << 9))
+#define STREAM_STATE_NONE                               ((UINT64) 0)            //0x00
+#define STREAM_STATE_NEW                                ((UINT64) (1 << 0))     //0x01
+#define STREAM_STATE_DESCRIBE                           ((UINT64) (1 << 1))     //0x02
+#define STREAM_STATE_CREATE                             ((UINT64) (1 << 2))     //0x04
+#define STREAM_STATE_TAG_STREAM                         ((UINT64) (1 << 3))     //0x08
+#define STREAM_STATE_GET_TOKEN                          ((UINT64) (1 << 4))     //0x10
+#define STREAM_STATE_GET_ENDPOINT                       ((UINT64) (1 << 5))     //0x20
+#define STREAM_STATE_READY                              ((UINT64) (1 << 6))     //0x40
+#define STREAM_STATE_PUT_STREAM                         ((UINT64) (1 << 7))     //0x80
+#define STREAM_STATE_STREAMING                          ((UINT64) (1 << 8))     //0x100
+#define STREAM_STATE_STOPPED                            ((UINT64) (1 << 9))     //0x200
+
+#define STREAM_STATE_REACHED_READY(s) ((s) == STREAM_STATE_READY || \
+                                        (s) == STREAM_STATE_PUT_STREAM || \
+                                        (s) == STREAM_STATE_STREAMING || \
+                                        (s) == STREAM_STATE_STOPPED)
 
 /**
  * Stream object internal version
  */
 #define STREAM_CURRENT_VERSION                  0
-
-/**
- * Forward declarations
- */
-typedef struct __StreamCaps StreamCaps;
-typedef __StreamCaps* PStreamCaps;
-
-typedef struct __StreamInfo StreamInfo;
-typedef __StreamInfo* PStreamInfo;
-
-typedef struct __StateMachine StateMachine;
-typedef __StateMachine* PStateMachine;
-
-typedef struct __StateMachineState StateMachineState;
-typedef __StateMachineState* PStateMachineState;
-
-typedef struct __KinesisVideoBase KinesisVideoBase;
-typedef __KinesisVideoBase* PKinesisVideoBase;
-
-typedef struct __KinesisVideoClient KinesisVideoClient;
-typedef __KinesisVideoClient* PKinesisVideoClient;
-
-typedef struct __FragmentAckParser FragmentAckParser;
-typedef __FragmentAckParser* PFragmentAckParser;
 
 /**
  * Default MKV timecode scale - 1ms.
@@ -90,9 +76,9 @@ typedef __FragmentAckParser* PFragmentAckParser;
 #define MAX_ALLOCATION_OVERHEAD_SIZE        100
 
 /**
- * Max wait time for the blocking put frame
+ * Max wait time for the blocking put frame. An persisted ack should come back within this period.
  */
-#define MAX_BLOCKING_PUT_WAIT               INFINITE_TIME_VALUE
+#define MAX_BLOCKING_PUT_WAIT               15 * HUNDREDS_OF_NANOS_IN_A_SECOND
 
 /**
  * Valid status codes from get stream data
@@ -122,7 +108,7 @@ struct __KinesisVideoStreamDiagnostics {
     // Last time we took a measurement for the transfer rate
     UINT64 lastTransferRateTimestamp;
 };
-typedef __KinesisVideoStreamDiagnostics* PKinesisVideoStreamDiagnostics;
+typedef struct __KinesisVideoStreamDiagnostics* PKinesisVideoStreamDiagnostics;
 
 /**
  * Wrapper around ViewItem that has the consumed data offset information.
@@ -135,7 +121,7 @@ struct __CurrentViewItem {
     // Consumed data offset
     UINT32 offset;
 };
-typedef __CurrentViewItem* PCurrentViewItem;
+typedef struct __CurrentViewItem* PCurrentViewItem;
 
 /**
  * Helper structure storing and tracking metadata.
@@ -154,7 +140,7 @@ struct __MetadataTracker {
     // Storage for the packaged metadata.
     PBYTE data;
 };
-typedef __MetadataTracker* PMetadataTracker;
+typedef struct __MetadataTracker* PMetadataTracker;
 
 /**
  * Streaming type definition
@@ -268,18 +254,17 @@ struct __UploadHandleInfo {
     // Handle state
     UPLOAD_HANDLE_STATE state;
 };
-typedef __UploadHandleInfo* PUploadHandleInfo;
+typedef struct __UploadHandleInfo* PUploadHandleInfo;
 
 /**
  * Kinesis Video stream internal structure
  */
-typedef struct __KinesisVideoStream KinesisVideoStream;
 struct __KinesisVideoStream {
     // Base object
-    __KinesisVideoBase base;
+    KinesisVideoBase base;
 
     // The reference to the parent object
-    PKinesisVideoClient pKinesisVideoClient;
+    struct __KinesisVideoClient *pKinesisVideoClient;
 
     // The id of the stream
     UINT32 streamId;
@@ -338,6 +323,12 @@ struct __KinesisVideoStream {
     // Indicates whether the stream has been stopped
     BOOL streamStopped;
 
+    // Indicates the stream is ready
+    BOOL streamReady;
+
+    // Indicates whether the stream has been finished and closed
+    BOOL streamClosed;
+
     // Whether the stream is in a grace period for the token rotation.
     BOOL gracePeriod;
 
@@ -346,6 +337,9 @@ struct __KinesisVideoStream {
 
     // Whether to reset the generator with the next key frame
     BOOL resetGeneratorOnKeyFrame;
+
+    // Whether to set the non-key frames as "SKIP" when we have a not-yet-completed errored fragment
+    BOOL skipNonKeyFrames;
 
     // Time after which should reset the generator with the next key frame
     UINT64 resetGeneratorTime;
@@ -356,16 +350,21 @@ struct __KinesisVideoStream {
     // Connection result when the stream was dropped
     SERVICE_CALL_RESULT connectionDroppedResult;
 
-    // Conditional lock for blocking put
-    MUTEX bufferAvailabilityLock;
-
     // Conditional variable for the blocking put
     CVAR bufferAvailabilityCondition;
 
     // Maximum size of frame observed
     UINT64 maxFrameSizeSeen;
+
+    // Conditional variable for notification when the stream is closed
+    CVAR streamClosedCondition;
+
+    // The retention period returned from the backend with Describe call
+    UINT64 retention;
+
+    // Manage the order of frames being put depending on FRAME_ORDER_MODE in streamCaps
+    PFrameOrderCoordinator pFrameOrderCoordinator;
 };
-typedef __KinesisVideoStream* PKinesisVideoStream;
 
 /**
  * Wrapper around an allocation which stores the application supplied metadata.
@@ -389,7 +388,7 @@ struct __SerializedMetadata {
 
     // The actual strings are stored following the structure
 };
-typedef SerializedMetadata* PSerializedMetadata;
+typedef struct __SerializedMetadata* PSerializedMetadata;
 
 ////////////////////////////////////////////////////
 // Internal functionality
@@ -404,7 +403,7 @@ typedef SerializedMetadata* PSerializedMetadata;
  *
  * @return Status of the function call.
  */
-STATUS createStream(PKinesisVideoClient, PStreamInfo, PKinesisVideoStream*);
+STATUS createStream(struct __KinesisVideoClient *, PStreamInfo, PKinesisVideoStream*);
 
 /**
  * Frees the given stream and deallocates all the objects
@@ -416,6 +415,15 @@ STATUS createStream(PKinesisVideoClient, PStreamInfo, PKinesisVideoStream*);
 STATUS freeStream(PKinesisVideoStream);
 
 /**
+ * Resets the given stream and state machine
+ *
+ * @param 1 PKinesisVideoStream - Kinesis Video stream object.
+ *
+ * @return Status of the function call.
+ */
+STATUS resetStream(PKinesisVideoStream);
+
+/**
  * Stops the given stream
  *
  * @param 1 PKinesisVideoStream - Kinesis Video stream object.
@@ -423,6 +431,25 @@ STATUS freeStream(PKinesisVideoStream);
  * @return Status of the function call.
  */
 STATUS stopStream(PKinesisVideoStream);
+
+/**
+ * Shutdown the given stream
+ *
+ * @param 1 PKinesisVideoStream - Kinesis Video stream object.
+ * @param 2 BOOL - Whether the call is for reset or free stream.
+ *
+ * @return Status of the function call.
+ */
+STATUS shutdownStream(PKinesisVideoStream, BOOL);
+
+/**
+ * Stops the given stream syncronously
+ *
+ * @param 1 PKinesisVideoStream - Kinesis Video stream object.
+ *
+ * @return Status of the function call.
+ */
+STATUS stopStreamSync(PKinesisVideoStream);
 
 /**
  * Puts the frame into the stream. The stream will be started if it hasn't been yet.
@@ -481,15 +508,6 @@ STATUS getStreamMetrics(PKinesisVideoStream, PStreamMetrics);
 UINT32 calculateViewItemCount(PStreamInfo);
 
 /**
- * Calculates the buffer duration
- *
- * @param 1 PStreamInfo - Kinesis Video stream object.
- *
- * @return The buffer duration for the view.
- */
-UINT64 calculateViewBufferDuration(PStreamInfo);
-
-/**
  * Frees the previously allocated metadata tracking info
  *
  * @param 1 PMetadataTracker - Metadata tracker object.
@@ -500,6 +518,11 @@ VOID freeMetadataTracker(PMetadataTracker);
  * Moves the view to the next boundary item - aka the next key frame or fragment start
  */
 STATUS getNextBoundaryViewItem(PKinesisVideoStream, PViewItem*);
+
+/**
+ * Moves the view to the next item ignoring the items with errors
+ */
+STATUS getNextViewItem(PKinesisVideoStream, PViewItem*);
 
 /**
  * Generates the packager
@@ -530,7 +553,7 @@ STATUS resetCurrentViewItemStreamStart(PKinesisVideoStream);
 /**
  * Frees the specified queue by removing and freeing the data before freeing the queue
  */
-STATUS freeStackQueue(PStackQueue);
+STATUS freeStackQueue(PStackQueue, BOOL);
 
 /**
  * Gets the current stream upload handle info if existing or NULL otherwise.
@@ -634,6 +657,25 @@ STATUS packageNotSentMetadata(PKinesisVideoStream);
  */
 STATUS appendValidatedMetadata(PKinesisVideoStream, PCHAR, PCHAR, BOOL, UINT32);
 
+/**
+ * Notifies of stream listeners about the stream closed.
+ *
+ * @param 1 - IN - KVS stream object
+ * @param 2 - IN - Current upload handle
+ *
+ * @return Status code of the operation
+ */
+STATUS notifyStreamClosed(PKinesisVideoStream, UPLOAD_HANDLE);
+
+/**
+ * Every time logStreamMetric is called, it prints out a set of current stream metrics.
+ *
+ * @param 1 - IN - KVS stream object
+ *
+ * @return Status code of the operation
+ */
+STATUS logStreamMetric(PKinesisVideoStream);
+
 ///////////////////////////////////////////////////////////////////////////
 // Service call event functions
 ///////////////////////////////////////////////////////////////////////////
@@ -643,9 +685,9 @@ STATUS getStreamingTokenResult(PKinesisVideoStream, SERVICE_CALL_RESULT, PBYTE, 
 STATUS getStreamingEndpointResult(PKinesisVideoStream, SERVICE_CALL_RESULT, PCHAR);
 STATUS putStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT, UPLOAD_HANDLE);
 STATUS tagStreamResult(PKinesisVideoStream, SERVICE_CALL_RESULT);
-STATUS streamTerminatedEvent(PKinesisVideoStream, UPLOAD_HANDLE, SERVICE_CALL_RESULT);
+STATUS streamTerminatedEvent(PKinesisVideoStream, UPLOAD_HANDLE, SERVICE_CALL_RESULT, BOOL);
 STATUS serviceCallResultCheck(SERVICE_CALL_RESULT);
-
+BOOL serviceCallResultRetry(SERVICE_CALL_RESULT);
 
 ///////////////////////////////////////////////////////////////////////////
 // ACK related functions

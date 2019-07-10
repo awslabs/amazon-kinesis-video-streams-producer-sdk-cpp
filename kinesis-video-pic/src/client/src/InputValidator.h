@@ -11,21 +11,6 @@ extern "C" {
 #pragma once
 
 ////////////////////////////////////////////////////
-// General defines and data structures
-////////////////////////////////////////////////////
-/**
- * Forward declarations
- */
-typedef struct __ClientCallbacks ClientCallbacks;
-typedef __ClientCallbacks* PClientCallbacks;
-
-typedef struct __DeviceInfo DeviceInfo;
-typedef __DeviceInfo* PDeviceInfo;
-
-typedef struct __StreamInfo StreamInfo;
-typedef __StreamInfo* PStreamInfo;
-
-////////////////////////////////////////////////////
 // Internal functionality
 ////////////////////////////////////////////////////
 /**
@@ -48,6 +33,15 @@ STATUS validateClientCallbacks(PDeviceInfo, PClientCallbacks);
 STATUS validateDeviceInfo(PDeviceInfo);
 
 /**
+ * Validates the client info structure
+ *
+ * @param 1 PClientInfo - Client info struct.
+ *
+ * @return Status of the function call.
+ */
+STATUS validateClientInfo(PClientInfo);
+
+/**
  * Validates the stream info structure
  *
  * @param 1 PStreamInfo - Stream info struct.
@@ -66,6 +60,64 @@ STATUS validateStreamInfo(PStreamInfo, PClientCallbacks);
  * @return Status of the function call.
  */
 STATUS validateTags(UINT32, PTag);
+
+/**
+ * Sets the default values of the client info if needed
+ *
+ * @param 1 PClientInfo - Client info object to fixup
+ *
+ */
+VOID fixupClientInfo(PClientInfo);
+
+/**
+ * Returns the size of the device info structure in bytes
+ *
+ * @param 1 PDeviceInfo - Device info object
+ *
+ * @return The size of the object
+ */
+SIZE_T sizeOfDeviceInfo(PDeviceInfo);
+
+/**
+ * Sets the default values of the stream description if needed
+ *
+ * @param 1 PStreamDescription - Stream description object to fixup
+ *
+ */
+VOID fixupStreamDescription(PStreamDescription);
+
+/**
+ * Sets the default values of the StreamInfo if needed
+ *
+ * @param 1 PStreamInfo - StreamInfo object to fixup
+ *
+ */
+VOID fixupStreamInfo(PStreamInfo pStreamInfo);
+
+/**
+ * Sets the default values of the TrackInfo if needed
+ *
+ * @param 1 PTrackInfo - TrackInfo object to fixup
+ *
+ */
+VOID fixupTrackInfo(PTrackInfo pTrackInfo, UINT32 trackInfoCount);
+
+/**
+ * Sets the default values of the Frame if needed
+ *
+ * @param 1 PFrame - Frame object to fixup
+ *
+ */
+VOID fixupFrame(PFrame pFrame);
+
+/**
+ * Returns the size of the stream description structure in bytes
+ *
+ * @param 1 PStreamDescription - Stream description object
+ *
+ * @return The size of the object
+ */
+SIZE_T sizeOfStreamDescription(PStreamDescription);
 
 #ifdef __cplusplus
 }

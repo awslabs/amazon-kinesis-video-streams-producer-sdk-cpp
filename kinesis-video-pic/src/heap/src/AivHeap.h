@@ -31,8 +31,8 @@ typedef struct AIV_ALLOCATION_HEADER
     ALLOCATION_HEADER header;
     UINT64 allocSize;
     BYTE state;
-    AIV_ALLOCATION_HEADER* pNext;
-    AIV_ALLOCATION_HEADER* pPrev;
+    struct AIV_ALLOCATION_HEADER* pNext;
+    struct AIV_ALLOCATION_HEADER* pPrev;
 } *PAIV_ALLOCATION_HEADER;
 
 /**
@@ -75,9 +75,9 @@ typedef struct
  */
 #define CHK_AIV_ALLOCATION(pAiv, pAlloc) \
     do { \
-        CHK_ERR((pAlloc) != NULL && \
-            (pAlloc) >= ((PBYTE)((PAivHeap)(pAiv))->pAllocation) && \
-            (pAlloc) < ((PBYTE)((PAivHeap)(pAiv))->pAllocation) + ((PHeap)(pAiv))->heapLimit, \
+        CHK_ERR((PBYTE) (pAlloc) != NULL && \
+            (PBYTE) (pAlloc) >= ((PBYTE)((PAivHeap)(pAiv))->pAllocation) && \
+            (PBYTE) (pAlloc) < ((PBYTE)((PAivHeap)(pAiv))->pAllocation) + ((PHeap)(pAiv))->heapLimit, \
                 STATUS_INVALID_HANDLE_ERROR, \
                 "Invalid handle value."); \
     } while (FALSE)

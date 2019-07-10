@@ -73,6 +73,7 @@ StreamDefinition::StreamDefinition(
             replay_duration).count() / DEFAULT_TIME_UNIT_IN_NANOS;
     stream_info_.streamCaps.connectionStalenessDuration = duration_cast<nanoseconds>(
             connection_staleness).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+    stream_info_.streamCaps.frameOrderingMode = FRAME_ORDER_MODE_PASS_THROUGH;
 
     if (segment_uuid.empty()) {
         stream_info_.streamCaps.segmentUuid = NULL;
@@ -98,6 +99,7 @@ void StreamDefinition::addTrack(const uint64_t track_id,
                                 MKV_TRACK_INFO_TYPE track_type,
                                 const uint8_t* codecPrivateData,
                                 uint32_t codecPrivateDataSize) {
+    stream_info_.streamCaps.frameOrderingMode = FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE;
     track_info_.push_back(StreamTrackInfo{track_id,
                                           track_name,
                                           codec_id,

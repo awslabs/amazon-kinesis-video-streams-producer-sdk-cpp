@@ -6,13 +6,6 @@
 
 #pragma once
 
-#define EXCEPTION_NAME "com/amazonaws/kinesisvideo/producer/ProducerException"
-
-#include <com/amazonaws/kinesis/video/client/Include.h>
-
-#include <string.h>
-#include <jni.h>                  // Basic native API
-
 #define HAVE_PTHREADS 1           // Makes threads.h use pthreads
 
 #include "SyncMutex.h"
@@ -44,6 +37,7 @@
 #define ATTACH_CURRENT_THREAD_TO_JVM(env) \
     do { \
         if (pWrapper->mJvm->AttachCurrentThread(&env, NULL) != 0) { \
+            DLOGE("Fail to attache to JVM!");\
             return STATUS_INVALID_OPERATION; \
         } \
     } while (FALSE)
@@ -51,6 +45,7 @@
 #define ATTACH_CURRENT_THREAD_TO_JVM(env) \
     do { \
         if (pWrapper->mJvm->AttachCurrentThread((PVOID*) &env, NULL) != 0) { \
+            DLOGE("Fail to attache to JVM!");\
             return STATUS_INVALID_OPERATION; \
         } \
     } while (FALSE)

@@ -18,15 +18,6 @@ extern "C" {
 #define INFINITE_RETRY_COUNT_SENTINEL               0
 
 /**
- * Forward declarations
- */
-typedef struct __StateMachine StateMachine;
-typedef __StateMachine* PStateMachine;
-
-typedef struct __StateMachineState StateMachineState;
-typedef __StateMachineState* PStateMachineState;
-
-/**
  * State transition function definitions
  *
  * @param 1 UINT64 - Custom data passed in
@@ -58,7 +49,7 @@ struct __StateMachineState {
     UINT32 retry;
     STATUS status;
 };
-typedef __StateMachineState* PStateMachineState;
+typedef struct __StateMachineState* PStateMachineState;
 
 /**
  * Token return definition
@@ -68,7 +59,7 @@ struct __SecurityTokenInfo {
     UINT32 size;
     PBYTE token;
 };
-typedef __SecurityTokenInfo* PSecurityTokenInfo;
+typedef struct __SecurityTokenInfo* PSecurityTokenInfo;
 
 /**
  * Endpoint return definition
@@ -78,7 +69,7 @@ struct __EndpointInfo {
     UINT32 length;
     PCHAR endpoint;
 };
-typedef __EndpointInfo* PEndpointInfo;
+typedef struct __EndpointInfo* PEndpointInfo;
 
 /**
  * State Machine context
@@ -89,12 +80,11 @@ struct __StateMachineContext {
     UINT32 retryCount;
     UINT64 time;
 };
-typedef __StateMachineContext* PStateMachineContext;
+typedef struct __StateMachineContext* PStateMachineContext;
 
 /**
  * State Machine definition
  */
-typedef struct __StateMachine StateMachine;
 struct __StateMachine {
     GetCurrentTimeFunc getCurrentTimeFunc;
     UINT64 getCurrentTimeFuncCustomData;
@@ -103,7 +93,6 @@ struct __StateMachine {
     UINT32 stateCount;
     PStateMachineState states;
 };
-typedef __StateMachine* PStateMachine;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Functionality

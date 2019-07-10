@@ -16,6 +16,10 @@ setup() {
 	    mkdir "$DOWNLOADS"
 	fi
 
+	if [ ! -d "$DOWNLOADS/local" ]; then
+	    mkdir "$DOWNLOADS/local"
+	fi
+
 	CERTS_FOLDER="$KINESIS_VIDEO_ROOT/certs"
 	if [ ! -d "$CERTS_FOLDER" ]; then
 	    mkdir "$CERTS_FOLDER"
@@ -72,6 +76,14 @@ parse_args() {
 		 	echo "Will not build gstreamer artifacts"
 		    shift # past argument
 		    ;;
+		    --build_jni_only)
+			build_jni_only=TRUE
+			build_gst_artifact=FALSE
+			build_producer=FALSE
+			build_test=FALSE
+			echo "Will build JNI only"
+		    shift # past argument
+		    ;;
 		    -h|--help)
 			echo "-j: Pass value to make -j"
 			echo "-e: Skip building gstreamer-plugin-ugly and x264"
@@ -79,6 +91,7 @@ parse_args() {
 			echo "--build_debug: Set CMAKE_BUILD_TYPE to Debug"
 			echo "--build_test: Build gtest based unit test"
 			echo "--no_gst_artifact: Do not build gstreamer artifacts (gstreamer samples and kvssink plugin)"
+			echo "--enable_debug_data_file_dump: Dump each streaming session into a mkv file"
 		    exit 0
 		    ;;
 		    *)    # unknown option
@@ -92,4 +105,5 @@ parse_args() {
 clean_up() {
 	echo "Clean up artifacts"
 	rm -rf CMakeCache.txt CMakeFiles cmake_install.cmake
+	echo "done Clean up artifacts"
 }

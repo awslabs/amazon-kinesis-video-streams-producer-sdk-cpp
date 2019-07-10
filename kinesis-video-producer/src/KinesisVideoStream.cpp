@@ -10,8 +10,6 @@ KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video
         : stream_handle_(INVALID_STREAM_HANDLE_VALUE),
           stream_name_(stream_name),
           kinesis_video_producer_(kinesis_video_producer),
-          stream_ready_(false),
-          stream_closed_(false),
           debug_dump_frame_info_(false) {
     LOG_INFO("Creating Kinesis Video Stream " << stream_name_);
     // the handle is NULL to start. We will set it later once Kinesis Video PIC gives us a stream handle.
@@ -22,11 +20,6 @@ KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video
 }
 
 bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
-    if (!isReady()) {
-        LOG_ERROR("Kinesis Video stream is not ready.");
-        return false;
-    }
-
     if (debug_dump_frame_info_) {
         LOG_DEBUG("pts: " << frame.presentationTs << ", dts: " << frame.decodingTs << ", duration: " << frame.duration << ", size: " << frame.size << ", trackId: " << frame.trackId
                           << ", isKey: " << CHECK_FRAME_FLAG_KEY_FRAME(frame.flags));
@@ -35,13 +28,6 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
     assert(0 != stream_handle_);
     STATUS status = putKinesisVideoFrame(stream_handle_, &frame);
     if (STATUS_FAILED(status)) {
-        std::stringstream status_strstrm;
-        status_strstrm << "0x" << std::hex << status;
-        LOG_ERROR("Failed to submit frame to Kinesis Video client. status: " << status_strstrm.str()
-                                                                      << " decoding timestamp: "
-                                                                      << frame.decodingTs
-                                                                      << " presentation timestamp: "
-                                                                      << frame.presentationTs);
         return false;
     }
 
@@ -77,7 +63,7 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, ui
     const char* pStrCpd = hexEncodedCodecPrivateData.c_str();
     UINT32 size = 0;
     PBYTE pBuffer = nullptr;
-    STATUS status = STATUS_SUCCESS;
+    STATUS status;
 
     if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, NULL, &size))) {
         LOG_ERROR("Failed to get the size of the buffer for hex decoding the codec private data with: " << status);
@@ -107,7 +93,7 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, ui
 }
 
 bool KinesisVideoStream::start(const unsigned char* codecPrivateData, size_t codecPrivateDataSize, uint64_t trackId) {
-    STATUS status = STATUS_SUCCESS;
+    STATUS status;
 
     if (STATUS_FAILED(status = kinesisVideoStreamFormatChanged(stream_handle_, (UINT32) codecPrivateDataSize,
                                                                (PBYTE) codecPrivateData, (UINT64) trackId))) {
@@ -128,9 +114,7 @@ bool KinesisVideoStream::start() {
 bool KinesisVideoStream::resetConnection() {
     STATUS status = STATUS_SUCCESS;
 
-    if (STATUS_FAILED(status = kinesisVideoStreamTerminated(stream_handle_,
-                                                            INVALID_UPLOAD_HANDLE_VALUE,
-                                                            SERVICE_CALL_RESULT_OK))) {
+    if (STATUS_FAILED(status = kinesisVideoStreamResetConnection(stream_handle_))) {
         LOG_ERROR("Failed to reset the connection with: " << status);
         return false;
     }
@@ -138,10 +122,18 @@ bool KinesisVideoStream::resetConnection() {
     return true;
 }
 
-void KinesisVideoStream::free() {
-    // Set the ready indicator to false
-    stream_ready_ = false;
+bool KinesisVideoStream::resetStream() {
+    STATUS status = STATUS_SUCCESS;
 
+    if (STATUS_FAILED(status = kinesisVideoStreamResetStream(stream_handle_))) {
+        LOG_ERROR("Failed to reset the stream with: " << status);
+        return false;
+    }
+
+    return true;
+}
+
+void KinesisVideoStream::free() {
     LOG_INFO("Freeing Kinesis Video Stream " << stream_name_);
 
     // Free the underlying stream
@@ -149,59 +141,25 @@ void KinesisVideoStream::free() {
 }
 
 bool KinesisVideoStream::stop() {
-    STATUS status = STATUS_SUCCESS;
+    STATUS status;
 
     if (STATUS_FAILED(status = stopKinesisVideoStream(stream_handle_))) {
         LOG_ERROR("Failed to stop the stream with: " << status);
         return false;
     }
 
-    // Set the ready indicator to false
-    stream_ready_ = false;
-
     return true;
 }
 
 bool KinesisVideoStream::stopSync() {
-    // Stop the stream and await for the result
-    if (!stop()) {
+    STATUS status;
+
+    if (STATUS_FAILED(status = stopKinesisVideoStreamSync(stream_handle_))) {
+        LOG_ERROR("Failed to stop the stream with: " << status);
         return false;
     }
 
-    bool ret_val = true;
-
-    // Await for the completion or the timeout
-    {
-        LOG_DEBUG("Awaiting for the stream " << stream_name_ << " to stop...");
-        unique_lock<mutex> lock(stream_closed_mutex_);
-        do {
-            if (stream_closed_) {
-                LOG_DEBUG("Kinesis Video stream " << stream_name_ << " is Closed.");
-                break;
-            }
-
-            // Blocking path
-            // Wait may return due to a spurious wake up.
-            // See: https://en.wikipedia.org/wiki/Spurious_wakeup
-            if (!stream_closed_var_.wait_for(lock,
-                                             std::chrono::seconds(STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS),
-                                             [kinesis_video_stream = this]() {
-                                                 return kinesis_video_stream->stream_closed_;
-                                             })) {
-                LOG_WARN("Failed to close Kinesis Video Stream " << stream_name_ << " - timed out.");
-                ret_val = false;
-                break;
-            }
-        } while (true);
-    }
-
-    if (ret_val) {
-        // Await for the callback to finalize. The default callback provider will time the call
-        // for the CURL to timeout and exit before calling the client callback function
-        std::this_thread::sleep_for(std::chrono::milliseconds(CLIENT_STREAM_CLOSED_CALLBACK_AWAIT_TIME_MILLIS));
-    }
-
-    return ret_val;
+    return true;
 }
 
 KinesisVideoStreamMetrics KinesisVideoStream::getMetrics() const {

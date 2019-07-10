@@ -24,10 +24,6 @@ int gstreamer_init(int, char **);
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
-#define ACCESS_KEY_ENV_VAR "AWS_ACCESS_KEY_ID"
-#define SECRET_KEY_ENV_VAR "AWS_SECRET_ACCESS_KEY"
-#define SESSION_TOKEN_ENV_VAR "AWS_SESSION_TOKEN"
-#define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 /*
  * https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
  */
@@ -57,120 +53,117 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_STORAGE_SIZE (128 * 1024 * 1024)
 #define DEFAULT_ROTATION_TIME_SECONDS 2400
 
-namespace com {
-    namespace amazonaws {
-        namespace kinesis {
-            namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-                class SampleClientCallbackProvider : public ClientCallbackProvider {
-                public:
+    class SampleClientCallbackProvider : public ClientCallbackProvider {
+    public:
 
-                    UINT64 getCallbackCustomData() override {
-                        return reinterpret_cast<UINT64> (this);
-                    }
+        UINT64 getCallbackCustomData() override {
+            return reinterpret_cast<UINT64> (this);
+        }
 
-                    StorageOverflowPressureFunc getStorageOverflowPressureCallback() override {
-                        return storageOverflowPressure;
-                    }
+        StorageOverflowPressureFunc getStorageOverflowPressureCallback() override {
+            return storageOverflowPressure;
+        }
 
-                    static STATUS storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes);
-                };
+        static STATUS storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes);
+    };
 
-                class SampleStreamCallbackProvider : public StreamCallbackProvider {
-                public:
+    class SampleStreamCallbackProvider : public StreamCallbackProvider {
+    public:
 
-                    UINT64 getCallbackCustomData() override {
-                        return reinterpret_cast<UINT64> (this);
-                    }
+        UINT64 getCallbackCustomData() override {
+            return reinterpret_cast<UINT64> (this);
+        }
 
-                    StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
-                        return streamConnectionStaleHandler;
-                    };
+        StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
+            return streamConnectionStaleHandler;
+        };
 
-                    StreamErrorReportFunc getStreamErrorReportCallback() override {
-                        return streamErrorReportHandler;
-                    };
+        StreamErrorReportFunc getStreamErrorReportCallback() override {
+            return streamErrorReportHandler;
+        };
 
-                    DroppedFrameReportFunc getDroppedFrameReportCallback() override {
-                        return droppedFrameReportHandler;
-                    };
+        DroppedFrameReportFunc getDroppedFrameReportCallback() override {
+            return droppedFrameReportHandler;
+        };
 
-                private:
-                    static STATUS
-                    streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                                 UINT64 last_buffering_ack);
+    private:
+        static STATUS
+        streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                     UINT64 last_buffering_ack);
 
-                    static STATUS
-                    streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
-                                             STATUS status_code);
+        static STATUS
+        streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
+                                 STATUS status_code);
 
-                    static STATUS
-                    droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                              UINT64 dropped_frame_timecode);
-                };
+        static STATUS
+        droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                  UINT64 dropped_frame_timecode);
+    };
 
-                class SampleCredentialProvider : public StaticCredentialProvider {
-                    // Test rotation period is 40 second for the grace period.
-                    const std::chrono::duration<uint64_t> ROTATION_PERIOD = std::chrono::seconds(DEFAULT_ROTATION_TIME_SECONDS);
-                public:
-                    SampleCredentialProvider(const Credentials &credentials) :
-                            StaticCredentialProvider(credentials) {}
+    class SampleCredentialProvider : public StaticCredentialProvider {
+        // Test rotation period is 40 second for the grace period.
+        const std::chrono::duration<uint64_t> ROTATION_PERIOD = std::chrono::seconds(DEFAULT_ROTATION_TIME_SECONDS);
+    public:
+        SampleCredentialProvider(const Credentials &credentials) :
+                StaticCredentialProvider(credentials) {}
 
-                    void updateCredentials(Credentials &credentials) override {
-                        // Copy the stored creds forward
-                        credentials = credentials_;
+        void updateCredentials(Credentials &credentials) override {
+            // Copy the stored creds forward
+            credentials = credentials_;
 
-                        // Update only the expiration
-                        auto now_time = std::chrono::duration_cast<std::chrono::seconds>(
-                                systemCurrentTime().time_since_epoch());
-                        auto expiration_seconds = now_time + ROTATION_PERIOD;
-                        credentials.setExpiration(std::chrono::seconds(expiration_seconds.count()));
-                        LOG_INFO("New credentials expiration is " << credentials.getExpiration().count());
-                    }
-                };
+            // Update only the expiration
+            auto now_time = std::chrono::duration_cast<std::chrono::seconds>(
+                    systemCurrentTime().time_since_epoch());
+            auto expiration_seconds = now_time + ROTATION_PERIOD;
+            credentials.setExpiration(std::chrono::seconds(expiration_seconds.count()));
+            LOG_INFO("New credentials expiration is " << credentials.getExpiration().count());
+        }
+    };
 
-                class SampleDeviceInfoProvider : public DefaultDeviceInfoProvider {
-                public:
-                    device_info_t getDeviceInfo() override {
-                        auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
-                        // Set the storage size to 64MB
-                        device_info.storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
-                        return device_info;
-                    }
-                };
+    class SampleDeviceInfoProvider : public DefaultDeviceInfoProvider {
+    public:
+        device_info_t getDeviceInfo() override {
+            auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
+            // Set the storage size to 64MB
+            device_info.storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
+            return device_info;
+        }
+    };
 
-                STATUS
-                SampleClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes) {
-                    UNUSED_PARAM(custom_handle);
-                    LOG_WARN("Reporting storage overflow. Bytes remaining " << remaining_bytes);
-                    return STATUS_SUCCESS;
-                }
+    STATUS
+    SampleClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes) {
+        UNUSED_PARAM(custom_handle);
+        LOG_WARN("Reporting storage overflow. Bytes remaining " << remaining_bytes);
+        return STATUS_SUCCESS;
+    }
 
-                STATUS SampleStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
-                                                                                  STREAM_HANDLE stream_handle,
-                                                                                  UINT64 last_buffering_ack) {
-                    LOG_WARN("Reporting stream stale. Last ACK received " << last_buffering_ack);
-                    return STATUS_SUCCESS;
-                }
+    STATUS SampleStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
+                                                                      STREAM_HANDLE stream_handle,
+                                                                      UINT64 last_buffering_ack) {
+        LOG_WARN("Reporting stream stale. Last ACK received " << last_buffering_ack);
+        return STATUS_SUCCESS;
+    }
 
-                STATUS
-                SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                                                       UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status_code) {
-                    LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: "
-                                                                           << status_code);
-                    return STATUS_SUCCESS;
-                }
+    STATUS
+    SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                                           UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status_code) {
+        LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: "
+                                                               << status_code);
+        return STATUS_SUCCESS;
+    }
 
-                STATUS
-                SampleStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                                                        UINT64 dropped_frame_timecode) {
-                    LOG_WARN("Reporting dropped frame. Frame timecode " << dropped_frame_timecode);
-                    return STATUS_SUCCESS;
-                }
+    STATUS
+    SampleStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                                            UINT64 dropped_frame_timecode) {
+        LOG_WARN("Reporting dropped frame. Frame timecode " << dropped_frame_timecode);
+        return STATUS_SUCCESS;
+    }
 
-            }  // namespace video
-        }  // namespace kinesis
-    }  // namespace amazonaws
+}  // namespace video
+}  // namespace kinesis
+}  // namespace amazonaws
 }  // namespace com;
 
 unique_ptr<Credentials> credentials_;
@@ -269,9 +262,9 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 }
 
 void kinesis_video_init(CustomData *data) {
-    unique_ptr<DeviceInfoProvider> device_info_provider = make_unique<SampleDeviceInfoProvider>();
-    unique_ptr<ClientCallbackProvider> client_callback_provider = make_unique<SampleClientCallbackProvider>();
-    unique_ptr<StreamCallbackProvider> stream_callback_provider = make_unique<SampleStreamCallbackProvider>();
+    unique_ptr<DeviceInfoProvider> device_info_provider(new SampleDeviceInfoProvider());
+    unique_ptr<ClientCallbackProvider> client_callback_provider(new SampleClientCallbackProvider());
+    unique_ptr<StreamCallbackProvider> stream_callback_provider(new SampleStreamCallbackProvider());
 
     char const *accessKey;
     char const *secretKey;
@@ -299,11 +292,11 @@ void kinesis_video_init(CustomData *data) {
         defaultRegionStr = string(defaultRegion);
     }
 
-    credentials_ = make_unique<Credentials>(string(accessKey),
-                                            string(secretKey),
-                                            sessionTokenStr,
-                                            std::chrono::seconds(180));
-    unique_ptr<CredentialProvider> credential_provider = make_unique<SampleCredentialProvider>(*credentials_.get());
+    credentials_.reset(new Credentials(string(accessKey),
+                                       string(secretKey),
+                                       sessionTokenStr,
+                                       std::chrono::seconds(180)));
+    unique_ptr<CredentialProvider> credential_provider(new SampleCredentialProvider(*credentials_.get()));
 
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
                                                                     move(client_callback_provider),
@@ -316,31 +309,32 @@ void kinesis_video_init(CustomData *data) {
 
 void kinesis_stream_init(string stream_name, CustomData *data, string stream_handle_key) {
     /* create a test stream */
-    auto stream_definition = make_unique<StreamDefinition>(stream_name.c_str(),
-                                                           hours(DEFAULT_RETENTION_PERIOD_HOURS),
-                                                           nullptr,
-                                                           DEFAULT_KMS_KEY_ID,
-                                                           DEFAULT_STREAMING_TYPE,
-                                                           DEFAULT_CONTENT_TYPE,
-                                                           duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
-                                                           milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
-                                                           milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
-                                                           DEFAULT_KEY_FRAME_FRAGMENTATION,
-                                                           DEFAULT_FRAME_TIMECODES,
-                                                           DEFAULT_ABSOLUTE_FRAGMENT_TIMES,
-                                                           DEFAULT_FRAGMENT_ACKS,
-                                                           DEFAULT_RESTART_ON_ERROR,
-                                                           DEFAULT_RECALCULATE_METRICS,
-                                                           NAL_ADAPTATION_FLAG_NONE,
-                                                           DEFAULT_STREAM_FRAMERATE,
-                                                           DEFAULT_AVG_BANDWIDTH_BPS,
-                                                           seconds(DEFAULT_BUFFER_DURATION_SECONDS),
-                                                           seconds(DEFAULT_REPLAY_DURATION_SECONDS),
-                                                           seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
-                                                           DEFAULT_CODEC_ID,
-                                                           DEFAULT_TRACKNAME,
-                                                           nullptr,
-                                                           0);
+    unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
+        stream_name.c_str(),
+        hours(DEFAULT_RETENTION_PERIOD_HOURS),
+        nullptr,
+        DEFAULT_KMS_KEY_ID,
+        DEFAULT_STREAMING_TYPE,
+        DEFAULT_CONTENT_TYPE,
+        duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
+        milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
+        milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
+        DEFAULT_KEY_FRAME_FRAGMENTATION,
+        DEFAULT_FRAME_TIMECODES,
+        DEFAULT_ABSOLUTE_FRAGMENT_TIMES,
+        DEFAULT_FRAGMENT_ACKS,
+        DEFAULT_RESTART_ON_ERROR,
+        DEFAULT_RECALCULATE_METRICS,
+        NAL_ADAPTATION_FLAG_NONE,
+        DEFAULT_STREAM_FRAMERATE,
+        DEFAULT_AVG_BANDWIDTH_BPS,
+        seconds(DEFAULT_BUFFER_DURATION_SECONDS),
+        seconds(DEFAULT_REPLAY_DURATION_SECONDS),
+        seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
+        DEFAULT_CODEC_ID,
+        DEFAULT_TRACKNAME,
+        nullptr,
+        0));
     auto kvs_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
     data->kinesis_video_stream_handles[stream_handle_key] = kvs_stream;
     data->frame_data_size_map[stream_handle_key] = DEFAULT_BUFFER_SIZE;

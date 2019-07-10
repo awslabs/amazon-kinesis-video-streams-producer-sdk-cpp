@@ -7,7 +7,6 @@
 #include <utility>
 #include <condition_variable>
 
-#include "com/amazonaws/kinesis/video/client/Include.h"
 #include "KinesisVideoProducer.h"
 #include "KinesisVideoStreamMetrics.h"
 #include "StreamDefinition.h"
@@ -111,6 +110,12 @@ public:
     bool resetConnection();
 
     /**
+     * Restart/Reset a stream by dropping remaining data and reset stream state machine.
+     * This would be dropping all frame data in current buffer and restart the stream with new incoming frame data.
+     */
+    bool resetStream();
+
+    /**
      * Stops the the stream. Consecutive calls will fail until start is called again.
      *
      * NOTE: The function is async and will return immediately but the stream buffer
@@ -136,34 +141,6 @@ public:
             : stream_handle_(rhs.stream_handle_),
               kinesis_video_producer_(rhs.kinesis_video_producer_),
               stream_name_(rhs.stream_name_) {}
-
-    std::mutex& getStreamReadyMutex() {
-        return stream_ready_mutex_;
-    }
-
-    std::mutex& getStreamClosedMutex() {
-        return stream_closed_mutex_;
-    }
-
-    std::condition_variable& getStreamReadyVar() {
-        return stream_ready_var_;
-    }
-
-    std::condition_variable& getStreamClosedVar() {
-        return stream_closed_var_;
-    }
-
-    bool isReady() const {
-        return stream_ready_;
-    }
-
-    void streamReady() {
-        stream_ready_ = true;
-    }
-
-    void streamClosed() {
-        stream_closed_ = true;
-    }
 
     std::string getStreamName() {
         return stream_name_;
@@ -218,34 +195,9 @@ protected:
     std::once_flag free_kinesis_video_stream_flag_;
 
     /**
-     * Whether the stream is ready
-     */
-    volatile bool stream_ready_;
-
-    /**
      * Whether the stream is closed
      */
     volatile bool stream_closed_;
-
-    /**
-     * Mutex needed for the condition variable for stream ready locking.
-     */
-    std::mutex stream_ready_mutex_;
-
-    /**
-     * Mutex needed for the condition variable for stream closed locking.
-     */
-    std::mutex stream_closed_mutex_;
-
-    /**
-     * Condition variable used to signal the stream being ready.
-     */
-    std::condition_variable stream_ready_var_;
-
-    /**
-     * Condition variable used to signal the stream closed.
-     */
-    std::condition_variable stream_closed_var_;
 
     /**
      * Stream metrics

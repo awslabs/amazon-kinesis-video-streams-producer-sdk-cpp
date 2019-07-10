@@ -21,6 +21,9 @@ extern "C" {
 #define SPS_NALU_67     0x67
 #define SPS_NALU_27     0x27
 
+// AUD NALu value
+#define AUD_NALU_TYPE   0x09
+
 /**
  * Bitmap info header size
  */

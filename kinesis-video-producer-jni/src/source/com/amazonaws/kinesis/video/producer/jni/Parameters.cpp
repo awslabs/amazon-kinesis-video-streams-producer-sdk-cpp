@@ -120,12 +120,115 @@ BOOL setDeviceInfo(JNIEnv *env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
         }
     }
 
-    // Set empty device cert path
-    pDeviceInfo->certPath[0] = '\0';
+    methodId = env->GetMethodID(cls, "getClientId", "()Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getClientId");
+    } else {
+        jstring retString = (jstring) env->CallObjectMethod(deviceInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+
+        if (retString != NULL) {
+            retChars = env->GetStringUTFChars(retString, NULL);
+            STRNCPY(pDeviceInfo->clientId, retChars, MAX_CLIENT_ID_STRING_LENGTH + 1);
+            pDeviceInfo->clientId[MAX_CLIENT_ID_STRING_LENGTH] = '\0';
+            env->ReleaseStringUTFChars(retString, retChars);
+        } else {
+            STRNCPY(pDeviceInfo->clientId, (PCHAR) "JNI", MAX_CLIENT_ID_STRING_LENGTH + 1);
+        }
+    }
+
+    // Set the client info to empty first
+    methodId = env->GetMethodID(cls, "getClientInfo", "()Lcom/amazonaws/kinesisvideo/producer/ClientInfo;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getClientInfo");
+    } else {
+        jobject clientInfo = (jobject) env->CallObjectMethod(deviceInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+
+        if (!setClientInfo(env, clientInfo, &pDeviceInfo->clientInfo)) {
+            DLOGW("Failed getting/setting client info.");
+        }
+    }
 
 CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
+
+BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
+    STATUS retStatus = STATUS_SUCCESS;
+    jmethodID methodId = NULL;
+    const char *retChars;
+
+    CHECK(env != NULL && clientInfo != NULL && pClientInfo != NULL);
+
+    // Load ClientInfo
+    jclass cls = env->GetObjectClass(clientInfo);
+    if (cls == NULL) {
+        DLOGE("Failed to create ClientInfo class.");
+        CHK(FALSE, STATUS_INVALID_OPERATION);
+    }
+
+    // Retrieve the methods and call it
+    methodId = env->GetMethodID(cls, "getVersion", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getVersion");
+    } else {
+        pClientInfo->version = env->CallIntMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getCreateClientTimeout", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getCreateClientTimeout");
+    } else {
+        pClientInfo->createClientTimeout = env->CallLongMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getCreateStreamTimeout", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getCreateStreamTimeout");
+    } else {
+        pClientInfo->stopStreamTimeout = env->CallLongMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getStopStreamTimeout", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getStopStreamTimeout");
+    } else {
+        pClientInfo->stopStreamTimeout = env->CallLongMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getOfflineBufferAvailabilityTimeout", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getOfflineBufferAvailabilityTimeout");
+    } else {
+        pClientInfo->offlineBufferAvailabilityTimeout = env->CallLongMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getLoggerLogLevel", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getLoggerLogLevel");
+    } else {
+        pClientInfo->loggerLogLevel = env->CallIntMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getLogMetric", "()Z");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getLogMetric");
+    } else {
+        pClientInfo->logMetric = env->CallBooleanMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+CleanUp:
+    return STATUS_FAILED(retStatus) ? FALSE : TRUE;
+}
+
 
 BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount)
 {
@@ -441,6 +544,16 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     MEMSET(pStreamInfo->streamCaps.trackInfoList, 0, SIZEOF(TrackInfo) * trackInfoCount);
     CHK(pStreamInfo->streamCaps.trackInfoList != NULL, STATUS_NOT_ENOUGH_MEMORY);
 
+    methodId = env->GetMethodID(cls, "getTrackInfoVersion", "(I)I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getTrackInfoVersion");
+    } else {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
+            pStreamInfo->streamCaps.trackInfoList[i].version = (UINT64) env->CallIntMethod(streamInfo, methodId, i);
+            CHK_JVM_EXCEPTION(env);
+        }
+    }
+
     methodId = env->GetMethodID(cls, "getTrackName", "(I)Ljava/lang/String;");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getTrackName");
@@ -592,6 +705,14 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
         }
     }
 
+    methodId = env->GetMethodID(cls, "getFrameOrderMode", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getFrameOrderMode");
+    } else {
+        pStreamInfo->streamCaps.frameOrderingMode = (FRAME_ORDER_MODE) env->CallIntMethod(streamInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
 CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
@@ -610,6 +731,14 @@ BOOL setFrame(JNIEnv* env, jobject kinesisVideoFrame, PFrame pFrame)
     }
 
     // Retrieve the methods and call it
+    methodId = env->GetMethodID(cls, "getVersion", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getVersion");
+    } else {
+        pFrame->version = env->CallIntMethod(kinesisVideoFrame, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
     methodId = env->GetMethodID(cls, "getIndex", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getIndex");
@@ -869,6 +998,31 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
     } else {
         pStreamDesc->streamStatus = (STREAM_STATUS) env->CallIntMethod(streamDescription, methodId);
         CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getRetention", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getRetention");
+    } else {
+        pStreamDesc->retention = (STREAM_STATUS) env->CallLongMethod(streamDescription, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getKmsKeyId", "()Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getKmsKeyId");
+    } else {
+        jstring retString = (jstring) env->CallObjectMethod(streamDescription, methodId);
+        CHK_JVM_EXCEPTION(env);
+
+        if (retString != NULL) {
+            retChars = env->GetStringUTFChars(retString, NULL);
+            STRNCPY(pStreamDesc->kmsKeyId, retChars, MAX_ARN_LEN + 1);
+            pStreamDesc->kmsKeyId[MAX_ARN_LEN] = '\0';
+            env->ReleaseStringUTFChars(retString, retChars);
+        } else {
+            pStreamDesc->kmsKeyId[0] = '\0';
+        }
     }
 
 CleanUp:

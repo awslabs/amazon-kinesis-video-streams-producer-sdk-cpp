@@ -10,16 +10,6 @@ extern "C" {
 
 #pragma once
 
-////////////////////////////////////////////////////
-// General defines and data structures
-////////////////////////////////////////////////////
-
-/**
- * Forward declarations
- */
-typedef struct __FragmentAckParser FragmentAckParser;
-typedef __FragmentAckParser* PFragmentAckParser;
-
 // Various significant chars
 #define ACK_PARSER_OPEN_BRACE                   '{'
 #define ACK_PARSER_CLOSE_BRACE                  '}'
@@ -118,7 +108,7 @@ struct __FragmentAckParser {
     BOOL keys[FRAGMENT_ACK_KEY_NAME_MAX];
     CHAR accumulator[MAX_ACK_FRAGMENT_LEN + 1];
 };
-typedef __FragmentAckParser* PFragmentAckParser;
+typedef struct __FragmentAckParser* PFragmentAckParser;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Functionality

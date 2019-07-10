@@ -15,7 +15,9 @@ namespace {
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-/*
+/**
+ * @Deprecated
+ *
  * Since audio and video frames from gstreamer dont arrive in the order of their timestamps,
  * this PutFrameHelper class provides functionality to synchronize audio and video putFrame calls
  * so that sdk does not generate overlapping clusters. The assumption is that audio pts grows monotonically, video
@@ -27,31 +29,10 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
  * video key frame can be put into the stream.
  */
 class PutFrameHelper {
-    const uint32_t MAX_AUDIO_QUEUE_SIZE;
-    const uint32_t MAX_VIDEO_QUEUE_SIZE;
-    const uint64_t MKV_TIMECODE_SCALE_NS;
-    const uint32_t INITIAL_BUFFER_SIZE_AUDIO;
-    const uint32_t INITIAL_BUFFER_SIZE_VIDEO;
-
-    typedef struct _FrameDataBuffer {
-        uint32_t size;
-        uint8_t* buffer;
-    } FrameDataBuffer;
-
-    std::queue<Frame> audio_frame_queue;
-    std::queue<Frame> video_frame_queue;
-
-    // array of pre-allocated buffers to hold frame data
-    std::vector<FrameDataBuffer> audio_data_buffers;
-    std::vector<FrameDataBuffer> video_data_buffers;
-    // where to store the next frame data in buffer array
-    uint32_t next_available_buffer_audio;
-    uint32_t next_available_buffer_video;
-
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
     bool put_frame_status;
-    bool is_processing_eofr;
-
+    uint8_t* data_buffer;
+    uint32_t data_buffer_size;
 public:
     PutFrameHelper(
             shared_ptr<KinesisVideoStream> kinesis_video_stream,

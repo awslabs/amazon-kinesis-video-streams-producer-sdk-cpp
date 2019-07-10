@@ -12,6 +12,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
     UINT64 timestamp, availableStorage, curAvailableStorage;
     Frame frame;
     ClientMetrics memMetrics;
+    PStreamMkvGenerator pStreamMkvGenerator;
 
     // Ensure we have fragmentation based on the key frames
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;
@@ -71,7 +72,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -157,7 +158,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
 
         // The first frame will have the cluster and MKV overhead
         if (k == 0) {
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (k % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -249,7 +250,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -266,7 +267,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
             for (k = 0; k < i; k++) {
                 getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer,
                                           SIZEOF(tempBuffer) +
-                                          mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount),
+                                          mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator),
                                           &filledSize);
             }
         } else {
@@ -359,7 +360,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -376,7 +377,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
             for (k = 0; k < i; k++) {
                 getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer,
                                           SIZEOF(tempBuffer) +
-                                          mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount),
+                                          mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator),
                                           &filledSize);
             }
         } else {
@@ -461,7 +462,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBuffer)
     for (i = 0; i < iterations; i++) {
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -552,7 +553,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
 
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -575,7 +576,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
             for (k = 0; k < i; k++) {
                 getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer,
                                           SIZEOF(tempBuffer) +
-                                          mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount),
+                                          mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator),
                                           &filledSize);
             }
         } else {
@@ -675,7 +676,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetDoubleBuffer)
     for (i = 0; i < iterations; i+=2) {
         // The first two frames will have the simple block, cluster and MKV overhead
         if (i == 0) {
-            offset1 = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset1 = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
             offset2 = MKV_SIMPLE_BLOCK_OVERHEAD;
         } else if (i % 10 == 0) {
             // Cluster start will have simple block and cluster overhead
@@ -771,7 +772,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonBoundaryBuffer)
     iterations = i / 2;
     for (i = 0; i < iterations; i++) {
         if (i == 0) {
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start
             offset = MKV_CLUSTER_OVERHEAD;
@@ -885,7 +886,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
     for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -975,7 +976,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1065,7 +1066,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1099,8 +1100,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
     UINT32 i, j, filledSize, offset, bufferSize;
     BOOL validPattern;
     BYTE tempBuffer[1000];
-    BYTE cpd[1 << 20]; // cpd's ebml length should be 3 bytes
-    BYTE getDataBuffer[2000 + SIZEOF(cpd)];
+    const UINT32 CPD_SIZE = 1 << 20;
+    PBYTE cpd = (PBYTE) MEMALLOC(CPD_SIZE); // cpd's ebml length should be 3 bytes
+    const UINT32 BUFFER_SIZE = 2000 + CPD_SIZE;
+    PBYTE getDataBuffer = (PBYTE) MEMALLOC(BUFFER_SIZE);
     UINT64 timestamp;
     Frame frame;
 
@@ -1109,7 +1112,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
 
     // Set a CPD
     mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateData = cpd;
-    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateDataSize = SIZEOF(cpd);
+    mStreamInfo.streamCaps.trackInfoList[TEST_TRACK_INDEX].codecPrivateDataSize = CPD_SIZE;
 
     // Create and ready a stream
     ReadyStream();
@@ -1155,7 +1158,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
         // The first frame will have the cluster and MKV overhead
         if (i == 0) {
             // CPD + CPD elem size + CPD encoded len
-            offset = mkvgenGetMkvHeaderOverhead(mStreamInfo.streamCaps.trackInfoList, mStreamInfo.streamCaps.trackInfoCount);
+            offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
             offset = MKV_CLUSTER_OVERHEAD;
@@ -1182,6 +1185,8 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
 
         EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
     }
+    MEMFREE(cpd);
+    MEMFREE(getDataBuffer);
 }
 
 TEST_F(StreamPutGetTest, putFrame_PutGetSegmentUidCheck)
@@ -1230,13 +1235,13 @@ TEST_F(StreamPutGetTest, putFrame_PutGetSegmentUidCheck)
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(11687, filledSize);
+    EXPECT_EQ(11730, filledSize);
 
     // Validate the segment UUID
     EXPECT_EQ(0, MEMCMP(getDataBuffer + MKV_SEGMENT_UUID_OFFSET, TEST_SEGMENT_UUID, MKV_SEGMENT_UUID_LEN));
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_segment_uid.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_segment_uid.mkv", TRUE, FALSE, getDataBuffer, filledSize));
     MEMFREE(getDataBuffer);
 }
 
@@ -1314,13 +1319,13 @@ TEST_F(StreamPutGetTest, putFrame_PutGetGeneratedSegmentUidCheck)
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(11687, filledSize);
+    EXPECT_EQ(11730, filledSize);
 
     // Validate the segment UUID
     EXPECT_TRUE(MEMCHK(getDataBuffer + MKV_SEGMENT_UUID_OFFSET, TEST_CONST_RAND_FUNC_BYTE, MKV_SEGMENT_UUID_LEN));
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_gen_segment_uid.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_gen_segment_uid.mkv", TRUE, FALSE, getDataBuffer, filledSize));
     MEMFREE(getDataBuffer);
 
     freeKinesisVideoClient(&clientHandle);
@@ -1374,10 +1379,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetTagsStoreData)
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(18437, filledSize);
+    EXPECT_EQ(18480, filledSize);
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_tags.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_tags.mkv", TRUE, FALSE, getDataBuffer, filledSize));
     MEMFREE(getDataBuffer);
 }
 
@@ -1440,10 +1445,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(16200, filledSize);
+    EXPECT_EQ(16243, filledSize);
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_put_get_pre_tags.mkv", TRUE, FALSE, getDataBuffer, filledSize));
 
     MEMFREE(getDataBuffer);
 }
@@ -1514,10 +1519,10 @@ TEST_F(StreamPutGetTest, DISABLED_putFrame_PutGetTagsBeforeStoreData)
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(6706, filledSize);
+    EXPECT_EQ(6700, filledSize);
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_pre_tags.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_pre_tags.mkv", TRUE, FALSE, getDataBuffer, filledSize));
 
     MEMFREE(getDataBuffer);
 }
@@ -1601,10 +1606,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPersistentTagsStoreData)
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Store the data in a file
-    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_persistent_tags.mkv", TRUE, getDataBuffer, filledSize));
+    EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_persistent_tags.mkv", TRUE, FALSE, getDataBuffer, filledSize));
 
     // Manually pre-validated data file size
-    EXPECT_EQ(6357, filledSize);
+    EXPECT_EQ(6400, filledSize);
 
     MEMFREE(getDataBuffer);
 }

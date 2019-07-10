@@ -120,7 +120,7 @@ struct _GstKvsSink {
     gchar                       *credential_file_path;
     GstStructure                *iot_certificate;
     GstStructure                *stream_tags;
-    gulong                      file_start_time;
+    guint64                     file_start_time;
     MKV_TRACK_INFO_TYPE         track_info_type;
 
 
@@ -140,34 +140,24 @@ GType gst_kvs_sink_get_type (void);
 
 G_END_DECLS
 
-class StreamLatencyStateMachine;
-class ConnectionStaleStateMachine;
-
-typedef struct _CallbackStateMachine {
-    shared_ptr<StreamLatencyStateMachine> stream_latency_state_machine;
-    shared_ptr<ConnectionStaleStateMachine> connection_stale_state_machine;
-
-    _CallbackStateMachine(shared_ptr<CustomData> data);
-} CallbackStateMachine;
-
 typedef struct _CustomData {
 
     _CustomData():
-            stream_created(false),
             stream_ready(false),
             stream_status(STATUS_SUCCESS),
             last_dts(0),
             pts_base(0),
             media_type(VIDEO_ONLY),
-            first_video_frame(true) {}
+            first_video_frame(true),
+            frame_count(0)  {}
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
-    shared_ptr<CallbackStateMachine> callback_state_machine;
+
     map<uint64_t, string> track_cpd;
     GstKvsSink *kvsSink;
-    bool stream_created = false;
     MediaType media_type;
     bool first_video_frame;
+    uint32_t frame_count;
 
     atomic_bool stream_ready;
     atomic_uint stream_status;
@@ -175,11 +165,5 @@ typedef struct _CustomData {
     uint64_t last_dts;
     uint64_t pts_base;
 } CustomData;
-
-#define ACCESS_KEY_ENV_VAR "AWS_ACCESS_KEY_ID"
-#define SECRET_KEY_ENV_VAR "AWS_SECRET_ACCESS_KEY"
-#define SESSION_TOKEN_ENV_VAR "AWS_SESSION_TOKEN"
-#define TOKEN_EXPIRATION_ENV_VAR "AWS_TOKEN_EXPIRATION"
-#define DEFAULT_REGION_ENV_VAR "AWS_DEFAULT_REGION"
 
 #endif /* __GST_KVS_SINK_H__ */

@@ -22,10 +22,10 @@ extern "C" {
  * Forward declarations
  */
 typedef struct __KinesisVideoStream KinesisVideoStream;
-typedef __KinesisVideoStream* PKinesisVideoStream;
+typedef struct __KinesisVideoStream* PKinesisVideoStream;
 
 typedef struct __StateMachine StateMachine;
-typedef __StateMachine* PStateMachine;
+typedef struct __StateMachine* PStateMachine;
 
 /**
  * Kinesis Video client base internal structure
@@ -50,18 +50,26 @@ struct __KinesisVideoBase {
     // Current service call result
     SERVICE_CALL_RESULT result;
 
-    // Sync mutex
+    // Sync mutex for fine grained interlocking the calls
     MUTEX lock;
+
+    // Conditional variable for Ready state
+    CVAR ready;
+
+    // Indicating whether shutdown has been triggered
+    BOOL shutdown;
 };
 
-typedef __KinesisVideoBase* PKinesisVideoBase;
+typedef struct __KinesisVideoBase* PKinesisVideoBase;
 
 /**
  * The rest of the internal include files
  */
+
 #include "InputValidator.h"
 #include "State.h"
 #include "AckParser.h"
+#include "FrameOrderCoordinator.h"
 #include "Stream.h"
 
 ////////////////////////////////////////////////////
@@ -207,12 +215,12 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
 /**
  * The threshold beyond which we won't do any auth info expiration randomization
  */
-#define AUTH_INFO_EXPIRATION_RANDOMIZATION_DURATION_THRESHOLD       5 * HUNDREDS_OF_NANOS_IN_A_MINUTE
+#define AUTH_INFO_EXPIRATION_RANDOMIZATION_DURATION_THRESHOLD       (5 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
 
 /**
  * Max randomization value to be added
  */
-#define MAX_AUTH_INFO_EXPIRATION_RANDOMIZATION                      3 * HUNDREDS_OF_NANOS_IN_A_MINUTE
+#define MAX_AUTH_INFO_EXPIRATION_RANDOMIZATION                      (3 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
 
 /**
  * Ratio of the expiration to use for jitter
@@ -222,8 +230,7 @@ typedef __KinesisVideoBase* PKinesisVideoBase;
 /**
  * Kinesis Video client internal structure
  */
-typedef struct __KinesisVideoClient KinesisVideoClient;
-struct __KinesisVideoClient {
+typedef struct __KinesisVideoClient {
     // Base object
     KinesisVideoBase base;
 
@@ -251,9 +258,66 @@ struct __KinesisVideoClient {
 
     // Device fingerprint storage if needed for provisioning including null terminator
     CHAR deviceFingerprint[MAX_DEVICE_FINGERPRINT_LENGTH + 1];
-};
+} KinesisVideoClient, *PKinesisVideoClient;
 
-typedef __KinesisVideoClient* PKinesisVideoClient;
+/**
+ * Internal declarations of backwards compat device info
+ */
+typedef struct __DeviceInfo_V0 DeviceInfo_V0;
+struct __DeviceInfo_V0 {
+    // Version of the struct
+    UINT32 version;
+
+    // Device name - human readable. Null terminated.
+    // Should be unique per AWS account.
+    CHAR name[MAX_DEVICE_NAME_LEN + 1];
+
+    // Number of tags associated with the device.
+    UINT32 tagCount;
+
+    // Device tags array
+    PTag tags;
+
+    // Storage configuration information
+    StorageInfo storageInfo;
+
+    // Number of declared streams.
+    UINT32 streamCount;
+};
+typedef struct __DeviceInfo_V0* PDeviceInfo_V0;
+
+/**
+ * Internal declarations of backwards compat stream description
+ */
+typedef struct __StreamDescription_V0 StreamDescription_V0;
+struct __StreamDescription_V0 {
+    // Version of the struct
+    UINT32 version;
+
+    // Device name - human readable. Null terminated.
+    // Should be unique per AWS account.
+    CHAR deviceName[MAX_DEVICE_NAME_LEN + 1];
+
+    // Stream name - human readable. Null terminated.
+    // Should be unique per AWS account.
+    CHAR streamName[MAX_STREAM_NAME_LEN + 1];
+
+    // Stream content type - nul terminated.
+    CHAR contentType[MAX_CONTENT_TYPE_LEN + 1];
+
+    // Update version.
+    CHAR updateVersion[MAX_UPDATE_VERSION_LEN + 1];
+
+    // Stream ARN
+    CHAR streamArn[MAX_ARN_LEN + 1];
+
+    // Current stream status
+    STREAM_STATUS streamStatus;
+
+    // Stream creation time
+    UINT64 creationTime;
+};
+typedef struct __StreamDescription_V0* PStreamDescription_V0;
 
 ////////////////////////////////////////////////////
 // Internal functionality
@@ -302,26 +366,6 @@ AUTH_INFO_TYPE getCurrentAuthType(PKinesisVideoClient);
  * Randomizing or adding a jitter to the auth info expiration
  */
 UINT64 randomizeAuthInfoExpiration(PKinesisVideoClient, UINT64, UINT64);
-
-/**
- * Default implementations of some of the callbacks if the caller hasn't specified them
- */
-UINT64 defaultGetCurrentTime(UINT64);
-UINT32 defaultGetRandomNumber(UINT64);
-MUTEX defaultCreateMutex(UINT64, BOOL);
-VOID defaultLockMutex(UINT64, MUTEX);
-VOID defaultUnlockMutex(UINT64, MUTEX);
-BOOL defaultTryLockMutex(UINT64, MUTEX);
-VOID defaultFreeMutex(UINT64, MUTEX);
-CVAR defaultCreateConditionVariable(UINT64);
-STATUS defaultSignalConditionVariable(UINT64, CVAR);
-STATUS defaultBroadcastConditionVariable(UINT64, CVAR);
-STATUS defaultWaitConditionVariable(UINT64, CVAR, MUTEX, UINT64);
-VOID defaultFreeConditionVariable(UINT64, CVAR);
-STATUS defaultStreamReady(UINT64, STREAM_HANDLE);
-STATUS defaultEndOfStream(UINT64, STREAM_HANDLE, UPLOAD_HANDLE);
-STATUS defaultClientReady(UINT64, CLIENT_HANDLE);
-STATUS defaultStreamDataAvailable(UINT64, STREAM_HANDLE, PCHAR, UINT64, UINT64, UINT64);
 
 ///////////////////////////////////////////////////////////////////////////
 // Client service call event functions

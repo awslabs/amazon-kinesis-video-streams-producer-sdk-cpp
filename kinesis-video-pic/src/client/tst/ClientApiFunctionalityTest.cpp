@@ -1,9 +1,11 @@
 #include "ClientTestFixture.h"
 
 class ClientApiFunctionalityTest : public ClientTestBase {
+public:
+    VOID authIntegrationTest(BOOL sync);
 };
 
-TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
+VOID ClientApiFunctionalityTest::authIntegrationTest(BOOL sync)
 {
     CLIENT_HANDLE clientHandle;
     PKinesisVideoClient pKinesisVideoClient;
@@ -16,7 +18,12 @@ TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
     // Try the certificate integration first
     mClientCallbacks.getSecurityTokenFn = NULL;
     mClientCallbacks.getDeviceFingerprintFn = NULL;
-    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    if (!sync) {
+        EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    } else {
+        EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    }
+
     pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
     EXPECT_EQ(0, STRCMP((PCHAR) pKinesisVideoClient->certAuthInfo.data, TEST_CERTIFICATE_BITS));
     EXPECT_EQ(TEST_AUTH_EXPIRATION, pKinesisVideoClient->certAuthInfo.expiration);
@@ -33,8 +40,14 @@ TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
     mClientCallbacks.getDeviceCertificateFn = NULL;
     mClientCallbacks.getSecurityTokenFn = NULL;
     // Currently provisioning is unsupported so it should fail
-    EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
-              createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    if (!sync) {
+        EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
+                  createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    } else {
+        EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
+                  createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    }
+
     pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
     EXPECT_EQ(0, STRCMP(pKinesisVideoClient->deviceFingerprint, TEST_DEVICE_FINGERPRINT));
     // Extra one as the base test has already called the function once
@@ -51,8 +64,14 @@ TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
     mClientCallbacks.getSecurityTokenFn = NULL;
     mClientCallbacks.getDeviceFingerprintFn = NULL;
     // Currently provisioning is unsupported so it should fail
-    EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
-              createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    if (!sync) {
+        EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
+                  createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    } else {
+        EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
+                  createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    }
+
     pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
     // EXPECT_EQ(0, pKinesisVideoClient->certAuthInfo.data[0]);
     EXPECT_EQ(MAX_DEVICE_FINGERPRINT_LENGTH, STRLEN(pKinesisVideoClient->deviceFingerprint));
@@ -68,10 +87,22 @@ TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
 
     // Try the security token integration and empty data
     mClientCallbacks.getSecurityTokenFn = getEmptySecurityTokenFunc;
-    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    if (!sync) {
+        EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    } else {
+        EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    }
+
     pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
     EXPECT_EQ(0, pKinesisVideoClient->tokenAuthInfo.data[0]);
-    EXPECT_EQ(0, pKinesisVideoClient->tokenAuthInfo.expiration);
+    if (!sync) {
+        EXPECT_EQ(0, pKinesisVideoClient->tokenAuthInfo.expiration);
+    } else {
+        // In case of SYNC we primed the state machine so we got the token from the certificate already
+        EXPECT_EQ(TEST_AUTH_EXPIRATION, pKinesisVideoClient->tokenAuthInfo.expiration);
+    }
+    EXPECT_EQ(0, STRCMP((PCHAR) pKinesisVideoClient->certAuthInfo.data, TEST_CERTIFICATE_BITS));
+    EXPECT_EQ(TEST_AUTH_EXPIRATION, pKinesisVideoClient->certAuthInfo.expiration);
     // Extra one as the base test has already called the function once
     EXPECT_EQ(2, mGetSecurityTokenFuncCount);
     EXPECT_EQ(2, mGetDeviceCertificateFuncCount);
@@ -84,11 +115,18 @@ TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
     // Try the empty token to call the cert
     mClientCallbacks.getDeviceCertificateFn = getDeviceCertificateFunc;
     mClientCallbacks.getSecurityTokenFn = getEmptySecurityTokenFunc;
-    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    if (!sync) {
+        EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+        EXPECT_EQ(0, pKinesisVideoClient->tokenAuthInfo.expiration);
+    } else {
+        EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+        EXPECT_EQ(TEST_AUTH_EXPIRATION, pKinesisVideoClient->tokenAuthInfo.expiration);
+    }
+
     pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
     EXPECT_EQ(0, pKinesisVideoClient->tokenAuthInfo.data[0]);
     EXPECT_NE(0, pKinesisVideoClient->certAuthInfo.data[0]);
-    EXPECT_EQ(0, pKinesisVideoClient->tokenAuthInfo.expiration);
+
     EXPECT_EQ(TEST_AUTH_EXPIRATION, pKinesisVideoClient->certAuthInfo.expiration);
     EXPECT_EQ('\0', pKinesisVideoClient->deviceFingerprint[0]);
     // Extra one as the base test has already called the function once
@@ -105,8 +143,14 @@ TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
     mClientCallbacks.getSecurityTokenFn = getEmptySecurityTokenFunc;
     mClientCallbacks.getDeviceFingerprintFn = getEmptyDeviceFingerprintFunc;
     // Currently provisioning is unsupported so it should fail
-    EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
-              createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    if (!sync) {
+        EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
+                  createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    } else {
+        EXPECT_EQ(STATUS_CLIENT_PROVISION_CALL_FAILED,
+                  createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    }
+
     pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
     EXPECT_EQ(0, pKinesisVideoClient->tokenAuthInfo.data[0]);
     EXPECT_EQ(0, pKinesisVideoClient->tokenAuthInfo.expiration);
@@ -119,4 +163,15 @@ TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
     mClientCallbacks.getSecurityTokenFn = getSecurityTokenFunc;
     mClientCallbacks.getDeviceFingerprintFn = getDeviceFingerprintFunc;
     EXPECT_TRUE(STATUS_SUCCEEDED(freeKinesisVideoClient(&clientHandle)));
+}
+
+TEST_F(ClientApiFunctionalityTest, createKinesisVideoClient_AuthIntegration)
+{
+    authIntegrationTest(FALSE);
+}
+
+TEST_F(ClientApiFunctionalityTest, createKinesisVideoClientSync_AuthIntegration)
+{
+    mClientSyncMode = TRUE;
+    authIntegrationTest(TRUE);
 }

@@ -33,6 +33,10 @@ public:
     virtual const std::string getCustomUserAgent() {
         return "";
     }
+
+    virtual const std::string getCertPath() {
+        return "";
+    }
 };
 
 } // namespace video

@@ -71,7 +71,7 @@ STATUS createSubDirStruct(PCHAR dirPath, UINT32 depth, UINT32 numberOfFiles, UIN
         STRCAT(dirPath, temp);
 
         // Create/write the file
-        STATUS status = writeFile(dirPath, TRUE, (PBYTE) temp, 100);
+        STATUS status = writeFile(dirPath, TRUE, FALSE, (PBYTE) temp, 100);
         if (status != STATUS_SUCCESS) {
             return status;
         }

@@ -1,7 +1,7 @@
 
 # Dockerfile to build Kinesis Video Streams Producer CPP as a Windows container
 
-FROM microsoft/windowsservercore
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
 WORKDIR /opt/
 
 # ================= Install Git ============================================================================
