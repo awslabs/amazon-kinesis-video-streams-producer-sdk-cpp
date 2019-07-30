@@ -135,12 +135,22 @@ PUBLIC_API STATUS defaultCreateThread(PTID pThreadId, startRoutine start, PVOID 
 {
     STATUS retStatus = STATUS_SUCCESS;
     pthread_t threadId;
-    INT32 createResult;
+    INT32 result;
+    pthread_attr_t *pAttr = NULL;
 
     CHK(pThreadId != NULL, STATUS_NULL_ARG);
 
-    createResult = pthread_create(&threadId, NULL, start, args);
-    switch (createResult) {
+#ifdef CONSTRAINED_DEVICE
+    pthread_attr_t attr;
+    pAttr = &attr;
+    result = pthread_attr_init(pAttr);
+    CHK_ERR(result == 0, STATUS_THREAD_ATTR_INIT_FAILED, "pthread_attr_init failed with %d", result);
+    result = pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE_ON_CONSTRAINED_DEVICE);
+    CHK_ERR(result == 0, STATUS_THREAD_ATTR_SET_STACK_SIZE_FAILED, "pthread_attr_setstacksize failed with %d", result);
+#endif
+
+    result = pthread_create(&threadId, pAttr, start, args);
+    switch (result) {
     case 0:
         // Successful case
         break;
@@ -158,6 +168,14 @@ PUBLIC_API STATUS defaultCreateThread(PTID pThreadId, startRoutine start, PVOID 
     *pThreadId = (TID)threadId;
 
 CleanUp:
+
+    if (pAttr != NULL) {
+        result = pthread_attr_destroy(pAttr);
+        if (result != 0) {
+            DLOGW("pthread_attr_destroy failed with %u", result);
+        }
+    }
+
     return retStatus;
 }
 

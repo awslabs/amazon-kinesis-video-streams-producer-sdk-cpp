@@ -50,6 +50,7 @@ extern "C" {
 #define STATUS_DUPLICATE_STREAM_CALLBACK_FREE_FUNC                                  STATUS_PRODUCER_BASE + 0x0000001a
 #define STATUS_DUPLICATE_AUTH_CALLBACK_FREE_FUNC                                    STATUS_PRODUCER_BASE + 0x0000001b
 #define STATUS_DUPLICATE_API_CALLBACK_FREE_FUNC                                     STATUS_PRODUCER_BASE + 0x0000001c
+#define STATUS_FILE_LOGGER_INDEX_FILE_TOO_LARGE                                     STATUS_PRODUCER_BASE + 0x0000001d
 
 
 /**
@@ -804,6 +805,20 @@ PUBLIC_API STATUS freeContinuousRetryStreamCallbacks(PStreamCallbacks*);
  * @return - STATUS code of the execution
  */
 PUBLIC_API STATUS createAbstractDefaultCallbacksProvider(UINT32, BOOL, UINT64, PCHAR, PCHAR, PCHAR, PCHAR, PCHAR, PClientCallbacks*);
+
+/**
+ * Use file logger instead of default logger which log to stdout. The underlying objects are automatically freed
+ * when PClientCallbacks is freed.
+ *
+ * @param - PClientCallbacks - IN - The callback provider whose logPrintFn will be replaced with file logger log printing function
+ * @param - UINT64 - IN - Size of string buffer in file logger. When the string buffer is full the logger will flush everything into a new file
+ * @param - UINT64 - IN - Max number of log file. When exceeded, the oldest file will be deleted when new one is generated
+ * @param - PCHAR - IN - Directory in which the log file will be generated
+ * @param - BOOL - IN - print log to std out too
+ *
+ * @return - STATUS code of the execution
+ */
+PUBLIC_API STATUS addFileLoggerPlatformCallbacksProvider(PClientCallbacks, UINT64, UINT64, PCHAR, BOOL);
 
 #pragma pack(pop, include)
 

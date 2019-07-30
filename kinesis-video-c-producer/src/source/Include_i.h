@@ -36,6 +36,9 @@ typedef StreamLatencyStateMachine* PStreamLatencyStateMachine;
 // For tight packing
 #pragma pack(push, include_i, 1) // for byte alignment
 
+/**
+ * Continuous retry state machinery states
+ */
 typedef enum {
     STREAM_CALLBACK_HANDLING_STATE_NORMAL_STATE,
     STREAM_CALLBACK_HANDLING_STATE_RESET_CONNECTION_STATE,
@@ -43,6 +46,12 @@ typedef enum {
     STREAM_CALLBACK_HANDLING_STATE_THROTTLE_PIPELINE_STATE,
     STREAM_CALLBACK_HANDLING_STATE_INFINITE_RETRY_STATE
 } STREAM_CALLBACK_HANDLING_STATE;
+
+/**
+ * Default stream mapping hash table bucket count/length
+ */
+#define STREAM_MAPPING_HASH_TABLE_BUCKET_LENGTH        2
+#define STREAM_MAPPING_HASH_TABLE_BUCKET_COUNT         100
 
 ////////////////////////////////////////////////////
 // Project internal includes
@@ -64,6 +73,7 @@ typedef enum {
 #include "StreamInfoProvider.h"
 #include "IotAuthCallback.h"
 #include "Util.h"
+#include "FileLoggerPlatformCallbackProvider.h"
 
 ////////////////////////////////////////////////////
 // Project internal defines

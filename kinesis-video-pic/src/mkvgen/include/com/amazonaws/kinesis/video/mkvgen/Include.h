@@ -147,6 +147,7 @@ extern "C" {
 #define MKV_X_MKV_AUDIO_CONTENT_TYPE        ((PCHAR) "audio/x-matroska")
 #define MKV_AAC_CONTENT_TYPE                ((PCHAR) "audio/aac")
 #define MKV_ALAW_CONTENT_TYPE               ((PCHAR) "audio/alaw")
+#define MKV_MULAW_CONTENT_TYPE              ((PCHAR) "audio/mulaw")
 #define MKV_AVC_CONTENT_TYPE                ((PCHAR) "video/avc")
 #define MKV_HEVC_CONTENT_TYPE               ((PCHAR) "video/hevc")
 #define MKV_H264_AAC_MULTI_CONTENT_TYPE     ((PCHAR) "video/h264,audio/aac")
@@ -156,7 +157,7 @@ extern "C" {
  */
 #define MKV_FOURCC_CODEC_ID                 ((PCHAR) "V_MS/VFW/FOURCC")
 #define MKV_H264_AVC_CODEC_ID               ((PCHAR) "V_MPEG4/ISO/AVC")
-#define MKV_H265_HEVC_CODEC_ID              ((PCHAR) "V_MPEG4/ISO/AP")
+#define MKV_H265_HEVC_CODEC_ID              ((PCHAR) "V_MPEGH/ISO/HEVC")
 #define MKV_AAC_MPEG4_MAIN_CODEC_ID         ((PCHAR) "A_AAC/MPEG4/MAIN")
 #define MKV_AAC_CODEC_ID                    ((PCHAR) "A_AAC")
 

@@ -25,7 +25,7 @@ STATUS createContinuousRetryStreamCallbacks(PClientCallbacks pCallbacksProvider,
     pContinuousRetryStreamCallbacks->pCallbacksProvider = (PCallbacksProvider) pCallbacksProvider;
 
     // Create the mapping table
-    CHK_STATUS(hashTableCreate(&pContinuousRetryStreamCallbacks->pStreamMapping));
+    CHK_STATUS(hashTableCreateWithParams(STREAM_MAPPING_HASH_TABLE_BUCKET_COUNT, STREAM_MAPPING_HASH_TABLE_BUCKET_LENGTH, &pContinuousRetryStreamCallbacks->pStreamMapping));
 
     // Create the guard locks
     pContinuousRetryStreamCallbacks->mappingLock = pContinuousRetryStreamCallbacks->pCallbacksProvider->clientCallbacks.createMutexFn(

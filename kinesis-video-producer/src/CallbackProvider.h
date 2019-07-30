@@ -549,6 +549,8 @@ public:
     */
     virtual ClientShutdownFunc getClientShutdownCallback();
 
+    virtual ~CallbackProvider() {}
+
 protected:
     callback_t callbacks_;
 };

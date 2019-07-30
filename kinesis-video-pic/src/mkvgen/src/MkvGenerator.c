@@ -894,6 +894,11 @@ MKV_CONTENT_TYPE mkvgenGetContentTypeFromContentTypeTokenString(PCHAR contentTyp
         return MKV_CONTENT_TYPE_ALAW;
     }
 
+    typeStrLen = (UINT32) STRLEN(MKV_MULAW_CONTENT_TYPE);
+    if ((typeStrLen == tokenLen) && (0 == STRNCMP(contentTypeToken, MKV_MULAW_CONTENT_TYPE, tokenLen))) {
+        return MKV_CONTENT_TYPE_MULAW;
+    }
+
     typeStrLen = (UINT32) STRLEN(MKV_H265_CONTENT_TYPE);
     if ((typeStrLen == tokenLen) && (0 == STRNCMP(contentTypeToken, MKV_H265_CONTENT_TYPE, tokenLen))) {
         return MKV_CONTENT_TYPE_H265;
@@ -1613,6 +1618,7 @@ STATUS getAudioConfigFromAmsAcmCpd(PBYTE pCpd,
     STATUS retStatus = STATUS_SUCCESS;
     UINT16 channelCount = 0, bitDepth = 0, formatCode = 0;
     UINT32 samplingFrequency = 0;
+    volatile DOUBLE samplingFrequencyDouble = 0;
 
     CHK(pSamplingFrequency != NULL && pChannelCount != NULL && pBitDepth != NULL && pCpd != NULL, STATUS_NULL_ARG);
     CHK(cpdSize >= MIN_AMS_ACM_CPD_SIZE, STATUS_MKV_INVALID_AMS_ACM_CPD);
@@ -1641,8 +1647,12 @@ STATUS getAudioConfigFromAmsAcmCpd(PBYTE pCpd,
         bitDepth = (UINT16) SWAP_INT16(bitDepth);
     }
 
-    CHK(formatCode == (UINT16) MKV_WAV_FORMAT_ALAW, STATUS_MKV_INVALID_AMS_ACM_CPD);
-    *pSamplingFrequency = (DOUBLE) samplingFrequency;
+    CHK(formatCode == (UINT16) MKV_WAV_FORMAT_ALAW || formatCode == (UINT16) MKV_WAV_FORMAT_MULAW, STATUS_MKV_INVALID_AMS_ACM_CPD);
+    // Directly castting and assigning samplingFrequency to *pSamplingFrequency can cause bus error on raspberry pi.
+    // Suspecting that it is compiler specific. Similar issue also happened in AckParser.c, processAckValue function,
+    // FRAGMENT_ACK_KEY_NAME_FRAGMENT_TIMECODE case
+    samplingFrequencyDouble = (DOUBLE) samplingFrequency;
+    *pSamplingFrequency = samplingFrequencyDouble;
     *pChannelCount = channelCount;
     *pBitDepth = bitDepth;
 
@@ -1755,7 +1765,7 @@ STATUS mkvgenAdaptCodecPrivateData(PStreamMkvGenerator pMkvGenerator,
                                                                 adaptedCodecPrivateDataSize,
                                                                 &pData->trackAudioConfig.samplingFrequency,
                                                                 &pData->trackAudioConfig.channelConfig);
-            } else if ((pMkvGenerator->contentType & MKV_CONTENT_TYPE_ALAW) != MKV_CONTENT_TYPE_NONE) {
+            } else if ((pMkvGenerator->contentType & (MKV_CONTENT_TYPE_ALAW | MKV_CONTENT_TYPE_MULAW)) != MKV_CONTENT_TYPE_NONE) {
                 retStatus = getAudioConfigFromAmsAcmCpd(pCpd,
                                                         adaptedCodecPrivateDataSize,
                                                         &pData->trackAudioConfig.samplingFrequency,

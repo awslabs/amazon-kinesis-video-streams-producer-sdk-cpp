@@ -461,6 +461,8 @@ typedef CID*                PCID;
 #define STATUS_CANCEL_THREAD_FAILED                 STATUS_BASE + 0x00000019
 #define STATUS_THREAD_IS_NOT_JOINABLE               STATUS_BASE + 0x0000001a
 #define STATUS_DETACH_THREAD_FAILED                 STATUS_BASE + 0x0000001b
+#define STATUS_THREAD_ATTR_INIT_FAILED              STATUS_BASE + 0x0000001c
+#define STATUS_THREAD_ATTR_SET_STACK_SIZE_FAILED    STATUS_BASE + 0x0000001d
 
 #include <stdlib.h>
 #include <string.h>

@@ -37,6 +37,8 @@ public:
     virtual const std::string getCertPath() {
         return "";
     }
+
+    virtual ~DeviceInfoProvider() {}
 };
 
 } // namespace video

@@ -1,8 +1,8 @@
 /**
  * Kinesis Video Producer Static Auth Callbacks
  */
-#include "Include_i.h"
 #define LOG_CLASS "StaticAuthCallbacks"
+#include "Include_i.h"
 
 /**
  * Creates Static Auth callbacks

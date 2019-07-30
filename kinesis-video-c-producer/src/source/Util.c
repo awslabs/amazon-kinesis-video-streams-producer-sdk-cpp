@@ -60,7 +60,7 @@ STATUS convertTimestampToEpoch(PCHAR expirationTimestampStr, UINT64 nowTime, PUI
             ioTExpiration.tm_min < 60 && ioTExpiration.tm_min >= 0 &&
             ioTExpiration.tm_sec < 61 && ioTExpiration.tm_sec >= 0, STATUS_IOT_EXPIRATION_PARSING_FAILED);
 
-    DLOGD("Expiration timestamp conversion into tm structure  %d-%d-%dT%d:%d:%d",
+    DLOGV("Expiration timestamp conversion into tm structure  %d-%d-%dT%d:%d:%d",
           ioTExpiration.tm_year,
           ioTExpiration.tm_mon,
           ioTExpiration.tm_mday,

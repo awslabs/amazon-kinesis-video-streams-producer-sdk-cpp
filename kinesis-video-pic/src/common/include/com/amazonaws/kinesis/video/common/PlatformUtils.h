@@ -11,8 +11,8 @@ extern "C" {
 #pragma once
 
 // Tag for the logging
-#ifndef LOG_TAG
-#define LOG_TAG "platform-utils"
+#ifndef LOG_CLASS
+#define LOG_CLASS "platform-utils"
 #endif
 
 // Log print function definition
@@ -49,19 +49,19 @@ extern logPrintFunc globalCustomLogPrintFn;
 
 // Extra logging macros
 #ifndef DLOGE
-#define DLOGE(fmt, ...) __LOG(LOG_LEVEL_ERROR, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGE(fmt, ...) __LOG(LOG_LEVEL_ERROR, (PCHAR) LOG_CLASS, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef DLOGW
-#define DLOGW(fmt, ...) __LOG(LOG_LEVEL_WARN, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGW(fmt, ...) __LOG(LOG_LEVEL_WARN, (PCHAR) LOG_CLASS, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef DLOGI
-#define DLOGI(fmt, ...) __LOG(LOG_LEVEL_INFO, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGI(fmt, ...) __LOG(LOG_LEVEL_INFO, (PCHAR) LOG_CLASS, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef DLOGD
-#define DLOGD(fmt, ...) __LOG(LOG_LEVEL_DEBUG, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGD(fmt, ...) __LOG(LOG_LEVEL_DEBUG, (PCHAR) LOG_CLASS, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef DLOGV
-#define DLOGV(fmt, ...) __LOG(LOG_LEVEL_VERBOSE, (PCHAR) LOG_TAG, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
+#define DLOGV(fmt, ...) __LOG(LOG_LEVEL_VERBOSE, (PCHAR) LOG_CLASS, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef ENTER
 #define ENTER() DLOGV("Enter")
@@ -96,26 +96,26 @@ extern logPrintFunc globalCustomLogPrintFn;
 #ifndef LOG_ALWAYS_FATAL_IF
 #define LOG_ALWAYS_FATAL_IF(cond, ...) \
     ( (CONDITION(cond)) \
-    ? ((void)__ASSERT(FALSE, (PCHAR) LOG_TAG, ## __VA_ARGS__)) \
+    ? ((void)__ASSERT(FALSE, (PCHAR) LOG_CLASS, ## __VA_ARGS__)) \
     : (void) 0 )
 #endif
 
 #ifndef LOG_ALWAYS_FATAL
 #define LOG_ALWAYS_FATAL(...) \
-    ( ((void)__ASSERT(FALSE, (PCHAR) LOG_TAG, ## __VA_ARGS__)) )
+    ( ((void)__ASSERT(FALSE, (PCHAR) LOG_CLASS, ## __VA_ARGS__)) )
 #endif
 
 #ifndef SANITIZED_FILE
 #define SANITIZED_FILE (STRRCHR(__FILE__, '/') ? STRRCHR(__FILE__, '/') + 1 : __FILE__)
 #endif
 #ifndef CRASH
-#define CRASH(fmt, ...) LOG_ALWAYS_FATAL("%s::%s: " fmt, (PCHAR) LOG_TAG, __FUNCTION__, ##__VA_ARGS__)
+#define CRASH(fmt, ...) LOG_ALWAYS_FATAL("%s::%s: " fmt, (PCHAR) LOG_CLASS, __FUNCTION__, ##__VA_ARGS__)
 #endif
 #ifndef CHECK
-#define CHECK(x) LOG_ALWAYS_FATAL_IF(!(x), "%s::%s: ASSERTION FAILED at %s:%d: " #x, (PCHAR) LOG_TAG, __FUNCTION__, SANITIZED_FILE, __LINE__)
+#define CHECK(x) LOG_ALWAYS_FATAL_IF(!(x), "%s::%s: ASSERTION FAILED at %s:%d: " #x, (PCHAR) LOG_CLASS, __FUNCTION__, SANITIZED_FILE, __LINE__)
 #endif
 #ifndef CHECK_EXT
-#define CHECK_EXT(x, fmt, ...) LOG_ALWAYS_FATAL_IF(!(x), "%s::%s: ASSERTION FAILED at %s:%d: " fmt, (PCHAR) LOG_TAG, __FUNCTION__, SANITIZED_FILE, __LINE__, ##__VA_ARGS__)
+#define CHECK_EXT(x, fmt, ...) LOG_ALWAYS_FATAL_IF(!(x), "%s::%s: ASSERTION FAILED at %s:%d: " fmt, (PCHAR) LOG_CLASS, __FUNCTION__, SANITIZED_FILE, __LINE__, ##__VA_ARGS__)
 #endif
 
 #ifdef __cplusplus

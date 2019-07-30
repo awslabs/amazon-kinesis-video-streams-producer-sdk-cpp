@@ -320,7 +320,7 @@ STATUS getKinesisVideoMetrics(CLIENT_HANDLE clientHandle, PClientMetrics pKinesi
     UINT32 i, viewAllocationSize;
     PKinesisVideoClient pKinesisVideoClient = FROM_CLIENT_HANDLE(clientHandle);
 
-    DLOGI("Get the memory metrics size.");
+    DLOGV("Get the memory metrics size.");
 
     CHK(pKinesisVideoClient != NULL && pKinesisVideoMetrics != NULL, STATUS_NULL_ARG);
     CHK(pKinesisVideoMetrics->version <= CLIENT_METRICS_CURRENT_VERSION, STATUS_INVALID_CLIENT_METRICS_VERSION);

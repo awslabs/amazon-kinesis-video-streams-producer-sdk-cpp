@@ -314,6 +314,8 @@ TEST_F(StoIFunctionalityTest, PreceedingZerosWithSign) {
     EXPECT_EQ(0, ui32);
 }
 
+#if !defined(__MINGW64__) && !defined(__MINGW32__)
+
 TEST_F(StoIFunctionalityTest, CheckLimits) {
     UINT64 ui64;
     INT64 i64;
@@ -340,3 +342,5 @@ TEST_F(StoIFunctionalityTest, CheckLimits) {
     EXPECT_EQ(STATUS_SUCCESS, STRTOI64(s6, NULL, 16, &i64));
     EXPECT_EQ(-9223372036854775807LL - 1, i64);
 }
+
+#endif

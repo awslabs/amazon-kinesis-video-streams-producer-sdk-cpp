@@ -19,7 +19,7 @@ extern "C" {
 #pragma pack(push, include_i, 1) // for byte alignment
 
 ////////////////////////////////////////////////////
-// Packager verion
+// Packager version
 //
 // IMPORTANT!!! Update the version when modifying
 // the packaging bits.
@@ -307,6 +307,7 @@ typedef enum {
     MKV_CONTENT_TYPE_X_MKV_AUDIO = (1 << 4),
     MKV_CONTENT_TYPE_AAC = (1 << 5),
     MKV_CONTENT_TYPE_ALAW = (1 << 6),
+    MKV_CONTENT_TYPE_MULAW = (1 << 7),
     MKV_CONTENT_TYPE_H264_H265 = (MKV_CONTENT_TYPE_H264 | MKV_CONTENT_TYPE_H265),
 } MKV_CONTENT_TYPE, *PMKV_CONTENT_TYPE;
 

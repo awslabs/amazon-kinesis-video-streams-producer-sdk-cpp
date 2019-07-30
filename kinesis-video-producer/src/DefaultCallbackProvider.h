@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "com/amazonaws/kinesis/video/cproducer/Include.h"
 #include "CallbackProvider.h"
 #include "ClientCallbackProvider.h"
 #include "StreamCallbackProvider.h"

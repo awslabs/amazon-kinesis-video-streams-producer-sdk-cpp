@@ -279,7 +279,7 @@ STATUS contentViewRollbackCurrent(PContentView pContentView, UINT64 duration, BO
     // Get the timestamp of the current
     curIndex = lastIndex = pRollingView->current;
     pCurrent = GET_VIEW_ITEM_FROM_INDEX(pRollingView, curIndex);
-    timestamp = pCurrent->timestamp;
+    timestamp = pCurrent->ackTimestamp;
 
     while (TRUE) {
         pCurrent = GET_VIEW_ITEM_FROM_INDEX(pRollingView, curIndex);
@@ -299,7 +299,7 @@ STATUS contentViewRollbackCurrent(PContentView pContentView, UINT64 duration, BO
 
             // If we have the current item with timestamp and duration
             // earlier than the specified timestamp then we terminate
-            if (pCurrent->timestamp + duration <= timestamp) {
+            if (pCurrent->ackTimestamp + duration <= timestamp) {
                 break;
             }
 
@@ -515,7 +515,7 @@ STATUS contentViewCheckAvailability(PContentView pContentView, PBOOL pCurrentAva
 
         // Check for the item count and duration limits
         if (pRollingView->head - pRollingView->tail >= pRollingView->itemBufferCount ||
-            pHead->timestamp + pHead->duration - pTail->timestamp >= pRollingView->bufferDuration) {
+            pHead->ackTimestamp + pHead->duration - pTail->ackTimestamp >= pRollingView->bufferDuration) {
             windowAvailability = FALSE;
             // Check the current
             if (pRollingView->current <= pRollingView->tail) {
@@ -639,11 +639,11 @@ STATUS contentViewGetWindowDuration(PContentView pContentView, PUINT64 pCurrentD
     pTail = GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->tail);
     pCurrent = GET_VIEW_ITEM_FROM_INDEX(pRollingView, pRollingView->current);
 
-    windowDuration = pHead->timestamp + pHead->duration - pTail->timestamp;
+    windowDuration = pHead->ackTimestamp + pHead->duration - pTail->ackTimestamp;
 
     // Check if current is at head and if so early return
     CHK(pRollingView->head != pRollingView->current, STATUS_SUCCESS);
-    currentDuration = pHead->timestamp + pHead->duration - pCurrent->timestamp;
+    currentDuration = pHead->ackTimestamp + pHead->duration - pCurrent->ackTimestamp;
 
 CleanUp:
 

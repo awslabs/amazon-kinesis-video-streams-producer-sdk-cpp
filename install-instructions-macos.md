@@ -219,13 +219,13 @@ AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./ki
 ##### Using Docker to run the sample application
 Refer the **README.md** file in the  *docker_native_scripts* folder for running the build and **RTSP sample application** to start streaming from **IP camera** within Docker container.
 
-### How to run sample applications for sending H264 video files to KVS 
- 
+### How to run sample applications for sending H264 video files to KVS
+
 The sample application `kinesis_video_cproducer_video_only_sample` sends h264  video frames inside the folder `kinesis-video-c-producer/samples/h264SampleFrames` to KVS.
-The following command sends the video frames in a loop for ten seconds to KVS. 
+The following command sends the video frames in a loop for ten seconds to KVS.
 you can run `./kinesis_video_cproducer_video_only_sample YourStreamName 10`
 `./kinesis_video_cproducer_video_only_sample YourStreamName 10`
- 
+
 If you want to send H264 files from another folder (`MyH264FramesFolder`) you can run the sample with the following arguments
 `./kinesis_video_cproducer_video_only_sample YourStreamName 10 MyH264FramesFolder`
 
@@ -240,17 +240,17 @@ For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Vid
 
 ##### Running C++ Unit tests
 
-**Note:** Please set the [credentials](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/install-instructions-macos.md#setting-credentials-in-environment-variables) before running the unit tests. 
+**Note:** Please set the [credentials](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/install-instructions-macos.md#setting-credentials-in-environment-variables) before running the unit tests.
 
 The executable for **unit tests** will be built as `./producer_test` inside the `kinesis-video-native-build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
 
 ##### Running C unit tests
 
-The executable for **unit tests** will be built as `./cproducer_test` inside the `kinesis-video-native-build` directory. 
+The executable for **unit tests** will be built as `./cproducer_test` inside the `kinesis-video-native-build` directory.
 
 ##### Running PIC unit tests
 
-The executable for **unit tests** will be built as `./pic_test` inside the `kinesis-video-native-build` directory. 
+The executable for **unit tests** will be built as `./pic_test` inside the `kinesis-video-native-build` directory.
 
 
 ##### Enabling verbose logs
@@ -265,6 +265,22 @@ Refer sample configuration in the folder `kinesis-video-native-build` for detail
 * Log output messages to console:
   By default, the log configuration `log4cplus.rootLogger=DEBUG, KvsConsoleAppender` creates console appender (KvsConsoleAppender) which outputs the log messages in the console.
 * Log output messages to file: By adding file appender (KvsFileAppender) in the _rootLogger_ of log4cplus as `log4cplus.rootLogger=DEBUG, KvsConsoleAppender, KvsFileAppender` the debug messages will be stored in `kvs.log` file in the sub-folder `log` within `kinesis-video-native-build` directory.  The filename for the logs and the location can be modified by changing the line `log4cplus.appender.KvsFileAppender.File=./log/kvs.log`
+
+----
+#####  How to enable saving c producer log into files.
+
+By default C producer prints all logging information to stdout.
+
+To send log information to a file (named kvsProducerLog.index), you need to use the addFileLoggerPlatformCallbacksProvider API after ClientCallbacks has been initialized.
+
+The addFileLoggerPlatformCallbacksProvider API takes five parameters.
+
+* First parameter is the PClientCallbacks that is created during the createCallback provider API (e.g.createDefaultCallbacksProviderWithAuthCallbacks.
+* Second parameter is the size of string buffer that file logger will use. Logs are buffered in the string buffer and flushed into files when the buffer is full.
+* Third parameter is the maximum number of files that file logger will generate. When the limit is reached, oldest log file will be deleted before creating the new one.
+* Fourth parameter is the absolute directory path to store the log file.
+* Fifth parameter uses boolean true or false and is used to allow printing logs to both stdout and a file (useful in debugging).
+
 
 ----
 #### Troubleshooting:

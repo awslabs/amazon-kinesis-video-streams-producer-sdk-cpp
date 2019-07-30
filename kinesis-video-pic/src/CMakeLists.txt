@@ -17,6 +17,7 @@ function(kinesis_video_library_setup LIBRARY_NAME)
     $<INSTALL_INTERFACE:include>)
 
   if ((NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.4.6"))
+      set(CMAKE_CXX_STANDARD 11)
       add_subdirectory(tst)
   endif()
 endfunction(kinesis_video_library_setup)

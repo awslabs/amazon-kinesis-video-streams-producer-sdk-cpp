@@ -1607,3 +1607,71 @@ TEST_F(MkvgenApiFunctionalityTest, mkvgenExtractCpd_Variations)
     // Free the generator
     EXPECT_EQ(STATUS_SUCCESS, freeMkvGenerator(pMkvGenerator));
 }
+
+TEST_F(MkvgenApiFunctionalityTest, mkvgenExtractCpd_G711Alaw)
+{
+    BYTE alawCpd[] = {0x06, 0x00, 0x01, 0x00, 0x40, 0x1f, 0x00, 0x00, 0x80, 0x3e, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, 0x00, 0x00};
+    TrackInfo trackInfo;
+    PMkvGenerator pMkvGenerator;
+    PStreamMkvGenerator pStreamMkvGenerator;
+
+    trackInfo.trackType = MKV_TRACK_INFO_TYPE_AUDIO;
+    trackInfo.version = TRACK_INFO_CURRENT_VERSION;
+    trackInfo.codecPrivateDataSize = SIZEOF(alawCpd);
+    trackInfo.codecPrivateData = alawCpd;
+    trackInfo.trackId = 1;
+    STRCPY(trackInfo.codecId, (PCHAR) "audio/teststream");
+    STRCPY(trackInfo.trackName, MKV_TEST_TRACK_NAME);
+
+    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_ALAW_CONTENT_TYPE,
+                                                 MKV_TEST_BEHAVIOR_FLAGS,
+                                                 MKV_TEST_TIMECODE_SCALE,
+                                                 MKV_TEST_CLUSTER_DURATION,
+                                                 MKV_TEST_SEGMENT_UUID,
+                                                 &trackInfo,
+                                                 1,
+                                                 MKV_TEST_CLIENT_ID,
+                                                 NULL,
+                                                 0,
+                                                 &pMkvGenerator));
+
+    pStreamMkvGenerator = (PStreamMkvGenerator) pMkvGenerator;
+    EXPECT_TRUE((DOUBLE) 8000 == pStreamMkvGenerator->trackInfoList->trackCustomData.trackAudioConfig.samplingFrequency);
+    EXPECT_EQ(1, pStreamMkvGenerator->trackInfoList->trackCustomData.trackAudioConfig.channelConfig);
+    EXPECT_EQ(16, pStreamMkvGenerator->trackInfoList->trackCustomData.trackAudioConfig.bitDepth);
+    EXPECT_EQ(STATUS_SUCCESS, freeMkvGenerator(pMkvGenerator));
+}
+
+TEST_F(MkvgenApiFunctionalityTest, mkvgenExtractCpd_G711Mulaw)
+{
+    BYTE alawCpd[] = {0x07, 0x00, 0x01, 0x00, 0x40, 0x1f, 0x00, 0x00, 0x40, 0x1f, 0x00, 0x00, 0x01, 0x00, 0x08, 0x00, 0x00, 0x00};
+    TrackInfo trackInfo;
+    PMkvGenerator pMkvGenerator;
+    PStreamMkvGenerator pStreamMkvGenerator;
+
+    trackInfo.trackType = MKV_TRACK_INFO_TYPE_AUDIO;
+    trackInfo.version = TRACK_INFO_CURRENT_VERSION;
+    trackInfo.codecPrivateDataSize = SIZEOF(alawCpd);
+    trackInfo.codecPrivateData = alawCpd;
+    trackInfo.trackId = 1;
+    STRCPY(trackInfo.codecId, (PCHAR) "audio/teststream");
+    STRCPY(trackInfo.trackName, MKV_TEST_TRACK_NAME);
+
+    EXPECT_EQ(STATUS_SUCCESS, createMkvGenerator(MKV_MULAW_CONTENT_TYPE,
+                                                 MKV_TEST_BEHAVIOR_FLAGS,
+                                                 MKV_TEST_TIMECODE_SCALE,
+                                                 MKV_TEST_CLUSTER_DURATION,
+                                                 MKV_TEST_SEGMENT_UUID,
+                                                 &trackInfo,
+                                                 1,
+                                                 MKV_TEST_CLIENT_ID,
+                                                 NULL,
+                                                 0,
+                                                 &pMkvGenerator));
+
+    pStreamMkvGenerator = (PStreamMkvGenerator) pMkvGenerator;
+    EXPECT_TRUE((DOUBLE) 8000 == pStreamMkvGenerator->trackInfoList->trackCustomData.trackAudioConfig.samplingFrequency);
+    EXPECT_EQ(1, pStreamMkvGenerator->trackInfoList->trackCustomData.trackAudioConfig.channelConfig);
+    EXPECT_EQ(8, pStreamMkvGenerator->trackInfoList->trackCustomData.trackAudioConfig.bitDepth);
+    EXPECT_EQ(STATUS_SUCCESS, freeMkvGenerator(pMkvGenerator));
+}

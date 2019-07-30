@@ -43,7 +43,7 @@ using namespace com::amazonaws::kinesis::video;
 
 G_BEGIN_DECLS
 
-#define KVS_GST_VERSION "1.0"
+#define KVS_GST_VERSION AWS_SDK_KVS_PRODUCER_VERSION_STRING
 
 #define GST_TYPE_KVS_SINK \
   (gst_kvs_sink_get_type())

@@ -593,6 +593,7 @@ STATUS executeReadyStreamState(UINT64 customData, UINT64 time)
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoStream pKinesisVideoStream = STREAM_FROM_CUSTOM_DATA(customData);
     PKinesisVideoClient pKinesisVideoClient = NULL;
+    UINT64 duration, viewByteSize;
 
     CHK(pKinesisVideoStream != NULL, STATUS_NULL_ARG);
 
@@ -610,9 +611,13 @@ STATUS executeReadyStreamState(UINT64 customData, UINT64 time)
         pKinesisVideoClient->clientCallbacks.customData,
         TO_STREAM_HANDLE(pKinesisVideoStream)));
 
+    // Get the duration and the size. If there is stuff to send then also trigger PutStream
+    CHK_STATUS(getAvailableViewSize(pKinesisVideoStream, &duration, &viewByteSize));
+
     // Check if we need to also call put stream API
     if (pKinesisVideoStream->streamState == STREAM_STATE_READY ||
-        pKinesisVideoStream->streamState == STREAM_STATE_STOPPED) {
+        pKinesisVideoStream->streamState == STREAM_STATE_STOPPED ||
+        viewByteSize != 0) {
         // Step the state machine to automatically invoke the PutStream API
         CHK_STATUS(stepStateMachine(pKinesisVideoStream->base.pStateMachine));
     }

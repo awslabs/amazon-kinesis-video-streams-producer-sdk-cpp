@@ -183,3 +183,28 @@ gst-launch-1.0 -v ksvideosrc ! videoconvert ! x264enc bframes=0 key-int-max=45 b
 ```
 gst-launch-1.0 -v ksvideosrc ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name=stream-name access-key=YOUR_ACCESS_KEY secret-key=YOUR_SECRET_ACCESS_KEY_ID wasapisrc device="\{0.0.1.00000000\}.\{f1245929-0c97-4389-9c28-1ca9cb01576b\}" ! audioconvert ! avenc_aac ! queue ! sink.
 ```
+
+----
+#####  How to configure logging for producer SDK sample applications.
+
+For the sample applications included in the producer SDK (CPP), the log configuration is referred from the file  `kvs_log_configuration` (within the `kinesis-video-native-build` folder).
+
+Refer sample configuration in the folder `kinesis-video-native-build` for details on how to set the log level (DEBUG or INFO) and output options (whether to send log output to either console or file (or both)).
+* Log output messages to console:
+  By default, the log configuration `log4cplus.rootLogger=DEBUG, KvsConsoleAppender` creates console appender (KvsConsoleAppender) which outputs the log messages in the console.
+* Log output messages to file: By adding file appender (KvsFileAppender) in the _rootLogger_ of log4cplus as `log4cplus.rootLogger=DEBUG, KvsConsoleAppender, KvsFileAppender` the debug messages will be stored in `kvs.log` file in the sub-folder `log` within `kinesis-video-native-build` directory.  The filename for the logs and the location can be modified by changing the line `log4cplus.appender.KvsFileAppender.File=./log/kvs.log`
+
+----
+#####  How to enable saving c producer log into files.
+
+By default C producer prints all logging information to stdout.
+
+To send log information to a file (named kvsProducerLog.index), you need to use the addFileLoggerPlatformCallbacksProvider API after ClientCallbacks has been initialized.
+
+The addFileLoggerPlatformCallbacksProvider API takes five parameters.
+
+* First parameter is the PClientCallbacks that is created during the createCallback provider API (e.g.createDefaultCallbacksProviderWithAuthCallbacks.
+* Second parameter is the size of string buffer that file logger will use. Logs are buffered in the string buffer and flushed into files when the buffer is full.
+* Third parameter is the maximum number of files that file logger will generate. When the limit is reached, oldest log file will be deleted before creating the new one.
+* Fourth parameter is the absolute directory path to store the log file.
+* Fifth parameter uses boolean true or false and is used to allow printing logs to both stdout and a file (useful in debugging).

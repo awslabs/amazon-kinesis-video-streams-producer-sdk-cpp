@@ -16,9 +16,9 @@ STATUS getUserAgentString(PCHAR userAgentName, PCHAR customUserAgent, UINT32 len
     CHK(pUserAgent != NULL, STATUS_NULL_ARG);
     CHK(len <= MAX_USER_AGENT_LEN, STATUS_INVALID_USER_AGENT_LENGTH);
 
-    CHK_STATUS(GET_OS_VERSION(osVer, SIZEOF(osVer) / SIZEOF(CHAR)));
-    CHK_STATUS(GET_PLATFORM_NAME(platformName, SIZEOF(platformName) / SIZEOF(CHAR)));
-    CHK_STATUS(GET_COMPILER_INFO(compilerInfo, SIZEOF(compilerInfo) / SIZEOF(CHAR)));
+    CHK_STATUS(GET_OS_VERSION(osVer, ARRAY_SIZE(osVer)));
+    CHK_STATUS(GET_PLATFORM_NAME(platformName, ARRAY_SIZE(platformName)));
+    CHK_STATUS(GET_COMPILER_INFO(compilerInfo, ARRAY_SIZE(compilerInfo)));
 
     // Both the custom agent and the postfix are optional
     if (userAgentName == NULL || userAgentName[0] == '\0') {

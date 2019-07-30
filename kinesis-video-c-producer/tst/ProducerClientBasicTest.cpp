@@ -30,6 +30,7 @@ PVOID ProducerClientTestBase::basicProducerRoutine(STREAM_HANDLE streamHandle, S
     UINT64 timestamp = GETTIME();
     Frame frame;
     std::string persistentMetadataName;
+    TID tid = GETTID();
 
     PStreamInfo pStreamInfo;
     EXPECT_EQ(STATUS_SUCCESS, kinesisVideoStreamGetStreamInfo(streamHandle, &pStreamInfo));
@@ -75,9 +76,9 @@ PVOID ProducerClientTestBase::basicProducerRoutine(STREAM_HANDLE streamHandle, S
         // Key frame every 50th
         frame.flags = (frame.index % TEST_KEY_FRAME_INTERVAL == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
 
-        DLOGD("Putting frame for stream: %s, TID: 0x%016x, Id: %llu, Key Frame: %s, Size: %u, Dts: %llu, Pts: %llu",
+        DLOGD("Putting frame for stream: %s, TID: 0x%" PRIx64 ", Id: %u, Key Frame: %s, Size: %u, Dts: %" PRIu64 ", Pts: %" PRIu64,
               pStreamInfo->name,
-              GETTID(),
+              tid,
               frame.index,
               (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false"),
               frame.size,
@@ -440,6 +441,80 @@ TEST_F(ProducerClientBasicTest, createStreamStreamUntilTokenRotationStopSyncFree
                                                                    NULL,
                                                                    NULL,
                                                                    &pClientCallbacks));
+
+    UINT64 expiration = currentTime + TEST_STREAMING_TOKEN_DURATION;
+
+    EXPECT_EQ(STATUS_SUCCESS, createRotatingStaticAuthCallbacks(pClientCallbacks,
+                                                                mAccessKey,
+                                                                mSecretKey,
+                                                                mSessionToken,
+                                                                expiration,
+                                                                TEST_STREAMING_TOKEN_DURATION,
+                                                                &pAuthCallbacks));
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(pDeviceInfo, pClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStreamSync(clientHandle, pStreamInfo, &streamHandle));
+
+    while(currentTime < stopTime) {
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &frame));
+        THREAD_SLEEP(TEST_FRAME_DURATION);
+        frame.index++;
+        frame.decodingTs += TEST_FRAME_DURATION;
+        frame.presentationTs = frame.decodingTs;
+        frame.flags = frame.index % TEST_FPS == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+        currentTime = GETTIME();
+    }
+
+    EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStreamSync(streamHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoStream(&streamHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeDeviceInfo(&pDeviceInfo));
+    EXPECT_EQ(STATUS_SUCCESS, freeStreamInfoProvider(&pStreamInfo));
+    EXPECT_EQ(STATUS_SUCCESS, freeCallbacksProvider(&pClientCallbacks));
+}
+
+TEST_F(ProducerClientBasicTest, createStreamStreamUntilTokenRotationStopSyncFreeWithFileLogger)
+{
+    PDeviceInfo pDeviceInfo;
+    PClientCallbacks pClientCallbacks;
+    CLIENT_HANDLE clientHandle;
+    STREAM_HANDLE streamHandle;
+    PStreamInfo pStreamInfo;
+    PAuthCallbacks pAuthCallbacks = NULL;
+    CHAR streamName[MAX_STREAM_NAME_LEN + 1];
+    Frame frame;
+    UINT32 i;
+    UINT64 currentTime = GETTIME();
+    UINT64 stopTime = currentTime +
+                      TEST_STREAMING_TOKEN_DURATION +
+                      10 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+
+    frame.version = FRAME_CURRENT_VERSION;
+    frame.duration = TEST_FRAME_DURATION;
+    frame.frameData = mFrameBuffer;
+    frame.trackId = DEFAULT_VIDEO_TRACK_ID;
+    frame.index = 0;
+    frame.decodingTs = 0;
+    frame.presentationTs = 0;
+    frame.size = SIZEOF(mFrameBuffer);
+    frame.flags = FRAME_FLAG_KEY_FRAME;
+
+    STRNCPY(streamName, (PCHAR) TEST_STREAM_NAME, MAX_STREAM_NAME_LEN);
+    streamName[MAX_STREAM_NAME_LEN] = '\0';
+    EXPECT_EQ(STATUS_SUCCESS, createDefaultDeviceInfo(&pDeviceInfo));
+    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    EXPECT_EQ(STATUS_SUCCESS, createRealtimeVideoStreamInfoProvider(streamName, TEST_RETENTION_PERIOD, TEST_STREAM_BUFFER_DURATION, &pStreamInfo));
+    pStreamInfo->streamCaps.nalAdaptationFlags = NAL_ADAPTATION_FLAG_NONE;
+    EXPECT_EQ(STATUS_SUCCESS, createAbstractDefaultCallbacksProvider(TEST_DEFAULT_CHAIN_COUNT,
+                                                                     FALSE,
+                                                                     TEST_CACHING_ENDPOINT_PERIOD,
+                                                                     mRegion,
+                                                                     TEST_CONTROL_PLANE_URI,
+                                                                     mCaCertPath,
+                                                                     NULL,
+                                                                     NULL,
+                                                                     &pClientCallbacks));
+    EXPECT_EQ(STATUS_SUCCESS, addFileLoggerPlatformCallbacksProvider(pClientCallbacks, 100*1024, 3, (PCHAR) "/tmp", TRUE));
 
     UINT64 expiration = currentTime + TEST_STREAMING_TOKEN_DURATION;
 

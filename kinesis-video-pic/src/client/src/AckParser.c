@@ -353,7 +353,7 @@ STATUS processAckValue(PFragmentAckParser pFragmentAckParser) {
 
             // Parse the value into a temporary variable. This is odd as the compiler for Arm v7 has an issue
             // in arranging the stack (FASTCALL) and the pointer passed in is being interpreted as the
-            // return address which causes a crash. This is a quick workaround to use a temp variable instread.
+            // return address which causes a crash. This is a quick workaround to use a temp variable instead.
             CHK_STATUS(STRTOUI64(pFragmentAckParser->accumulator, NULL, 10, &value));
             pFragmentAckParser->fragmentAck.timestamp = value;
 

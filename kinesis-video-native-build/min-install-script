@@ -22,9 +22,19 @@ build_gst_artifact=TRUE
 build_jni_only=FALSE
 build_producer=TRUE
 env_var=""
+cmake_args=""
+on_rpi=FALSE
 parse_args $@
 
 setup
+
+# check if we are on raspberry pi. If so then direct user to use min-install-script
+if [[ -e /proc/device-tree/model ]]; then
+    model=$(tr -d '\0' </proc/device-tree/model)
+    if [[ "$model" =~ ^Raspberry ]]; then
+        on_rpi=TRUE
+    fi
+fi
 
 # --------- check platform -----------------------------------------------------
 PLATFORM='unknown'
@@ -200,16 +210,18 @@ if [[ ! -z $env_var ]]; then
   export $env_var
 fi
 
+cmake_args="-DCMAKE_BUILD_TYPE=${build_type} -DUSE_SYS_LIBRARIES=TRUE \
+  -DBUILD_TEST=${build_test} -DBUILD_GST_ARTIFACT=${build_gst_artifact} -DBUILD_PRODUCER=${build_producer} \
+  -DBUILD_JNI=${build_jni_only}"
+
+if [[ $on_rpi == TRUE ]]; then
+  cmake_args="${cmake_args} -DCONSTRAINED_DEVICE=TRUE"
+fi
+
 if [[ "$PLATFORM" == 'mingw' ]]; then
-  cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=${build_type} -DUSE_SYS_LIBRARIES=TRUE \
-  -DBUILD_TEST=${build_test} -DBUILD_GST_ARTIFACT=${build_gst_artifact} -DBUILD_PRODUCER=${build_producer} \
-  -DBUILD_JNI=${build_jni_only} \
-  .
+  cmake -G "MSYS Makefiles" ${cmake_args} .
 else
-  cmake -DCMAKE_BUILD_TYPE=${build_type} -DUSE_SYS_LIBRARIES=TRUE \
-  -DBUILD_TEST=${build_test} -DBUILD_GST_ARTIFACT=${build_gst_artifact} -DBUILD_PRODUCER=${build_producer} \
-  -DBUILD_JNI=${build_jni_only} \
-  .
+  cmake ${cmake_args} .
 fi
 
 make -j ${max_parallel}

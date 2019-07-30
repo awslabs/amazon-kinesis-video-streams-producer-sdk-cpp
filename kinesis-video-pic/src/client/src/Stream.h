@@ -594,15 +594,16 @@ STATUS getAvailableViewSize(PKinesisVideoStream, PUINT64, PUINT64);
  *
  * @param 1 - IN - KVS stream object
  * @param 2 - IN - Size of the overall packaged allocation
+ * @param 3 - OUT - Allocation handle if successfully allocated
  * @return Status code of the operation
  */
-STATUS waitForAvailability(PKinesisVideoStream, UINT32);
+STATUS waitForAvailability(PKinesisVideoStream, UINT32, PALLOCATION_HANDLE);
 
 /**
  * Checks whether space is available in the content store and
  * if there is enough duration available in the content view
  */
-STATUS checkForAvailability(PKinesisVideoStream, UINT32, PBOOL);
+STATUS checkForAvailability(PKinesisVideoStream, UINT32, PALLOCATION_HANDLE);
 
 /**
  * Packages the stream metadata.

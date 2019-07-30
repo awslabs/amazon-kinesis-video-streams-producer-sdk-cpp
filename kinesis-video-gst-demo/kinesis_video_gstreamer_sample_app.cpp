@@ -346,6 +346,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
         gchar *cpd = gst_value_serialize(gstStreamFormat);
         data->kinesis_video_stream->start(std::string(cpd));
+        g_free(cpd);
     }
 
     buffer = gst_sample_get_buffer(sample);

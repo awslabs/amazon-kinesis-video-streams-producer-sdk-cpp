@@ -61,12 +61,31 @@ Please follow the **installation instructions** applicable to your operating sys
 
   [Kinesis Video Producer SDK CPP documentation](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producer-sdk-cpp.html)
 
+  [Kinesis Video C Producer documentation](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producer-sdk-c-api.html)
+
 ### License
 
-This library is licensed under the Apache License, 2.0. 
+This library is licensed under the Apache License, 2.0.
 
 ----
 ### Release notes
+
+#### Release 2.0.1 (25th Jul 2019)
+* C-Producer - Updates
+  * Rotating file logger (small feature).
+  * Validating Stream description returned from Describe stream API call and warning if there is a mismatch.
+  * Additional tests and minor compiler warning fixes.
+* CPP Producer - Updates
+  * Memory leak fix.
+  * Minor header include change.
+  * Test stability fix for RPi.
+* Platform Independent Code - Updates
+  * Enabling put frame calls during async stream creation.
+  * Fixes for memory corruption on 32 bit platforms.
+  * Using PTS for file upload cases where DTS and frame durations are 0.
+  * Fix invalid error ACK timestamp mapping causing rollback/retry logic to issue a warning.
+  * Improved test coverage. More stability for RPi tests.
+* Kinesis Video GStreamer Plugin version matching SDK version.
 
 #### Release 2.0.0 (9th Jul 2019)
 * License update: KVS SDK and GStreamer kvssink plugin are under Apache 2.0 license now.
@@ -87,7 +106,7 @@ This library is licensed under the Apache License, 2.0.
 
 * Please note the following changes if you have customized the SDK for your integration and not using samples directly.
   * Changes to utility functions:
-    * RotatingStaticCredentialProvider is removed from C++ producer. Customer can use StaticCredentialProvider instead. 
+    * RotatingStaticCredentialProvider is removed from C++ producer. Customer can use StaticCredentialProvider instead.
     * CredentialProviderUtil and SerializedCredentials are removed from C++ producer.
   * Following functions are removed from DefaultCallbackProvider: sleepUntilWithTimeCallback, shutdownStream, notifyResult, getControlPlaneUri, safeFreeBuffer, getStreamStatusFromString.
   * Changes to the object model:

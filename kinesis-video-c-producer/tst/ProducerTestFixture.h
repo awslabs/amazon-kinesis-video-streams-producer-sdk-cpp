@@ -47,6 +47,13 @@
 #define TEST_CREATE_PRODUCER_TIMEOUT                            (300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 #define TEST_CREATE_STREAM_TIMEOUT                              (1000 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
+#ifdef _WIN32
+#define TEST_TEMP_DIR_PATH                                      (PCHAR) "C:\\Windows\\Temp\\"
+#define TEST_TEMP_DIR_PATH_NO_ENDING_SEPARTOR                   (PCHAR) "C:\\Windows\\Temp"
+#else
+#define TEST_TEMP_DIR_PATH                                      (PCHAR) "/tmp/"
+#define TEST_TEMP_DIR_PATH_NO_ENDING_SEPARTOR                   (PCHAR) "/tmp"
+#endif
 #define TEST_MAGIC_NUMBER                                       0x1234abcd
 //
 // Set the allocators to the instrumented equivalents

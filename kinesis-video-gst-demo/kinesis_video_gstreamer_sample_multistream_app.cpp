@@ -212,6 +212,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
         auto kvs_stream = data->kinesis_video_stream_handles[stream_handle_key];
         kvs_stream->start(std::string(cpd));
+        g_free(cpd);
     }
 
     GstBuffer *buffer = gst_sample_get_buffer(sample);

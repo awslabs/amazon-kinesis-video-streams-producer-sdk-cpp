@@ -94,7 +94,7 @@ STATUS signCurlRequest(PCurlRequest pCurlRequest)
                                    hmac, &hmacSize));
 
     // Increment the curSize to account for the NULL terminator that's required by the hex encoder
-    hexHmacLen = SIZEOF(hexHmac) / SIZEOF(CHAR);
+    hexHmacLen = ARRAY_SIZE(hexHmac);
     CHK_STATUS(hexEncodeCase(hmac, hmacSize, hexHmac, &hexHmacLen, FALSE));
 
     // set the auth header

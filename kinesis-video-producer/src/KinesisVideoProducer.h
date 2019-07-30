@@ -19,6 +19,8 @@
 #include <mutex>
 #include <iostream>
 
+#include "com/amazonaws/kinesis/video/cproducer/Include.h"
+
 #include "com/amazonaws/kinesis/video/client/Include.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {

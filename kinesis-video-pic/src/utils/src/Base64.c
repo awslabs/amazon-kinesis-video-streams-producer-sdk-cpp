@@ -184,7 +184,7 @@ PUBLIC_API STATUS base64Decode(PCHAR pInputData, PBYTE pOutputData, PUINT32 pOut
 
     // Proceed with the decoding - we should have at least a quad to process in the loop
     if (inputLength >= 4) {
-        for (i = 0; i <= inputLength - 4; i++) {
+        for (i = 0; i <= inputLength - 4; i += 4) {
             b0 = BASE64_DECODE_ALPHA[*pInput++];
             b1 = BASE64_DECODE_ALPHA[*pInput++];
             b2 = BASE64_DECODE_ALPHA[*pInput++];

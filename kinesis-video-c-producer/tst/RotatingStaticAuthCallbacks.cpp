@@ -1,8 +1,8 @@
 /**
  * Kinesis Video Producer Static Auth Callbacks
  */
-#include "ProducerTestFixture.h"
 #define LOG_CLASS "RotatingStaticAuthCallbacks"
+#include "ProducerTestFixture.h"
 
 /**
  * Creates Static Rotating Auth callbacks

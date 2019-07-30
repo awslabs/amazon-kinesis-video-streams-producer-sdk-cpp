@@ -236,10 +236,29 @@ STATUS describeStreamResult(PKinesisVideoStream pKinesisVideoStream, SERVICE_CAL
         CHK(streamDescription.version <= STREAM_DESCRIPTION_CURRENT_VERSION, STATUS_INVALID_STREAM_DESCRIPTION_VERSION);
 
         // Check and store the ARN
-        CHK(streamDescription.streamArn != NULL &&
-            STRNLEN(streamDescription.streamArn, MAX_ARN_LEN + 1) <= MAX_ARN_LEN, STATUS_INVALID_DESCRIBE_STREAM_RESPONSE);
+        CHK(streamDescription.streamArn != NULL && STRNLEN(streamDescription.streamArn, MAX_ARN_LEN + 1) <= MAX_ARN_LEN,
+            STATUS_INVALID_DESCRIBE_STREAM_RESPONSE);
         STRNCPY(pKinesisVideoStream->base.arn, streamDescription.streamArn, MAX_ARN_LEN);
         pKinesisVideoStream->base.arn[MAX_ARN_LEN] = '\0';
+
+        // Check the rest of the values and warn on mismatch
+        // NOTE: We need to compare non-empty KMS keys only as the default is used when none is specified
+        if ((pKinesisVideoStream->streamInfo.kmsKeyId[0] != '\0') &&
+                (0 != STRNCMP(pKinesisVideoStream->streamInfo.kmsKeyId, streamDescription.kmsKeyId, MAX_ARN_LEN))) {
+            DLOGW("KMS key ID returned from the DescribeStream call doesn't match the one specified in the StreamInfo");
+        }
+
+        if (pKinesisVideoStream->streamInfo.retention != streamDescription.retention) {
+            DLOGW("Retention period returned from the DescribeStream call doesn't match the one specified in the StreamInfo");
+        }
+
+        if (0 != STRNCMP(pKinesisVideoStream->streamInfo.streamCaps.contentType, streamDescription.contentType, MAX_CONTENT_TYPE_LEN)) {
+            DLOGW("Content type returned from the DescribeStream call doesn't match the one specified in the StreamInfo");
+        }
+
+        if (0 != STRNCMP(pKinesisVideoStream->streamInfo.name, streamDescription.streamName, MAX_STREAM_NAME_LEN)) {
+            DLOGW("Stream name returned from the DescribeStream call doesn't match the one specified in the StreamInfo");
+        }
 
         // Store the values we need
         pKinesisVideoStream->streamStatus = streamDescription.streamStatus;
@@ -743,7 +762,7 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
             CHK_STATUS(contentViewGetItemAt(pKinesisVideoStream->pView, curIndex, &pViewItem));
         }
 
-        timestamp = pViewItem->timestamp;
+        timestamp = pViewItem->ackTimestamp;
     } else {
         // Calculate the timestamp based on the ACK.
         // Convert the timestamp
@@ -787,7 +806,7 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HA
             if (!inView) {
                 // Apply to the earliest.
                 CHK_STATUS(contentViewGetTail(pKinesisVideoStream->pView, &pViewItem));
-                timestamp = pViewItem->timestamp;
+                timestamp = pViewItem->ackTimestamp;
             }
 
             CHK_STATUS(streamFragmentErrorAck(pKinesisVideoStream, timestamp, pFragmentAck->result));

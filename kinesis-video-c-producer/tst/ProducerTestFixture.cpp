@@ -268,7 +268,7 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mStreamInfo.streamCaps.streamingType = STREAMING_TYPE_REALTIME;
     mStreamInfo.tagCount = 0;
     mStreamInfo.tags = NULL;
-    STRCPY(mStreamInfo.streamCaps.contentType, MKV_AVC_CONTENT_TYPE);
+    STRCPY(mStreamInfo.streamCaps.contentType, MKV_H264_CONTENT_TYPE);
     mStreamInfo.streamCaps.fragmentAcks = TRUE;
     mStreamInfo.streamCaps.nalAdaptationFlags = NAL_ADAPTATION_FLAG_NONE;
     mStreamInfo.streamCaps.segmentUuid = NULL;
@@ -435,8 +435,8 @@ VOID ProducerClientTestBase::updateFrame()
 {
     mFrame.index++;
     mFrame.flags = mFrame.index % mKeyFrameInterval == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
-    mFrame.decodingTs += mFrame.duration;
-    mFrame.presentationTs = mFrame.decodingTs;
+    mFrame.presentationTs += mFrame.duration;
+    mFrame.decodingTs = mFrame.presentationTs;
 }
 
 STATUS ProducerClientTestBase::createTestStream(UINT32 index, STREAMING_TYPE streamingType, UINT32 maxLatency, UINT32 bufferDuration)

@@ -147,6 +147,9 @@ STATUS createStream(PKinesisVideoClient pKinesisVideoClient, PStreamInfo pStream
     pKinesisVideoStream->metadataTracker.send = FALSE;
     pKinesisVideoStream->metadataTracker.data = NULL;
 
+    // initialize streamingAuthInfo expiration
+    pKinesisVideoStream->streamingAuthInfo.expiration = INVALID_TIMESTAMP_VALUE;
+
     // Reset the current view item
     MEMSET(&pKinesisVideoStream->curViewItem, 0x00, SIZEOF(CurrentViewItem));
     pKinesisVideoStream->curViewItem.viewItem.handle = INVALID_ALLOCATION_HANDLE_VALUE;
@@ -708,18 +711,6 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame)
 
     fixupFrame(pFrame);
 
-    // Check if we are in the right state only if we are not in a rotation state
-    if (pKinesisVideoStream->streamState != STREAM_STATE_READY) {
-        CHK_STATUS(acceptStateMachineState(pKinesisVideoStream->base.pStateMachine,
-                                           STREAM_STATE_READY |
-                                           STREAM_STATE_PUT_STREAM |
-                                           STREAM_STATE_TAG_STREAM |
-                                           STREAM_STATE_STREAMING |
-                                           STREAM_STATE_GET_ENDPOINT |
-                                           STREAM_STATE_GET_TOKEN |
-                                           STREAM_STATE_STOPPED));
-    }
-
     // Validate that we are not seeing EoFr explicit marker in a non-key-frame fragmented stream
     if (!pKinesisVideoStream->streamInfo.streamCaps.keyFrameFragmentation) {
         CHK(!CHECK_FRAME_FLAG_END_OF_FRAGMENT(pFrame->flags), STATUS_END_OF_FRAGMENT_FRAME_INVALID_STATE);
@@ -741,7 +732,7 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame)
     }
 
     // NOTE: If the connection has been reset we need to start from a new header
-    if (pKinesisVideoStream->streamState == STREAM_STATE_NEW) {
+    if (pKinesisVideoStream->streamState == STREAM_STATE_NEW && pKinesisVideoStream->streamReady) {
         // Step the state machine once to get out of the Ready state
         CHK_STATUS(stepStateMachine(pKinesisVideoStream->base.pStateMachine));
     }
@@ -812,7 +803,7 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame)
     pKinesisVideoStream->maxFrameSizeSeen = MAX(pKinesisVideoStream->maxFrameSizeSeen, overallSize);
 
     // Might need to block on the availability in the OFFLINE mode
-    CHK_STATUS(waitForAvailability(pKinesisVideoStream, overallSize));
+    CHK_STATUS(waitForAvailability(pKinesisVideoStream, overallSize, &allocHandle));
 
     // Lock the client
     pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
@@ -820,7 +811,9 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame)
     clientLocked = TRUE;
 
     // Allocate storage for the frame
-    CHK_STATUS(heapAlloc(pKinesisVideoClient->pHeap, overallSize, &allocHandle));
+    if (!IS_VALID_ALLOCATION_HANDLE(allocHandle)) {
+        CHK_STATUS(heapAlloc(pKinesisVideoClient->pHeap, overallSize, &allocHandle));
+    }
 
     // Ensure we have space and if not then bail
     CHK(IS_VALID_ALLOCATION_HANDLE(allocHandle), STATUS_STORE_OUT_OF_MEMORY);
@@ -1311,7 +1304,6 @@ STATUS getStreamData(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE uplo
 
                 // Check if we are finishing the previous stream and we have a boundary item
                 if (CHECK_ITEM_STREAM_START(pKinesisVideoStream->curViewItem.viewItem.flags)) {
-
                     // Set the stream handle as we have exhausted the previous
                     pUploadHandleInfo->state = WAIT_FOR_PERSISTED_ACK(pKinesisVideoStream)
                                                ? UPLOAD_HANDLE_STATE_TERMINATING : UPLOAD_HANDLE_STATE_TERMINATED;
@@ -1481,6 +1473,15 @@ CleanUp:
     if (NULL != pUploadHandleInfo && pUploadHandleInfo->state == UPLOAD_HANDLE_STATE_TERMINATED) {
         deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
         pUploadHandleInfo = NULL;
+        pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_ACTIVE);
+
+        if (pUploadHandleInfo == NULL) {
+            // Get the duration and the size
+            getAvailableViewSize(pKinesisVideoStream, &duration, &viewByteSize);
+            if (viewByteSize != 0) {
+                streamTerminatedEvent(pKinesisVideoStream, INVALID_UPLOAD_HANDLE_VALUE, SERVICE_CALL_RESULT_OK, FALSE);
+            }
+        }
     }
 
     if (clientLocked) {
@@ -1553,22 +1554,22 @@ CleanUp:
  * The caller thread will be blocked.
  * The operation will return interrupted error in case the stream is terminated.
  */
-STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allocationSize)
+STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allocationSize, PALLOCATION_HANDLE pAllocationHandle)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
-    BOOL streamLocked = TRUE, availability = FALSE;
+    BOOL streamLocked = TRUE;
 
     // Quick check if we need to do any awaiting
     CHK(IS_OFFLINE_STREAMING_MODE(pKinesisVideoStream->streamInfo.streamCaps.streamingType), STATUS_SUCCESS);
 
     while (TRUE) {
         // Check if we have enough space to proceed - the stream should be locked
-        CHK_STATUS(checkForAvailability(pKinesisVideoStream, allocationSize, &availability));
+        CHK_STATUS(checkForAvailability(pKinesisVideoStream, allocationSize, pAllocationHandle));
 
         // Early return if available
-        CHK(!availability, STATUS_SUCCESS);
+        CHK(!IS_VALID_ALLOCATION_HANDLE(*pAllocationHandle), STATUS_SUCCESS);
 
         // Long path which will await for the availability notification or cancellation
         CHK_STATUS(pKinesisVideoClient->clientCallbacks.waitConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
@@ -1600,17 +1601,22 @@ CleanUp:
  *
  * All the parameters are assumed to have been sanitized.
  */
-STATUS checkForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allocationSize, PBOOL pAvailability)
+STATUS checkForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allocationSize, PALLOCATION_HANDLE pAllocationHandle)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
     BOOL clientLocked = FALSE, availability = FALSE;
     UINT64 heapSize, availableHeapSize;
-    PViewItem pTailViewItem;
 
-    // Set to unavailable
-    *pAvailability = FALSE;
+    // Set to invalid whether we failed to allocate or we don't have content view availability
+    *pAllocationHandle = INVALID_ALLOCATION_HANDLE_VALUE;
+
+    // Check to see if we have availability in the content view. This will set the availability
+    CHK_STATUS(contentViewCheckAvailability(pKinesisVideoStream->pView, NULL, &availability));
+
+    // Early return if no view availability
+    CHK(availability, STATUS_SUCCESS);
 
     // Lock the client
     pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
@@ -1618,10 +1624,6 @@ STATUS checkForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allo
 
     // Get the heap size
     CHK_STATUS(heapGetSize(pKinesisVideoClient->pHeap, &heapSize));
-
-    // Unlock the client
-    pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
-    clientLocked = FALSE;
 
     // Check for undeflow
     CHK(pKinesisVideoClient->deviceInfo.storageInfo.storageSize > heapSize + MAX_ALLOCATION_OVERHEAD_SIZE +
@@ -1635,18 +1637,14 @@ STATUS checkForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allo
     // Early return if storage space is unavailable.
     CHK(availableHeapSize >= allocationSize, STATUS_SUCCESS);
 
-    // Check to see if we have availability in the content view. This will set the availability
-    CHK_STATUS(contentViewCheckAvailability(pKinesisVideoStream->pView, NULL, &availability));
-
-    // Early return if no view availability
-    CHK(availability, STATUS_SUCCESS);
-
-    // Also check whether we have a partially consumed frame
-    retStatus = contentViewGetTail(pKinesisVideoStream->pView, &pTailViewItem);
-    CHK(retStatus == STATUS_CONTENT_VIEW_NO_MORE_ITEMS || retStatus == STATUS_SUCCESS, retStatus);
-
-    // Reset the status
+    // Get the heap size. Do not need to check status. If heapAlloc failed then pAllocationHandle would remain invalid.
+    retStatus = heapAlloc(pKinesisVideoClient->pHeap, allocationSize, pAllocationHandle);
+    CHK(retStatus == STATUS_SUCCESS || retStatus == STATUS_NOT_ENOUGH_MEMORY, retStatus);
     retStatus = STATUS_SUCCESS;
+
+    // Unlock the client
+    pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
+    clientLocked = FALSE;
 
 CleanUp:
 
@@ -1654,9 +1652,6 @@ CleanUp:
     if (clientLocked) {
         pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
     }
-
-    // Set the return value
-    *pAvailability = availability;
 
     LEAVES();
     return retStatus;
@@ -1812,7 +1807,7 @@ STATUS streamStartFixupOnReconnect(PKinesisVideoStream pKinesisVideoStream)
     PViewItem pViewItem = NULL;
     BOOL streamLocked = FALSE, clientLocked = FALSE;
     UINT32 headerSize, packagedSize, overallSize, dataOffset;
-    UINT64 allocSize, currentDuration, windowDuration;
+    UINT64 allocSize, currentItemCount, windowItemCount;
     PBYTE pAlloc = NULL, pFrame = NULL;
     PKinesisVideoClient pKinesisVideoClient;
     ALLOCATION_HANDLE allocationHandle = INVALID_ALLOCATION_HANDLE_VALUE;
@@ -1844,8 +1839,8 @@ STATUS streamStartFixupOnReconnect(PKinesisVideoStream pKinesisVideoStream)
     pKinesisVideoStream->newSessionTimestamp = INVALID_TIMESTAMP_VALUE;
 
     // return early if there is no available item to send
-    CHK_STATUS(contentViewGetWindowDuration(pKinesisVideoStream->pView, &currentDuration, &windowDuration));
-    CHK(currentDuration != 0, retStatus);
+    CHK_STATUS(contentViewGetWindowItemCount(pKinesisVideoStream->pView, &currentItemCount, &windowItemCount));
+    CHK(currentItemCount != 0, retStatus);
 
     // Get the current item
     CHK_STATUS(contentViewGetCurrentIndex(pKinesisVideoStream->pView, &curIndex));
@@ -2626,6 +2621,8 @@ STATUS checkStreamingTokenExpiration(PKinesisVideoStream pKinesisVideoStream) {
     // Check if we need to do anything and early exit
     // If we are already in a grace period then bail out
     CHK(!pKinesisVideoStream->gracePeriod, retStatus);
+    // If we dont have a valid token then also bail out
+    CHK(IS_VALID_TIMESTAMP(pKinesisVideoStream->streamingAuthInfo.expiration), retStatus);
 
     // Get the current time so we can check whether we are in a grace period and need to rotate the token
     currentTime = pKinesisVideoStream->pKinesisVideoClient->clientCallbacks.getCurrentTimeFn(
@@ -3149,9 +3146,11 @@ STATUS resetStream(PKinesisVideoStream pKinesisVideoStream)
     pKinesisVideoStream->newSessionTimestamp = INVALID_TIMESTAMP_VALUE;
     pKinesisVideoStream->newSessionIndex = INVALID_VIEW_INDEX_VALUE;
 
-    // Set grace period to TRUE to avoid putFrame thread triggering mkv header regeneration due to token expiration
-    // and cause the new putMedia connection created by resetStream to get end-of-stream prematurely.
-    pKinesisVideoStream->gracePeriod = TRUE;
+    // Set streamingAuthInfo.expiration to invalid time value since resetStream abolishes all current connections and
+    // step states agains to create new connections. This also avoid putFrame thread triggering mkv header regeneration
+    // due to token expiration and cause the new putMedia connection created by resetStream to get end-of-stream prematurely.
+    pKinesisVideoStream->streamingAuthInfo.expiration = INVALID_TIMESTAMP_VALUE;
+    pKinesisVideoStream->gracePeriod = FALSE;
 
     // Shouldn't reset the generator on next key frame
     pKinesisVideoStream->resetGeneratorOnKeyFrame = FALSE;

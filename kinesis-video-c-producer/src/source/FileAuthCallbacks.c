@@ -1,8 +1,8 @@
 /**
  * Kinesis Video Producer file Auth Callbacks
  */
-#include "Include_i.h"
 #define LOG_CLASS "FileAuthCallbacks"
+#include "Include_i.h"
 
 /**
  * Creates File Auth callbacks

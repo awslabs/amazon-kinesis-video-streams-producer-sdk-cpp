@@ -13,3 +13,4 @@ kinesis-video-native-build/test_jpeg.mkv
 test-stream/
 *.key
 *.gpg
+cm-file

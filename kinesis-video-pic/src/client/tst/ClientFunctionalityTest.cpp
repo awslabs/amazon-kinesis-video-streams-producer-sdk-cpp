@@ -297,7 +297,7 @@ TEST_P(ClientFunctionalityTest, StreamFormatChangedAudioVideoCorrectMkvHeader)
     EXPECT_EQ(1280, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackVideoConfig.videoWidth);
     EXPECT_EQ(720, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackVideoConfig.videoHeight);
 
-    EXPECT_EQ(48000, pStreamMkvGenerator->trackInfoList[1].trackCustomData.trackAudioConfig.samplingFrequency);
+    EXPECT_TRUE(48000 == pStreamMkvGenerator->trackInfoList[1].trackCustomData.trackAudioConfig.samplingFrequency);
     EXPECT_EQ(2, pStreamMkvGenerator->trackInfoList[1].trackCustomData.trackAudioConfig.channelConfig);
     EXPECT_EQ(0, pStreamMkvGenerator->trackInfoList[1].trackCustomData.trackAudioConfig.bitDepth);
 
@@ -351,7 +351,7 @@ TEST_P(ClientFunctionalityTest, StreamFormatChangedPcmAudioVideoCorrectMkvHeader
     EXPECT_EQ(1280, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackVideoConfig.videoWidth);
     EXPECT_EQ(720, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackVideoConfig.videoHeight);
 
-    EXPECT_EQ(8000, pStreamMkvGenerator->trackInfoList[1].trackCustomData.trackAudioConfig.samplingFrequency);
+    EXPECT_TRUE(8000 == pStreamMkvGenerator->trackInfoList[1].trackCustomData.trackAudioConfig.samplingFrequency);
     EXPECT_EQ(1, pStreamMkvGenerator->trackInfoList[1].trackCustomData.trackAudioConfig.channelConfig);
     EXPECT_EQ(16, pStreamMkvGenerator->trackInfoList[1].trackCustomData.trackAudioConfig.bitDepth);
 
@@ -388,7 +388,7 @@ TEST_P(ClientFunctionalityTest, StreamFormatChangedPcmAudioDirectCpdPassingCorre
     PStreamMkvGenerator pStreamMkvGenerator = (PStreamMkvGenerator) pKinesisVideoStream->pMkvGenerator;
     EXPECT_TRUE(pStreamMkvGenerator != NULL);
 
-    EXPECT_EQ(8000, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.samplingFrequency);
+    EXPECT_TRUE(8000 == pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.samplingFrequency);
     EXPECT_EQ(1, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.channelConfig);
     EXPECT_EQ(16, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.bitDepth);
 

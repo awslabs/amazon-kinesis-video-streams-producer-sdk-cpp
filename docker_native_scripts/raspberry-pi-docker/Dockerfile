@@ -6,13 +6,23 @@ RUN apt-get update && apt-get install -y \
 	pkg-config \
 	cmake \
 	vim \
-	binutils \
 	make \
 	openssh-server \
 	gcc \
 	g++ \
-	python \
-	bzip2
+	bzip2 \
+	libssl-dev \
+	libcurl4-openssl-dev \
+	liblog4cplus-dev \
+	libgstreamer1.0-dev \
+	libgstreamer-plugins-base1.0-dev \
+	gstreamer1.0-plugins-base-apps \
+	gstreamer1.0-plugins-bad \
+	gstreamer1.0-plugins-good \
+	gstreamer1.0-plugins-ugly \
+	gstreamer1.0-tools \
+	gstreamer1.0-omx
+
 
 WORKDIR /opt/
 RUN curl -OL https://github.com/raspberrypi/firmware/archive/1.20180417.tar.gz
@@ -36,9 +46,8 @@ RUN     ln -s /opt/vc/lib/libopenmaxil.so /usr/lib/libopenmaxil.so && \
 WORKDIR /opt/
 RUN git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp
 WORKDIR /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
-RUN chmod a+x install-script
-RUN ./install-script -j 4 -d
+RUN chmod a+x min-install-script
+RUN ./min-install-script
 
 WORKDIR /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
-ENV PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/bin:$PATH
-ENV GST_PLUGIN_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$GST_PLUGIN_PATH
+ENV GST_PLUGIN_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/:$GST_PLUGIN_PATH

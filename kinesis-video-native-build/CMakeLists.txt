@@ -135,6 +135,10 @@ if (BUILD_JNI)
   find_package(JNI REQUIRED)
 endif()
 
+if (CONSTRAINED_DEVICE)
+  add_definitions(-DCONSTRAINED_DEVICE)
+endif()
+
 # get dependencies
 if ("${CMAKE_C_COMPILER_ID}" MATCHES "GNU|Clang")
   find_package(PkgConfig REQUIRED)
@@ -311,6 +315,7 @@ set(C_PRODUCER_SOURCE_FILES
         ${KINESIS_VIDEO_C_PRODUCER_SRC}/src/source/ContinuousRetryStreamCallbacks.c
         ${KINESIS_VIDEO_C_PRODUCER_SRC}/src/source/StreamLatencyStateMachine.c
         ${KINESIS_VIDEO_C_PRODUCER_SRC}/src/source/StreamCallbacksProvider.c
+        ${KINESIS_VIDEO_C_PRODUCER_SRC}/src/source/FileLoggerPlatformCallbackProvider.c
         ${KINESIS_VIDEO_C_PRODUCER_SRC}/src/source/Version.c)
 
 set(PIC_TEST_SOURCE_FILES
@@ -383,7 +388,9 @@ set(C_PRODUCER_TEST_SOURCE_FILES
         ${KINESIS_VIDEO_C_PRODUCER_SRC}/tst/ProducerClientBasicTest.cpp
         ${KINESIS_VIDEO_C_PRODUCER_SRC}/tst/ProducerBasicUsageTest.cpp
         ${KINESIS_VIDEO_C_PRODUCER_SRC}/tst/ProducerFunctionalityTest.cpp
-        ${KINESIS_VIDEO_C_PRODUCER_SRC}/tst/ProducerTestFixture.cpp)
+        ${KINESIS_VIDEO_C_PRODUCER_SRC}/tst/ProducerTestFixture.cpp
+        ${KINESIS_VIDEO_C_PRODUCER_SRC}/tst/ProducerApiTest.cpp
+        ${KINESIS_VIDEO_C_PRODUCER_SRC}/tst/FileLoggerFunctionalityTest.cpp)
 
 set(PRODUCER_SOURCE_FILES_JNI
         ${KINESIS_VIDEO_PRODUCER_JNI_SRC}/src/source/com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.cpp

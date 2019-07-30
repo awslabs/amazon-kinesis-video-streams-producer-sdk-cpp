@@ -21,6 +21,9 @@ extern "C" {
 // Max path characters as defined in linux/limits.h
 #define MAX_PATH_LEN                        4096
 
+// thread stack size to use when running on constrained device like raspberry pi
+#define THREAD_STACK_SIZE_ON_CONSTRAINED_DEVICE     512 * 1024
+
 // Check for whitespace
 #define IS_WHITE_SPACE(ch)          (((ch) == ' ') || ((ch) == '\t') || ((ch) == '\r') || ((ch) == '\n') || ((ch) == '\v') ||  ((ch) == '\f'))
 
@@ -794,10 +797,15 @@ PUBLIC_API STATUS generateTimestampStr(UINT64, PCHAR, PCHAR, UINT32, PUINT32);
 #define MAX_TIMESTAMP_STR_LEN                           17
 
 // (thread-0x7000076b3000)
-#define MAX_THREAD_ID_STR_LEN                    23
+#define MAX_THREAD_ID_STR_LEN                           23
 
 // Max log message length
-#define MAX_LOG_LENGTH                            300
+#define MAX_LOG_FORMAT_LENGTH                           600
+
+/**
+ * logger functionality
+ */
+PUBLIC_API VOID updateLogFormat(PCHAR, UINT32, PCHAR);
 
 #pragma pack(pop, include)
 

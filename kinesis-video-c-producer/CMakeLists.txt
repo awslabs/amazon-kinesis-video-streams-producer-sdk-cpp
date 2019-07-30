@@ -159,6 +159,7 @@ else()
             ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StreamErrorReportStateMachine.c
             ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StreamLatencyStateMachine.c
             ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StreamCallbacksProvider.c
+            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/FileLoggerPlatformCallbackProvider.c
             ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/Version.c)
 
     include_directories(${KINESIS_VIDEO_PIC_SRC}/src/client/include)

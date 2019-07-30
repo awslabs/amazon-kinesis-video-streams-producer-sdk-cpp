@@ -96,7 +96,7 @@ STATUS audioVideoFrameTimestampComparator(PFrameOrderTrackData pFrameOrderTrackD
                                           UINT64 customData, PBOOL pFirstFrameFirst)
 {
     PStreamInfo pStreamInfo = (PStreamInfo) customData;
-    UINT64 mkvTimestamp1, mkvTimestamp2;
+    UINT64 mkvTimestamp1, mkvTimestamp2, item;
     BOOL firstFrameFirst = FALSE;
     PFrame pFirst = NULL, pSecond = NULL, pSwap = NULL;
     STATUS retStatus = STATUS_SUCCESS;
@@ -106,8 +106,10 @@ STATUS audioVideoFrameTimestampComparator(PFrameOrderTrackData pFrameOrderTrackD
     CHK(pStreamInfo->streamCaps.frameOrderingMode == FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_DTS_ONE_MS_COMPENSATE ||
         pStreamInfo->streamCaps.frameOrderingMode == FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE, retStatus);
 
-    CHK_STATUS(stackQueuePeek(pFrameOrderTrackData1->frameQueue, (PUINT64) &pFirst));
-    CHK_STATUS(stackQueuePeek(pFrameOrderTrackData2->frameQueue, (PUINT64) &pSecond));
+    CHK_STATUS(stackQueuePeek(pFrameOrderTrackData1->frameQueue, &item));
+    pFirst = (PFrame) item;
+    CHK_STATUS(stackQueuePeek(pFrameOrderTrackData2->frameQueue, &item));
+    pSecond = (PFrame) item;
 
     if (pStreamInfo->streamCaps.frameOrderingMode == FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_DTS_ONE_MS_COMPENSATE) {
         mkvTimestamp1 = pFirst->decodingTs;

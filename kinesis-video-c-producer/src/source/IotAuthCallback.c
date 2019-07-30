@@ -1,8 +1,8 @@
 /**
  * Kinesis Video Producer IotCredential Auth Callback
  */
-#include "Include_i.h"
 #define LOG_CLASS "IotAuthCallbacks"
+#include "Include_i.h"
 
 /*
  * Create IoT credentials callback
@@ -385,6 +385,10 @@ STATUS iotCurlHandler(PIotAuthCallbacks pIotAuthCallbacks)
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, pIotAuthCallbacks);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, REQUEST_COMPLETION_TIMEOUT_MS);
 
+    // Setting up limits for curl timeout
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, CURLOPT_LOW_SPEED_TIME_VALUE);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, CURLOPT_LOW_SPEED_LIMIT_VALUE);
+
     res = curl_easy_perform(curl);
 
     if (res != CURLE_OK) {
@@ -394,7 +398,7 @@ STATUS iotCurlHandler(PIotAuthCallbacks pIotAuthCallbacks)
     }
 
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpStatusCode);
-    CHK(httpStatusCode == HTTP_STATUS_CODE_OK, STATUS_IOT_FAILED);
+    CHK_ERR(httpStatusCode == HTTP_STATUS_CODE_OK, STATUS_IOT_FAILED, "Iot get credential response http status %lu was not ok", httpStatusCode);
     CHK_STATUS(parseIotResponse(pIotAuthCallbacks));
 
 CleanUp:

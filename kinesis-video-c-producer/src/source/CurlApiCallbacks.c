@@ -107,17 +107,17 @@ STATUS createCurlApiCallbacks(PCallbacksProvider pCallbacksProvider, PCHAR regio
     }
 
     // Create the tracking ongoing requests
-    CHK_STATUS(hashTableCreate(&pCurlApiCallbacks->pActiveRequests));
+    CHK_STATUS(hashTableCreateWithParams(STREAM_MAPPING_HASH_TABLE_BUCKET_COUNT, STREAM_MAPPING_HASH_TABLE_BUCKET_LENGTH, &pCurlApiCallbacks->pActiveRequests));
     CHK_STATUS(doubleListCreate(&pCurlApiCallbacks->pActiveUploads));
 
     // Create the hash table for tracking endpoints
-    CHK_STATUS(hashTableCreate(&pCurlApiCallbacks->pCachedEndpoints));
+    CHK_STATUS(hashTableCreateWithParams(STREAM_MAPPING_HASH_TABLE_BUCKET_COUNT, STREAM_MAPPING_HASH_TABLE_BUCKET_LENGTH, &pCurlApiCallbacks->pCachedEndpoints));
 
     // Create the single linked list to track stream shutdown
     CHK_STATUS(singleListCreate(&pCurlApiCallbacks->pShutdownStream));
 
     // Create hash table tracking number of ongoing pic calls
-    CHK_STATUS(hashTableCreate(&pCurlApiCallbacks->pOngoingOperations));
+    CHK_STATUS(hashTableCreateWithParams(STREAM_MAPPING_HASH_TABLE_BUCKET_COUNT, STREAM_MAPPING_HASH_TABLE_BUCKET_LENGTH, &pCurlApiCallbacks->pOngoingOperations));
 
     // Create the guard locks
     pCurlApiCallbacks->activeUploadsLock = pCallbacksProvider->clientCallbacks.createMutexFn(pCallbacksProvider->clientCallbacks.customData, TRUE);
@@ -968,7 +968,7 @@ STATUS createStreamCurl(UINT64 customData, PCHAR deviceName, PCHAR streamName, P
     // Prepare the JSON string for the KMS param.
     // NOTE: the kms key id is optional
     if (kmsKeyId != NULL && kmsKeyId[0] != '\0') {
-        SNPRINTF(kmsKey, SIZEOF(kmsKey) / SIZEOF(CHAR), KMS_KEY_PARAM_JSON_TEMPLATE, kmsKeyId);
+        SNPRINTF(kmsKey, ARRAY_SIZE(kmsKey), KMS_KEY_PARAM_JSON_TEMPLATE, kmsKeyId);
     } else {
         // Empty string
         kmsKey[0] = '\0';
@@ -976,7 +976,7 @@ STATUS createStreamCurl(UINT64 customData, PCHAR deviceName, PCHAR streamName, P
 
     // Expressed in hours
     retentionInHours = (UINT64) (retentionPeriod / HUNDREDS_OF_NANOS_IN_AN_HOUR);
-    SNPRINTF(paramsJson, SIZEOF(paramsJson) / SIZEOF(CHAR), CREATE_STREAM_PARAM_JSON_TEMPLATE,
+    SNPRINTF(paramsJson, ARRAY_SIZE(paramsJson), CREATE_STREAM_PARAM_JSON_TEMPLATE,
              deviceName, streamName, contentType, kmsKey, retentionInHours);
 
     // Validate the credentials
@@ -1017,7 +1017,7 @@ STATUS createStreamCurl(UINT64 customData, PCHAR deviceName, PCHAR streamName, P
     // Start the request/response thread
     CHK_STATUS(THREAD_CREATE(&threadId, createStreamCurlHandler, (PVOID) pCurlRequest));
     CHK_STATUS(THREAD_DETACH(threadId));
-    
+
     // Set the thread ID in the request, add to the hash table
     pCurlRequest->threadId = threadId;
 
@@ -1146,7 +1146,7 @@ PVOID createStreamCurlHandler(PVOID arg)
     pResponseStr = pCurlResponse->responseData;
     resultLen = pCurlResponse->responseDataLen;
 
-    DLOGV("CreateStream API response: %.*s", resultLen, pResponseStr);
+    DLOGD("CreateStream API response: %.*s", resultLen, pResponseStr);
 
     // Parse the response
     jsmn_init(&parser);
@@ -1216,7 +1216,7 @@ STATUS describeStreamCurl(UINT64 customData, PCHAR streamName, PServiceCallConte
     pCallbacksProvider = pCurlApiCallbacks->pCallbacksProvider;
 
     // Prepare the json params for the call
-    SNPRINTF(paramsJson, SIZEOF(paramsJson) / SIZEOF(CHAR), DESCRIBE_STREAM_PARAM_JSON_TEMPLATE, streamName);
+    SNPRINTF(paramsJson, ARRAY_SIZE(paramsJson), DESCRIBE_STREAM_PARAM_JSON_TEMPLATE, streamName);
 
     // Validate the credentials
     CHK_STATUS(deserializeAwsCredentials(pServiceCallContext->pAuthInfo->data));
@@ -1255,7 +1255,7 @@ STATUS describeStreamCurl(UINT64 customData, PCHAR streamName, PServiceCallConte
     // Start the request/response thread
     CHK_STATUS(THREAD_CREATE(&threadId, describeStreamCurlHandler, (PVOID) pCurlRequest));
     CHK_STATUS(THREAD_DETACH(threadId));
-    
+
     // Set the thread ID in the request, add to the hash table
     pCurlRequest->threadId = threadId;
     CHK_STATUS(hashTablePut(pCurlApiCallbacks->pActiveRequests, pServiceCallContext->customData, (UINT64) pCurlRequest));
@@ -1392,7 +1392,7 @@ PVOID describeStreamCurlHandler(PVOID arg)
     pResponseStr = pCurlResponse->responseData;
     resultLen = pCurlResponse->responseDataLen;
 
-    DLOGV("DescribeStream API response: %.*s", resultLen, pResponseStr);
+    DLOGD("DescribeStream API response: %.*s", resultLen, pResponseStr);
 
     // skip json parsing if call result not ok
     CHK(pCurlResponse->callResult == SERVICE_CALL_RESULT_OK && resultLen != 0 && pResponseStr != NULL, retStatus);
@@ -1427,6 +1427,12 @@ PVOID describeStreamCurlHandler(PVOID arg)
                 STRNCPY(streamDescription.contentType, pResponseStr + tokens[i + 1].start, strLen);
                 streamDescription.contentType[MAX_CONTENT_TYPE_LEN] = '\0';
                 i++;
+            } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_STRING, (PCHAR) "KmsKeyId")) {
+                strLen = (UINT32) (tokens[i + 1].end - tokens[i + 1].start);
+                CHK(strLen <= MAX_ARN_LEN, STATUS_INVALID_API_CALL_RETURN_JSON);
+                STRNCPY(streamDescription.kmsKeyId, pResponseStr + tokens[i + 1].start, strLen);
+                streamDescription.kmsKeyId[MAX_ARN_LEN] = '\0';
+                i++;
             } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_STRING, (PCHAR) "StreamARN")) {
                 strLen = (UINT32) (tokens[i + 1].end - tokens[i + 1].start);
                 CHK(strLen <= MAX_ARN_LEN, STATUS_INVALID_API_CALL_RETURN_JSON);
@@ -1450,21 +1456,14 @@ PVOID describeStreamCurlHandler(PVOID arg)
                 CHK(strLen <= MAX_DESCRIBE_STREAM_STATUS_LEN, STATUS_INVALID_API_CALL_RETURN_JSON);
                 streamDescription.streamStatus = getStreamStatusFromString(pResponseStr + tokens[i + 1].start, strLen);
                 i++;
-            } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_PRIMITIVE, (PCHAR) "DataRetentionInHours")) {
+            } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_STRING, (PCHAR) "DataRetentionInHours")) {
                 CHK_STATUS(STRTOUI64(pResponseStr + tokens[i + 1].start, pResponseStr + tokens[i + 1].end, 10, &retention));
-                streamDescription.retention = retention;
+
+                // NOTE: Retention value is in hours
+                streamDescription.retention = retention * HUNDREDS_OF_NANOS_IN_AN_HOUR;
                 i++;
-            } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_PRIMITIVE, (PCHAR) "CreationTime")) {
-                strLen = (UINT32) (tokens[i + 1].end - tokens[i + 1].start);
-
-                // The value is in the form of xx.yyy seconds.
-                // NOTE: We will only use the seconds and ignore the fractional part
-                pDot = STRNCHR(pResponseStr + tokens[i + 1].start, strLen, '.');
-                if (pDot != NULL) {
-                    CHK_STATUS(STRTOUI64(pResponseStr + tokens[i + 1].start, pDot, 10, &seconds));
-                }
-
-                streamDescription.creationTime = seconds * HUNDREDS_OF_NANOS_IN_A_SECOND;
+            } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_STRING, (PCHAR) "CreationTime")) {
+                // TODO: In the future parse out the creation time but currently we don't need it
                 i++;
             }
         }
@@ -1530,7 +1529,7 @@ STATUS getStreamingEndpointCurl(UINT64 customData, PCHAR streamName, PCHAR apiNa
     pCallbacksProvider = pCurlApiCallbacks->pCallbacksProvider;
 
     // Prepare the json params for the call
-    SNPRINTF(paramsJson, SIZEOF(paramsJson) / SIZEOF(CHAR), GET_DATA_ENDPOINT_PARAM_JSON_TEMPLATE, streamName, apiName);
+    SNPRINTF(paramsJson, ARRAY_SIZE(paramsJson), GET_DATA_ENDPOINT_PARAM_JSON_TEMPLATE, streamName, apiName);
 
     // Validate the credentials
     CHK_STATUS(deserializeAwsCredentials(pServiceCallContext->pAuthInfo->data));
@@ -1569,7 +1568,7 @@ STATUS getStreamingEndpointCurl(UINT64 customData, PCHAR streamName, PCHAR apiNa
     // Start the request/response thread
     CHK_STATUS(THREAD_CREATE(&threadId, getStreamingEndpointCurlHandler, (PVOID) pCurlRequest));
     CHK_STATUS(THREAD_DETACH(threadId));
-    
+
     // Set the thread ID in the request, add to the hash table
     pCurlRequest->threadId = threadId;
     CHK_STATUS(hashTablePut(pCurlApiCallbacks->pActiveRequests, pServiceCallContext->customData, (UINT64) pCurlRequest));
@@ -1729,7 +1728,7 @@ PVOID getStreamingEndpointCurlHandler(PVOID arg)
     pResponseStr = pCurlResponse->responseData;
     resultLen = pCurlResponse->responseDataLen;
 
-    DLOGV("GetStreamingEndpoint API response: %.*s", resultLen, pResponseStr);
+    DLOGD("GetStreamingEndpoint API response: %.*s", resultLen, pResponseStr);
 
     // Parse the response
     jsmn_init(&parser);
@@ -1894,7 +1893,7 @@ STATUS tagResourceCurl(UINT64 customData, PCHAR streamArn, UINT32 tagCount, PTag
     // Start the request/response thread
     CHK_STATUS(THREAD_CREATE(&threadId, tagResourceCurlHandler, (PVOID) pCurlRequest));
     CHK_STATUS(THREAD_DETACH(threadId));
-    
+
     // Set the thread ID in the request, add to the hash table
     pCurlRequest->threadId = threadId;
     CHK_STATUS(hashTablePut(pCurlApiCallbacks->pActiveRequests, pServiceCallContext->customData, (UINT64) pCurlRequest));
@@ -2118,7 +2117,7 @@ STATUS putStreamCurl(UINT64 customData, PCHAR streamName, PCHAR containerType, U
     // Start the request/response thread
     CHK_STATUS(THREAD_CREATE(&threadId, putStreamCurlHandler, (PVOID) pCurlRequest));
     CHK_STATUS(THREAD_DETACH(threadId));
-    
+
     // Set the thread ID in the request, add to the hash table
     pCurlRequest->threadId = threadId;
 

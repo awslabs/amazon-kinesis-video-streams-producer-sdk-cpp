@@ -79,6 +79,9 @@ TEST_F(ThreadFunctionalityTest, ThreadCreateAndCancel)
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&threads[index], testThreadRoutine, (PVOID)index));
     }
 
+    // wait 2 seconds to make sure all threads are executed
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
     // Cancel all the threads
     for (index = 0; index < TEST_THREAD_COUNT; index++) {
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CANCEL(threads[index]));

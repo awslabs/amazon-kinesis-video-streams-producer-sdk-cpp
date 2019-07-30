@@ -536,7 +536,7 @@ SIZE_T writeHeaderCallback(PCHAR pBuffer, SIZE_T size, SIZE_T numItems, PVOID cu
 
                 if (STRNCMP(KVS_REQUEST_ID_HEADER_NAME, pCurlRequestHeader->pName, nameLen) == 0) {
                     pCurlResponse->pRequestId = pCurlRequestHeader;
-                    DLOGV("RequestId: %.*s", pCurlResponse->pRequestId->valueLen, pCurlResponse->pRequestId->pValue);
+                    DLOGI("RequestId: %.*s", pCurlResponse->pRequestId->valueLen, pCurlResponse->pRequestId->pValue);
                 }
             }
         }
@@ -616,7 +616,7 @@ SIZE_T postWriteCallback(PCHAR pBuffer, SIZE_T size, SIZE_T numItems, PVOID cust
 CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
-        DLOGE("Failed to submit ACK: %.*s with status code: 0x%08x", bufferSize, pBuffer, retStatus);
+        DLOGW("Failed to submit ACK: %.*s with status code: 0x%08x", bufferSize, pBuffer, retStatus);
 
     } else {
         DLOGV("Processed ACK OK.");
@@ -728,7 +728,7 @@ CleanUp:
         if (bytesWritten != 0 && pCurlResponse->debugDumpFile) {
             retStatus = writeFile(pCurlResponse->debugDumpFilePath, TRUE, TRUE, (PBYTE) pBuffer, bytesWritten);
             if (STATUS_FAILED(retStatus)) {
-                DLOGE("Failed to write to debug dump file with error: 0x%08x", retStatus);
+                DLOGW("Failed to write to debug dump file with error: 0x%08x", retStatus);
             }
         }
     } else if (bytesWritten == CURL_READFUNC_PAUSE) {
