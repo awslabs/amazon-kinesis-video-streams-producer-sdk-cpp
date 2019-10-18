@@ -362,12 +362,13 @@ TEST_F(StreamApiFunctionalityTest, putFrame_StorageOverflow)
     PBYTE pData = (PBYTE) MEMALLOC(frameSize);
     UINT64 timestamp;
     Frame frame;
+    UINT32 frameCount = (TEST_DEVICE_STORAGE_SIZE / frameSize) - 2; // minus two frameSize for watermark.
 
     // Create and ready a stream
     ReadyStream();
 
     // Make sure we drop the first frame which should be the key frame
-    for (i = 0, timestamp = 0; i < TEST_DEVICE_STORAGE_SIZE / frameSize; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+    for (i = 0, timestamp = 0; i < frameCount; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;

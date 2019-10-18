@@ -70,6 +70,9 @@ This library is licensed under the Apache License, 2.0.
 ----
 ### Release notes
 
+#### Release 2.0.2 (17th Oct 2019)
+* fix bug where producer cannot recover from STATUS_STORE_OUT_OF_MEMORY after network outage
+
 #### Release 2.0.1 (25th Jul 2019)
 * C-Producer - Updates
   * Rotating file logger (small feature).

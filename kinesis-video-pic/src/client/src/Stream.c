@@ -810,11 +810,6 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame)
                                                      pKinesisVideoClient->base.lock);
     clientLocked = TRUE;
 
-    // Allocate storage for the frame
-    if (!IS_VALID_ALLOCATION_HANDLE(allocHandle)) {
-        CHK_STATUS(heapAlloc(pKinesisVideoClient->pHeap, overallSize, &allocHandle));
-    }
-
     // Ensure we have space and if not then bail
     CHK(IS_VALID_ALLOCATION_HANDLE(allocHandle), STATUS_STORE_OUT_OF_MEMORY);
 
@@ -1541,7 +1536,8 @@ CleanUp:
 }
 
 /**
- * Await for the frame availability in OFFLINE mode.
+ * Check if there is enough content store for the frame. If not, block waiting if in OFFLINE mode, otherwise return with
+ * INVALID_ALLOCATION_HANDLE.
  *
  * IMPORTANT: The assumption is that both the stream IS locked but
  * the client is NOT locked.
@@ -1561,8 +1557,7 @@ STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 alloc
     PKinesisVideoClient pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
     BOOL streamLocked = TRUE;
 
-    // Quick check if we need to do any awaiting
-    CHK(IS_OFFLINE_STREAMING_MODE(pKinesisVideoStream->streamInfo.streamCaps.streamingType), STATUS_SUCCESS);
+
 
     while (TRUE) {
         // Check if we have enough space to proceed - the stream should be locked
@@ -1570,6 +1565,9 @@ STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 alloc
 
         // Early return if available
         CHK(!IS_VALID_ALLOCATION_HANDLE(*pAllocationHandle), STATUS_SUCCESS);
+
+        // if no space available, wait only if in OFFLINE mode
+        CHK(IS_OFFLINE_STREAMING_MODE(pKinesisVideoStream->streamInfo.streamCaps.streamingType), STATUS_SUCCESS);
 
         // Long path which will await for the availability notification or cancellation
         CHK_STATUS(pKinesisVideoClient->clientCallbacks.waitConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
@@ -1612,11 +1610,14 @@ STATUS checkForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allo
     // Set to invalid whether we failed to allocate or we don't have content view availability
     *pAllocationHandle = INVALID_ALLOCATION_HANDLE_VALUE;
 
-    // Check to see if we have availability in the content view. This will set the availability
-    CHK_STATUS(contentViewCheckAvailability(pKinesisVideoStream->pView, NULL, &availability));
+    // check view availability only if in offline mode
+    if (IS_OFFLINE_STREAMING_MODE(pKinesisVideoStream->streamInfo.streamCaps.streamingType)) {
+        // Check to see if we have availability in the content view. This will set the availability
+        CHK_STATUS(contentViewCheckAvailability(pKinesisVideoStream->pView, NULL, &availability));
 
-    // Early return if no view availability
-    CHK(availability, STATUS_SUCCESS);
+        // Early return if no view availability
+        CHK(availability, STATUS_SUCCESS);
+    }
 
     // Lock the client
     pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
