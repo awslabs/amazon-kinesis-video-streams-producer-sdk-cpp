@@ -29,8 +29,10 @@ you will see an **output** similar to the one below.
 
 2.  `docker login -u AWS -p <Password>   https://<YourAccountId>.dkr.ecr.us-west-2.amazonaws.com`
 
-Run the command as such in your command prompt. This will authorize the `docker pull` which you will be running next.
+Copy it and ensure that it has no whitespaces, or blank lines and run the command as such in your command prompt. 
 
+Note, if you might need to add a `sudo` to it, as we are running the docker pulls as *sudo* in the next steps.
+This will authorize the `docker pull` which you will be running next. 
 
 #### Step 2: Pull Image
 
