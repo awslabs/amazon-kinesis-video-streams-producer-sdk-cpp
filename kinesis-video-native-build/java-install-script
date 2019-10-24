@@ -22,6 +22,7 @@ build_gst_artifact=FALSE
 build_jni_only=TRUE
 build_producer=FALSE
 env_var=""
+parse_args $@
 
 setup
 
