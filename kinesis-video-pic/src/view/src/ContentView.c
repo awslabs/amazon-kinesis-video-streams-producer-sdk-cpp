@@ -779,7 +779,7 @@ PViewItem findViewItemWithTimestamp(PRollingContentView pView, PViewItem pOldest
         }
 
         // Check if the current is the sought item
-        if (curItemTimestamp <= timestamp && curItemTimestamp + pCurItem->duration > timestamp) {
+        if (curItemTimestamp <= timestamp && curItemTimestamp + pCurItem->duration >= timestamp) {
             // found the item - break from the loop
             break;
         }

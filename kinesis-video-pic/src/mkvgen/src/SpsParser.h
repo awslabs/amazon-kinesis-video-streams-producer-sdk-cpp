@@ -38,23 +38,23 @@ extern "C" {
  * H265 SPS info structure containing only items needed for resolution calculation
  */
 typedef struct {
-    UINT32 conformance_window_flag;
-    UINT32 chroma_format_idc;
+    UINT8 conformance_window_flag;
+    UINT8 chroma_format_idc;
     UINT32 conf_win_right_offset;
     UINT32 conf_win_left_offset;
     UINT32 conf_win_bottom_offset;
     UINT32 conf_win_top_offset;
-    UINT32 pic_width_in_luma_samples;
-    UINT32 pic_height_in_luma_samples;
-    UINT32 max_sub_layers_minus1;
-    UINT32 general_profile_space;
-    UINT32 general_tier_flag;
-    UINT32 general_profile_idc;
-    UINT32 general_profile_compatibility_flags[4];
-    UINT32 general_constraint_indicator_flags[6];
-    UINT32 general_level_idc;
-    UINT32 bit_depth_luma_minus8;
-    UINT32 bit_depth_chroma_minus8;
+    UINT16 pic_width_in_luma_samples;
+    UINT16 pic_height_in_luma_samples;
+    UINT8 max_sub_layers_minus1;
+    UINT8 general_profile_space;
+    UINT8 general_tier_flag;
+    UINT8 general_profile_idc;
+    UINT8 general_profile_compatibility_flags[4];
+    UINT8 general_constraint_indicator_flags[6];
+    UINT8 general_level_idc;
+    UINT8 bit_depth_luma_minus8;
+    UINT8 bit_depth_chroma_minus8;
 } H265SpsInfo, *PH265SpsInfo;
 
 ////////////////////////////////////////////////////

@@ -12,7 +12,8 @@ project (clientTest)
 file (GLOB ClientTestSources *.cpp)
 
 add_executable(${PROJECT_NAME} ${ClientTestSources})
+target_link_libraries(${PROJECT_NAME} state)
 target_link_libraries(${PROJECT_NAME} client)
-target_link_libraries(${PROJECT_NAME} gtest)
+target_link_libraries(${PROJECT_NAME} gtest gtest_main)
 
 add_test(${PROJECT_NAME} ${PROJECT_NAME})

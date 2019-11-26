@@ -224,6 +224,7 @@ typedef UINT64              MUTEX;
 typedef PCONDITION_VARIABLE CVAR;
 #else
 #include <pthread.h>
+#include <signal.h>
 typedef pthread_cond_t* CVAR;
 #endif
 
@@ -315,7 +316,7 @@ typedef CID*                PCID;
     #if defined (__MINGW32__)
         typedef ULONG_PTR SIZE_T, *PSIZE_T;
         typedef LONG_PTR SSIZE_T, *PSSIZE_T;
-    #else
+    #elif !(defined _WIN32 || defined _WIN64)
         typedef UINT_PTR SIZE_T, *PSIZE_T;
         typedef INT_PTR SSIZE_T, *PSSIZE_T;
     #endif
@@ -371,7 +372,7 @@ typedef CID*                PCID;
 //
 // Infinite time
 //
-#define INFINITE_TIME_VALUE                                 (1000000000ULL)
+#define INFINITE_TIME_VALUE                                 MAX_UINT64
 
 //
 // Some standard definitions/macros
@@ -475,7 +476,12 @@ typedef CID*                PCID;
 
 #if !(defined _WIN32 || defined _WIN64)
 #include <unistd.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragma-pack"
+#pragma pack(push, current_common_packing)
 #include <dirent.h>
+#pragma pack(pop, current_common_packing)
+#pragma GCC diagnostic pop
 #include <sys/time.h>
 #include <sys/utsname.h>
 #endif
@@ -489,8 +495,18 @@ typedef CID*                PCID;
 
 #include "dlfcn_win_stub.h"
 
-// Definition of the S_ISLNK for Windows
-#define S_ISLNK(x) FALSE
+// Definition of the helper stats check macros for Windows
+#ifndef S_ISLNK
+#define S_ISLNK(mode) FALSE
+#endif
+
+#ifndef S_ISDIR
+#define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#endif
+
+#ifndef S_ISREG
+#define S_ISREG(mode)  (((mode) & S_IFMT) == S_IFREG)
+#endif
 
 // Definition of the mkdir for Windows with 1 param
 #define GLOBAL_MKDIR(p1, p2) _mkdir(p1)
@@ -501,9 +517,17 @@ typedef CID*                PCID;
 
 #if defined (__MINGW64__) || defined(__MINGW32__)
     #define GLOBAL_RMDIR rmdir
+    #define GLOBAL_STAT stat
+
+    // Typedef stat structure
+    typedef struct stat STAT_STRUCT;
 #else
-    // Definition of rmdir for Windows
+    // Definition of posix APIs for Windows
     #define GLOBAL_RMDIR _rmdir
+    #define GLOBAL_STAT _stat
+
+    // Typedef stat structure
+    typedef struct _stat STAT_STRUCT;
 #endif
 
 // Definition of the static initializers
@@ -526,8 +550,12 @@ typedef CID*                PCID;
 #define GLOBAL_STRCMPI strcasecmp
 #define GLOBAL_STRNCMPI strncasecmp
 
-// Definition of rmdir for non-Windows platforms
+// Definition of posix API for non-Windows platforms
 #define GLOBAL_RMDIR rmdir
+#define GLOBAL_STAT stat
+
+// Typedef stat structure
+typedef struct stat STAT_STRUCT;
 
 // NOTE!!! Some of the libraries don't have a definition of PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 #ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER
@@ -659,6 +687,21 @@ typedef STATUS (*getOsVersion)(PCHAR, UINT32);
 typedef STATUS (*getCompilerInfo)(PCHAR, UINT32);
 
 //
+// Atomics functions
+//
+typedef SIZE_T (*atomicLoad)(volatile SIZE_T*);
+typedef VOID (*atomicStore)(volatile SIZE_T*, SIZE_T);
+typedef SIZE_T (*atomicExchange)(volatile SIZE_T*, SIZE_T);
+typedef BOOL (*atomicCompareExchange)(volatile SIZE_T*, SIZE_T*, SIZE_T);
+typedef SIZE_T (*atomicIncrement)(volatile SIZE_T*);
+typedef SIZE_T (*atomicDecrement)(volatile SIZE_T*);
+typedef SIZE_T (*atomicAdd)(volatile SIZE_T*, SIZE_T);
+typedef SIZE_T (*atomicSubtract)(volatile SIZE_T*, SIZE_T);
+typedef SIZE_T (*atomicAnd)(volatile SIZE_T*, SIZE_T);
+typedef SIZE_T (*atomicOr)(volatile SIZE_T*, SIZE_T);
+typedef SIZE_T (*atomicXor)(volatile SIZE_T*, SIZE_T);
+
+//
 // Thread and Mutex related functionality
 //
 extern createMutex globalCreateMutex;
@@ -684,6 +727,21 @@ extern freeConditionVariable globalConditionVariableFree;
 extern getPlatformName globalGetPlatformName;
 extern getOsVersion globalGetOsVersion;
 extern getCompilerInfo globalGetCompilerInfo;
+
+//
+// Atomics
+//
+extern atomicLoad globalAtomicLoad;
+extern atomicStore globalAtomicStore;
+extern atomicExchange globalAtomicExchange;
+extern atomicCompareExchange globalAtomicCompareExchange;
+extern atomicIncrement globalAtomicIncrement;
+extern atomicDecrement globalAtomicDecrement;
+extern atomicAdd globalAtomicAdd;
+extern atomicSubtract globalAtomicSubtract;
+extern atomicAnd globalAtomicAnd;
+extern atomicOr globalAtomicOr;
+extern atomicXor globalAtomicXor;
 
 // Max string length for platform name
 #define MAX_PLATFORM_NAME_STRING_LEN            128
@@ -743,6 +801,7 @@ extern getCompilerInfo globalGetCompilerInfo;
 #define LTRIMSTR                   ltrimstr
 #define RTRIMSTR                   rtrimstr
 #define STRSTR                     strstr
+#define STRNSTR                    strnstr
 #define TOLOWER                    tolower
 #define TOUPPER                    toupper
 #define TOLOWERSTR                 tolowerstr
@@ -759,6 +818,11 @@ extern getCompilerInfo globalGetCompilerInfo;
 // Empty string definition
 //
 #define EMPTY_STRING                ((PCHAR) "")
+
+//
+// Check if string is empty
+//
+#define IS_EMPTY_STRING(str)                   ((str)[0] == '\0')
 
 //
 // Pseudo-random functionality
@@ -779,7 +843,7 @@ extern getCompilerInfo globalGetCompilerInfo;
 
 //
 // File operations
-///
+//
 #ifndef FOPEN
     #define FOPEN                       fopen
 #endif
@@ -835,7 +899,7 @@ extern getCompilerInfo globalGetCompilerInfo;
     #define FRMDIR                      GLOBAL_RMDIR
 #endif
 #ifndef FSTAT
-    #define FSTAT                       stat
+    #define FSTAT                       GLOBAL_STAT
 #endif
 #ifndef FSCANF
     #define FSCANF                      fscanf
@@ -911,6 +975,33 @@ extern getCompilerInfo globalGetCompilerInfo;
 #define MUTEX_INIT                  GLOBAL_MUTEX_INIT
 #define MUTEX_INIT_RECURSIVE        GLOBAL_MUTEX_INIT_RECURSIVE
 #define CVAR_INIT                   GLOBAL_CVAR_INIT
+
+//
+// Basic Atomics functionality
+//
+#define ATOMIC_LOAD                 globalAtomicLoad
+#define ATOMIC_STORE                globalAtomicStore
+#define ATOMIC_EXCHANGE             globalAtomicExchange
+#define ATOMIC_COMPARE_EXCHANGE     globalAtomicCompareExchange
+#define ATOMIC_INCREMENT            globalAtomicIncrement
+#define ATOMIC_DECREMENT            globalAtomicDecrement
+#define ATOMIC_ADD                  globalAtomicAdd
+#define ATOMIC_SUBTRACT             globalAtomicSubtract
+#define ATOMIC_AND                  globalAtomicAnd
+#define ATOMIC_OR                   globalAtomicOr
+#define ATOMIC_XOR                  globalAtomicXor
+
+//
+// Helper atomics
+//
+typedef SIZE_T                          ATOMIC_BOOL;
+#define ATOMIC_LOAD_BOOL                (BOOL) globalAtomicLoad
+#define ATOMIC_STORE_BOOL(a, b)         ATOMIC_STORE((a), (SIZE_T) (b))
+#define ATOMIC_EXCHANGE_BOOL            (BOOL) globalAtomicExchange
+#define ATOMIC_COMPARE_EXCHANGE_BOOL    (BOOL) globalAtomicCompareExchange
+#define ATOMIC_AND_BOOL                 (BOOL) globalAtomicAnd
+#define ATOMIC_OR_BOOL                  (BOOL) globalAtomicOr
+#define ATOMIC_XOR_BOOL                 (BOOL) globalAtomicXor
 
 #ifndef SQRT
 #include <math.h>
@@ -1008,6 +1099,15 @@ typedef UINT64 HANDLE;
         } \
     } while (FALSE)
 
+#define CHK_WARN(condition, errRet, errorMessage, ...) \
+    do { \
+        if (!(condition)) { \
+            retStatus = (errRet); \
+            DLOGW(errorMessage, ##__VA_ARGS__); \
+            goto CleanUp; \
+        } \
+    } while (FALSE)
+
 #define CHK_STATUS_ERR(condition, errRet, errorMessage, ...) \
     do { \
         STATUS __status = condition; \
@@ -1048,6 +1148,14 @@ typedef UINT64 HANDLE;
         STATUS __status = condition; \
         if (STATUS_FAILED(__status)) { \
             DLOGS("%s Returned status code: 0x%08x", logMessage, __status); \
+        } \
+    } while (FALSE)
+
+#define CHK_LOG_ERR(condition, ...) \
+    do { \
+        STATUS __status = condition; \
+        if (STATUS_FAILED(__status)) { \
+            DLOGE("operation returned status code: 0x%08x", __status); \
         } \
     } while (FALSE)
 

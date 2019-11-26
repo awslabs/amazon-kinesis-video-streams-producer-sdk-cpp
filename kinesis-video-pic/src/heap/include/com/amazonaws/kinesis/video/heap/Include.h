@@ -28,7 +28,6 @@ extern "C" {
  */
 #define MAX_LARGE_HEAP_SIZE 0x7FFFFFFFFFFFFFFFULL
 
-
 /**
  * Max possible individual allocation size. This is more of a hypothetical value.
  * The value will be used as a sentinel. The non-hybrid allocators will shift

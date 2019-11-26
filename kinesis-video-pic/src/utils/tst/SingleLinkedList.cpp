@@ -15,7 +15,7 @@ TEST_F(SingleListFunctionalityTest, PositiveIdempotentInvalidInput_SingleListFre
 
 TEST_F(SingleListFunctionalityTest, NegativeInvalidInput_SingleListClear)
 {
-    EXPECT_NE(STATUS_SUCCESS, singleListClear(NULL));
+    EXPECT_NE(STATUS_SUCCESS, singleListClear(NULL, FALSE));
 }
 
 TEST_F(SingleListFunctionalityTest, NegativeInvalidInput_SingleListInsertNodeHeadTail)
@@ -214,7 +214,7 @@ TEST_F(SingleListFunctionalityTest, SingleListClear)
     EXPECT_EQ(count, (UINT64) retCount);
 
     // Clear the data
-    EXPECT_EQ(STATUS_SUCCESS, singleListClear(pList));
+    EXPECT_EQ(STATUS_SUCCESS, singleListClear(pList, FALSE));
 
     // Validate the count
     EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeCount(pList, &retCount));
@@ -503,4 +503,92 @@ TEST_F(SingleListFunctionalityTest, SingleListInsertAfter)
 
     // Destroy the list
     EXPECT_EQ(STATUS_SUCCESS, singleListFree(pList));
+}
+
+TEST_F(SingleListFunctionalityTest, SingleListAppendNonEmptyList) {
+    PSingleList pListDst, pListToAppend;
+    UINT64 data;
+
+    // Create the list dst
+    EXPECT_EQ(STATUS_SUCCESS, singleListCreate(&pListDst));
+
+    // Insert at the tail
+    EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemTail(pListDst, 10));
+    EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemTail(pListDst, 20));
+
+    // Create the list to append
+    EXPECT_EQ(STATUS_SUCCESS, singleListCreate(&pListToAppend));
+
+    // Insert at the tail
+    EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemTail(pListToAppend, 30));
+    EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemTail(pListToAppend, 40));
+    EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemTail(pListToAppend, 50));
+
+    EXPECT_EQ(2, pListDst->count);
+    EXPECT_EQ(3, pListToAppend->count);
+
+    EXPECT_EQ(STATUS_SUCCESS, singleListAppendList(pListDst, &pListToAppend));
+
+    EXPECT_EQ(5, pListDst->count);
+    EXPECT_EQ(NULL, pListToAppend);
+
+    // Validate
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 0, &data));
+    EXPECT_EQ(data, 10);
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 1, &data));
+    EXPECT_EQ(data, 20);
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 2, &data));
+    EXPECT_EQ(data, 30);
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 3, &data));
+    EXPECT_EQ(data, 40);
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 4, &data));
+    EXPECT_EQ(data, 50);
+
+    // Destroy the list dst. list to append should have been freed
+    EXPECT_EQ(STATUS_SUCCESS, singleListFree(pListDst));
+}
+
+TEST_F(SingleListFunctionalityTest, SingleListAppendEmptyListOrNull) {
+    PSingleList pListDst, pListToAppend;
+    UINT64 data;
+
+    // Create the list dst
+    EXPECT_EQ(STATUS_SUCCESS, singleListCreate(&pListDst));
+
+    // Insert at the tail
+    EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemTail(pListDst, 10));
+    EXPECT_EQ(STATUS_SUCCESS, singleListInsertItemTail(pListDst, 20));
+
+    // Create the list to append
+    EXPECT_EQ(STATUS_SUCCESS, singleListCreate(&pListToAppend));
+
+    EXPECT_EQ(2, pListDst->count);
+    EXPECT_EQ(0, pListToAppend->count);
+
+    // append empty list to dst list
+    EXPECT_EQ(STATUS_SUCCESS, singleListAppendList(pListDst, &pListToAppend));
+
+    EXPECT_EQ(2, pListDst->count);
+    EXPECT_EQ(NULL, pListToAppend);
+
+    // Validate
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 0, &data));
+    EXPECT_EQ(data, 10);
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 1, &data));
+    EXPECT_EQ(data, 20);
+
+    // append null to dst list
+    EXPECT_EQ(STATUS_SUCCESS, singleListAppendList(pListDst, &pListToAppend));
+
+    EXPECT_EQ(2, pListDst->count);
+    EXPECT_EQ(NULL, pListToAppend);
+
+    // Validate
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 0, &data));
+    EXPECT_EQ(data, 10);
+    EXPECT_EQ(STATUS_SUCCESS, singleListGetNodeDataAt(pListDst, 1, &data));
+    EXPECT_EQ(data, 20);
+
+    // Destroy the list dst. list to append should have been freed
+    EXPECT_EQ(STATUS_SUCCESS, singleListFree(pListDst));
 }

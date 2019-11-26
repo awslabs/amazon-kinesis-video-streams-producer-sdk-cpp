@@ -483,6 +483,7 @@ protected:
         mChainControlPlaneServiceCall = FALSE;
         mRepeatTime = 10;
         mSubmitServiceCallResultMode = DISABLE_AUTO_SUBMIT;
+        mTokenExpiration = TEST_AUTH_EXPIRATION;
 
         mThreadReturnStatus = STATUS_SUCCESS;
     }

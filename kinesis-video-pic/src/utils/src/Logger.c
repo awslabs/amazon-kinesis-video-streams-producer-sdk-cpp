@@ -1,8 +1,8 @@
 #include "Include_i.h"
 
-UINT32 gLoggerLogLevel = LOG_LEVEL_WARN;
+volatile SIZE_T gLoggerLogLevel = LOG_LEVEL_WARN;
 
-VOID updateLogFormat(PCHAR buffer, UINT32 bufferLen, PCHAR fmt)
+VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt)
 {
     UINT32 timeStrLen = 0;
     /* space for "yyyy-mm-dd HH:MM:SS\0" + space + null */
@@ -24,13 +24,12 @@ VOID updateLogFormat(PCHAR buffer, UINT32 bufferLen, PCHAR fmt)
         timeString[0] = '\0';
     }
 
-    offset = SNPRINTF(buffer, bufferLen, "\n%s", timeString);
+    offset = (UINT32) SNPRINTF(buffer, bufferLen, "%s", timeString);
 #ifdef ENABLE_LOG_THREAD_ID
     offset += SNPRINTF(buffer + offset, bufferLen - offset, "%s ", tidString);
 #endif
-    SNPRINTF(buffer + offset, bufferLen - offset, "%s", fmt);
+    SNPRINTF(buffer + offset, bufferLen - offset, "%s\n", fmt);
 }
-
 
 //
 // Default logger function
@@ -38,11 +37,12 @@ VOID updateLogFormat(PCHAR buffer, UINT32 bufferLen, PCHAR fmt)
 VOID defaultLogPrint(UINT32 level, PCHAR tag, PCHAR fmt, ...)
 {
     CHAR logFmtString[MAX_LOG_FORMAT_LENGTH + 1];
+    UINT32 logLevel = GET_LOGGER_LOG_LEVEL();
 
     UNUSED_PARAM(tag);
 
-    if (level >= gLoggerLogLevel) {
-        updateLogFormat(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt);
+    if (level >= logLevel) {
+        addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt);
 
         va_list valist;
         va_start(valist, fmt);
