@@ -16,24 +16,12 @@ extern "C" {
 // Dummy value returned as a device arn
 #define DUMMY_DEVICE_ARN        "arn:aws:kinesisvideo:us-west-2:11111111111:mediastream/device"
 
-// Service defaults
-#define CONTROL_PLANE_URI_PREFIX                "https://"
-#define KINESIS_VIDEO_SERVICE_NAME              "kinesisvideo"
-#define CONTROL_PLANE_URI_POSTFIX               ".amazonaws.com"
-#define DEFAULT_AWS_REGION                      "us-west-2"
-
-// User agent default
-#define DEFAULT_USER_AGENT_NAME                 "AWS-SDK-KVS"
-
 // API postfix definitions
 #define CREATE_API_POSTFIX                      "/createStream"
 #define DESCRIBE_API_POSTFIX                    "/describeStream"
 #define GET_DATA_ENDPOINT_API_POSTFIX           "/getDataEndpoint"
 #define TAG_RESOURCE_API_POSTFIX                "/tagStream"
 #define PUT_MEDIA_API_POSTFIX                   "/putMedia"
-
-// Max parameter JSON string len which will be used for preparing the parameterized strings for the API calls.
-#define MAX_JSON_PARAMETER_STRING_LEN           (10 * 1024)
 
 // NOTE: THe longest string would be the tag resource where we get the maximal tag count and sizes plus some extra.
 #define MAX_TAGS_JSON_PARAMETER_STRING_LEN      (MAX_JSON_PARAMETER_STRING_LEN + (MAX_TAG_COUNT * (MAX_TAG_NAME_LEN + MAX_TAG_VALUE_LEN)))
@@ -44,11 +32,11 @@ extern "C" {
 // Default curl API callbacks shutdown timeout
 #define CURL_API_CALLBACKS_SHUTDOWN_TIMEOUT     (50 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
-// Max number of tokens in the API return JSON
-#define MAX_JSON_TOKEN_COUNT                    50
-
 // Default connection timeout
-#define CURL_API_DEFAULT_CONNECTION_TIMEOUT     (1000 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define CURL_API_DEFAULT_CONNECTION_TIMEOUT     (5000 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+
+// Default shutdown polling interval
+#define CURL_API_DEFAULT_SHUTDOWN_POLLING_INTERVAL     (200 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 // Max parameter JSON string for KMS key len
 #define MAX_JSON_KMS_KEY_ID_STRING_LEN      (MAX_ARN_LEN + 100)
@@ -76,9 +64,6 @@ extern "C" {
 // Parameterized string for TagStream API - we should have at least one tag
 #define TAG_RESOURCE_PARAM_JSON_TEMPLATE            "{\n\t\"StreamARN\": \"%s\",\n\t" \
     "\"Tags\": {%s\n\t}\n}"
-
-// Parameterized string for each tag pair
-#define TAG_PARAM_JSON_TEMPLATE                     "\n\t\t\"%s\": \"%s\","
 
 /**
  * Forward declarations
@@ -117,6 +102,11 @@ struct __CurlApiCallbacks {
     // Representing the producer callbacks
     ProducerCallbacks producerCallbacks;
 
+    // Whether we have the producer client in shutdown or in shutdown sequence
+    // Cant move shutdown to top of struct because it will affect callback mapping
+    // Ensure shutdown is SIZE_T aligned
+    volatile ATOMIC_BOOL shutdown;
+
     // Region name
     CHAR region[MAX_REGION_NAME_LEN + 1];
 
@@ -132,9 +122,6 @@ struct __CurlApiCallbacks {
     // Back pointer to the callback provider object
     struct __CallbacksProvider* pCallbacksProvider;
 
-    // Whether we have the producer client in shutdown or in shutdown sequence
-    volatile BOOL shutdown;
-
     // Shutdown timeout which is passed through the callbacks when enumerating the hash table
     UINT64 shutdownTimeout;
 
@@ -146,6 +133,8 @@ struct __CurlApiCallbacks {
 
     // Ongoing requests: STREAM_HANDLE -> Request
     PHashTable pActiveRequests;
+
+    UINT32 curlApiCallbacksActiveRequestsTableShutdownCallbackPassCount;
 
     // Lock guarding the active requests
     MUTEX activeRequestsLock;
@@ -162,17 +151,11 @@ struct __CurlApiCallbacks {
     // Cached endpoint update period
     UINT64 cacheUpdatePeriod;
 
-    // Lock guarding the pShutdownStream linked list, this lock also guards pOngoingOperations hash table.
-    MUTEX shutdownStreamLock;
+    // Cached endpoints: STREAM_HANDLE -> EndpointTracker
+    PHashTable pStreamsShuttingDown;
 
-    // linked list tracking stream that is shutting down. If a stream's handle is in this list then it is shutting down
-    PSingleList pShutdownStream;
-
-    // Number of ongoing pic calls STREAM_HANDLE -> ongoing pic call count
-    PHashTable pOngoingOperations;
-
-    // Condition variable for the shutdown thread to block waiting for pic calls to finish
-    CVAR shutdownCvar;
+    // Lock guarding the endpoints table
+    MUTEX shutdownLock;
 
     ///////////////////////////////////////////////
     // Test hooks for CURL calls
@@ -193,47 +176,25 @@ struct __CurlApiCallbacks {
 };
 typedef struct __CurlApiCallbacks* PCurlApiCallbacks;
 
-/**
- * Struct containing arguments for the shutdown stream thread
- */
-typedef struct __ShutdownArgs ShutdownArgs;
-struct __ShutdownArgs {
-    // Pointer to CurlApiCallbacks to shutdown requests
-    PCurlApiCallbacks pCurlApiCallbacks;
-
-    // STREAM_HANDLE for stream that is shutting down
-    STREAM_HANDLE streamHandle;
-
-    // Whether stream is being reset or not.
-    BOOL resetStream;
-};
-typedef struct __ShutdownArgs* PShutdownArgs;
-
 //////////////////////////////////////////////////////////////////////
 // Curl API Callbacks main functionality
 //////////////////////////////////////////////////////////////////////
 STATUS createCurlApiCallbacks(struct __CallbacksProvider*, PCHAR, BOOL, UINT64, PCHAR, PCHAR, PCHAR, PCHAR,
 PCurlApiCallbacks*);
 STATUS freeCurlApiCallbacks(PCurlApiCallbacks*);
-STATUS curlApiCallbacksShutdownActiveRequests(PCurlApiCallbacks, STREAM_HANDLE, UINT64, BOOL);
+STATUS curlApiCallbacksShutdownActiveRequests(PCurlApiCallbacks, STREAM_HANDLE, UINT64, BOOL, BOOL);
 STATUS curlApiCallbacksShutdownCachedEndpoints(PCurlApiCallbacks, STREAM_HANDLE, BOOL);
-STATUS curlApiCallbacksShutdownActiveUploads(PCurlApiCallbacks, STREAM_HANDLE, UPLOAD_HANDLE, UINT64, BOOL);
+STATUS curlApiCallbacksShutdownActiveUploads(PCurlApiCallbacks, STREAM_HANDLE, UPLOAD_HANDLE, UINT64, BOOL, BOOL);
 STATUS curlApiCallbacksShutdown(PCurlApiCallbacks, UINT64);
 STATUS freeApiCallbacksCurl(PUINT64);
 STATUS findRequestWithUploadHandle(UPLOAD_HANDLE, PCurlApiCallbacks, PCurlRequest*);
-STATUS isStreamShuttingdown(STREAM_HANDLE, PCurlApiCallbacks, PBOOL);
-STATUS markShutdownStream(STREAM_HANDLE, PCurlApiCallbacks);
-STATUS streamShutdownComplete(STREAM_HANDLE, PCurlApiCallbacks);
-STATUS incrementOngoingOperation(STREAM_HANDLE, PCurlApiCallbacks);
-STATUS decrementOngoingOperation(STREAM_HANDLE, PCurlApiCallbacks);
 
 //////////////////////////////////////////////////////////////////////
 // Auxiliary functionality
 //////////////////////////////////////////////////////////////////////
 STATUS notifyCallResult(struct __CallbacksProvider*, STATUS, STREAM_HANDLE);
-BOOL compareJsonString(PCHAR, jsmntok_t*, jsmntype_t, PCHAR);
 STREAM_STATUS getStreamStatusFromString(PCHAR, UINT32);
-STATUS curlApiCallbacksActiveRequestsTableShutdownCallback(UINT64, PHashEntry);
+STATUS curlApiCallbacksMarkStreamShuttingdownCallback(UINT64, PHashEntry);
 STATUS curlApiCallbacksCachedEndpointsTableShutdownCallback(UINT64, PHashEntry);
 STATUS curlApiCallbacksFreeRequest(PCurlRequest);
 
@@ -272,7 +233,6 @@ PVOID describeStreamCurlHandler(PVOID);
 PVOID getStreamingEndpointCurlHandler(PVOID);
 PVOID tagResourceCurlHandler(PVOID);
 PVOID putStreamCurlHandler(PVOID);
-PVOID shutdownStreamCurlHandler(PVOID);
 
 #pragma pack(pop, include_i)
 

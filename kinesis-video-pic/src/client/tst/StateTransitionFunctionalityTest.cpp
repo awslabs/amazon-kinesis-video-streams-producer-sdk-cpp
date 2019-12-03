@@ -330,14 +330,11 @@ TEST_P(StateTransitionFunctionalityTest, StreamTerminatedAndGoToNewState)
 TEST_P(StateTransitionFunctionalityTest, FaultInjectUploadHandleAfterStopBeforeTokenRotation) {
     mDeviceInfo.clientInfo.stopStreamTimeout = STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND;
     CreateScenarioTestClient();
-    BOOL submittedErrorAck = FALSE, didPutFrame, gotStreamData, submittedAck;
+    BOOL submittedErrorAck = FALSE, didPutFrame, gotStreamData;
     MockConsumer *mockConsumer;
-    UINT64 stopTime, currentTime, currentIndex;
+    UINT64 stopTime, currentTime;
     std::vector<UPLOAD_HANDLE> currentUploadHandles;
-    PViewItem pViewItem;
     STATUS retStatus;
-    TID thread;
-    STATUS *pRetValue;
 
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
     mStreamInfo.streamCaps.recoverOnError = TRUE;
@@ -387,10 +384,7 @@ TEST_P(StateTransitionFunctionalityTest, FaultInjectUploadHandleAfterStopDuringT
     MockConsumer *mockConsumer;
     UINT64 stopTime, currentTime;
     std::vector<UPLOAD_HANDLE> currentUploadHandles;
-    PViewItem pViewItem;
     STATUS retStatus;
-    TID thread;
-    STATUS *pRetValue;
 
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
     mStreamInfo.streamCaps.recoverOnError = TRUE;

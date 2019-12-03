@@ -1277,7 +1277,7 @@ STATUS mkvgenEbmlEncodeTrackInfo(PBYTE pBuffer, UINT32 bufferSize, PStreamMkvGen
                 *(pTrackStart + trackSpecificDataOffset + MKV_TRACK_AUDIO_BIT_DEPTH_OFFSET) = (UINT8) pTrackInfo->trackCustomData.trackAudioConfig.bitDepth;
 
                 // fix up audio element data size
-                encodedLen = 0x10000000 | (UINT32) (mkvAudioBitsSize) - MKV_TRACK_AUDIO_EBML_HEADER_SIZE;
+                encodedLen = (0x10000000 | (UINT32) (mkvAudioBitsSize)) - MKV_TRACK_AUDIO_EBML_HEADER_SIZE;
                 // +1 to skip the audio element
                 putInt32((PINT32)(pTrackStart + trackSpecificDataOffset + 1), encodedLen);
             }

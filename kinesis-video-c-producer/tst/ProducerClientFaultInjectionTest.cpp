@@ -15,6 +15,8 @@ TEST_F(ProducerClientFaultInjectionTest, notAuthorizedDescribeCall)
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
 
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
     EXPECT_EQ(0, mCurlTagResourceCount);
@@ -35,6 +37,8 @@ TEST_F(ProducerClientFaultInjectionTest, timeoutDescribeCall)
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
 
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_EQ(SERVICE_CALL_MAX_RETRY_COUNT + 1, mCurlDescribeStreamCount);
     EXPECT_EQ(0, mCurlTagResourceCount);
@@ -53,6 +57,8 @@ TEST_F(ProducerClientFaultInjectionTest, notAuthorizedDescribeCallWithContinuous
 
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
+
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     EXPECT_EQ(0, mCurlCreateStreamCount);
     // Should only attempt a single try even with continuous callbacks as this is a non-recoverable error
@@ -76,6 +82,8 @@ TEST_F(ProducerClientFaultInjectionTest, timeoutDescribeCallWithContinuousCallba
     // Attempt to create a stream
     EXPECT_EQ(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
 
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_LT(SERVICE_CALL_MAX_RETRY_COUNT + 1, mCurlDescribeStreamCount);
     EXPECT_EQ(1, mCurlTagResourceCount);
@@ -97,6 +105,8 @@ TEST_F(ProducerClientFaultInjectionTest, notAuthorizedCreateCall)
 
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
+
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     EXPECT_EQ(1, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
@@ -124,6 +134,8 @@ TEST_F(ProducerClientFaultInjectionTest, notAuthorizedCreateCallWithContinuousCa
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
 
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
     EXPECT_EQ(1, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
     EXPECT_EQ(0, mCurlTagResourceCount);
@@ -146,6 +158,8 @@ TEST_F(ProducerClientFaultInjectionTest, timeoutCreateCallWithContinuousCallback
 
     // Attempt to create a stream
     EXPECT_EQ(STATUS_OPERATION_TIMED_OUT, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
+
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     // SERVICE_CALL_MAX_RETRY_COUNT + 1 retries and 1 caused by continuous retry logic
     // 1 describe 404, retryCount + 1 create timeout， 1 describe 404
@@ -170,6 +184,8 @@ TEST_F(ProducerClientFaultInjectionTest, timeoutCreateCall)
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
 
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
     EXPECT_EQ(SERVICE_CALL_MAX_RETRY_COUNT + 1, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
     EXPECT_EQ(0, mCurlTagResourceCount);
@@ -188,6 +204,8 @@ TEST_F(ProducerClientFaultInjectionTest, notAuthorizedGetEndpointCall)
 
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
+
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
@@ -209,6 +227,8 @@ TEST_F(ProducerClientFaultInjectionTest, timeoutGetEndpointCall)
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
 
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
     EXPECT_EQ(1, mCurlTagResourceCount);
@@ -227,6 +247,8 @@ TEST_F(ProducerClientFaultInjectionTest, notAuthorizedTagCall)
 
     // Attempt to create a stream
     EXPECT_NE(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
+
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
@@ -247,6 +269,8 @@ TEST_F(ProducerClientFaultInjectionTest, timeoutTagCall)
 
     // Inducing tag error should still let the stream creation to go through
     EXPECT_EQ(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
+
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
@@ -272,14 +296,14 @@ TEST_F(ProducerClientFaultInjectionTest, notAuthorizedPutMediaCall)
     frame.duration = TEST_FRAME_DURATION;
     frame.frameData = mFrameBuffer;
     frame.trackId = DEFAULT_VIDEO_TRACK_ID;
-    MEMSET(frame.frameData, 0x55, SIZEOF(mFrameBuffer));
+    MEMSET(frame.frameData, 0x55, mFrameSize);
     frame.index = 0;
     frame.decodingTs = frame.presentationTs = GETTIME();
-    frame.size = SIZEOF(mFrameBuffer);
+    frame.size = mFrameSize;
     frame.flags = FRAME_FLAG_KEY_FRAME;
     EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreams[0], &frame));
 
-    THREAD_SLEEP(1 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_EQ(1, mCurlDescribeStreamCount);
@@ -306,14 +330,14 @@ TEST_F(ProducerClientFaultInjectionTest, timeoutPutMediaCall)
     frame.duration = TEST_FRAME_DURATION;
     frame.frameData = mFrameBuffer;
     frame.trackId = DEFAULT_VIDEO_TRACK_ID;
-    MEMSET(frame.frameData, 0x55, SIZEOF(mFrameBuffer));
+    MEMSET(frame.frameData, 0x55, mFrameSize);
     frame.index = 0;
     frame.decodingTs = frame.presentationTs = GETTIME();
-    frame.size = SIZEOF(mFrameBuffer);
+    frame.size = mFrameSize;
     frame.flags = FRAME_FLAG_KEY_FRAME;
     EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreams[0], &frame));
 
-    THREAD_SLEEP(1 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+    THREAD_SLEEP(2 * HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     EXPECT_EQ(0, mCurlCreateStreamCount);
     EXPECT_LE(1, mCurlDescribeStreamCount);

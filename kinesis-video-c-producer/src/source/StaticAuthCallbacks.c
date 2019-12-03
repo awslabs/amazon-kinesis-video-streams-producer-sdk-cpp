@@ -14,6 +14,7 @@ STATUS createStaticAuthCallbacks(PClientCallbacks pCallbacksProvider, PCHAR acce
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PStaticAuthCallbacks pStaticAuthCallbacks = NULL;
+    PAwsCredentialProvider pCredentialProvider = NULL;
 
     CHK(pCallbacksProvider != NULL && ppStaticAuthCallbacks != NULL, STATUS_NULL_ARG);
 
@@ -36,9 +37,10 @@ STATUS createStaticAuthCallbacks(PClientCallbacks pCallbacksProvider, PCHAR acce
     pStaticAuthCallbacks->authCallbacks.deviceCertToTokenFn = NULL;
     pStaticAuthCallbacks->authCallbacks.getDeviceFingerprintFn = NULL;
 
-    // Create the credentials object
-    CHK_STATUS(createAwsCredentials(accessKeyId, 0, secretKey, 0, sessionToken, 0, expiration,
-                                    &pStaticAuthCallbacks->pAwsCredentials));
+    // Initialize the provider
+    CHK_STATUS(createStaticCredentialProvider(accessKeyId, 0, secretKey, 0,
+                                              sessionToken, 0, expiration, &pCredentialProvider));
+    pStaticAuthCallbacks->pCredentialProvider = (PAwsCredentialProvider) pCredentialProvider;
 
     // Append to the auth chain
     CHK_STATUS(addAuthCallbacks(pCallbacksProvider, (PAuthCallbacks) pStaticAuthCallbacks));
@@ -77,8 +79,8 @@ STATUS freeStaticAuthCallbacks(PAuthCallbacks *ppStaticAuthCallbacks)
     // Call is idempotent
     CHK(pStaticAuthCallbacks != NULL, retStatus);
 
-    // Release the underlying AWS credentials object
-    freeAwsCredentials(&pStaticAuthCallbacks->pAwsCredentials);
+    // Release the underlying credential provider
+    freeStaticCredentialProvider((PAwsCredentialProvider*) &pStaticAuthCallbacks->pCredentialProvider);
 
     // Release the object
     MEMFREE(pStaticAuthCallbacks);
@@ -116,16 +118,21 @@ STATUS getStreamingTokenStaticFunc(UINT64 customData, PCHAR streamName, STREAM_A
     ENTERS();
 
     STATUS retStatus = STATUS_SUCCESS;
+    PAwsCredentials pAwsCredentials;
+    PAwsCredentialProvider pCredentialProvider;
 
     PStaticAuthCallbacks pStaticAuthCallbacks = (PStaticAuthCallbacks) customData;
 
     CHK(pStaticAuthCallbacks != NULL, STATUS_NULL_ARG);
 
+    pCredentialProvider = (PAwsCredentialProvider) pStaticAuthCallbacks->pCredentialProvider;
+    CHK_STATUS(pCredentialProvider->getCredentialsFn(pCredentialProvider, &pAwsCredentials));
+
     retStatus = getStreamingTokenResultEvent(
             pServiceCallContext->customData, SERVICE_CALL_RESULT_OK,
-            (PBYTE) pStaticAuthCallbacks->pAwsCredentials,
-            pStaticAuthCallbacks->pAwsCredentials->size,
-            pStaticAuthCallbacks->pAwsCredentials->expiration);
+            (PBYTE) pAwsCredentials,
+            pAwsCredentials->size,
+            pAwsCredentials->expiration);
 
     PCallbacksProvider pCallbacksProvider = pStaticAuthCallbacks->pCallbacksProvider;
 
@@ -142,13 +149,18 @@ STATUS getSecurityTokenStaticFunc(UINT64 customData, PBYTE* ppBuffer, PUINT32 pS
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-
     PStaticAuthCallbacks pStaticAuthCallbacks = (PStaticAuthCallbacks) customData;
+    PAwsCredentials pAwsCredentials;
+    PAwsCredentialProvider pCredentialProvider;
+
     CHK(pStaticAuthCallbacks != NULL && ppBuffer != NULL && pSize != NULL && pExpiration != NULL, STATUS_NULL_ARG);
 
-    *pExpiration = pStaticAuthCallbacks->pAwsCredentials->expiration;
-    *pSize = pStaticAuthCallbacks->pAwsCredentials->size;
-    *ppBuffer = (PBYTE) pStaticAuthCallbacks->pAwsCredentials;
+    pCredentialProvider = (PAwsCredentialProvider) pStaticAuthCallbacks->pCredentialProvider;
+    CHK_STATUS(pCredentialProvider->getCredentialsFn(pCredentialProvider, &pAwsCredentials));
+
+    *pExpiration = pAwsCredentials->expiration;
+    *pSize = pAwsCredentials->size;
+    *ppBuffer = (PBYTE) pAwsCredentials;
 
 CleanUp:
 

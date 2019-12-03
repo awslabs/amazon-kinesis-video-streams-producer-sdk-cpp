@@ -137,7 +137,7 @@ STATUS ClientTestBase::getSecurityTokenFunc(UINT64 customData, PBYTE* ppToken, P
 
     *ppToken = pClient->mToken = (PBYTE) TEST_TOKEN_BITS;
     *pSize = pClient->mTokenSize = SIZEOF(TEST_TOKEN_BITS);
-    *pExpiration = pClient->mTokenExpiration = TEST_AUTH_EXPIRATION;
+    *pExpiration = pClient->mTokenExpiration;
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     return STATUS_SUCCESS;
@@ -192,7 +192,7 @@ STATUS ClientTestBase::getEmptySecurityTokenFunc(UINT64 customData, PBYTE* ppTok
 
     *ppToken = pClient->mToken = NULL;
     *pSize = pClient->mTokenSize = 0;
-    *pExpiration = pClient->mTokenExpiration = TEST_AUTH_EXPIRATION;
+    *pExpiration = pClient->mTokenExpiration;
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     return STATUS_SUCCESS;

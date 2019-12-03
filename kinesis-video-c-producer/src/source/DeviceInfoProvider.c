@@ -9,6 +9,8 @@ STATUS createDefaultDeviceInfo(PDeviceInfo* ppDeviceInfo)
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PDeviceInfo pDeviceInfo = NULL;
+    PCHAR userLogLevelStr = NULL;
+    UINT32 userLogLevel;
 
     CHK(ppDeviceInfo != NULL, STATUS_NULL_ARG);
 
@@ -30,6 +32,15 @@ STATUS createDefaultDeviceInfo(PDeviceInfo* ppDeviceInfo)
     pDeviceInfo->clientId[0] = '\0';
     pDeviceInfo->clientInfo.version = CLIENT_INFO_CURRENT_VERSION;
     pDeviceInfo->clientInfo.loggerLogLevel = DEFAULT_LOGGER_LOG_LEVEL;
+    if ((userLogLevelStr = GETENV(DEBUG_LOG_LEVEL_ENV_VAR)) != NULL) {
+        if (STATUS_SUCCEEDED(STRTOUI32(userLogLevelStr, NULL, 10, &userLogLevel))) {
+            userLogLevel = userLogLevel > LOG_LEVEL_SILENT ? LOG_LEVEL_SILENT : userLogLevel < LOG_LEVEL_VERBOSE ? LOG_LEVEL_VERBOSE : userLogLevel;
+            pDeviceInfo->clientInfo.loggerLogLevel = userLogLevel;
+        } else {
+            DLOGW("failed to parse %s", DEBUG_LOG_LEVEL_ENV_VAR);
+        }
+    }
+
     pDeviceInfo->clientInfo.logMetric = TRUE;
 
     // use 0 for default values

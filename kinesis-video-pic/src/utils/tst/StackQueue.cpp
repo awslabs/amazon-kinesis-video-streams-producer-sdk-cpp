@@ -16,7 +16,7 @@ TEST_F(StackQueueFunctionalityTest, PositiveIdempotentInvalidInput_StackQueueFre
 
 TEST_F(StackQueueFunctionalityTest, NegativeInvalidInput_StackQueueClear)
 {
-    EXPECT_NE(STATUS_SUCCESS, stackQueueClear(NULL));
+    EXPECT_NE(STATUS_SUCCESS, stackQueueClear(NULL, FALSE));
 }
 
 TEST_F(StackQueueFunctionalityTest, NegativeInvalidInput_StackQueueGetCount)
@@ -139,7 +139,7 @@ TEST_F(StackQueueFunctionalityTest, StackQueueBasicOperations)
     EXPECT_FALSE(isEmpty);
 
     // Clear the data
-    EXPECT_EQ(STATUS_SUCCESS, stackQueueClear(pStackQueue));
+    EXPECT_EQ(STATUS_SUCCESS, stackQueueClear(pStackQueue, FALSE));
 
     // Validate the count
     EXPECT_EQ(STATUS_SUCCESS, stackQueueGetCount(pStackQueue, &retCount));

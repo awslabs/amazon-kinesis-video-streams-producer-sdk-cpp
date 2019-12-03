@@ -111,9 +111,8 @@ PUBLIC_API STATUS hexEncodeCase(PVOID pInputData, UINT32 inputLength, PCHAR pOut
  * IMPLEMENTATION: We will ignore the last character if the number is odd. Will return an error on non-hex chars.
  * Will process the upper and lower case.
  */
-PUBLIC_API STATUS hexDecode(PCHAR pInputData, PBYTE pOutputData, PUINT32 pOutputLength)
+PUBLIC_API STATUS hexDecode(PCHAR pInputData, UINT32 inputLength, PBYTE pOutputData, PUINT32 pOutputLength)
 {
-    UINT32 inputLength;
     UINT32 outputLength;
     UINT32 i;
     UINT8 hiNibble, loNibble;
@@ -124,7 +123,11 @@ PUBLIC_API STATUS hexDecode(PCHAR pInputData, PBYTE pOutputData, PUINT32 pOutput
         return STATUS_NULL_ARG;
     }
 
-    inputLength = (UINT32) STRLEN(pInputData);
+    // Calculate the length if none is specified
+    if (inputLength == 0) {
+        inputLength = (UINT32) STRLEN(pInputData);
+    }
+
     // Check the size - should have more than 1 chars
     if (inputLength <= 1) {
         return STATUS_INVALID_ARG_LEN;

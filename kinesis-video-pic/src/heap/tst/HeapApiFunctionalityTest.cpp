@@ -427,7 +427,7 @@ TEST_F(HeapApiFunctionalityTest, AivHeapResizeEdgeCases)
     UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
     ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i;
-    UINT64 setSize;
+    UINT64 setSize, iter;
     PVOID pAlloc;
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
@@ -514,8 +514,8 @@ TEST_F(HeapApiFunctionalityTest, AivHeapResizeEdgeCases)
     handle = handles[7];
     EXPECT_EQ(STATUS_SUCCESS, heapGetAllocSize(pHeap, handle, &setSize));
     EXPECT_EQ(size, setSize);
-    for (i = setSize; i > 0; i--) {
-        EXPECT_EQ(STATUS_SUCCESS, heapSetAllocSize(pHeap, &handle, i));
+    for (iter = setSize; iter > 0; iter--) {
+        EXPECT_EQ(STATUS_SUCCESS, heapSetAllocSize(pHeap, &handle, iter));
         EXPECT_EQ(handles[7], handle);
     }
     EXPECT_EQ(STATUS_SUCCESS, heapGetAllocSize(pHeap, handle, &setSize));

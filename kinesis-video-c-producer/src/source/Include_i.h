@@ -22,12 +22,10 @@ typedef StreamLatencyStateMachine* PStreamLatencyStateMachine;
 // Project include files
 ////////////////////////////////////////////////////
 #include <com/amazonaws/kinesis/video/cproducer/Include.h>
+#include <com/amazonaws/kinesis/video/common/Include.h>
 #include <com/amazonaws/kinesis/video/client/Include.h>
-#include <jsmn.h>
+
 #include <curl/curl.h>
-#include <openssl/sha.h>
-#include <openssl/hmac.h>
-#include <openssl/evp.h>
 
 #if !defined __WINDOWS_BUILD__
 #include <signal.h>
@@ -56,11 +54,8 @@ typedef enum {
 ////////////////////////////////////////////////////
 // Project internal includes
 ////////////////////////////////////////////////////
-#include "Version.h"
-#include "Auth.h"
 #include "Request.h"
 #include "Response.h"
-#include "AwsV4Signer.h"
 #include "CallbacksProvider.h"
 #include "FileAuthCallbacks.h"
 #include "CurlApiCallbacks.h"
@@ -72,7 +67,6 @@ typedef enum {
 #include "StaticAuthCallbacks.h"
 #include "StreamInfoProvider.h"
 #include "IotAuthCallback.h"
-#include "Util.h"
 #include "FileLoggerPlatformCallbackProvider.h"
 
 ////////////////////////////////////////////////////

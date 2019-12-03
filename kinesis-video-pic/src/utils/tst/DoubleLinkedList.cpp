@@ -15,7 +15,7 @@ TEST_F(DoubleListFunctionalityTest, PositiveIdempotentInvalidInput_DoubleListFre
 
 TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListClear)
 {
-    EXPECT_NE(STATUS_SUCCESS, doubleListClear(NULL));
+    EXPECT_NE(STATUS_SUCCESS, doubleListClear(NULL, FALSE));
 }
 
 TEST_F(DoubleListFunctionalityTest, NegativeInvalidInput_DoubleListInsertNodeHeadTail)
@@ -212,7 +212,7 @@ TEST_F(DoubleListFunctionalityTest,  DoubleListClear)
     EXPECT_EQ(count, (UINT64) retCount);
 
     // Clear the data
-    EXPECT_EQ(STATUS_SUCCESS, doubleListClear(pList));
+    EXPECT_EQ(STATUS_SUCCESS, doubleListClear(pList, FALSE));
 
     // Validate the count
     EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeCount(pList, &retCount));
@@ -418,7 +418,7 @@ TEST_F(DoubleListFunctionalityTest, DoubleListRemoveDeleteNode)
         EXPECT_EQ(STATUS_SUCCESS, doubleListDeleteHead(pList));
     }
 
-    // Add a single node and remove head and then tail
+    // Add a double node and remove head and then tail
     EXPECT_EQ(STATUS_SUCCESS, doubleListInsertItemHead(pList, 1));
     EXPECT_EQ(STATUS_SUCCESS, doubleListDeleteHead(pList));
     EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeCount(pList, &retCount));
@@ -485,4 +485,117 @@ TEST_F(DoubleListFunctionalityTest, DoubleListInsertBeforeAfter)
 
     // Destroy the list
     EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pList));
+}
+
+TEST_F(DoubleListFunctionalityTest, DoubleListAppendNonEmptyList) {
+    PDoubleList pListDst, pListToAppend;
+    PDoubleListNode pNode;
+
+    // Create the list dst
+    EXPECT_EQ(STATUS_SUCCESS, doubleListCreate(&pListDst));
+
+    // Insert at the tail
+    EXPECT_EQ(STATUS_SUCCESS, doubleListInsertItemTail(pListDst, 10));
+    EXPECT_EQ(STATUS_SUCCESS, doubleListInsertItemTail(pListDst, 20));
+
+    // Create the list to append
+    EXPECT_EQ(STATUS_SUCCESS, doubleListCreate(&pListToAppend));
+
+    // Insert at the tail
+    EXPECT_EQ(STATUS_SUCCESS, doubleListInsertItemTail(pListToAppend, 30));
+    EXPECT_EQ(STATUS_SUCCESS, doubleListInsertItemTail(pListToAppend, 40));
+    EXPECT_EQ(STATUS_SUCCESS, doubleListInsertItemTail(pListToAppend, 50));
+
+    EXPECT_EQ(2, pListDst->count);
+    EXPECT_EQ(3, pListToAppend->count);
+
+    EXPECT_EQ(STATUS_SUCCESS, doubleListAppendList(pListDst, &pListToAppend));
+
+    EXPECT_EQ(5, pListDst->count);
+    EXPECT_EQ(NULL, pListToAppend);
+
+    // Validate
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetHeadNode(pListDst, &pNode));
+    EXPECT_NE(NULL, (UINT64) pNode);
+    EXPECT_EQ(pNode->data, 10);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNextNode(pNode, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 20);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNextNode(pNode, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 30);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNextNode(pNode, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 40);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNextNode(pNode, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 50);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNextNode(pNode, &pNode));
+    EXPECT_EQ(NULL, pNode);
+
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetTailNode(pListDst, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 50);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetPrevNode(pNode, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 40);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetPrevNode(pNode, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 30);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetPrevNode(pNode, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 20);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetPrevNode(pNode, &pNode));
+    EXPECT_NE(NULL, (UINT64)  pNode);
+    EXPECT_EQ(pNode->data, 10);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetPrevNode(pNode, &pNode));
+    EXPECT_EQ(NULL, pNode);
+
+    // Destroy the list dst. list to append should have been freed
+    EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pListDst));
+}
+
+TEST_F(DoubleListFunctionalityTest, DoubleListAppendEmptyListOrNull) {
+    PDoubleList pListDst, pListToAppend;
+    UINT64 data;
+
+    // Create the list dst
+    EXPECT_EQ(STATUS_SUCCESS, doubleListCreate(&pListDst));
+
+    // Insert at the tail
+    EXPECT_EQ(STATUS_SUCCESS, doubleListInsertItemTail(pListDst, 10));
+    EXPECT_EQ(STATUS_SUCCESS, doubleListInsertItemTail(pListDst, 20));
+
+    // Create the list to append
+    EXPECT_EQ(STATUS_SUCCESS, doubleListCreate(&pListToAppend));
+
+    EXPECT_EQ(2, pListDst->count);
+    EXPECT_EQ(0, pListToAppend->count);
+
+    // append empty list to dst list
+    EXPECT_EQ(STATUS_SUCCESS, doubleListAppendList(pListDst, &pListToAppend));
+
+    EXPECT_EQ(2, pListDst->count);
+    EXPECT_EQ(NULL, pListToAppend);
+
+    // Validate
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeDataAt(pListDst, 0, &data));
+    EXPECT_EQ(data, 10);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeDataAt(pListDst, 1, &data));
+    EXPECT_EQ(data, 20);
+
+    // append null to dst list
+    EXPECT_EQ(STATUS_SUCCESS, doubleListAppendList(pListDst, &pListToAppend));
+
+    EXPECT_EQ(2, pListDst->count);
+    EXPECT_EQ(NULL, pListToAppend);
+
+    // Validate
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeDataAt(pListDst, 0, &data));
+    EXPECT_EQ(data, 10);
+    EXPECT_EQ(STATUS_SUCCESS, doubleListGetNodeDataAt(pListDst, 1, &data));
+    EXPECT_EQ(data, 20);
+
+    // Destroy the list dst. list to append should have been freed
+    EXPECT_EQ(STATUS_SUCCESS, doubleListFree(pListDst));
 }

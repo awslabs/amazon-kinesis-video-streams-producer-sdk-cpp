@@ -29,7 +29,7 @@ STATUS createStream(PKinesisVideoClient pKinesisVideoClient, PStreamInfo pStream
     BOOL locked = FALSE;
     BOOL tearDownOnError = TRUE;
     CHAR tempStreamName[MAX_STREAM_NAME_LEN];
-    UINT32 trackInfoSize;
+    UINT32 trackInfoSize, tagsSize;
 
     CHK(pKinesisVideoClient != NULL && ppKinesisVideoStream != NULL, STATUS_NULL_ARG);
 
@@ -69,11 +69,14 @@ STATUS createStream(PKinesisVideoClient pKinesisVideoClient, PStreamInfo pStream
     // Space for track info bits
     trackInfoSize = SIZEOF(TrackInfo) * pStreamInfo->streamCaps.trackInfoCount;
 
+    // Get the max tags structure size
+    CHK_STATUS(packageTags(pStreamInfo->tagCount, pStreamInfo->tags, 0, NULL, &tagsSize));
+
     // Allocate the main struct
     // NOTE: The calloc will Zero the fields
     // We are allocating more than the structure size to accommodate for
     // the variable size buffers which will come at the end and for the tags
-    allocationSize = SIZEOF(KinesisVideoStream) + pStreamInfo->tagCount * TAG_FULL_LENGTH + trackInfoSize + MKV_SEGMENT_UUID_LEN;
+    allocationSize = SIZEOF(KinesisVideoStream) + tagsSize + trackInfoSize + MKV_SEGMENT_UUID_LEN;
     pKinesisVideoStream = (PKinesisVideoStream) MEMCALLOC(1, allocationSize);
     CHK(pKinesisVideoStream != NULL, STATUS_NOT_ENOUGH_MEMORY);
 
@@ -183,23 +186,10 @@ STATUS createStream(PKinesisVideoClient pKinesisVideoClient, PStreamInfo pStream
     // Set the tags pointer to point after the KinesisVideoStream struct
     pKinesisVideoStream->streamInfo.tags = (PTag)((PBYTE) (pKinesisVideoStream + 1));
 
-    // Copy the tags if any. First, set the pointer to the end of the tags to iterate
-    pCurPnt = (PBYTE) (pKinesisVideoStream->streamInfo.tags + pKinesisVideoStream->streamInfo.tagCount);
-    for (i = 0; i < pKinesisVideoStream->streamInfo.tagCount; i++) {
-        pKinesisVideoStream->streamInfo.tags[i].version = pStreamInfo->tags[i].version;
-        // Fix-up the pointers first
-        pKinesisVideoStream->streamInfo.tags[i].name = (PCHAR) pCurPnt;
-        pCurPnt += (MAX_TAG_NAME_LEN + 1) * SIZEOF(CHAR);
-
-        pKinesisVideoStream->streamInfo.tags[i].value = (PCHAR) pCurPnt;
-        pCurPnt += (MAX_TAG_VALUE_LEN + 1) * SIZEOF(CHAR);
-
-        // Copy the strings
-        STRNCPY(pKinesisVideoStream->streamInfo.tags[i].name, pStreamInfo->tags[i].name, MAX_TAG_NAME_LEN);
-        pKinesisVideoStream->streamInfo.tags[i].name[MAX_TAG_NAME_LEN] = '\0';
-        STRNCPY(pKinesisVideoStream->streamInfo.tags[i].value, pStreamInfo->tags[i].value, MAX_TAG_VALUE_LEN);
-        pKinesisVideoStream->streamInfo.tags[i].value[MAX_TAG_VALUE_LEN] = '\0';
-    }
+    // Package the tags after the structure
+    CHK_STATUS(packageTags(pStreamInfo->tagCount, pStreamInfo->tags, tagsSize, pKinesisVideoStream->streamInfo.tags, &tagsSize));
+    pKinesisVideoStream->streamInfo.tagCount = pStreamInfo->tagCount;
+    pCurPnt = (PBYTE) pKinesisVideoStream->streamInfo.tags + tagsSize;
 
     // Fix-up/store the segment Uid to make it random if NULL
     pKinesisVideoStream->streamInfo.streamCaps.segmentUuid = pCurPnt;
@@ -269,6 +259,8 @@ STATUS createStream(PKinesisVideoClient pKinesisVideoClient, PStreamInfo pStream
 
     // Set the call result to unknown to start
     pKinesisVideoStream->base.result = SERVICE_CALL_RESULT_NOT_SET;
+
+    CHK_STATUS(semaphoreCreate(MAX_PIC_REENTRANCY_COUNT, &pKinesisVideoStream->base.shutdownSemaphore));
 
     pKinesisVideoStream->base.shutdown = FALSE;
 
@@ -353,28 +345,20 @@ STATUS freeStream(PKinesisVideoStream pKinesisVideoStream)
     pKinesisVideoClient->streams[pKinesisVideoStream->streamId] = NULL;
     pKinesisVideoClient->streamCount--;
 
-    // Free the condition variable
-    pKinesisVideoClient->clientCallbacks.freeConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->bufferAvailabilityCondition);
+    if (IS_VALID_CVAR_VALUE(pKinesisVideoStream->bufferAvailabilityCondition)) {
+        pKinesisVideoClient->clientCallbacks.freeConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                                     pKinesisVideoStream->bufferAvailabilityCondition);
 
-    // Release the Ready state condition variable if set
+        pKinesisVideoStream->bufferAvailabilityCondition = INVALID_CVAR_VALUE;
+    }
+
     if (IS_VALID_CVAR_VALUE(pKinesisVideoStream->base.ready)) {
-        // Broadcast in any case
-        pKinesisVideoClient->clientCallbacks.broadcastConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
-                                                                          pKinesisVideoStream->base.ready);
-
-        // Free the condition variable
         pKinesisVideoClient->clientCallbacks.freeConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
                                                                      pKinesisVideoStream->base.ready);
         pKinesisVideoStream->base.ready = INVALID_CVAR_VALUE;
     }
 
-    // Release the stream closed notifier condition variable if set
     if (IS_VALID_CVAR_VALUE(pKinesisVideoStream->streamClosedCondition)) {
-        // Broadcast in any case
-        pKinesisVideoClient->clientCallbacks.broadcastConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
-                                                                          pKinesisVideoStream->streamClosedCondition);
-
-        // Free the condition variable
         pKinesisVideoClient->clientCallbacks.freeConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
                                                                      pKinesisVideoStream->streamClosedCondition);
         pKinesisVideoStream->streamClosedCondition = INVALID_CVAR_VALUE;
@@ -386,6 +370,10 @@ STATUS freeStream(PKinesisVideoStream pKinesisVideoStream)
     // Unlock and free the lock
     pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
     pKinesisVideoClient->clientCallbacks.freeMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
+
+    if (IS_VALID_SEMAPHORE_HANDLE(pKinesisVideoStream->base.shutdownSemaphore)) {
+        semaphoreFree(&pKinesisVideoStream->base.shutdownSemaphore);
+    }
 
     // Release the object
     MEMFREE(pKinesisVideoStream);
@@ -569,6 +557,11 @@ STATUS stopStreamSync(PKinesisVideoStream pKinesisVideoStream)
             break;
         }
 
+        if (pKinesisVideoStream->base.shutdown) {
+            DLOGW("Kinesis Video Stream is being shut down.");
+            break;
+        }
+
         // Need to await for the Stream Stopped state before returning
         DLOGV("Awaiting for the stop stream to complete...");
 
@@ -612,6 +605,34 @@ STATUS shutdownStream(PKinesisVideoStream pKinesisVideoStream, BOOL resetStream)
     CHK_STATUS(pKinesisVideoClient->clientCallbacks.streamShutdownFn(pKinesisVideoClient->clientCallbacks.customData,
                                                                      TO_STREAM_HANDLE(pKinesisVideoStream),
                                                                      resetStream));
+
+    // No need to continue on reset - only for free
+    CHK(!resetStream, retStatus);
+
+    // Lock the semaphore so no new calls are made
+    semaphoreLock(pKinesisVideoStream->base.shutdownSemaphore);
+
+    // Trigger cvars to exit
+    if (IS_VALID_CVAR_VALUE(pKinesisVideoStream->base.ready)) {
+        pKinesisVideoClient->clientCallbacks.broadcastConditionVariableFn(
+                pKinesisVideoClient->clientCallbacks.customData,
+                pKinesisVideoStream->base.ready);
+    }
+
+    if (IS_VALID_CVAR_VALUE(pKinesisVideoStream->bufferAvailabilityCondition)) {
+        pKinesisVideoClient->clientCallbacks.broadcastConditionVariableFn(
+                pKinesisVideoClient->clientCallbacks.customData,
+                pKinesisVideoStream->bufferAvailabilityCondition);
+    }
+
+    if (IS_VALID_CVAR_VALUE(pKinesisVideoStream->streamClosedCondition)) {
+        pKinesisVideoClient->clientCallbacks.broadcastConditionVariableFn(
+                pKinesisVideoClient->clientCallbacks.customData,
+                pKinesisVideoStream->streamClosedCondition);
+    }
+
+    // Wait until drained
+    semaphoreWaitUntilClear(pKinesisVideoStream->base.shutdownSemaphore, STREAM_SHUTDOWN_SEMAPHORE_TIMEOUT);
 
 CleanUp:
 
@@ -679,7 +700,7 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame)
     UINT64 remainingSize = 0, remainingDuration = 0, thresholdPercent = 0, duration = 0, viewByteSize = 0, allocSize = 0;
     PBYTE pAlloc = NULL;
     UINT32 trackIndex, packagedSize = 0, packagedMetadataSize = 0, overallSize = 0, itemFlags = ITEM_FLAG_NONE;
-    BOOL streamLocked = FALSE, clientLocked = FALSE, freeOnError = TRUE, contains = FALSE;
+    BOOL streamLocked = FALSE, clientLocked = FALSE, freeOnError = TRUE;
     EncodedFrameInfo encodedFrameInfo;
     MKV_STREAM_STATE generatorState = MKV_STATE_START_BLOCK;
     UINT64 currentTime = INVALID_TIMESTAMP_VALUE;
@@ -691,6 +712,15 @@ STATUS putFrame(PKinesisVideoStream pKinesisVideoStream, PFrame pFrame)
 
     CHK(pKinesisVideoStream != NULL && pFrame != NULL, STATUS_NULL_ARG);
     pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
+
+    DLOGV("debug frame info pts: %" PRIu64 ", dts: %" PRIu64 ", duration: %" PRIu64 ", size: %u, trackId: %" PRIu64 ", isKey %d",
+          pFrame->presentationTs,
+          pFrame->decodingTs,
+          pFrame->duration,
+          pFrame->size,
+          pFrame->trackId,
+          CHECK_FRAME_FLAG_KEY_FRAME(pFrame->flags)
+    );
 
     if (!CHECK_FRAME_FLAG_END_OF_FRAGMENT(pFrame->flags)) {
         // Lookup the track that pFrame belong to
@@ -1557,8 +1587,6 @@ STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 alloc
     PKinesisVideoClient pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
     BOOL streamLocked = TRUE;
 
-
-
     while (TRUE) {
         // Check if we have enough space to proceed - the stream should be locked
         CHK_STATUS(checkForAvailability(pKinesisVideoStream, allocationSize, pAllocationHandle));
@@ -1576,7 +1604,7 @@ STATUS waitForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 alloc
                                                                                 pKinesisVideoClient->deviceInfo.clientInfo.offlineBufferAvailabilityTimeout));
 
         // Check for the stream termination
-        CHK(!pKinesisVideoStream->streamStopped, STATUS_BLOCKING_PUT_INTERRUPTED_STREAM_TERMINATED);
+        CHK(!pKinesisVideoStream->streamStopped && !pKinesisVideoStream->base.shutdown, STATUS_BLOCKING_PUT_INTERRUPTED_STREAM_TERMINATED);
     }
 
 CleanUp:
@@ -1633,7 +1661,8 @@ STATUS checkForAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allo
     // Check if we have enough space available. Adding maxFrameSizeSeen to handle fragmentation as well as when curl thread needs to alloc space for
     // sending data.
     availableHeapSize = pKinesisVideoClient->deviceInfo.storageInfo.storageSize - heapSize -
-                        MAX_ALLOCATION_OVERHEAD_SIZE - pKinesisVideoStream->maxFrameSizeSeen * FRAME_ALLOC_FRAGMENTATION_FACTOR;
+                        MAX_ALLOCATION_OVERHEAD_SIZE - 
+						(UINT64) (pKinesisVideoStream->maxFrameSizeSeen * FRAME_ALLOC_FRAGMENTATION_FACTOR);
 
     // Early return if storage space is unavailable.
     CHK(availableHeapSize >= allocationSize, STATUS_SUCCESS);
@@ -1810,7 +1839,7 @@ STATUS streamStartFixupOnReconnect(PKinesisVideoStream pKinesisVideoStream)
     UINT32 headerSize, packagedSize, overallSize, dataOffset;
     UINT64 allocSize, currentItemCount, windowItemCount;
     PBYTE pAlloc = NULL, pFrame = NULL;
-    PKinesisVideoClient pKinesisVideoClient;
+    PKinesisVideoClient pKinesisVideoClient = NULL;
     ALLOCATION_HANDLE allocationHandle = INVALID_ALLOCATION_HANDLE_VALUE;
     ALLOCATION_HANDLE oldAllocationHandle;
 
@@ -1957,7 +1986,7 @@ STATUS resetCurrentViewItemStreamStart(PKinesisVideoStream pKinesisVideoStream)
     UINT32 clusterHeaderSize, packagedSize, overallSize, dataOffset;
     UINT64 allocSize;
     PBYTE pAlloc = NULL, pFrame = NULL;
-    PKinesisVideoClient pKinesisVideoClient;
+    PKinesisVideoClient pKinesisVideoClient = NULL;
     ALLOCATION_HANDLE allocationHandle = INVALID_ALLOCATION_HANDLE_VALUE;
     ALLOCATION_HANDLE oldAllocationHandle;
 
@@ -3090,8 +3119,6 @@ STATUS resetStream(PKinesisVideoStream pKinesisVideoStream)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    PViewItem pHead = NULL;
-    PStateMachineState pState = NULL;
 
     PKinesisVideoClient pKinesisVideoClient = NULL;
 
@@ -3133,8 +3160,7 @@ STATUS resetStream(PKinesisVideoStream pKinesisVideoStream)
         pKinesisVideoStream->streamState = STREAM_STATE_STOPPED;
     } else {
         pKinesisVideoStream->streamState = STREAM_STATE_NEW;
-        CHK_STATUS(getStateMachineState(pKinesisVideoStream->base.pStateMachine, STREAM_STATE_NEW, &pState));
-        pKinesisVideoStream->base.pStateMachine->context.pCurrentState = pState;
+        CHK_STATUS(setStateMachineCurrentState(pKinesisVideoStream->base.pStateMachine, STREAM_STATE_NEW));
     }
 
     pKinesisVideoStream->streamStatus = STREAM_STATUS_CREATING;
@@ -3197,8 +3223,7 @@ STATUS resetStream(PKinesisVideoStream pKinesisVideoStream)
 
     // Reset state machine retry status
     if (pKinesisVideoStream->base.pStateMachine != NULL) {
-        pKinesisVideoStream->base.pStateMachine->context.retryCount = 0;
-        pKinesisVideoStream->base.pStateMachine->context.time = 0;
+        CHK_STATUS(resetStateMachineRetryCount(pKinesisVideoStream->base.pStateMachine));
     }
 
     // Release the condition variable

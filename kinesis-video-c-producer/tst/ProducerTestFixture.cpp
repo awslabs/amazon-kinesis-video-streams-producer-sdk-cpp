@@ -155,7 +155,6 @@ STATUS ProducerClientTestBase::testStorageOverflowFunc(UINT64 customData, UINT64
     return STATUS_SUCCESS;
 }
 
-
 ProducerClientTestBase::ProducerClientTestBase() :
         mClientHandle(INVALID_CLIENT_HANDLE_VALUE),
         mCallbacksProvider(NULL),
@@ -237,7 +236,7 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mDeviceInfo.storageInfo.version = STORAGE_INFO_CURRENT_VERSION;
     mDeviceInfo.storageInfo.storageType = DEVICE_STORAGE_TYPE_IN_MEM;
     mDeviceInfo.storageInfo.spillRatio = 0;
-    mDeviceInfo.storageInfo.storageSize = TEST_DEFAULT_STORAGE_SIZE;
+    mDeviceInfo.storageInfo.storageSize = TEST_STORAGE_SIZE_IN_BYTES;
     mDeviceInfo.storageInfo.rootDirectory[0] = '\0';
     mDeviceInfo.clientInfo.version = CLIENT_INFO_CURRENT_VERSION;
     mDeviceInfo.clientInfo.stopStreamTimeout = 0;
@@ -369,7 +368,7 @@ VOID ProducerClientTestBase::createDefaultProducerClient(BOOL cachingEndpoint, U
                                                                      TEST_USER_AGENT,
                                                                      &mCallbacksProvider));
 
-    UINT64 expiration = GETTIME() + TEST_STREAMING_TOKEN_DURATION;
+    UINT64 expiration = GETTIME() + TEST_CREDENTIAL_EXPIRATION;
     EXPECT_EQ(STATUS_SUCCESS, createRotatingStaticAuthCallbacks(mCallbacksProvider,
                                                                 mAccessKey,
                                                                 mSecretKey,
@@ -445,8 +444,6 @@ STATUS ProducerClientTestBase::createTestStream(UINT32 index, STREAMING_TYPE str
         return STATUS_INVALID_ARG;
     }
 
-    CHAR tagName[MAX_TAG_NAME_LEN + 1];
-    CHAR tagValue[MAX_TAG_VALUE_LEN + 1];
     Tag tags[TEST_TAG_COUNT];
     UINT32 tagCount = TEST_TAG_COUNT;
 
@@ -479,7 +476,7 @@ VOID ProducerClientTestBase::freeStreams(BOOL sync)
 {
     mProducerStopped = TRUE;
     for (UINT32 i = 0; i < TEST_STREAM_COUNT; i++) {
-        DLOGD("Freeing stream index %u", i);
+        DLOGD("Freeing stream index %u with handle value %" PRIu64 " %s", i, mStreams[i], sync ? "synchronously" : "asynchronously");
 
         // Freeing the stream synchronously
         if (sync) {
@@ -507,56 +504,56 @@ STATUS ProducerClientTestBase::curlEasyPerformHookFunc(PCurlResponse pCurlRespon
     pTest->mEasyPerformFnCount++;
 
     // Check which API function this is
-    if (NULL != STRSTR(pCurlResponse->pCurlRequest->url, CREATE_API_POSTFIX)) {
+    if (NULL != STRSTR(pCurlResponse->pCurlRequest->requestInfo.url, CREATE_API_POSTFIX)) {
         pTest->mCurlCreateStreamCount++;
         if (pTest->mCurlEasyPerformInjectionCount > 0 &&
             (STATUS_FAILED(pTest->mCreateStreamStatus) || pTest->mCreateStreamCallResult != SERVICE_CALL_RESULT_OK)) {
             retStatus = pTest->mCreateStreamStatus;
-            pCurlResponse->callResult = pTest->mCreateStreamCallResult;
+            pCurlResponse->callInfo.callResult = pTest->mCreateStreamCallResult;
             pTest->mCurlEasyPerformInjectionCount--;
         } else {
             pTest->mCreateStreamStatus = STATUS_SUCCESS;
             pTest->mCreateStreamCallResult = SERVICE_CALL_RESULT_OK;
         }
-    } else if (NULL != STRSTR(pCurlResponse->pCurlRequest->url, DESCRIBE_API_POSTFIX)) {
+    } else if (NULL != STRSTR(pCurlResponse->pCurlRequest->requestInfo.url, DESCRIBE_API_POSTFIX)) {
         pTest->mCurlDescribeStreamCount++;
         if (pTest->mCurlEasyPerformInjectionCount > 0 &&
             (STATUS_FAILED(pTest->mDescribeStreamStatus) || pTest->mDescribeStreamCallResult != SERVICE_CALL_RESULT_OK)) {
             retStatus = pTest->mDescribeStreamStatus;
-            pCurlResponse->callResult = pTest->mDescribeStreamCallResult;
+            pCurlResponse->callInfo.callResult = pTest->mDescribeStreamCallResult;
             pTest->mCurlEasyPerformInjectionCount--;
         } else {
             pTest->mDescribeStreamStatus = STATUS_SUCCESS;
             pTest->mDescribeStreamCallResult = SERVICE_CALL_RESULT_OK;
         }
-    } else if (NULL != STRSTR(pCurlResponse->pCurlRequest->url, GET_DATA_ENDPOINT_API_POSTFIX)) {
+    } else if (NULL != STRSTR(pCurlResponse->pCurlRequest->requestInfo.url, GET_DATA_ENDPOINT_API_POSTFIX)) {
         pTest->mCurlGetDataEndpointCount++;
         if (pTest->mCurlEasyPerformInjectionCount > 0 &&
             (STATUS_FAILED(pTest->mGetEndpointStatus) || pTest->mGetEndpointCallResult != SERVICE_CALL_RESULT_OK)) {
             retStatus = pTest->mGetEndpointStatus;
-            pCurlResponse->callResult = pTest->mGetEndpointCallResult;
+            pCurlResponse->callInfo.callResult = pTest->mGetEndpointCallResult;
             pTest->mCurlEasyPerformInjectionCount--;
         } else {
             pTest->mGetEndpointStatus = STATUS_SUCCESS;
             pTest->mGetEndpointCallResult = SERVICE_CALL_RESULT_OK;
         }
-    } else if (NULL != STRSTR(pCurlResponse->pCurlRequest->url, TAG_RESOURCE_API_POSTFIX)) {
+    } else if (NULL != STRSTR(pCurlResponse->pCurlRequest->requestInfo.url, TAG_RESOURCE_API_POSTFIX)) {
         pTest->mCurlTagResourceCount++;
         if (pTest->mCurlEasyPerformInjectionCount > 0 &&
             (STATUS_FAILED(pTest->mTagResourceStatus) || pTest->mTagResourceCallResult != SERVICE_CALL_RESULT_OK)) {
             retStatus = pTest->mTagResourceStatus;
-            pCurlResponse->callResult = pTest->mTagResourceCallResult;
+            pCurlResponse->callInfo.callResult = pTest->mTagResourceCallResult;
             pTest->mCurlEasyPerformInjectionCount--;
         } else {
             pTest->mTagResourceStatus = STATUS_SUCCESS;
             pTest->mTagResourceCallResult = SERVICE_CALL_RESULT_OK;
         }
-    } else if (NULL != STRSTR(pCurlResponse->pCurlRequest->url, PUT_MEDIA_API_POSTFIX)) {
+    } else if (NULL != STRSTR(pCurlResponse->pCurlRequest->requestInfo.url, PUT_MEDIA_API_POSTFIX)) {
         pTest->mCurlPutMediaCount++;
         if (pTest->mCurlEasyPerformInjectionCount > 0 &&
             (STATUS_FAILED(pTest->mPutMediaStatus) || pTest->mPutMediaCallResult != SERVICE_CALL_RESULT_OK)) {
             retStatus = pTest->mPutMediaStatus;
-            pCurlResponse->callResult = pTest->mPutMediaCallResult;
+            pCurlResponse->callInfo.callResult = pTest->mPutMediaCallResult;
             pTest->mCurlEasyPerformInjectionCount--;
         } else {
             pTest->mPutMediaStatus = STATUS_SUCCESS;
@@ -601,6 +598,7 @@ STATUS ProducerClientTestBase::curlReadCallbackHookFunc(PCurlResponse pCurlRespo
     UNUSED_PARAM(pBuffer);
     UNUSED_PARAM(bufferSize);
     UNUSED_PARAM(uploadHandle);
+    UNUSED_PARAM(pRetrievedSize);
 
     if (pCurlResponse == NULL ||
         pCurlResponse->pCurlRequest == NULL ||

@@ -14,6 +14,7 @@ extern "C" {
 // Public headers
 ////////////////////////////////////////////////////
 #include <com/amazonaws/kinesis/video/client/Include.h>
+#include <com/amazonaws/kinesis/video/common/Include.h>
 
 // For tight packing
 #pragma pack(push, include, 1) // for byte alignment
@@ -29,29 +30,17 @@ extern "C" {
 #define STATUS_INVALID_STREAM_CALLBACKS_VERSION                                     STATUS_PRODUCER_BASE + 0x00000005
 #define STATUS_INVALID_AUTH_CALLBACKS_VERSION                                       STATUS_PRODUCER_BASE + 0x00000006
 #define STATUS_INVALID_API_CALLBACKS_VERSION                                        STATUS_PRODUCER_BASE + 0x00000007
-#define STATUS_INVALID_AWS_CREDENTIALS_VERSION                                      STATUS_PRODUCER_BASE + 0x00000008
-#define STATUS_MAX_REQUEST_HEADER_COUNT                                             STATUS_PRODUCER_BASE + 0x00000009
-#define STATUS_MAX_REQUEST_HEADER_NAME_LEN                                          STATUS_PRODUCER_BASE + 0x0000000a
-#define STATUS_MAX_REQUEST_HEADER_VALUE_LEN                                         STATUS_PRODUCER_BASE + 0x0000000b
-#define STATUS_INVALID_API_CALL_RETURN_JSON                                         STATUS_PRODUCER_BASE + 0x0000000c
-#define STATUS_CURL_INIT_FAILED                                                     STATUS_PRODUCER_BASE + 0x0000000d
-#define STATUS_CURL_LIBRARY_INIT_FAILED                                             STATUS_PRODUCER_BASE + 0x0000000e
 #define STATUS_INVALID_DESCRIBE_STREAM_RETURN_JSON                                  STATUS_PRODUCER_BASE + 0x0000000f
-#define STATUS_HMAC_GENERATION_ERROR                                                STATUS_PRODUCER_BASE + 0x00000010
-#define STATUS_IOT_FAILED                                                           STATUS_PRODUCER_BASE + 0x00000011
-#define STATUS_MAX_ROLE_ALIAS_LEN_EXCEEDED                                          STATUS_PRODUCER_BASE + 0x00000012
 #define STATUS_MAX_USER_AGENT_NAME_POSTFIX_LEN_EXCEEDED                             STATUS_PRODUCER_BASE + 0x00000013
 #define STATUS_MAX_CUSTOM_USER_AGENT_LEN_EXCEEDED                                   STATUS_PRODUCER_BASE + 0x00000014
-#define STATUS_INVALID_USER_AGENT_LENGTH                                            STATUS_PRODUCER_BASE + 0x00000015
 #define STATUS_INVALID_ENDPOINT_CACHING_PERIOD                                      STATUS_PRODUCER_BASE + 0x00000016
-#define STATUS_IOT_EXPIRATION_OCCURS_IN_PAST                                        STATUS_PRODUCER_BASE + 0x00000017
-#define STATUS_IOT_EXPIRATION_PARSING_FAILED                                        STATUS_PRODUCER_BASE + 0x00000018
 #define STATUS_DUPLICATE_PRODUCER_CALLBACK_FREE_FUNC                                STATUS_PRODUCER_BASE + 0x00000019
 #define STATUS_DUPLICATE_STREAM_CALLBACK_FREE_FUNC                                  STATUS_PRODUCER_BASE + 0x0000001a
 #define STATUS_DUPLICATE_AUTH_CALLBACK_FREE_FUNC                                    STATUS_PRODUCER_BASE + 0x0000001b
 #define STATUS_DUPLICATE_API_CALLBACK_FREE_FUNC                                     STATUS_PRODUCER_BASE + 0x0000001c
 #define STATUS_FILE_LOGGER_INDEX_FILE_TOO_LARGE                                     STATUS_PRODUCER_BASE + 0x0000001d
-
+#define STATUS_STREAM_BEING_SHUTDOWN                                                STATUS_PRODUCER_BASE + 0x0000001e
+#define STATUS_CLIENT_BEING_SHUTDOWN                                                STATUS_PRODUCER_BASE + 0x0000001f
 
 /**
  * Maximum callbacks in the processing chain
@@ -62,85 +51,6 @@ extern "C" {
  * Default number of the callbacks in the chain
  */
 #define DEFAULT_CALLBACK_CHAIN_COUNT                                            5
-
-/**
- * Max region name
- */
-#define MAX_REGION_NAME_LEN                                                     128
-
-/**
- * Max user agent string
- */
-#define MAX_USER_AGENT_LEN                                                      256
-
-/**
- * Max custom user agent string
- */
-#define MAX_CUSTOM_USER_AGENT_LEN                                               128
-
-/**
- * Max custom user agent name postfix string
- */
-#define MAX_CUSTOM_USER_AGENT_NAME_POSTFIX_LEN                                  32
-
-/**
- * Default Video track ID to be used
- */
-#define DEFAULT_VIDEO_TRACK_ID                                                  1
-
-/**
- * Default Audio track ID to be used
- */
-#define DEFAULT_AUDIO_TRACK_ID                                                  2
-
-/*
- * Max access key id length https://docs.aws.amazon.com/STS/latest/APIReference/API_Credentials.html
- */
-#define MAX_ACCESS_KEY_LEN                                                      128
-
-/*
- * Max secret access key length
- */
-#define MAX_SECRET_KEY_LEN                                                      128
-
-/*
- * Max session token string length
- */
-#define MAX_SESSION_TOKEN_LEN                                                   2048
-
-/*
- * Max expiration string length
- */
-#define MAX_EXPIRATION_LEN                                                      128
-
-/*
- * Max role alias length https://docs.aws.amazon.com/iot/latest/apireference/API_UpdateRoleAlias.html
- */
-#define MAX_ROLE_ALIAS_LEN                                                      128
-
-/**
- * Default period for the cached endpoint update
- */
-#define DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD                                    (40 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
-
-/**
- * Sentinel value indicating to use default update period
- */
-#define ENDPOINT_UPDATE_PERIOD_SENTINEL_VALUE                                   0
-
-/**
- * Max period for the cached endpoint update
- */
-#define MAX_ENDPOINT_CACHE_UPDATE_PERIOD                                        (24 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
-
-/**
- * AWS credential environment variable name
- */
-#define ACCESS_KEY_ENV_VAR                                                      ((PCHAR) "AWS_ACCESS_KEY_ID")
-#define SECRET_KEY_ENV_VAR                                                      ((PCHAR) "AWS_SECRET_ACCESS_KEY")
-#define SESSION_TOKEN_ENV_VAR                                                   ((PCHAR) "AWS_SESSION_TOKEN")
-#define DEFAULT_REGION_ENV_VAR                                                  ((PCHAR) "AWS_DEFAULT_REGION")
-#define CACERT_PATH_ENV_VAR                                                     ((PCHAR) "AWS_KVS_CACERT_PATH")
 
 ////////////////////////////////////////////////////
 // Main defines
@@ -153,12 +63,6 @@ extern "C" {
 #define STREAM_CALLBACKS_CURRENT_VERSION                                        0
 #define AUTH_CALLBACKS_CURRENT_VERSION                                          0
 #define API_CALLBACKS_CURRENT_VERSION                                           0
-#define AWS_CREDENTIALS_CURRENT_VERSION                                         0
-
-/**
- * Maximal length of the credentials file
- */
-#define MAX_CREDENTIAL_FILE_LEN                                                 MAX_AUTH_LEN
 
 ////////////////////////////////////////////////////
 // Extra callbacks definitions
@@ -340,42 +244,6 @@ struct __ApiCallbacks {
 };
 typedef struct __ApiCallbacks* PApiCallbacks;
 
-/**
- * AWS Credentials declaration
- */
-typedef struct __AwsCredentials AwsCredentials;
-struct __AwsCredentials {
-    // Version
-    UINT32 version;
-
-    // Size of the entire structure in bytes including the struct itself
-    UINT32 size;
-
-    // Access Key ID - NULL terminated
-    PCHAR accessKeyId;
-
-    // Length of the access key id - not including NULL terminator
-    UINT32 accessKeyIdLen;
-
-    // Secret Key - NULL terminated
-    PCHAR secretKey;
-
-    // Length of the secret key - not including NULL terminator
-    UINT32 secretKeyLen;
-
-    // Session token - NULL terminated
-    PCHAR sessionToken;
-
-    // Length of the session token - not including NULL terminator
-    UINT32 sessionTokenLen;
-
-    // Expiration in absolute time in 100ns.
-    UINT64 expiration;
-
-    // The rest of the data might follow the structure
-};
-typedef struct __AwsCredentials* PAwsCredentials;
-
 ////////////////////////////////////////////////////
 // Public functions
 ////////////////////////////////////////////////////
@@ -393,7 +261,7 @@ typedef struct __AwsCredentials* PAwsCredentials;
  * @param - PCHAR - IN/OPT - AWS region
  * @param - PCHAR - IN/OPT - CA Cert Path
  * @param - PCHAR - IN/OPT - User agent name (Use NULL)
- * @param - PCHAR - IN/IOT - Custom user agent to be used in the API calls
+ * @param - PCHAR - IN/OUT - Custom user agent to be used in the API calls
  * @param - BOOL - IN - Whether to create caching endpoint only callback provider
  * @param - PClientCallbacks* - OUT - Returned pointer to callbacks provider
  *
@@ -741,31 +609,6 @@ PUBLIC_API STATUS createStreamCallbacks(PStreamCallbacks*);
  * @return - STATUS code of the execution
 */
 PUBLIC_API STATUS freeStreamCallbacks(PStreamCallbacks*);
-
-/**
- * Creates an AWS credentials object
- *
- * @param - PCHAR - IN - Access Key Id
- * @param - UINT32 - IN - Access Key Id Length excluding NULL terminator or 0 to calculate
- * @param - PCHAR - IN - Secret Key
- * @param - UINT32 - IN - Secret Key Length excluding NULL terminator or 0 to calculate
- * @param - PCHAR - IN/OPT - Session Token
- * @param - UINT32 - IN/OPT - Session Token Length excluding NULL terminator or 0 to calculate
- * @param - UINT64 - IN - Expiration in 100ns absolute time
- * @param - PAwsCredentials* - OUT - Constructed object
- *
- * @return - STATUS code of the execution
- */
-PUBLIC_API STATUS createAwsCredentials(PCHAR, UINT32, PCHAR, UINT32, PCHAR, UINT32, UINT64, PAwsCredentials*);
-
-/**
- * Frees an Aws credentials object
- *
- * @param - PAwsCredentials* - IN/OUT/OPT - Object to be destroyed.
- *
- * @return - STATUS code of the execution
- */
-PUBLIC_API STATUS freeAwsCredentials(PAwsCredentials*);
 
 /**
  * Creates a stream callbacks object allowing continuous retry on failures,

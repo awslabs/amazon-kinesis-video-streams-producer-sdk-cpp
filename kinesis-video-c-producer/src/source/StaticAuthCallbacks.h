@@ -1,6 +1,6 @@
 
-#ifndef __KINESISVIDEO_STATIC_AUTH_CALLBACKS_H__
-#define __KINESISVIDEO_STATIC_AUTH_CALLBACKS_H__
+#ifndef __KINESIS_VIDEO_STATIC_AUTH_CALLBACKS_INCLUDE_I__
+#define __KINESIS_VIDEO_STATIC_AUTH_CALLBACKS_INCLUDE_I__
 
 #pragma once
 
@@ -21,8 +21,8 @@ struct __StaticAuthCallbacks {
     // First member should be the Auth callbacks
     AuthCallbacks authCallbacks;
 
-    // Pointer to Static Aws Credentials
-    PAwsCredentials  pAwsCredentials;
+    // Static credential provider
+    PAwsCredentialProvider pCredentialProvider;
 
     // Back pointer to the callback provider object
     PCallbacksProvider pCallbacksProvider;
@@ -44,4 +44,4 @@ STATUS freeStaticAuthCallbacksFunc(PUINT64);
 #ifdef  __cplusplus
 }
 #endif
-#endif /* __KINESISVIDEO_STATIC_AUTH_CALLBACKS_H__ */
+#endif /* __KINESIS_VIDEO_STATIC_AUTH_CALLBACKS_INCLUDE_I__ */

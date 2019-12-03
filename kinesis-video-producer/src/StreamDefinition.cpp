@@ -108,6 +108,10 @@ void StreamDefinition::addTrack(const uint64_t track_id,
                                           track_type});
 }
 
+void StreamDefinition::setFrameOrderMode(FRAME_ORDER_MODE mode) {
+    stream_info_.streamCaps.frameOrderingMode = mode;
+}
+
 StreamDefinition::~StreamDefinition() {
     for (size_t i = 0; i < stream_info_.tagCount; ++i) {
         Tag &tag = stream_info_.tags[i];

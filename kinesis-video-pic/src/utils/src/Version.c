@@ -8,7 +8,7 @@
 STATUS defaultGetPlatformName(PCHAR pResult, UINT32 len)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    INT32 requiredLen, retVal;
+    INT32 requiredLen;
     SYSTEM_INFO sysInfo;
     PCHAR platform;
 
@@ -35,12 +35,14 @@ STATUS defaultGetPlatformName(PCHAR pResult, UINT32 len)
 
     requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s", platform);
 
-    CHK(requiredLen > 0 && requiredLen < len, STATUS_NOT_ENOUGH_MEMORY);
+    CHK(requiredLen > 0 && (UINT32) requiredLen < len, STATUS_NOT_ENOUGH_MEMORY);
 
 CleanUp:
     return retStatus;
 }
 
+#pragma warning(push)
+#pragma warning(disable : 4996)
 STATUS defaultGetOsVersion(PCHAR pResult, UINT32 len)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -65,11 +67,12 @@ STATUS defaultGetOsVersion(PCHAR pResult, UINT32 len)
         requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s%u.%u.%u", (PCHAR) "Windows/", versionInfo.dwMajorVersion, versionInfo.dwMinorVersion, versionInfo.dwBuildNumber);
     }
     
-    CHK(requiredLen > 0 && requiredLen < len, STATUS_NOT_ENOUGH_MEMORY);
+    CHK(requiredLen > 0 && (UINT32) requiredLen < len, STATUS_NOT_ENOUGH_MEMORY);
 
 CleanUp:
     return retStatus;
 }
+#pragma warning(pop)
 
 #else
 
@@ -136,7 +139,7 @@ STATUS defaultGetCompilerInfo(PCHAR pResult, UINT32 len)
 #undef __str__
 #undef __xstr__
 
-    CHK(requiredLen > 0 && requiredLen < len, STATUS_NOT_ENOUGH_MEMORY);
+    CHK(requiredLen > 0 && (UINT32) requiredLen < len, STATUS_NOT_ENOUGH_MEMORY);
 
 CleanUp:
     return retStatus;

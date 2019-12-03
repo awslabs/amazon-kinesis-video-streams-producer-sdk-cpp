@@ -29,7 +29,6 @@ TEST_P(StreamRecoveryFunctionalityTest, CreateStreamThenStreamResetConnectionEns
     MockConsumer *mockConsumer;
     BOOL didPutFrame, gotStreamData, submittedAck;
     UINT64 currentTime, streamStopTime, resetConnectionTime;
-    TID thread;
 
     CreateScenarioTestClient();
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
@@ -71,7 +70,6 @@ TEST_P(StreamRecoveryFunctionalityTest, CreateStreamThenStreamResetConnectionAft
     MockConsumer *mockConsumer;
     BOOL didPutFrame, gotStreamData, submittedAck;
     UINT64 currentTime, streamStopTime, resetConnectionTime;
-    TID thread;
 
     mDeviceInfo.clientInfo.stopStreamTimeout = STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND;
     CreateScenarioTestClient();
@@ -126,7 +124,6 @@ TEST_P(StreamRecoveryFunctionalityTest, CreateStreamThenStreamRollbackToLastRece
     MockConsumer *mockConsumer;
     BOOL didPutFrame, gotStreamData, submittedAck;
     UINT64 currentTime, streamStopTime, rollbackTime, lastReceivedAckTime, lastPersistedAckTime;
-    TID thread;
     STATUS retStatus;
 
     if (mStreamInfo.streamCaps.fragmentAcks == FALSE) {
@@ -326,7 +323,7 @@ TEST_P(StreamRecoveryFunctionalityTest, CreateStreamThenStreamFatalErrorThrowAwa
 TEST_P(StreamRecoveryFunctionalityTest, CreateStreamThenStreamFatalErrorThrowAwayBadFragmentAtHeadPartiallyStreamed) {
     std::vector<UPLOAD_HANDLE> currentUploadHandles;
     MockConsumer *mockConsumer;
-    BOOL didPutFrame, gotStreamData = FALSE, submittedAck;
+    BOOL gotStreamData = FALSE, submittedAck;
     UINT64 currentTime, stopTime;
     TID thread;
     STATUS retStatus;
@@ -437,7 +434,7 @@ TEST_P(StreamRecoveryFunctionalityTest, CreateStreamThenStreamFatalErrorThrowAwa
 TEST_P(StreamRecoveryFunctionalityTest, CreateStreamThenStreamFatalErrorThrowAwayBadFragmentAtHeadFullyStreamed) {
     std::vector<UPLOAD_HANDLE> currentUploadHandles;
     MockConsumer *mockConsumer;
-    BOOL didPutFrame, gotStreamData = FALSE, submittedAck;
+    BOOL gotStreamData = FALSE, submittedAck;
     UINT64 currentTime, stopTime;
     TID thread;
     STATUS retStatus;

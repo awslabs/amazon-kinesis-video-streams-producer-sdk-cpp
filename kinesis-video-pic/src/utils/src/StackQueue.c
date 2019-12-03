@@ -19,9 +19,9 @@ STATUS stackQueueFree(PStackQueue pStackQueue)
 /**
  * Clears and de-allocates all the items
  */
-STATUS stackQueueClear(PStackQueue pStackQueue)
+STATUS stackQueueClear(PStackQueue pStackQueue, BOOL freeData)
 {
-    return singleListClear(pStackQueue);
+    return singleListClear(pStackQueue, freeData);
 }
 
 /**

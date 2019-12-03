@@ -35,7 +35,7 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamWithResultEventAfterGrace
 
     STATUS retStatus;
 
-    int currentputStreamFuncCount = 0;
+    UINT32 currentputStreamFuncCount = 0;
 
     CreateScenarioTestClient();
 

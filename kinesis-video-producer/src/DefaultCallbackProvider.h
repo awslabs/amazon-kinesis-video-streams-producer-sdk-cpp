@@ -19,18 +19,6 @@
 #include <string>
 #include <mutex>
 
-namespace {
-/**
- * Defining the defaults for the service
- */
-const std::string DEFAULT_AWS_REGION  = "us-west-2";
-const std::string KINESIS_VIDEO_SERVICE_NAME = "kinesisvideo";
-const std::string DEFAULT_CONTROL_PLANE_URI = "https://kinesisvideo.us-west-2.amazonaws.com";
-const std::string CONTROL_PLANE_URI_PREFIX = "https://";
-const std::string CONTROL_PLANE_URI_POSTFIX = ".amazonaws.com";
-const std::string DEFAULT_USER_AGENT_NAME = "AWS-SDK-KVS";
-}
-
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 class DefaultCallbackProvider : public CallbackProvider {

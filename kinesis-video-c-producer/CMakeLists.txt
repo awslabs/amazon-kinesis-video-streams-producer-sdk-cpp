@@ -55,36 +55,41 @@ if(BP_BUILD_LIB)
     endif()
 else()
 
-    if(DEFINED ENV{KINESIS_VIDEO_PIC_SRC})
-        set(KINESIS_VIDEO_PIC_SRC $ENV{KINESIS_VIDEO_PIC_SRC})
-    else()
-        set(KINESIS_VIDEO_PIC_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../kinesis-video-pic")
+    if(NOT KINESIS_VIDEO_PIC_SRC)
+        if(DEFINED ENV{KINESIS_VIDEO_PIC_SRC})
+            set(KINESIS_VIDEO_PIC_SRC $ENV{KINESIS_VIDEO_PIC_SRC})
+        else()
+            set(KINESIS_VIDEO_PIC_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../kinesis-video-pic")
+        endif()
     endif()
 
-    if(DEFINED ENV{KINESIS_VIDEO_PRODUCER_C_SRC})
-        set(KINESIS_VIDEO_PRODUCER_C_SRC $ENV{KINESIS_VIDEO_PRODUCER_C_SRC})
-    else()
-        set(KINESIS_VIDEO_PRODUCER_C_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../kinesis-video-producer-c")
+    if(NOT KINESIS_VIDEO_PRODUCER_C_SRC)
+        if(DEFINED ENV{KINESIS_VIDEO_PRODUCER_C_SRC})
+            set(KINESIS_VIDEO_PRODUCER_C_SRC $ENV{KINESIS_VIDEO_PRODUCER_C_SRC})
+        else()
+            set(KINESIS_VIDEO_PRODUCER_C_SRC "${CMAKE_CURRENT_SOURCE_DIR}")
+        endif()
     endif()
 
-    if(DEFINED ENV{KINESIS_VIDEO_OPEN_SOURCE_SRC})
-        set(KINESIS_VIDEO_OPEN_SOURCE_SRC $ENV{KINESIS_VIDEO_OPEN_SOURCE_SRC})
-    else()
-        set(KINESIS_VIDEO_OPEN_SOURCE_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../kinesis-video-native-build/downloads")
-    endif()
-
-    if (DEFINED ENV{KVS_JSMN_ROOT})
-        set(KVS_JSMN_ROOT $ENV{KVS_JSMN_ROOT})
-    else()
-        message( FATAL_ERROR "No JSMN root specified." )
+    if(NOT KINESIS_VIDEO_OPEN_SOURCE_SRC)
+        if(DEFINED ENV{KINESIS_VIDEO_OPEN_SOURCE_SRC})
+            set(KINESIS_VIDEO_OPEN_SOURCE_SRC $ENV{KINESIS_VIDEO_OPEN_SOURCE_SRC})
+        else()
+            set(KINESIS_VIDEO_OPEN_SOURCE_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../kinesis-video-native-build/downloads/local")
+        endif()
     endif()
 
     message(STATUS "Kinesis Video PIC path is ${KINESIS_VIDEO_PIC_SRC}")
-    message(STATUS "Kinesis Video Producer path is ${KINESIS_VIDEO_PRODUCER_SRC}")
+    message(STATUS "Kinesis Video Producer path is ${KINESIS_VIDEO_PRODUCER_C_SRC}")
     message(STATUS "Kinesis Video Open Source path is ${KINESIS_VIDEO_OPEN_SOURCE_SRC}")
 
-    set(CMAKE_INSTALL_RPATH "${KVS_INSTALL_PATH}")
-    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+    if (NOT EXISTS ${KINESIS_VIDEO_PIC_SRC})
+        message(FATAL_ERROR "KINESIS_VIDEO_PIC_SRC ${KINESIS_VIDEO_PIC_SRC} does not exist")
+    elseif(NOT EXISTS ${KINESIS_VIDEO_PRODUCER_C_SRC})
+        message(FATAL_ERROR "KINESIS_VIDEO_PRODUCER_C_SRC ${KINESIS_VIDEO_PRODUCER_C_SRC} does not exist")
+    elseif(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
+        message(FATAL_ERROR "KINESIS_VIDEO_OPEN_SOURCE_SRC ${KINESIS_VIDEO_OPEN_SOURCE_SRC} does not exist.")
+    endif()
 
     if(CMAKE_SIZEOF_VOID_P STREQUAL 4)
         message(STATUS "Bitness 32 bits")
@@ -103,35 +108,46 @@ else()
     if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU|Clang")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 
-        find_package(PkgConfig REQUIRED)
+        if (NOT OPENSSL_FOUND)
+            message("looking for openssl")
+            if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+                set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+            endif()
 
-        if (USE_SYS_LIBRARIES AND ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-            set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+            find_package(OpenSSL    REQUIRED)
+
+            set(OPEN_SRC_INCLUDE_DIRS
+                ${OPEN_SRC_INCLUDE_DIRS}
+                ${OPENSSL_INCLUDE_DIR})
         endif()
 
-        find_package(OpenSSL    REQUIRED)
-        find_package(CURL       REQUIRED)
+        if (NOT CURL_FOUND AND BUILD_COMMON_CURL)
+            message("looking for curl")
+            find_package(CURL       REQUIRED)
 
-        set(OPEN_SRC_INCLUDE_DIRS
-                ${CURL_INCLUDE_DIRS}
-                ${OPENSSL_INCLUDE_DIR})
+            set(OPEN_SRC_INCLUDE_DIRS
+                ${OPEN_SRC_INCLUDE_DIRS}
+                ${CURL_INCLUDE_DIRS})
+        endif()
 
-        set(PRODUCER_C_LIBRARIES
-                ${OPENSSL_CRYPTO_LIBRARY}
-                ${OPENSSL_SSL_LIBRARY}
-                ${CURL_LIBRARIES})
+        if (NOT LIBSRTP_FOUND AND BUILD_COMMON_LWS)
+            message("looking for libwebsocket")
+            set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:${KINESIS_VIDEO_OPEN_SOURCE_SRC}/lib/pkgconfig")
+            pkg_check_modules(LIBSRTP REQUIRED libsrtp2)
+
+            set(OPEN_SRC_INCLUDE_DIRS
+                    ${LIBWEBSOCKET_INCLUDE_DIRS})
+            link_directories(${LIBWEBSOCKET_LIBRARY_DIRS})
+        endif()
     endif()
 
-    find_library(KvsPic
-            NAMES kvspic
-            REQUIRED
-            PATHS ${KINESIS_VIDEO_PIC_SRC}
-            NO_DEFAULT_PATH)
-    find_library(Jsmn
+    if (NOT Jsmn)
+        find_library(Jsmn
             NAMES jsmn
             REQUIRED
-            PATHS   ${KVS_JSMN_ROOT}/lib
+            PATHS   ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/lib
             NO_DEFAULT_PATH)
+    endif()
 
     # Uncomment below line for debug heap
     #add_definitions(-DHEAP_DEBUG)
@@ -139,57 +155,63 @@ else()
     # Uncomment below line for very verbose logging
     #add_definitions(-DLOG_STREAMING)
 
-    set(PRODUCER_C_SOURCE_FILES
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/Auth.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/AwsV4Signer.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/CallbacksProvider.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/CurlApiCallbacks.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/DeviceInfoProvider.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StreamInfoProvider.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/Producer.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/Request.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/Response.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/Util.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/FileAuthCallbacks.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StaticAuthCallbacks.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/IotAuthCallback.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/ConnectionStaleStateMachine.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/ContinuousRetryStreamCallbacks.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StateMachineData.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StreamErrorReportStateMachine.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StreamLatencyStateMachine.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/StreamCallbacksProvider.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/FileLoggerPlatformCallbackProvider.c
-            ${KINESIS_VIDEO_PRODUCER_C_SRC}/src/source/Version.c)
+    file(GLOB KVS_COMMON_SOURCE_FILES_BASE
+        "src/source/Common/*.c"
+    )
 
-    include_directories(${KINESIS_VIDEO_PIC_SRC}/src/client/include)
-    include_directories(${KINESIS_VIDEO_PIC_SRC}/src/common/include)
-    include_directories(${KINESIS_VIDEO_PIC_SRC}/src/heap/include)
-    include_directories(${KINESIS_VIDEO_PIC_SRC}/src/trace/include)
-    include_directories(${KINESIS_VIDEO_PIC_SRC}/src/mkvgen/include)
-    include_directories(${KINESIS_VIDEO_PIC_SRC}/src/view/include)
-    include_directories(${KINESIS_VIDEO_PIC_SRC}/src/utils/include)
-    include_directories(${KINESIS_VIDEO_PRODUCER_C_SRC})
+    file(GLOB KVS_COMMON_SOURCE_FILES_LWS
+        "src/source/Common/Lws/*.c"
+    )
+
+    file(GLOB KVS_COMMON_SOURCE_FILES_CURL
+        "src/source/Common/Curl/*.c"
+    )
+
+    file(GLOB PRODUCER_C_SOURCE_FILES
+        "src/source/*.c"
+    )
+
+    file(GLOB PIC_HEADERS
+        "${KINESIS_VIDEO_PIC_SRC}/src/*/include"
+    )
+
+    include_directories(${PIC_HEADERS})
+    include_directories(${KINESIS_VIDEO_PRODUCER_C_SRC}/src/include)
     include_directories(${OPEN_SRC_INCLUDE_DIRS})
-    include_directories(${KVS_JSMN_ROOT}/include)
+    include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/include)
 
-    add_library(kvsproducerc SHARED ${PRODUCER_C_SOURCE_FILES})
+    add_subdirectory(${KINESIS_VIDEO_PIC_SRC} ./kvspic EXCLUDE_FROM_ALL)
 
-    target_link_libraries(kvsproducerc
-            ${KvsPic}
+    if(BUILD_COMMON_LWS)
+        add_library(kvsCommonLws STATIC ${KVS_COMMON_SOURCE_FILES_BASE} ${KVS_COMMON_SOURCE_FILES_LWS})
+        target_compile_definitions(kvsCommonLws PRIVATE KVS_BUILD_WITH_LWS=1)
+        target_link_libraries(kvsCommonLws
+                ${Jsmn}
+                ${OPENSSL_CRYPTO_LIBRARY}
+                ${OPENSSL_SSL_LIBRARY}
+                ${LIBWEBSOCKET_LIBRARIES})
+    endif()
+
+    # producer only uses curl right now
+    add_library(kvsCommonCurl STATIC ${KVS_COMMON_SOURCE_FILES_BASE} ${KVS_COMMON_SOURCE_FILES_CURL})
+    target_compile_definitions(kvsCommonCurl PRIVATE KVS_BUILD_WITH_CURL=1)
+    target_link_libraries(kvsCommonCurl
             ${Jsmn}
-            ${PRODUCER_C_LIBRARIES})
+            ${OPENSSL_CRYPTO_LIBRARY}
+            ${OPENSSL_SSL_LIBRARY}
+            ${CURL_LIBRARIES})
+
+    add_library(cproducer SHARED ${PRODUCER_C_SOURCE_FILES})
+
+    target_link_libraries(cproducer
+        kvspic
+        kvsCommonCurl)
 
     add_executable(kvsVideoOnlyStreamingSample ${KINESIS_VIDEO_PRODUCER_C_SRC}/samples/KvsVideoOnlyStreamingSample.c)
     target_link_libraries(kvsVideoOnlyStreamingSample
-            kvsproducerc)
+        cproducer)
 
     if (BUILD_TEST)
         add_subdirectory(tst)
     endif()
-
-    install(TARGETS kvsproducerc
-            DESTINATION ${KVS_INSTALL_PATH})
-    install(TARGETS kvsVideoOnlyStreamingSample
-            DESTINATION ${KVS_INSTALL_PATH})
 endif()

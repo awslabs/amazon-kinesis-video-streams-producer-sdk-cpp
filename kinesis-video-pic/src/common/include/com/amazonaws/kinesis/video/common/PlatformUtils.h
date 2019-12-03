@@ -47,6 +47,17 @@ extern logPrintFunc globalCustomLogPrintFn;
 #define LOG_LEVEL_FATAL             6
 #define LOG_LEVEL_SILENT            7
 
+#define LOG_LEVEL_VERBOSE_STR           (PCHAR) "VERBOSE"
+#define LOG_LEVEL_DEBUG_STR             (PCHAR) "DEBUG"
+#define LOG_LEVEL_INFO_STR              (PCHAR) "INFO"
+#define LOG_LEVEL_WARN_STR              (PCHAR) "WARN"
+#define LOG_LEVEL_ERROR_STR             (PCHAR) "ERROR"
+#define LOG_LEVEL_FATAL_STR             (PCHAR) "FATAL"
+#define LOG_LEVEL_SILENT_STR            (PCHAR) "SILENT"
+
+// LOG_LEVEL_VERBOSE_STR string lenth
+#define MAX_LOG_LEVEL_STRLEN            7
+
 // Extra logging macros
 #ifndef DLOGE
 #define DLOGE(fmt, ...) __LOG(LOG_LEVEL_ERROR, (PCHAR) LOG_CLASS, (PCHAR) "%s(): " fmt, __FUNCTION__, ##__VA_ARGS__)

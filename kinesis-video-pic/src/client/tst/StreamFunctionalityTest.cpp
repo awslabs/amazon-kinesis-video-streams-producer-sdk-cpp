@@ -87,6 +87,7 @@ TEST_P(StreamFunctionalityTest, CreateSyncPutFrameFree)
 
 TEST_P(StreamFunctionalityTest, CreateSyncPutMultipleFramesFree)
 {
+    PStateMachineState pState;
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
 
     CreateStreamSync();
@@ -103,7 +104,8 @@ TEST_P(StreamFunctionalityTest, CreateSyncPutMultipleFramesFree)
 
     // We shouldn't have sent the PutStreamResult yet
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
-    EXPECT_EQ(STREAM_STATE_PUT_STREAM, pKinesisVideoStream->base.pStateMachine->context.pCurrentState->state);
+    EXPECT_EQ(STATUS_SUCCESS, getStateMachineCurrentState(pKinesisVideoStream->base.pStateMachine, &pState));
+    EXPECT_EQ(STREAM_STATE_PUT_STREAM, pState->state);
 
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoStream(&mStreamHandle));
 }

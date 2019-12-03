@@ -8,8 +8,7 @@
 #define TEST_DEVICE_INFO_NAME                                   (PCHAR) "TestDeviceName"
 #define TEST_USER_AGENT                                         (PCHAR) "Test User Agent"
 #define TEST_CLIENT_ID                                          (PCHAR) "Test Client"
-#define TEST_MAX_STREAM_COUNT                                   1000
-#define TEST_DEFAULT_STORAGE_SIZE                               (256 * 1024 * 1024)
+#define TEST_MAX_STREAM_COUNT                                   5000
 #define TEST_DEFAULT_REGION                                     (PCHAR) "us-west-2"
 #define TEST_CONTROL_PLANE_URI                                  EMPTY_STRING
 #define TEST_CERTIFICATE_PATH                                   EMPTY_STRING
@@ -22,11 +21,11 @@
 #define TEST_FRAME_DURATION                                     (50 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 #define TEST_EXECUTION_DURATION                                 (10 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define TEST_KEY_FRAME_INTERVAL                                 50
-#define TEST_STREAM_COUNT                                       1
-#define MAX_TEST_STREAM_COUNT                                   10
+#define TEST_STREAM_COUNT                                       2
 #define TEST_FRAME_SIZE                                         1000
 #define TEST_STREAMING_TOKEN_DURATION                           (40 * HUNDREDS_OF_NANOS_IN_A_SECOND)
-#define TEST_STORAGE_SIZE_IN_BYTES                              (1024 * 1024 * 1024ull)
+#define TEST_CREDENTIAL_EXPIRATION                              (24 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
+#define TEST_STORAGE_SIZE_IN_BYTES                              (128 * 1024 * 1024ull)
 #define TEST_MAX_STREAM_LATENCY                                 (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define TEST_STREAM_BUFFER_DURATION                             (120 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define TEST_START_STOP_ITERATION_COUNT                         200
@@ -45,7 +44,7 @@
 #define TEST_RETENTION_PERIOD                                   (2 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
 
 #define TEST_CREATE_PRODUCER_TIMEOUT                            (300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
-#define TEST_CREATE_STREAM_TIMEOUT                              (1000 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define TEST_CREATE_STREAM_TIMEOUT                              (10 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 #ifdef _WIN32
 #define TEST_TEMP_DIR_PATH                                      (PCHAR) "C:\\Windows\\Temp\\"
@@ -256,7 +255,7 @@ protected:
 
     TID mProducerThread;
 
-    STREAM_HANDLE mStreams[MAX_TEST_STREAM_COUNT];
+    STREAM_HANDLE mStreams[TEST_MAX_STREAM_COUNT];
 
     volatile bool mStartProducer;
     volatile bool mStopProducer;

@@ -170,7 +170,7 @@ STATUS MockConsumer::timedGetStreamData(UINT64 currentTime, PBOOL pDidGetStreamD
             *pRetrievedSize = actualDataSize;
         }
 
-        mSendDataDelay = (DOUBLE) actualDataSize / mUploadSpeed * HUNDREDS_OF_NANOS_IN_A_SECOND;
+        mSendDataDelay = (UINT64) ((DOUBLE) actualDataSize / mUploadSpeed * HUNDREDS_OF_NANOS_IN_A_SECOND);
         DLOGD("wrote %llu bytes for upload handle %llu", actualDataSize, mUploadHandle);
         if (retStatus != STATUS_UPLOAD_HANDLE_ABORTED && actualDataSize != 0) {
             // initialize mOldCurrent after first getKinesisVideoStreamData call.

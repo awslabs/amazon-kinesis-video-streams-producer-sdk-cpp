@@ -129,9 +129,8 @@ PUBLIC_API STATUS base64Encode(PVOID pInputData, UINT32 inputLength, PCHAR pOutp
  * NOTE: pInputData should be NULL terminated
  * IMPLEMENTATION: We will ignore the '=' padding by removing those and will calculate the passing based on the string length
  */
-PUBLIC_API STATUS base64Decode(PCHAR pInputData, PBYTE pOutputData, PUINT32 pOutputLength)
+PUBLIC_API STATUS base64Decode(PCHAR pInputData, UINT32 inputLength, PBYTE pOutputData, PUINT32 pOutputLength)
 {
-    UINT32 inputLength;
     UINT32 outputLength;
     UINT32 i;
     BYTE b0, b1, b2, b3;
@@ -143,7 +142,7 @@ PUBLIC_API STATUS base64Decode(PCHAR pInputData, PBYTE pOutputData, PUINT32 pOut
         return STATUS_NULL_ARG;
     }
 
-    inputLength = (UINT32) STRLEN(pInputData);
+    inputLength = (inputLength != 0) ? inputLength : (UINT32) STRLEN(pInputData);
     // Check the size - should have more than 2 chars
     if (inputLength < 2) {
         return STATUS_INVALID_ARG_LEN;

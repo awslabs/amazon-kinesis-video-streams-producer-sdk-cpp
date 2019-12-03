@@ -18,14 +18,13 @@ extern "C" {
 // For tight packing
 #pragma pack(push, include_i, 1) // for byte alignment
 
+#define MAX_PIC_REENTRANCY_COUNT                    (1024 * 1024)
+
 /**
  * Forward declarations
  */
 typedef struct __KinesisVideoStream KinesisVideoStream;
 typedef struct __KinesisVideoStream* PKinesisVideoStream;
-
-typedef struct __StateMachine StateMachine;
-typedef struct __StateMachine* PStateMachine;
 
 /**
  * Kinesis Video client base internal structure
@@ -58,16 +57,38 @@ struct __KinesisVideoBase {
 
     // Indicating whether shutdown has been triggered
     BOOL shutdown;
+
+    // Shutdown sequencing semaphore
+    SEMAPHORE_HANDLE shutdownSemaphore;
 };
 
 typedef struct __KinesisVideoBase* PKinesisVideoBase;
+
+/**
+ * Token return definition
+ */
+typedef struct __SecurityTokenInfo SecurityTokenInfo;
+struct __SecurityTokenInfo {
+    UINT32 size;
+    PBYTE token;
+};
+typedef struct __SecurityTokenInfo* PSecurityTokenInfo;
+
+/**
+ * Endpoint return definition
+ */
+typedef struct __EndpointInfo EndpointInfo;
+struct __EndpointInfo {
+    UINT32 length;
+    PCHAR endpoint;
+};
+typedef struct __EndpointInfo* PEndpointInfo;
 
 /**
  * The rest of the internal include files
  */
 
 #include "InputValidator.h"
-#include "State.h"
 #include "AckParser.h"
 #include "FrameOrderCoordinator.h"
 #include "Stream.h"
@@ -128,17 +149,6 @@ typedef struct __KinesisVideoBase* PKinesisVideoBase;
 #define FILE_BASED_HEAP_FLAGS       (FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_FILE_HEAP)
 
 /**
- * Defines the full tag structure length when the pointers to the strings are allocated after the
- * main struct. We will add 2 for NULL terminators
- */
-#define TAG_FULL_LENGTH             (SIZEOF(Tag) + (MAX_TAG_NAME_LEN + MAX_TAG_VALUE_LEN + 2) * SIZEOF(CHAR))
-
-/**
- * Calculates the next service call retry time
- */
-#define NEXT_SERVICE_CALL_RETRY_DELAY(r)        (((UINT64)1 << (r)) * SERVICE_CALL_RETRY_TIMEOUT)
-
-/**
  * Checks whether the dropped connection can be due to host issues
  */
 #define CONNECTION_DROPPED_HOST_ALIVE(r)        ((r) == SERVICE_CALL_RESULT_NOT_SET || \
@@ -189,7 +199,7 @@ typedef struct __KinesisVideoBase* PKinesisVideoBase;
 #define TRANSFER_RATE_MEASURING_INTERVAL_EPSILON               (DOUBLE) 0.2
 
 /**
- *
+ * Multiplier factor used to compensate for the fragmentation
  */
 #define FRAME_ALLOC_FRAGMENTATION_FACTOR                       (DOUBLE) 1.8
 
@@ -258,6 +268,15 @@ typedef struct __KinesisVideoClient {
 
     // Device fingerprint storage if needed for provisioning including null terminator
     CHAR deviceFingerprint[MAX_DEVICE_FINGERPRINT_LENGTH + 1];
+
+    // Total memory allocation tracker
+    UINT64 totalAllocationSize;
+
+    // Stored function pointers to reset on exit
+    memAlloc storedMemAlloc;
+    memAlignAlloc storedMemAlignAlloc;
+    memCalloc storedMemCalloc;
+    memFree storedMemFree;
 } KinesisVideoClient, *PKinesisVideoClient;
 
 /**
@@ -333,6 +352,11 @@ STREAM_HANDLE toStreamHandle(PKinesisVideoStream);
 PKinesisVideoStream fromStreamHandle(STREAM_HANDLE);
 
 /**
+ * Internal function to free the client object
+ */
+STATUS freeKinesisVideoClientInternal(PKinesisVideoClient, STATUS);
+
+/**
  * Callback function which is invoked when an item gets purged from the view
  */
 VOID viewItemRemoved(PContentView, UINT64, PViewItem, BOOL);
@@ -366,6 +390,11 @@ AUTH_INFO_TYPE getCurrentAuthType(PKinesisVideoClient);
  * Randomizing or adding a jitter to the auth info expiration
  */
 UINT64 randomizeAuthInfoExpiration(PKinesisVideoClient, UINT64, UINT64);
+
+/**
+ * Set content store as default allocator
+ */
+STATUS setContentStoreAllocator(PKinesisVideoClient);
 
 ///////////////////////////////////////////////////////////////////////////
 // Client service call event functions

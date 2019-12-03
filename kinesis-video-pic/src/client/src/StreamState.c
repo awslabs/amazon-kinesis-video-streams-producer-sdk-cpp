@@ -645,7 +645,8 @@ STATUS executePutStreamState(UINT64 customData, UINT64 time)
     pKinesisVideoStream->base.serviceCallContext.pAuthInfo = &pKinesisVideoStream->streamingAuthInfo;
     pKinesisVideoStream->base.serviceCallContext.version = SERVICE_CALL_CONTEXT_CURRENT_VERSION;
     pKinesisVideoStream->base.serviceCallContext.customData = TO_STREAM_HANDLE(pKinesisVideoStream);
-    pKinesisVideoStream->base.serviceCallContext.timeout = SERVICE_CALL_DEFAULT_TIMEOUT;
+    // Infinite wait for streaming
+    pKinesisVideoStream->base.serviceCallContext.timeout = SERVICE_CALL_INFINITE_TIMEOUT;
     pKinesisVideoStream->base.serviceCallContext.callAfter = time;
 
     // We need to call the put stream API the first time

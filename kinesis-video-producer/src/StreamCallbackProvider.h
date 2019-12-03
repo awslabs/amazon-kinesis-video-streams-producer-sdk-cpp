@@ -215,6 +215,8 @@ public:
     virtual BufferDurationOverflowPressureFunc getBufferDurationOverflowPressureCallback() {
         return nullptr;
     };
+
+    virtual ~StreamCallbackProvider() {};
 };
 
 } // namespace video

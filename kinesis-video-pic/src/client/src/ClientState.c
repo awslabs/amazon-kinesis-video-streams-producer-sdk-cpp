@@ -64,7 +64,7 @@ STATUS fromAuthClientState(UINT64 customData, PUINT64 pState)
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKinesisVideoClient pKinesisVideoClient = CLIENT_FROM_CUSTOM_DATA(customData);
-    UINT64 state = CLIENT_STATE_AUTH;
+    UINT64 state = CLIENT_STATE_AUTH, currentTime;
     AUTH_INFO_TYPE authType;
 
     CHK(pKinesisVideoClient != NULL && pState != NULL, STATUS_NULL_ARG);
@@ -83,6 +83,14 @@ STATUS fromAuthClientState(UINT64 customData, PUINT64 pState)
             break;
 
         case AUTH_INFO_TYPE_STS:
+            currentTime = pKinesisVideoClient->clientCallbacks.getCurrentTimeFn(pKinesisVideoClient->clientCallbacks.customData);
+            if (currentTime >= pKinesisVideoClient->tokenAuthInfo.expiration ||
+                (pKinesisVideoClient->tokenAuthInfo.expiration - currentTime) < MIN_STREAMING_TOKEN_EXPIRATION_DURATION) {
+                DLOGW("Invalid auth token as it is expiring in less than %u seconds", MIN_STREAMING_TOKEN_EXPIRATION_DURATION / HUNDREDS_OF_NANOS_IN_A_SECOND);
+                state = CLIENT_STATE_AUTH;
+                break;
+            }
+
             // Deliberate fall-through
         case AUTH_INFO_NONE:
             // Token integration - proceed with create state if we are creating a new client, otherwise, move to ready

@@ -43,6 +43,8 @@ public:
     virtual StorageOverflowPressureFunc getStorageOverflowPressureCallback() {
         return nullptr;
     };
+
+    virtual ~ClientCallbackProvider() {};
 };
 
 } // namespace video

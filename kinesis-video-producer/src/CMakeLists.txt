@@ -15,7 +15,7 @@ add_library(${PROJECT_NAME} SHARED ${HEADERS} ${SOURCE})
 # pipeline path doesn't pick up the kinesis video platform independent libs (client, duration, heap, etc.)
 # because they are built as static libraries and not shared. Consider changing that package to 
 # build shared libraries.
-target_link_libraries(${PROJECT_NAME} ${BP_BUILD_LINK_LIBS} client duration heap mkvgen trace utils view)
+target_link_libraries(${PROJECT_NAME} ${BP_BUILD_LINK_LIBS} client duration heap mkvgen trace state utils view)
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
 
