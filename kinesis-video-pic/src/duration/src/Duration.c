@@ -91,7 +91,7 @@ UINT32 getDigit(CHAR);
 UINT64 parseDuration(PCHAR pPeriod, PCHAR pEnd)
 {
     // Validate the input and get the size
-    if (!pPeriod) {
+    if (NULL == pPeriod) {
         return INVALID_DURATION_VALUE;
     }
 
@@ -195,7 +195,7 @@ BOOL acceptState(PParserState pState)
             pState->durationState = i;
 
             DOUBLE tempResult = pState->accValue * DURATION_STATES[i].multiplier;
-            if (tempResult < pState->accValue) {
+            if (tempResult > (DOUBLE) MAX_UINT64) {
                 // Overflow detected
                 return FALSE;
             }
@@ -268,11 +268,9 @@ BOOL parseDurationValue(PParserState pState)
                 pState->accValue = pState->accValue + ((DOUBLE) digit / quot);
                 quot *= 10;
             } else {
-                // Store the existing value so we can check for the overflows
-                DOUBLE storedVal = pState->accValue;
                 pState->accValue = pState->accValue * 10 + digit;
 
-                if (storedVal > pState->accValue) {
+                if (pState->accValue > (DOUBLE) MAX_UINT64) {
                     // Integer overflow detected
                     return FALSE;
                 }

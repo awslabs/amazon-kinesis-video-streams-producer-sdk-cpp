@@ -483,6 +483,7 @@ protected:
         mChainControlPlaneServiceCall = FALSE;
         mRepeatTime = 10;
         mSubmitServiceCallResultMode = DISABLE_AUTO_SUBMIT;
+        mTokenExpiration = TEST_AUTH_EXPIRATION;
 
         mThreadReturnStatus = STATUS_SUCCESS;
     }
@@ -569,7 +570,7 @@ protected:
         UINT64 stopStreamTime, currentTime;
         std::vector<UPLOAD_HANDLE> currentUploadHandles;
         MockConsumer *mockConsumer;
-        BOOL didPutFrame, gotStreamData, didSubmitAck;
+        BOOL gotStreamData, didSubmitAck;
 
         // The stream should stream out remaining buffer within streamStopTimeout.
         stopStreamTime = mClientCallbacks.getCurrentTimeFn((UINT64) this) + streamStopTimeout;

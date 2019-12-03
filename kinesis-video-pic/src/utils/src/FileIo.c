@@ -163,7 +163,7 @@ STATUS fileExists(PCHAR filePath, PBOOL pExists)
         return STATUS_NULL_ARG;
     }
 
-    struct stat st;
+    struct GLOBAL_STAT st;
     INT32 result = FSTAT(filePath, &st);
     *pExists = (result == 0);
 

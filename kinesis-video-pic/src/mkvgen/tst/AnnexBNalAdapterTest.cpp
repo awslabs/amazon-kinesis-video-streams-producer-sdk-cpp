@@ -127,17 +127,96 @@ TEST_F(AnnexBNalAdapterTest, nalAdapter_ValidFourBytesNonZero)
     EXPECT_EQ(SIZEOF(frameData), adaptedFrameDataSize);
 }
 
-TEST_F(AnnexBNalAdapterTest, nalAdapter_InvalidFourBytesZero)
+TEST_F(AnnexBNalAdapterTest, nalAdapter_ValidTrailingZeros)
 {
+    // All zeroes
     BYTE frameData[] = {0, 0, 0, 0};
     UINT32 frameDataSize = SIZEOF(frameData);
     BYTE adaptedFrameData[1000];
     UINT32 adaptedFrameDataSize = SIZEOF(adaptedFrameData);
 
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, frameDataSize, TRUE, NULL, &adaptedFrameDataSize));
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, frameDataSize, FALSE, NULL, &adaptedFrameDataSize));
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, frameDataSize, TRUE, adaptedFrameData, &adaptedFrameDataSize));
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, frameDataSize, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, frameDataSize, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, frameDataSize, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, frameDataSize, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameDataSize, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData, frameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, frameDataSize, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameDataSize, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData, frameDataSize));
+
+    BYTE frameData2[] = {0, 0, 0, 0, 0};
+    UINT32 frameData2Size = SIZEOF(frameData2);
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData2, frameData2Size, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData2, frameData2Size, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData2, frameData2Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData2Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData2, frameData2Size));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData2, frameData2Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData2Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData2, frameData2Size));
+
+    BYTE frameData3[] = {1, 0, 0, 0, 0};
+    UINT32 frameData3Size = SIZEOF(frameData3);
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData3, frameData3Size, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData3, frameData3Size, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData3, frameData3Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData3Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData3, frameData3Size));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData3, frameData3Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData3Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData3, frameData3Size));
+
+    BYTE frameData4[] = {0, 0, 0, 1};
+    UINT32 frameData4Size = SIZEOF(frameData4);
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData4, frameData4Size, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData4, frameData4Size, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData4, frameData4Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData4Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData, frameData4Size));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData4, frameData4Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData4Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData, frameData4Size));
+
+    BYTE frameData5[] = {0, 0, 0, 0, 1};
+    UINT32 frameData5Size = SIZEOF(frameData5);
+    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+
+    BYTE frameData6[] = {0, 0, 0, 1, 0};
+    UINT32 frameData6Size = SIZEOF(frameData6);
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData6, frameData6Size, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData6, frameData6Size, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData6, frameData6Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData6Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData6, frameData6Size));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData6, frameData6Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData6Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData6, frameData6Size));
+
+    BYTE frameData7[] = {0, 0, 1, 0};
+    UINT32 frameData7Size = SIZEOF(frameData7);
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData7, frameData7Size, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData7, frameData7Size, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData7, frameData7Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData6Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData6, frameData6Size));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData7, frameData7Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData6Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, frameData6, frameData6Size));
+
+    BYTE frameData8[] = {0, 0, 0, 1, 0, 0, 0, 0};
+    BYTE adaptedData8[] = {0, 0, 0, 4, 0, 0, 0, 0};
+    UINT32 frameData8Size = SIZEOF(frameData8);
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData8, frameData8Size, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData8, frameData8Size, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData8, frameData8Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData8Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, adaptedData8, frameData8Size));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData8, frameData8Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(frameData8Size, adaptedFrameDataSize);
+    EXPECT_EQ(0, MEMCMP(adaptedFrameData, adaptedData8, frameData8Size));
 }
 
 TEST_F(AnnexBNalAdapterTest, nalAdapter_ValidZerosInStream)

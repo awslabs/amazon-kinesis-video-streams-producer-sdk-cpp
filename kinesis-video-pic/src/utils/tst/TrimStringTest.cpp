@@ -111,7 +111,7 @@ TEST_F(TrimStringFunctionalityTest, rtrim_Negative_Positive_Variations)
     EXPECT_EQ('\0', *pRet);
     EXPECT_EQ('a', *(pRet - 1));
 
-    EXPECT_EQ(STATUS_SUCCESS, RTRIMSTR((PCHAR) "a  \t   \r  \n  \v   \f  ", STRLEN((PCHAR) "a  \t   \r  \n  \v   \f  "), &pRet));
+    EXPECT_EQ(STATUS_SUCCESS, RTRIMSTR((PCHAR) "a  \t   \r  \n  \v   \f  ", (UINT32) STRLEN((PCHAR) "a  \t   \r  \n  \v   \f  "), &pRet));
     EXPECT_EQ(' ', *pRet);
     EXPECT_EQ('a', *(pRet - 1));
 
@@ -192,12 +192,12 @@ TEST_F(TrimStringFunctionalityTest, trimall_Negative_Positive_Variations)
     EXPECT_EQ('\0', *pEnd);
     EXPECT_EQ('c', *(pEnd - 1));
 
-    EXPECT_EQ(STATUS_SUCCESS, TRIMSTRALL((PCHAR) "abc       ", STRLEN((PCHAR) "abc       "), &pStart, &pEnd));
+    EXPECT_EQ(STATUS_SUCCESS, TRIMSTRALL((PCHAR) "abc       ", (UINT32) STRLEN((PCHAR) "abc       "), &pStart, &pEnd));
     EXPECT_EQ('a', *pStart);
     EXPECT_EQ(' ', *pEnd);
     EXPECT_EQ('c', *(pEnd - 1));
 
-    EXPECT_EQ(STATUS_SUCCESS, TRIMSTRALL((PCHAR) "  \t   \r  \n  \v   \f  abc", STRLEN((PCHAR) "  \t   \r  \n  \v   \f  abc"), &pStart, &pEnd));
+    EXPECT_EQ(STATUS_SUCCESS, TRIMSTRALL((PCHAR) "  \t   \r  \n  \v   \f  abc", (UINT32) STRLEN((PCHAR) "  \t   \r  \n  \v   \f  abc"), &pStart, &pEnd));
     EXPECT_EQ('a', *pStart);
     EXPECT_EQ('\0', *pEnd);
     EXPECT_EQ('c', *(pEnd - 1));
@@ -207,7 +207,7 @@ TEST_F(TrimStringFunctionalityTest, trimall_Negative_Positive_Variations)
     EXPECT_EQ('\0', *pEnd);
     EXPECT_EQ('a', *(pEnd - 1));
 
-    EXPECT_EQ(STATUS_SUCCESS, TRIMSTRALL((PCHAR) "  \t   \r  \n  \v   \f  a", STRLEN((PCHAR) "  \t   \r  \n  \v   \f  a"), &pStart, &pEnd));
+    EXPECT_EQ(STATUS_SUCCESS, TRIMSTRALL((PCHAR) "  \t   \r  \n  \v   \f  a", (UINT32) STRLEN((PCHAR) "  \t   \r  \n  \v   \f  a"), &pStart, &pEnd));
     EXPECT_EQ('a', *pStart);
     EXPECT_EQ('\0', *pEnd);
     EXPECT_EQ('a', *(pEnd - 1));
@@ -219,7 +219,7 @@ TEST_F(TrimStringFunctionalityTest, trimall_Negative_Positive_Variations)
     EXPECT_EQ(' ', *pEnd);
     EXPECT_EQ('\t', *(pEnd - 1));
 
-    EXPECT_EQ(STATUS_SUCCESS, TRIMSTRALL((PCHAR) "  \t   \r  \n  \v   \f  abc  \t   \r  \n  \v   \f  ", STRLEN((PCHAR) "  \t   \r  \n  \v   \f  abc  \t   \r  \n  \v   \f  "), &pStart, &pEnd));
+    EXPECT_EQ(STATUS_SUCCESS, TRIMSTRALL((PCHAR) "  \t   \r  \n  \v   \f  abc  \t   \r  \n  \v   \f  ", (UINT32) STRLEN((PCHAR) "  \t   \r  \n  \v   \f  abc  \t   \r  \n  \v   \f  "), &pStart, &pEnd));
     EXPECT_EQ('a', *pStart);
     EXPECT_EQ(' ', *pEnd);
     EXPECT_EQ('c', *(pEnd - 1));

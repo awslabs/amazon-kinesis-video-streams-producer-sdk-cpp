@@ -10,6 +10,9 @@ extern "C" {
 
 #pragma once
 
+// For tight packing
+#pragma pack(push, include_i, 1) // for byte alignment
+
 ////////////////////////////////////////////////////
 // Internal functionality
 ////////////////////////////////////////////////////
@@ -59,7 +62,7 @@ STATUS validateStreamInfo(PStreamInfo, PClientCallbacks);
  *
  * @return Status of the function call.
  */
-STATUS validateTags(UINT32, PTag);
+STATUS validateClientTags(UINT32, PTag);
 
 /**
  * Sets the default values of the client info if needed
@@ -118,6 +121,8 @@ VOID fixupFrame(PFrame pFrame);
  * @return The size of the object
  */
 SIZE_T sizeOfStreamDescription(PStreamDescription);
+
+#pragma pack(pop, include_i)
 
 #ifdef __cplusplus
 }

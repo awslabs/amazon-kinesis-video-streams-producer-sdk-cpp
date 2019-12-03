@@ -1228,7 +1228,7 @@ TEST_F(StreamApiFunctionalityTest, submitAck_shouldBeInWindowPutStreamResultAfte
  */
 TEST_F(StreamApiFunctionalityTest, submitAck_shouldBeInWindowAfterErrorAck)
 {
-    UINT32 i, remaining, filledSize;
+    UINT32 i, filledSize;
     UINT32 frameSize = 100000;
     PBYTE getDataBuffer = (PBYTE) MEMALLOC(frameSize * 4);
     PBYTE pData = (PBYTE) MEMALLOC(frameSize);

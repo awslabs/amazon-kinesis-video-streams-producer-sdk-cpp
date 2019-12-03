@@ -6,9 +6,9 @@
 // Stub Mutex library functions
 //
 typedef struct {
-    BOOL reentrant;
     SRWLOCK srwLock;
     CRITICAL_SECTION criticalSection;
+    BOOL reentrant;
 } WinLock, *PWinLock;
 
 MUTEX defaultCreateMutex(BOOL reentrant)
@@ -155,7 +155,7 @@ STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeout)
         CHK(SleepConditionVariableCS(cvar, &pLock->criticalSection, dwTimeout), STATUS_WAIT_FAILED);
     }
     else {
-        CHK(SleepConditionVariableSRW(cvar, &pLock->srwLock, dwTimeout, CONDITION_VARIABLE_LOCKMODE_SHARED), STATUS_WAIT_FAILED);
+        CHK(SleepConditionVariableSRW(cvar, &pLock->srwLock, dwTimeout, 0), STATUS_WAIT_FAILED);
     }
 
 CleanUp:
@@ -284,13 +284,16 @@ STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeout)
     INT32 retVal = 0;
     struct timespec timeSpec;
     pthread_mutex_t* pMutex = (pthread_mutex_t*) mutex;
+    UINT64 curTime = GETTIME();
 
-    if (INFINITE_TIME_VALUE == timeout) {
+    // Timeout is a duration so we need to construct an absolute time
+    UINT64 time = timeout + curTime;
+
+    // If we overflow or have specific infinite timeout then wait unconditionally
+    if (time < timeout || INFINITE_TIME_VALUE == timeout) {
         CHK(0 == (retVal = pthread_cond_wait(cvar, pMutex)), STATUS_WAIT_FAILED);
     }
     else {
-        // Timeout is a duration so we need to construct an absolute time
-        UINT64 time = timeout + GETTIME();
         timeSpec.tv_sec = time / HUNDREDS_OF_NANOS_IN_A_SECOND;
         timeSpec.tv_nsec = (time % HUNDREDS_OF_NANOS_IN_A_SECOND) * DEFAULT_TIME_UNIT_IN_NANOS;
         CHK(0 == (retVal = pthread_cond_timedwait(cvar, pMutex, &timeSpec)), STATUS_WAIT_FAILED);

@@ -12,7 +12,6 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
     UINT64 timestamp, availableStorage, curAvailableStorage;
     Frame frame;
     ClientMetrics memMetrics;
-    PStreamMkvGenerator pStreamMkvGenerator;
 
     // Ensure we have fragmentation based on the key frames
     mStreamInfo.streamCaps.keyFrameFragmentation = TRUE;

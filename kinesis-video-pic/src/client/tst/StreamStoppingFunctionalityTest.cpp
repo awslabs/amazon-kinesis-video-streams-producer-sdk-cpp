@@ -67,8 +67,9 @@ TEST_P(StreamStoppingFunctionalityTest, CreateSyncStreamWithTwoUploadHandlesStop
     VerifyStopStreamSyncAndFree();
 }
 
-TEST_P(StreamStoppingFunctionalityTest, CreateSyncResetConnectionSuccess) {
-
+TEST_P(StreamStoppingFunctionalityTest, CreateSyncResetConnectionSuccess)
+{
+    PStateMachineState pState;
     CreateScenarioTestClient();
 
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
@@ -81,7 +82,8 @@ TEST_P(StreamStoppingFunctionalityTest, CreateSyncResetConnectionSuccess) {
     // kinesisVideoStreamTerminated should succeed but have no effect on stream state because stream state is STREAM_STATE_READY
     kinesisVideoStreamTerminated(mStreamHandle, INVALID_UPLOAD_HANDLE_VALUE, SERVICE_CALL_RESULT_OK);
 
-    EXPECT_TRUE(pKinesisVideoStream->base.pStateMachine->context.pCurrentState->state == STREAM_STATE_READY);
+    EXPECT_EQ(STATUS_SUCCESS, getStateMachineCurrentState(pKinesisVideoStream->base.pStateMachine, &pState));
+    EXPECT_TRUE(pState->state == STREAM_STATE_READY);
 }
 
 TEST_P(StreamStoppingFunctionalityTest, CreateSyncStreamHighDensityStopSyncTimeoutFreeSuccess) {
@@ -123,8 +125,6 @@ TEST_P(StreamStoppingFunctionalityTest, CreateSyncStreamHighDensityStopSyncStrea
     MockConsumer *mockConsumer;
     BOOL didPutFrame, gotStreamData, submittedAck;
     UINT64 currentTime, streamStopTime;
-    TID thread;
-    STATUS *pRetValue;
     StreamMetrics streamMetrics;
     streamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
 

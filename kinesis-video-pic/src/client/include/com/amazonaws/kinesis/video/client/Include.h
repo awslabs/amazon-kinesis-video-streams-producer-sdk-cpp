@@ -21,6 +21,7 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/mkvgen/Include.h>
 #include <com/amazonaws/kinesis/video/view/Include.h>
 #include <com/amazonaws/kinesis/video/heap/Include.h>
+#include <com/amazonaws/kinesis/video/state/Include.h>
 
 // For tight packing
 #pragma pack(push, include, 1) // for byte alignment
@@ -80,7 +81,6 @@ extern "C" {
 #define STATUS_INVALID_ROOT_DIRECTORY_LENGTH                                        STATUS_CLIENT_BASE + 0x0000000b
 #define STATUS_INVALID_SPILL_RATIO                                                  STATUS_CLIENT_BASE + 0x0000000c
 #define STATUS_INVALID_STORAGE_INFO_VERSION                                         STATUS_CLIENT_BASE + 0x0000000d
-#define STATUS_INVALID_STREAM_STATE                                                 STATUS_CLIENT_BASE + 0x0000000e
 #define STATUS_SERVICE_CALL_CALLBACKS_MISSING                                       STATUS_CLIENT_BASE + 0x0000000f
 #define STATUS_SERVICE_CALL_NOT_AUTHORIZED_ERROR                                    STATUS_CLIENT_BASE + 0x00000010
 #define STATUS_DESCRIBE_STREAM_CALL_FAILED                                          STATUS_CLIENT_BASE + 0x00000011
@@ -136,7 +136,6 @@ extern "C" {
 #define STATUS_INVALID_STREAM_METRICS_VERSION                                       STATUS_CLIENT_BASE + 0x00000053
 #define STATUS_INVALID_CLIENT_METRICS_VERSION                                       STATUS_CLIENT_BASE + 0x00000054
 #define STATUS_INVALID_CLIENT_READY_STATE                                           STATUS_CLIENT_BASE + 0x00000055
-#define STATUS_STATE_MACHINE_STATE_NOT_FOUND                                        STATUS_CLIENT_BASE + 0x00000056
 #define STATUS_INVALID_FRAGMENT_ACK_TYPE                                            STATUS_CLIENT_BASE + 0x00000057
 #define STATUS_INVALID_STREAM_READY_STATE                                           STATUS_CLIENT_BASE + 0x00000058
 #define STATUS_CLIENT_FREED_BEFORE_STREAM                                           STATUS_CLIENT_BASE + 0x00000059
@@ -184,6 +183,8 @@ extern "C" {
 #define STATUS_INVALID_CLIENT_ID_STRING_LENGTH                                      STATUS_CLIENT_BASE + 0x00000083
 #define STATUS_SETTING_KEY_FRAME_FLAG_WHILE_USING_EOFR                              STATUS_CLIENT_BASE + 0x00000084
 #define STATUS_MAX_FRAME_TIMESTAMP_DELTA_BETWEEN_TRACKS_EXCEEDED                    STATUS_CLIENT_BASE + 0x00000085
+#define STATUS_STREAM_SHUTTING_DOWN                                                 STATUS_CLIENT_BASE + 0x00000086
+#define STATUS_CLIENT_SHUTTING_DOWN                                                 STATUS_CLIENT_BASE + 0x00000087
 
 #define IS_RECOVERABLE_ERROR(error)     ((error) == STATUS_ACK_ERR_INVALID_MKV_DATA ||          \
                                         (error) == STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR ||    \
@@ -192,13 +193,14 @@ extern "C" {
                                         (error) == STATUS_INVALID_ACK_INVALID_VALUE_START ||    \
                                         (error) == STATUS_INVALID_ACK_INVALID_VALUE_END ||      \
                                         (error) == STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW ||   \
-                                        (error) == STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED)
+                                        (error) == STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED)    \
 
-#define IS_RETRIABLE_ERROR(error)       ((error) == STATUS_DESCRIBE_STREAM_CALL_FAILED ||        \
-                                        (error) == STATUS_CREATE_STREAM_CALL_FAILED ||           \
-                                        (error) == STATUS_GET_STREAMING_TOKEN_CALL_FAILED ||     \
-                                        (error) == STATUS_PUT_STREAM_CALL_FAILED ||              \
-                                        (error) == STATUS_GET_STREAMING_ENDPOINT_CALL_FAILED)
+#define IS_RETRIABLE_ERROR(error)       ((error) == STATUS_DESCRIBE_STREAM_CALL_FAILED ||       \
+                                        (error) == STATUS_CREATE_STREAM_CALL_FAILED ||          \
+                                        (error) == STATUS_GET_STREAMING_TOKEN_CALL_FAILED ||    \
+                                        (error) == STATUS_PUT_STREAM_CALL_FAILED ||             \
+                                        (error) == STATUS_GET_STREAMING_ENDPOINT_CALL_FAILED || \
+                                        (error) == STATUS_INVALID_TOKEN_EXPIRATION)             \
 
 ////////////////////////////////////////////////////
 // Main defines
@@ -209,11 +211,6 @@ extern "C" {
 #define MAX_DEVICE_NAME_LEN                      128
 
 /**
- * Max tag count
- */
-#define MAX_TAG_COUNT                            50
-
-/**
  * Max stream count for sanity validation - 1M
  */
 #define MAX_STREAM_COUNT                         1000000
@@ -222,16 +219,6 @@ extern "C" {
  * Max stream name length chars
  */
 #define MAX_STREAM_NAME_LEN                      256
-
-/**
- * Max tag name length in chars
- */
-#define MAX_TAG_NAME_LEN                         128
-
-/**
- * Max tag value length in chars
- */
-#define MAX_TAG_VALUE_LEN                        1024
 
 /**
  * Max update version length in chars
@@ -324,14 +311,14 @@ extern "C" {
 #define SERVICE_CALL_DEFAULT_TIMEOUT            (5 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 /**
+ * Service call infinite timeout for streaming
+ */
+#define SERVICE_CALL_INFINITE_TIMEOUT           MAX_UINT64
+
+/**
  * Default service call retry count
  */
 #define SERVICE_CALL_MAX_RETRY_COUNT           5
-
-/**
- * Service call retry timeout - 100ms
- */
-#define SERVICE_CALL_RETRY_TIMEOUT             (100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 /**
  * MKV packaging type string
@@ -389,43 +376,53 @@ extern "C" {
 /**
  * Fragment duration sentinel value in case of I-frame fragmentation.
  */
-#define FRAGMENT_KEY_FRAME_DURATION_SENTINEL        0
+#define FRAGMENT_KEY_FRAME_DURATION_SENTINEL                0
 
 /**
  * Sentinel value for the duration when checking the connection
  * staleness is not required.
  */
-#define CONNECTION_STALENESS_DETECTION_SENTINEL     0
+#define CONNECTION_STALENESS_DETECTION_SENTINEL             0
 
 /**
  * Retention period sentinel value indicating no retention is needed
  */
-#define RETENTION_PERIOD_SENTINEL                   0
+#define RETENTION_PERIOD_SENTINEL                           0
 
 /**
  * Max number of tracks allowed per stream
  */
-#define MAX_SUPPORTED_TRACK_COUNT_PER_STREAM                  3
+#define MAX_SUPPORTED_TRACK_COUNT_PER_STREAM                3
 
 /**
  * Client ready timeout duration.
  **/
-#define CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS 15
+#define CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS            15
 
 /**
  * Stream ready timeout duration.
  **/
-#define STREAM_READY_TIMEOUT_DURATION_IN_SECONDS 30
+#define STREAM_READY_TIMEOUT_DURATION_IN_SECONDS            30
 
 /**
  * Stream closed timeout duration.
  */
-#define STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS 120
+#define STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS           120
 
 /**
  * Default logger log level
  */
-#define DEFAULT_LOGGER_LOG_LEVEL LOG_LEVEL_WARN
+#define DEFAULT_LOGGER_LOG_LEVEL                            LOG_LEVEL_WARN
+
+/**
+ * Client clean shutdown timeout
+ */
+#define CLIENT_SHUTDOWN_SEMAPHORE_TIMEOUT                   (3 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+
+/**
+ * Stream clean shutdown timeout
+ */
+#define STREAM_SHUTDOWN_SEMAPHORE_TIMEOUT                   (1 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 /**
  * Current versions for the public structs
@@ -433,7 +430,6 @@ extern "C" {
 #define DEVICE_INFO_CURRENT_VERSION                         1
 #define CALLBACKS_CURRENT_VERSION                           0
 #define STREAM_INFO_CURRENT_VERSION                         1
-#define TAG_CURRENT_VERSION                                 0
 #define SEGMENT_INFO_CURRENT_VERSION                        0
 #define STORAGE_INFO_CURRENT_VERSION                        0
 #define AUTH_INFO_CURRENT_VERSION                           0
@@ -454,7 +450,7 @@ typedef CLIENT_HANDLE* PCLIENT_HANDLE;
  * This is a sentinel indicating an invalid handle value
  */
 #ifndef INVALID_CLIENT_HANDLE_VALUE
-#define INVALID_CLIENT_HANDLE_VALUE ((CLIENT_HANDLE) INVALID_HANDLE_VALUE)
+#define INVALID_CLIENT_HANDLE_VALUE ((CLIENT_HANDLE) INVALID_PIC_HANDLE_VALUE)
 #endif
 
 /**
@@ -474,7 +470,7 @@ typedef STREAM_HANDLE* PSTREAM_HANDLE;
  * This is a sentinel indicating an invalid handle value
  */
 #ifndef INVALID_STREAM_HANDLE_VALUE
-#define INVALID_STREAM_HANDLE_VALUE ((STREAM_HANDLE) INVALID_HANDLE_VALUE)
+#define INVALID_STREAM_HANDLE_VALUE ((STREAM_HANDLE) INVALID_PIC_HANDLE_VALUE)
 #endif
 
 /**
@@ -550,6 +546,9 @@ typedef enum {
 
     // File based storage type
     DEVICE_STORAGE_TYPE_HYBRID_FILE,
+
+    // In-memory storage type with all allocations from the content store
+    DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC,
 } DEVICE_STORAGE_TYPE;
 
 /**
@@ -723,6 +722,12 @@ typedef enum {
     // Fragment archiving error in the persistent storage
     SERVICE_CALL_RESULT_FRAGMENT_ARCHIVAL_ERROR = 5001,
 
+    // Go Away result
+    SERVICE_CALL_RESULT_SIGNALING_GO_AWAY = 6000,
+
+    // Reconnect ICE Server
+    SERVICE_CALL_RESULT_SIGNALING_RECONNECT_ICE = 6001,
+
     // Unknown ACK error
     SERVICE_CALL_RESULT_UNKNOWN_ACK_ERROR = 7000,
 } SERVICE_CALL_RESULT;
@@ -791,23 +796,6 @@ struct __FragmentAck {
 };
 
 typedef struct __FragmentAck* PFragmentAck;
-
-/**
- * Tag declaration
- */
-typedef struct __Tag Tag;
-struct __Tag {
-    // Version of the struct
-    UINT32 version;
-
-    // Tag name - null terminated
-    PCHAR name; // pointer to a string with MAX_TAG_NAME_LEN chars max including the NULL terminator
-
-    // Tag value - null terminated
-    PCHAR value; // pointer to a string with MAX_TAG_VALUE_LEN chars max including the NULL terminator
-};
-
-typedef struct __Tag* PTag;
 
 /**
  * NAL adaptation types enum. The bit flags correspond to the ones defined in the
@@ -1741,6 +1729,9 @@ typedef STATUS (*TagResourceFunc)(UINT64,
 /**
  * Client shutdown function.
  *
+ * NOTE: No more PIC API calls should be made for the client object from this moment on, including calling
+ * PIC API from within the shutdown callback.
+ *
  * @param 1 UINT64 - Custom handle passed by the caller.
  * @param 2 CLIENT_HANDLE - The client handle.
  *
@@ -1750,6 +1741,9 @@ typedef STATUS (*ClientShutdownFunc)(UINT64, CLIENT_HANDLE);
 
 /**
  * Stream shutdown function.
+ *
+ * NOTE: No more PIC API calls should be made for the stream object from this moment on, including calling
+ * PIC API from within the shutdown callback.
  *
  * @param 1 UINT64 - Custom handle passed by the caller.
  * @param 2 STREAM_HANDLE - The stream to shutdown.
@@ -2203,6 +2197,19 @@ PUBLIC_API STATUS kinesisVideoStreamDefaultStreamDataAvailable(UINT64 customData
                                                                UINT64 size);
 PUBLIC_API STATUS kinesisVideoStreamDefaultClientShutdown(UINT64 customData, CLIENT_HANDLE clientHandle);
 PUBLIC_API STATUS kinesisVideoStreamDefaultStreamShutdown(UINT64 customData, STREAM_HANDLE streamHandle, BOOL resetStream);
+
+///////////////////////////////////////////////////
+// Auxiliary functionality
+///////////////////////////////////////////////////
+
+/*
+ * Maps the service call result to a status.
+ *
+ * @param - SERVICE_CALL_RESULT - IN - Service call result to convert
+ *
+ * @return - STATUS Mapped status
+ */
+PUBLIC_API STATUS serviceCallResultCheck(SERVICE_CALL_RESULT);
 
 #pragma pack(pop, include)
 

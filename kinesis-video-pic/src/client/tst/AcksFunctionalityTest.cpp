@@ -82,12 +82,9 @@ TEST_P(AcksFunctionalityTest, CreateStreamSubmitPersistedAckBeforeReceivedAckSuc
     CreateScenarioTestClient();
     BOOL submittedAck = FALSE, didPutFrame, gotStreamData;
     MockConsumer *mockConsumer;
-    UINT64 stopTime, currentTime, currentIndex;
+    UINT64 stopTime, currentTime;
     std::vector<UPLOAD_HANDLE> currentUploadHandles;
-    PViewItem pViewItem;
     STATUS retStatus;
-    TID thread;
-    STATUS *pRetValue;
 
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
     CreateStreamSync();
@@ -144,12 +141,9 @@ TEST_P(AcksFunctionalityTest, CreateStreamSubmitReceivedAckBeforeBufferingAckSuc
     CreateScenarioTestClient();
     BOOL submittedAck = FALSE, didPutFrame, gotStreamData;
     MockConsumer *mockConsumer;
-    UINT64 stopTime, currentTime, currentIndex;
+    UINT64 stopTime, currentTime;
     std::vector<UPLOAD_HANDLE> currentUploadHandles;
-    PViewItem pViewItem;
     STATUS retStatus;
-    TID thread;
-    STATUS *pRetValue;
 
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
     CreateStreamSync();
@@ -206,9 +200,8 @@ TEST_P(AcksFunctionalityTest, CreateStreamSubmitACKsOutsideOfViewRangeFail) {
     CreateScenarioTestClient();
     BOOL submittedAck = FALSE, didPutFrame, gotStreamData;
     MockConsumer *mockConsumer;
-    UINT64 stopTime, currentTime, currentIndex;
+    UINT64 stopTime, currentTime;
     std::vector<UPLOAD_HANDLE> currentUploadHandles;
-    PViewItem pViewItem;
     STATUS retStatus;
 
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();

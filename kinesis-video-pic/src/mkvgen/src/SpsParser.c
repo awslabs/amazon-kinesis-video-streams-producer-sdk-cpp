@@ -34,7 +34,7 @@ STATUS getVideoWidthAndHeightFromH264Sps(PBYTE codecPrivateData, UINT32 codecPri
                && codecPrivateData[4] == AVCC_NALU_LEN_MINUS_ONE
                && codecPrivateData[5] == AVCC_NUMBER_OF_SPS_ONE) {
         // Avcc encoded sps
-        size = getInt16(*(PINT16) &codecPrivateData[6]);
+        size = (UINT32) getInt16(*(PINT16) &codecPrivateData[6]);
         pSps = codecPrivateData + AVCC_SPS_OFFSET;
     } else {
         // Must be raw SPS
@@ -95,13 +95,13 @@ STATUS getVideoWidthAndHeightFromH265Sps(PBYTE codecPrivateData, UINT32 codecPri
 
         // Pass the VPS
         CHK(SIZEOF(UINT32) <= adaptedSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
-        naluSize = getInt32(*(PUINT32) pRun);
+        naluSize = (UINT32) getInt32(*(PUINT32) pRun);
         pRun += SIZEOF(UINT32) + naluSize;
         CHK((UINT32)(pRun - pAdaptedBits) <= adaptedSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
 
         // Get the SPS
         CHK(pRun - pAdaptedBits + SIZEOF(UINT32) <= adaptedSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
-        naluSize = getInt32(*(PUINT32) pRun);
+        naluSize = (UINT32) getInt32(*(PUINT32) pRun);
         pSps = pRun + SIZEOF(UINT32);
         size = naluSize;
         CHK(pSps - pAdaptedBits + naluSize <= adaptedSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
@@ -117,8 +117,8 @@ STATUS getVideoWidthAndHeightFromH265Sps(PBYTE codecPrivateData, UINT32 codecPri
 
         // Iterate over the raw array and extract the SPS
         while (size > HEVC_NALU_ARRAY_ENTRY_SIZE) {
-            naluType = pSps[0] & 0x3f;
-            numNalus = getInt16(*(PINT16) &pSps[1]);
+            naluType = (BYTE) (pSps[0] & 0x3f);
+            numNalus = (UINT16) getInt16(*(PINT16) &pSps[1]);
             pSps += HEVC_NALU_ARRAY_ENTRY_SIZE;
             size -= HEVC_NALU_ARRAY_ENTRY_SIZE;
 
@@ -130,7 +130,7 @@ STATUS getVideoWidthAndHeightFromH265Sps(PBYTE codecPrivateData, UINT32 codecPri
 
             for (naluIterator = 0; naluIterator < numNalus; naluIterator++) {
                 CHK(size > SIZEOF(UINT16), STATUS_MKV_INVALID_HEVC_FORMAT);
-                naluLen = getInt16(*(PINT16) pSps);
+                naluLen = (UINT16) getInt16(*(PINT16) pSps);
                 size -= SIZEOF(UINT16);
                 pSps += SIZEOF(UINT16);
 
@@ -144,7 +144,7 @@ STATUS getVideoWidthAndHeightFromH265Sps(PBYTE codecPrivateData, UINT32 codecPri
         CHK(spsNaluFound, STATUS_MKV_HEVC_SPS_NALU_MISSING);
 
         CHK(size > SIZEOF(UINT16), STATUS_MKV_INVALID_HEVC_FORMAT);
-        naluLen = getInt16(*(PINT16) pSps);
+        naluLen = (UINT16) getInt16(*(PINT16) pSps);
         size -= SIZEOF(UINT16);
         pSps += SIZEOF(UINT16);
 
@@ -434,7 +434,8 @@ STATUS parseH265Sps(PBYTE pSps, UINT32 spsSize, PH265SpsInfo pSpsInfo) {
     CHK_STATUS(bitReaderReadBits(&bitReader, 4, &read));
 
     // Read the sps_max_sub_layers_minus1 - NOTE: As it's 3 bits only it cant be larger than 8
-    CHK_STATUS(bitReaderReadBits(&bitReader, 3, &pSpsInfo->max_sub_layers_minus1));
+    CHK_STATUS(bitReaderReadBits(&bitReader, 3, &read));
+    pSpsInfo->max_sub_layers_minus1 = (UINT8) read;
 
     // Read the sps_temporal_id_nesting_flag
     CHK_STATUS(bitReaderReadBits(&bitReader, 1, &read));
@@ -446,7 +447,8 @@ STATUS parseH265Sps(PBYTE pSps, UINT32 spsSize, PH265SpsInfo pSpsInfo) {
     CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &read));
 
     // Read the chroma_format_idc
-    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &pSpsInfo->chroma_format_idc));
+    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &read));
+    pSpsInfo->chroma_format_idc = (UINT8) read;
 
     if (pSpsInfo->chroma_format_idc == 3) {
         // Read the separate_colour_plane_flag
@@ -454,13 +456,16 @@ STATUS parseH265Sps(PBYTE pSps, UINT32 spsSize, PH265SpsInfo pSpsInfo) {
     }
 
     // Read the pic_width_in_luma_samples
-    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &pSpsInfo->pic_width_in_luma_samples));
+    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &read));
+    pSpsInfo->pic_width_in_luma_samples = (UINT16) read;
 
     // Read the pic_height_in_luma_samples
-    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &pSpsInfo->pic_height_in_luma_samples));
+    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &read));
+    pSpsInfo->pic_height_in_luma_samples = (UINT16) read;
 
     // Read the conformance_window_flag
-    CHK_STATUS(bitReaderReadBits(&bitReader, 1, &pSpsInfo->conformance_window_flag));
+    CHK_STATUS(bitReaderReadBits(&bitReader, 1, &read));
+    pSpsInfo->conformance_window_flag = (UINT8) read;
 
     if (pSpsInfo->conformance_window_flag != 0) {
         // Read the conf_win_left_offset
@@ -477,10 +482,12 @@ STATUS parseH265Sps(PBYTE pSps, UINT32 spsSize, PH265SpsInfo pSpsInfo) {
     }
 
     // Read the bit_depth_luma_minus8
-    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &pSpsInfo->bit_depth_luma_minus8));
+    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &read));
+    pSpsInfo->bit_depth_luma_minus8 = (UINT8) read;
 
     // Read the bit_depth_chroma_minus8
-    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &pSpsInfo->bit_depth_chroma_minus8));
+    CHK_STATUS(bitReaderReadExpGolomb(&bitReader, &read));
+    pSpsInfo->bit_depth_chroma_minus8 = (UINT8) read;
 
     // At this stage we have the sps data we need. The parser will break on some data
     // so at this stage we can return success and return the data we extracted.
@@ -592,19 +599,26 @@ STATUS parseProfileTierLevel(PBitReader pBitReader, PH265SpsInfo pSpsInfo)
     CHK(pBitReader != NULL && pSpsInfo != NULL, STATUS_NULL_ARG);
 
     // Read the general_profile_space
-    CHK_STATUS(bitReaderReadBits(pBitReader, 2, &pSpsInfo->general_profile_space));
+    CHK_STATUS(bitReaderReadBits(pBitReader, 2, &read));
+    pSpsInfo->general_profile_space = (UINT8) read;
 
     // Read the general_tier_flag
-    CHK_STATUS(bitReaderReadBits(pBitReader, 1, &pSpsInfo->general_tier_flag));
+    CHK_STATUS(bitReaderReadBits(pBitReader, 1, &read));
+    pSpsInfo->general_tier_flag = (UINT8) read;
 
     // Read the general_profile_idc
-    CHK_STATUS(bitReaderReadBits(pBitReader, 5, &pSpsInfo->general_profile_idc));
+    CHK_STATUS(bitReaderReadBits(pBitReader, 5, &read));
+    pSpsInfo->general_profile_idc = (UINT8) read;
 
     // Read the general_profile_compatibility_flags[i] - 32 bits
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_profile_compatibility_flags[0]));
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_profile_compatibility_flags[1]));
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_profile_compatibility_flags[2]));
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_profile_compatibility_flags[3]));
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_profile_compatibility_flags[0] = (UINT8) read;
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_profile_compatibility_flags[1] = (UINT8) read;
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_profile_compatibility_flags[2] = (UINT8) read;
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_profile_compatibility_flags[3] = (UINT8) read;
 
     // Read the general_progressive_source_flag
     // Read the general_interlaced_source_flag
@@ -621,15 +635,22 @@ STATUS parseProfileTierLevel(PBitReader pBitReader, PH265SpsInfo pSpsInfo)
     // Read the lower_bit_rate_constraint_flag
     // Read the max_14bit_constraint_flag
     // Skip the reserved zero bits 34
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_constraint_indicator_flags[0]));
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_constraint_indicator_flags[1]));
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_constraint_indicator_flags[2]));
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_constraint_indicator_flags[3]));
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_constraint_indicator_flags[4]));
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_constraint_indicator_flags[5]));
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_constraint_indicator_flags[0] = (UINT8) read;
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_constraint_indicator_flags[1] = (UINT8) read;
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_constraint_indicator_flags[2] = (UINT8) read;
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_constraint_indicator_flags[3] = (UINT8) read;
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_constraint_indicator_flags[4] = (UINT8) read;
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_constraint_indicator_flags[5] = (UINT8) read;
 
     // Read the general_level_idc
-    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &pSpsInfo->general_level_idc));
+    CHK_STATUS(bitReaderReadBits(pBitReader, 8, &read));
+    pSpsInfo->general_level_idc = (UINT8) read;
 
     for (i = 0; i < pSpsInfo->max_sub_layers_minus1; i++) {
         // Read the sub_layer_profile_present_flag[i]
@@ -710,7 +731,7 @@ STATUS parseScalingListData(PBitReader pBitReader)
                 // Read the scaling_list_pred_matrix_id_delta[sizeId][matrixId]
                 CHK_STATUS(bitReaderReadExpGolomb(pBitReader, &read));
             } else {
-                coefNum = MIN(64, (1 << (4 + (sizeId << 1))));
+                coefNum = (UINT32) MIN(64, (1 << (4 + (sizeId << 1))));
 
                 if (sizeId > 1) {
                     // Read the scaling_list_dc_coef_minus8[sizeId − 2][matrixId]

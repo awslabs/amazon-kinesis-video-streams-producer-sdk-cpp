@@ -90,6 +90,8 @@ CleanUp:
     return retStatus;
 }
 
+#pragma warning(push)
+#pragma warning(disable : 4102)
 PUBLIC_API STATUS defaultDetachThread(TID threadId)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -98,6 +100,7 @@ PUBLIC_API STATUS defaultDetachThread(TID threadId)
 CleanUp:
     return retStatus;
 }
+#pragma warning(pop)
 
 #else
 
@@ -208,6 +211,33 @@ PUBLIC_API VOID defaultThreadSleep(UINT64 time)
     usleep(time / HUNDREDS_OF_NANOS_IN_A_MICROSECOND);
 }
 
+/**
+ * Android doesn't have a definition for pthread_cancel
+ */
+#ifdef ANDROID_BUILD
+
+PUBLIC_API STATUS defaultCancelThread(TID threadId)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    INT32 cancelResult = pthread_kill((pthread_t) threadId, 0);
+
+    switch (cancelResult) {
+        case 0:
+            // Successful case
+            break;
+        case ESRCH:
+            CHK(FALSE, STATUS_THREAD_DOES_NOT_EXIST);
+        default:
+            // Generic error
+            CHK(FALSE, STATUS_CANCEL_THREAD_FAILED);
+    }
+
+CleanUp:
+    return retStatus;
+}
+
+#else
+
 PUBLIC_API STATUS defaultCancelThread(TID threadId)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -227,6 +257,8 @@ PUBLIC_API STATUS defaultCancelThread(TID threadId)
 CleanUp:
     return retStatus;
 }
+
+#endif
 
 PUBLIC_API STATUS defaultDetachThread(TID threadId)
 {

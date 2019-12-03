@@ -65,7 +65,7 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, ui
     PBYTE pBuffer = nullptr;
     STATUS status;
 
-    if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, NULL, &size))) {
+    if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, 0, NULL, &size))) {
         LOG_ERROR("Failed to get the size of the buffer for hex decoding the codec private data with: " << status);
         return false;
     }
@@ -77,7 +77,7 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, ui
         return false;
     }
 
-    if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, pBuffer, &size))) {
+    if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, 0, pBuffer, &size))) {
         LOG_ERROR("Failed to hex decode the codec private data with: " << status);
         ::free(pBuffer);
         return false;

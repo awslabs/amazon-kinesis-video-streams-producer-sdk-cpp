@@ -45,8 +45,6 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
         addProducerCallbacks(pClientCallbacks, &producerCallbacks);
 
-        EXPECT_TRUE(clientReadyAggregate == pClientCallbacks->clientReadyFn);
-
         addProducerCallbacks(pClientCallbacks, &producerCallbacks);
         EXPECT_TRUE(4 == ((PCallbacksProvider) pClientCallbacks)->producerCallbacksCount);
 

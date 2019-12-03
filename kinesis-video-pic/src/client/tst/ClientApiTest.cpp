@@ -287,6 +287,30 @@ TEST_F(ClientApiTest, kinesisVideoClientCreateSync_Valid_Timeout)
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
 }
 
+// disable this test until DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC mode is fixed
+TEST_F(ClientApiTest, DISABLED_kinesisVideoClientCreateSync_Store_Alloc)
+{
+    CLIENT_HANDLE clientHandle, failedClientHandle;
+
+    mClientSyncMode = TRUE;
+    mDeviceInfo.clientInfo.createClientTimeout = 20 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    mDeviceInfo.storageInfo.storageType = DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC;
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_TRUE(IS_VALID_CLIENT_HANDLE(clientHandle));
+
+    // Allocating another should fail
+    EXPECT_NE(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &failedClientHandle));
+    EXPECT_FALSE(IS_VALID_CLIENT_HANDLE(failedClientHandle));
+
+    // Free the client and re-try
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_TRUE(IS_VALID_CLIENT_HANDLE(clientHandle));
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+}
+
 TEST_F(ClientApiTest, freeKinesisVideoClient_NullInput)
 {
     EXPECT_TRUE(STATUS_FAILED(freeKinesisVideoClient(NULL)));
@@ -312,4 +336,25 @@ TEST_F(ClientApiTest, getKinesisVideoMetrics_Invalid)
 
     kinesisVideoClientMetrics.version = CLIENT_METRICS_CURRENT_VERSION;
     EXPECT_EQ(STATUS_SUCCESS, getKinesisVideoMetrics(mClientHandle, &kinesisVideoClientMetrics));
+}
+
+TEST_F(ClientApiTest, kinesisVideoClientCreateInvalidSecurityTokenExpiration)
+{
+    CLIENT_HANDLE clientHandle;
+
+    mTokenExpiration = GETTIME() - HUNDREDS_OF_NANOS_IN_A_SECOND; // expiration < current time
+    EXPECT_EQ(STATUS_CLIENT_AUTH_CALL_FAILED, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    mTokenExpiration = GETTIME(); // expiration == current time
+    EXPECT_EQ(STATUS_CLIENT_AUTH_CALL_FAILED, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    mTokenExpiration = GETTIME() + 20 * HUNDREDS_OF_NANOS_IN_A_SECOND; // expiration - current time < min token expiration duration
+    EXPECT_EQ(STATUS_CLIENT_AUTH_CALL_FAILED, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+
+    mTokenExpiration = GETTIME() + 40 * HUNDREDS_OF_NANOS_IN_A_SECOND; // expiration - current time >= min token expiration duration
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
 }

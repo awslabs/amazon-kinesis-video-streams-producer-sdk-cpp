@@ -72,7 +72,7 @@ STATUS freeFrameOrderCoordinator(PKinesisVideoStream pKinesisVideoStream, PFrame
 
     // free the queue and its frames.
     for(i = 0; i < pFrameOrderCoordinator->putFrameTrackDataListCount; ++i) {
-        CHK_STATUS(stackQueueClear(pFrameOrderCoordinator->putFrameTrackDataList[i].frameQueue));
+        CHK_STATUS(stackQueueClear(pFrameOrderCoordinator->putFrameTrackDataList[i].frameQueue, TRUE));
         CHK_STATUS(stackQueueFree(pFrameOrderCoordinator->putFrameTrackDataList[i].frameQueue));
     }
 
@@ -194,7 +194,7 @@ CleanUp:
 STATUS putEarliestFrame(PKinesisVideoStream pKinesisVideoStream)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    UINT64 item, nextItem;
+    UINT64 item;
     PFrameOrderTrackData earliestPutFrameTrackData = NULL;
     PFrame pFrame = NULL;
     PFrameOrderCoordinator pFrameOrderCoordinator = NULL;

@@ -15,13 +15,13 @@ TEST_F(FindStringFunctionalityTest, Negative_Positive_Variations)
     EXPECT_EQ(NULL, STRNCHR(EMPTY_STRING, 10, 'a'));
     EXPECT_EQ(NULL, STRNCHR((PCHAR) "abc", 0, 'a'));
 
-    pRet = STRNCHR((PCHAR) "abc", STRLEN((PCHAR) "abc"), 'a');
+    pRet = STRNCHR((PCHAR) "abc", (UINT32) STRLEN((PCHAR) "abc"), 'a');
     EXPECT_EQ('a', *pRet);
 
     pRet = STRNCHR((PCHAR) "abc", 100, 'a');
     EXPECT_EQ('a', *pRet);
 
-    EXPECT_EQ(NULL, STRNCHR((PCHAR) "abc", STRLEN((PCHAR) "abc"), 'd'));
+    EXPECT_EQ(NULL, STRNCHR((PCHAR) "abc", (UINT32) STRLEN((PCHAR) "abc"), 'd'));
     EXPECT_EQ(NULL, STRNCHR((PCHAR) "abc", 100, 'd'));
 
     pRet = STRNCHR((PCHAR) "abc", 1, 'a');

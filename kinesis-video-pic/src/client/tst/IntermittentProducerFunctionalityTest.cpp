@@ -89,12 +89,10 @@ TEST_P(IntermittentProducerFunctionalityTest, CreateSyncStreamStopSyncFreeRepeat
     MockConsumer *mockConsumer;
     BOOL didPutFrame, gotStreamData, submittedAck;
     UINT64 currentTime, testTerminationTime;
-    TID thread;
-    STATUS *pRetValue;
 
     CreateScenarioTestClient();
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
-    for (int i = 0; i < mRepeatTime; i++) {
+    for (int i = 0; i < (int) mRepeatTime; i++) {
         CreateStreamSync();
         MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
         testTerminationTime = mClientCallbacks.getCurrentTimeFn((UINT64) this) + 5 * HUNDREDS_OF_NANOS_IN_A_SECOND;

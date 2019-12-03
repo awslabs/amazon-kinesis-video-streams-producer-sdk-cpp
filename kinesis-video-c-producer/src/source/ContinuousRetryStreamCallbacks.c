@@ -288,16 +288,17 @@ STATUS continuousRetryStreamErrorReportHandler(UINT64 customData, STREAM_HANDLE 
     UNUSED_PARAM(uploadHandle);
     UNUSED_PARAM(customData);
     STATUS retStatus = STATUS_SUCCESS;
-    PStreamInfo pStreamInfo = NULL;
+    TID threadId;
     DLOGW("Reporting stream error. Errored timecode: %" PRIu64 " Status: 0x%08llx", erroredTimecode, statusCode);
 
     // return success if the sdk can recover from the error
     CHK(!IS_RECOVERABLE_ERROR(statusCode), retStatus);
     CHK(IS_RETRIABLE_ERROR(statusCode), retStatus);
-    // do not reset if in offline mode. Let the application handle the retry
-    CHK_STATUS(kinesisVideoStreamGetStreamInfo(streamHandle, &pStreamInfo));
-    CHK(!IS_OFFLINE_STREAMING_MODE(pStreamInfo->streamCaps.streamingType), retStatus);
-    CHK_STATUS(kinesisVideoStreamResetStream(streamHandle));
+
+    // Run the reset in a separate thread
+    CHK_STATUS(THREAD_CREATE(&threadId, continuousRetryStreamRestartHandler, (PVOID) streamHandle));
+    CHK_STATUS(THREAD_DETACH(threadId));
+
 CleanUp:
     return retStatus;
 }
@@ -358,4 +359,22 @@ STATUS continuousRetryStreamClosedHandler(UINT64 customData, STREAM_HANDLE strea
 CleanUp:
 
     return retStatus;
+}
+
+PVOID continuousRetryStreamRestartHandler(PVOID args)
+{
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    STREAM_HANDLE streamHandle = (STREAM_HANDLE) args;
+    PStreamInfo pStreamInfo = NULL;
+
+    // do not reset if in offline mode. Let the application handle the retry
+    CHK_STATUS(kinesisVideoStreamGetStreamInfo(streamHandle, &pStreamInfo));
+    CHK(!IS_OFFLINE_STREAMING_MODE(pStreamInfo->streamCaps.streamingType), retStatus);
+    CHK_STATUS(kinesisVideoStreamResetStream(streamHandle));
+
+CleanUp:
+
+    LEAVES();
+    return (PVOID) (ULONG_PTR) retStatus;
 }

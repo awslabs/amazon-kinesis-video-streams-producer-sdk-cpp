@@ -26,7 +26,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
 #define TEST_EXECUTION_DURATION                             (120 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define TEST_STREAM_COUNT                                   1
 #define TEST_FRAME_SIZE                                     1000
-#define TEST_STREAMING_TOKEN_DURATION_IN_SECONDS            40
+#define TEST_STREAMING_TOKEN_DURATION_IN_SECONDS            160 // need to be longer than TEST_EXECUTION_DURATION
 #define TEST_STORAGE_SIZE_IN_BYTES                          64 * 1024 * 1024ull
 #define TEST_MAX_STREAM_LATENCY_IN_MILLIS                   60000
 #define TEST_START_STOP_ITERATION_COUT                      200

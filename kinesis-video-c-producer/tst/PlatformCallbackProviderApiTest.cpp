@@ -66,8 +66,6 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
         setPlatformCallbacks(pClientCallbacks, &platformCallbacks);
 
-        EXPECT_TRUE(getCurrentTimeAggregate == pClientCallbacks->getCurrentTimeFn);
-
         EXPECT_EQ(STATUS_SUCCESS, freeCallbacksProvider(&pClientCallbacks));
 
         EXPECT_EQ(NULL, pClientCallbacks);

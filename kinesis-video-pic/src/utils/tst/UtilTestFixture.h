@@ -1,9 +1,7 @@
-#if 0
-#pragma GCC diagnostic ignored "-Wwrite-strings"
-#endif
 
 #include "gtest/gtest.h"
 #include <com/amazonaws/kinesis/video/utils/Include.h>
+#include <src/utils/src/Include_i.h>
 
 //
 // Default allocator functions

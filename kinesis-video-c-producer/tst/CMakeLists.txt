@@ -20,7 +20,7 @@ if(BP_BUILD_LIB)
 else()
 
     set(CMAKE_CXX_STANDARD 11)
-    set(KINESIS_VIDEO_PRODUCER_C_SRC "${CMAKE_CURRENT_BINARY_DIR}/..")
+    set(KINESIS_VIDEO_PRODUCER_C_SRC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads)
@@ -33,29 +33,16 @@ else()
     set(GTEST_ROOT $ENV{KVS_GTEST_ROOT})
     find_package(GTest REQUIRED)
 
-    set(PRODUCER_TEST_SOURCE_FILES
-            AuthCallbackTest.cpp
-            InfoProviderApiTest.cpp
-            CallbacksProviderApiFunctionalityTest.cpp
-            RotatingStaticAuthCallbacks.cpp
-            CallbacksProviderApiTest.cpp
-            PlatformCallbackProviderApiTest.cpp
-            ProducerCallbackProviderApiTest.cpp
-            ProducerClientBasicTest.cpp
-            ProducerBasicUsageTest.cpp
-            ProducerFunctionalityTest.cpp
-            ProducerClientFaultInjectionTest.cpp
-            ProducerTestFixture.cpp
-            ProducerTestFixture.h)
+    include_directories(${KINESIS_VIDEO_PRODUCER_C_SRC})
+
+    file(GLOB PRODUCER_TEST_SOURCE_FILES "*.cpp")
 
     add_executable(producer_test ${PRODUCER_TEST_SOURCE_FILES})
     target_link_libraries(producer_test
-            kvsproducerc
+            cproducer
             GTest::GTest
             GTest::Main
             ${EXE_LIBRARIES}
             ${Jsmn})
 
-    install(TARGETS producer_test
-        DESTINATION ${KVS_INSTALL_PATH})
 endif()

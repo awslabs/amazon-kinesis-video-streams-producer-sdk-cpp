@@ -308,7 +308,8 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
     frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-    frame->duration = DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    // set duration to 0 due to potential high spew from rtsp streams
+    frame->duration = 0;
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(data);
     frame->trackId = DEFAULT_TRACK_ID;
@@ -354,7 +355,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     isDroppable = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_CORRUPTED) ||
                   GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DECODE_ONLY) ||
                   (GST_BUFFER_FLAGS(buffer) == GST_BUFFER_FLAG_DISCONT) ||
-                  (GST_BUFFER_FLAGS(buffer) == (GST_BUFFER_FLAG_DISCONT | GST_BUFFER_FLAG_HEADER)) ||
+                  (GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DISCONT) && GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT)) ||
                   // drop if buffer contains header only and has invalid timestamp
                   (isHeader && (!GST_BUFFER_PTS_IS_VALID(buffer) || !GST_BUFFER_DTS_IS_VALID(buffer)));
 
@@ -1078,7 +1079,7 @@ int main(int argc, char* argv[]) {
         kinesis_video_init(&data);
         kinesis_video_stream_init(&data);
     } catch (runtime_error &err) {
-        LOG_ERROR("Failed to initialize kinesis video.");
+        LOG_ERROR("Failed to initialize kinesis video with an exception: " << err.what());
         return 1;
     }
 

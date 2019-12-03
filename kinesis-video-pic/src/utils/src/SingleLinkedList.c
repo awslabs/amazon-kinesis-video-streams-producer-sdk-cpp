@@ -33,7 +33,7 @@ STATUS singleListFree(PSingleList pList)
     CHK(pList != NULL, retStatus);
 
     // We shouldn't fail here even if clear fails
-    singleListClear(pList);
+    singleListClear(pList, FALSE);
 
     // Free the structure itself
     MEMFREE(pList);
@@ -46,7 +46,7 @@ CleanUp:
 /**
  * Clears a single linked list
  */
-STATUS singleListClear(PSingleList pList)
+STATUS singleListClear(PSingleList pList, BOOL freeData)
 {
     STATUS retStatus = STATUS_SUCCESS;
     PSingleListNode pCurNode = NULL;
@@ -58,6 +58,9 @@ STATUS singleListClear(PSingleList pList)
     pCurNode = pList->pHead;
     while (pCurNode != NULL) {
         pNextNode = pCurNode->pNext;
+        if (freeData && ((PVOID) pCurNode->data != NULL)) {
+            MEMFREE((PVOID) pCurNode->data);
+        }
         MEMFREE(pCurNode);
         pCurNode = pNextNode;
     }
@@ -502,6 +505,31 @@ STATUS singleListGetNodeAtInternal(PSingleList pList, UINT32 index, PSingleListN
 
     *ppNode = pNode;
 
+CleanUp:
+
+    return retStatus;
+}
+
+STATUS singleListAppendList(PSingleList pDstList, PSingleList* ppListToAppend)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+
+    CHK(ppListToAppend != NULL && ppListToAppend != NULL, STATUS_NULL_ARG);
+    PSingleList pListToAppend = *ppListToAppend;
+
+    CHK(pListToAppend != NULL, retStatus);
+
+    if (pDstList->count == 0) {
+        pDstList->pHead = pListToAppend->pHead;
+        pDstList->pTail = pListToAppend->pTail;
+    } else if (pListToAppend->count != 0) {
+        pDstList->pTail->pNext = pListToAppend->pHead;
+        pDstList->pTail = pListToAppend->pTail;
+    }
+
+    pDstList->count += pListToAppend->count;
+    MEMFREE(pListToAppend);
+    *ppListToAppend = NULL;
 CleanUp:
 
     return retStatus;

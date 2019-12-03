@@ -59,6 +59,7 @@ class KinesisVideoClientWrapper
     ClientCallbacks mClientCallbacks;
     DeviceInfo mDeviceInfo;
     AuthInfo mAuthInfo;
+    SyncMutex mSyncLock;
 
     // Extracted method IDs
     jmethodID mGetDeviceCertificateMethodId;
@@ -172,6 +173,7 @@ public:
                         jobject deviceInfo);
 
     ~KinesisVideoClientWrapper();
+    SyncMutex& getSyncLock();
     void deleteGlobalRef(JNIEnv* env);
     jobject getGlobalRef();
     void stopKinesisVideoStreams();

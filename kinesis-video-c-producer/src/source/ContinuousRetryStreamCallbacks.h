@@ -1,5 +1,5 @@
-#ifndef __DEFAULT_STREAM_CALLBACK_PROVIDER_H__
-#define __DEFAULT_STREAM_CALLBACK_PROVIDER_H__
+#ifndef __KINESIS_VIDEO_CONTINUOUS_RETRY_INCLUDE_I__
+#define __KINESIS_VIDEO_CONTINUOUS_RETRY_INCLUDE_I__
 
 #pragma once
 
@@ -48,6 +48,7 @@ typedef struct __CallbackStateMachine {
 STATUS removeMappingEntryCallback(UINT64, PHashEntry);
 STATUS freeStreamMapping(PContinuousRetryStreamCallbacks, STREAM_HANDLE, BOOL);
 STATUS getStreamMapping(PContinuousRetryStreamCallbacks, STREAM_HANDLE, PCallbackStateMachine*);
+PVOID continuousRetryStreamRestartHandler(PVOID);
 
 ////////////////////////////////////////////////////////////////////////
 // Callback function implementations
@@ -66,4 +67,4 @@ STATUS continuousRetryStreamClosedHandler(UINT64, STREAM_HANDLE, UPLOAD_HANDLE);
 }
 #endif
 
-#endif //__DEFAULT_STREAM_CALLBACK_PROVIDER_H__
+#endif //__KINESIS_VIDEO_CONTINUOUS_RETRY_INCLUDE_I__

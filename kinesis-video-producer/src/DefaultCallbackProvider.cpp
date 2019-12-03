@@ -335,7 +335,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         bool is_caching_endpoint,
         uint64_t caching_update_period)
         : region_(region),
-          service_(KINESIS_VIDEO_SERVICE_NAME),
+          service_(std::string(KINESIS_VIDEO_SERVICE_NAME)),
           control_plane_uri_(control_plane_uri),
           cert_path_(cert_path) {
     STATUS retStatus = STATUS_SUCCESS;
@@ -348,7 +348,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
     if (control_plane_uri_.empty()) {
         // Create a fully qualified URI
         control_plane_uri_ = CONTROL_PLANE_URI_PREFIX
-                             + KINESIS_VIDEO_SERVICE_NAME
+                             + std::string(KINESIS_VIDEO_SERVICE_NAME)
                              + "."
                              + region_
                              + CONTROL_PLANE_URI_POSTFIX;
@@ -364,7 +364,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
             STRING_TO_PCHAR(region),
             STRING_TO_PCHAR(control_plane_uri),
             STRING_TO_PCHAR(cert_path),
-            STRING_TO_PCHAR(DEFAULT_USER_AGENT_NAME),
+            DEFAULT_USER_AGENT_NAME,
             STRING_TO_PCHAR(custom_user_agent_),
             &client_callbacks_))) {
         std::stringstream status_strstrm;

@@ -6,7 +6,7 @@ using ::testing::Values;
 using ::testing::Combine;
 
 class ClientFunctionalityTest : public ClientTestBase,
-                                public WithParamInterface< ::std::tuple<STREAMING_TYPE, uint64_t, bool, uint64_t> >{
+                                public WithParamInterface< ::std::tuple<STREAMING_TYPE, uint64_t, bool, uint64_t, DEVICE_STORAGE_TYPE> >{
 protected:
     void SetUp() {
         ClientTestBase::SetUp();
@@ -14,11 +14,13 @@ protected:
         STREAMING_TYPE streamingType;
         bool enableAck;
         uint64_t retention, replayDuration;
-        std::tie(streamingType, retention, enableAck, replayDuration) = GetParam();
+        DEVICE_STORAGE_TYPE storageType;
+        std::tie(streamingType, retention, enableAck, replayDuration, storageType) = GetParam();
         mStreamInfo.retention = (UINT64) retention;
         mStreamInfo.streamCaps.streamingType = streamingType;
         mStreamInfo.streamCaps.fragmentAcks = enableAck;
         mStreamInfo.streamCaps.replayDuration = (UINT64) replayDuration;
+        mDeviceInfo.storageInfo.storageType = storageType;
     }
 };
 
@@ -123,10 +125,15 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamPutFrameFreeClient)
 
     EXPECT_EQ(STATUS_SUCCESS, ReadyStream());
 
-    MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
+    // mockProducer need to be destructed before client in case of DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC
+    // because freeKinesisVideoClient also frees mockProducer MEMALLOC
+    {
+        MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
 
-    //Stream is ready by now, so putFrame should succeed
-    EXPECT_EQ(STATUS_SUCCESS, mockProducer.putFrame());
+        //Stream is ready by now, so putFrame should succeed
+        EXPECT_EQ(STATUS_SUCCESS, mockProducer.putFrame());
+    }
+
 
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
     EXPECT_TRUE(!IS_VALID_CLIENT_HANDLE(mClientHandle));
@@ -141,10 +148,14 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamPutFrameStopStreamFreeCl
 
     EXPECT_EQ(STATUS_SUCCESS, ReadyStream());
 
-    MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
+    // mockProducer need to be destructed before client in case of DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC
+    // because freeKinesisVideoClient also frees mockProducer MEMALLOC
+    {
+        MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
 
-    //Stream is ready by now, so putFrame should succeed
-    EXPECT_EQ(STATUS_SUCCESS, mockProducer.putFrame());
+        //Stream is ready by now, so putFrame should succeed
+        EXPECT_EQ(STATUS_SUCCESS, mockProducer.putFrame());
+    }
 
     EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStream(mStreamHandle));
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
@@ -177,10 +188,14 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamSyncPutFrameFreeClient)
     THREAD_JOIN(thread, NULL);
     EXPECT_TRUE(mStreamReadyFuncCount > 0);
 
-    MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
+    // mockProducer need to be destructed before client in case of DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC
+    // because freeKinesisVideoClient also frees mockProducer MEMALLOC
+    {
+        MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
 
-    //Stream is ready by now, so putFrame should succeed
-    EXPECT_EQ(STATUS_SUCCESS, mockProducer.putFrame());
+        //Stream is ready by now, so putFrame should succeed
+        EXPECT_EQ(STATUS_SUCCESS, mockProducer.putFrame());
+    }
 
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
     EXPECT_TRUE(!IS_VALID_CLIENT_HANDLE(mClientHandle));
@@ -211,10 +226,14 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamSyncPutFrameStopStreamFr
     THREAD_JOIN(thread, NULL);
     EXPECT_TRUE(mStreamReadyFuncCount > 0);
 
-    MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
+    // mockProducer need to be destructed before client in case of DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC
+    // because freeKinesisVideoClient also frees mockProducer MEMALLOC
+    {
+        MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
 
-    //Stream is ready by now, so putFrame should succeed
-    EXPECT_EQ(STATUS_SUCCESS, mockProducer.putFrame());
+        //Stream is ready by now, so putFrame should succeed
+        EXPECT_EQ(STATUS_SUCCESS, mockProducer.putFrame());
+    }
 
     EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStream(mStreamHandle));
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
@@ -397,4 +416,8 @@ TEST_P(ClientFunctionalityTest, StreamFormatChangedPcmAudioDirectCpdPassingCorre
 }
 
 INSTANTIATE_TEST_CASE_P(PermutatedStreamInfo, ClientFunctionalityTest,
-                        Combine(Values(STREAMING_TYPE_REALTIME, STREAMING_TYPE_OFFLINE), Values(0, 10 * HUNDREDS_OF_NANOS_IN_AN_HOUR), Bool(), Values(0, TEST_REPLAY_DURATION)));
+                        Combine(Values(STREAMING_TYPE_REALTIME, STREAMING_TYPE_OFFLINE),
+                                Values(0, 10 * HUNDREDS_OF_NANOS_IN_AN_HOUR),
+                                Bool(),
+                                Values(0, TEST_REPLAY_DURATION),
+                                Values(DEVICE_STORAGE_TYPE_IN_MEM, DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC)));

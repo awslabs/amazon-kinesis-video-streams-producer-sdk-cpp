@@ -1,6 +1,5 @@
 #include <com/amazonaws/kinesis/video/cproducer/Include.h>
 
-#define DEFAULT_AWS_REGION                  (PCHAR) "us-west-2"
 #define DEFAULT_RETENTION_PERIOD            2 * HUNDREDS_OF_NANOS_IN_AN_HOUR
 #define DEFAULT_BUFFER_DURATION             120 * HUNDREDS_OF_NANOS_IN_A_SECOND
 #define DEFAULT_CALLBACK_CHAIN_COUNT        5
@@ -37,6 +36,9 @@ CleanUp:
 
     return retStatus;
 }
+
+// Forward declaration of the default thread sleep function
+VOID defaultThreadSleep(UINT64);
 
 INT32 main(INT32 argc, CHAR *argv[])
 {

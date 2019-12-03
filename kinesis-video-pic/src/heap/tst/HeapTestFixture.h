@@ -1,7 +1,4 @@
 #include "gtest/gtest.h"
-
-// Header file from jni/dependencies/heap/src/ folder
-#pragma pack(push, include, 1) // for byte alignment
 #include "src/heap/src/Include_i.h"
 
 #define NUM_ITERATIONS 100

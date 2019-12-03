@@ -33,7 +33,7 @@ STATUS doubleListFree(PDoubleList pList)
     CHK(pList != NULL, retStatus);
 
     // We shouldn't fail here even if clear fails
-    doubleListClear(pList);
+    doubleListClear(pList, FALSE);
 
     // Free the structure itself
     MEMFREE(pList);
@@ -46,7 +46,7 @@ CleanUp:
 /**
  * Clears a double linked list
  */
-STATUS doubleListClear(PDoubleList pList)
+STATUS doubleListClear(PDoubleList pList, BOOL freeData)
 {
     STATUS retStatus = STATUS_SUCCESS;
     PDoubleListNode pCurNode = NULL;
@@ -58,6 +58,9 @@ STATUS doubleListClear(PDoubleList pList)
     pCurNode = pList->pHead;
     while (pCurNode != NULL) {
         pNextNode = pCurNode->pNext;
+        if (freeData && ((PVOID) pCurNode->data != NULL)) {
+            MEMFREE((PVOID) pCurNode->data);
+        }
         MEMFREE(pCurNode);
         pCurNode = pNextNode;
     }
@@ -597,6 +600,32 @@ STATUS doubleListGetNodeAtInternal(PDoubleList pList, UINT32 index, PDoubleListN
 
     *ppNode = pNode;
 
+CleanUp:
+
+    return retStatus;
+}
+
+STATUS doubleListAppendList(PDoubleList pDstList, PDoubleList* ppListToAppend)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+
+    CHK(pDstList != NULL && ppListToAppend != NULL, STATUS_NULL_ARG);
+    PDoubleList pListToAppend = *ppListToAppend;
+
+    CHK(pListToAppend != NULL, retStatus);
+
+    if (pDstList->count == 0) {
+        pDstList->pHead = pListToAppend->pHead;
+        pDstList->pTail = pListToAppend->pTail;
+    } else if (pListToAppend->count != 0) {
+        pDstList->pTail->pNext = pListToAppend->pHead;
+        pListToAppend->pHead->pPrev = pDstList->pTail;
+        pDstList->pTail = pListToAppend->pTail;
+    }
+
+    pDstList->count += pListToAppend->count;
+    MEMFREE(pListToAppend);
+    *ppListToAppend = NULL;
 CleanUp:
 
     return retStatus;

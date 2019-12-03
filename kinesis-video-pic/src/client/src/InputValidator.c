@@ -140,7 +140,7 @@ STATUS validateDeviceInfo(PDeviceInfo pDeviceInfo)
     CHK(STRNLEN(pDeviceInfo->name, MAX_DEVICE_NAME_LEN + 1) <= MAX_DEVICE_NAME_LEN, STATUS_INVALID_DEVICE_NAME_LENGTH);
 
     // Validate the tags
-    CHK_STATUS(validateTags(pDeviceInfo->tagCount, pDeviceInfo->tags));
+    CHK_STATUS(validateClientTags(pDeviceInfo->tagCount, pDeviceInfo->tags));
 
     // If we are v1 then we validate the client info
     if (pDeviceInfo->version == 1) {
@@ -178,27 +178,33 @@ CleanUp:
  *
  * @return Status of the function call.
  */
-STATUS validateTags(UINT32 tagCount, PTag tags)
+STATUS validateClientTags(UINT32 tagCount, PTag tags)
 {
-    UINT32 i;
     STATUS retStatus = STATUS_SUCCESS;
 
-    CHK(tagCount <= MAX_TAG_COUNT, STATUS_MAX_TAG_COUNT);
-
-    // If we have tag count not 0 then tags can't be NULL
-    CHK(tagCount == 0 || tags != NULL, STATUS_DEVICE_TAGS_COUNT_NON_ZERO_TAGS_NULL);
-    for (i = 0; i < tagCount; i++) {
-        // Validate the tag version
-        CHK(tags[i].version <= TAG_CURRENT_VERSION, STATUS_INVALID_TAG_VERSION);
-
-        // Validate the tag name
-        CHK(STRNLEN(tags[i].name, MAX_TAG_NAME_LEN + 1) <= MAX_TAG_NAME_LEN, STATUS_INVALID_TAG_NAME_LEN);
-
-        // Validate the tag value
-        CHK(STRNLEN(tags[i].value, MAX_TAG_VALUE_LEN + 1) <= MAX_TAG_VALUE_LEN, STATUS_INVALID_TAG_VALUE_LEN);
-    }
+    CHK_STATUS(validateTags(tagCount, tags));
 
 CleanUp:
+
+    // Translate the errors
+    switch(retStatus) {
+        case STATUS_UTIL_MAX_TAG_COUNT:
+            retStatus = STATUS_MAX_TAG_COUNT;
+            break;
+        case STATUS_UTIL_INVALID_TAG_VERSION:
+            retStatus = STATUS_INVALID_TAG_VERSION;
+            break;
+        case STATUS_UTIL_TAGS_COUNT_NON_ZERO_TAGS_NULL:
+            retStatus = STATUS_DEVICE_TAGS_COUNT_NON_ZERO_TAGS_NULL;
+            break;
+        case STATUS_UTIL_INVALID_TAG_NAME_LEN:
+            retStatus = STATUS_INVALID_TAG_NAME_LEN;
+            break;
+        case STATUS_UTIL_INVALID_TAG_VALUE_LEN:
+            retStatus = STATUS_INVALID_TAG_VALUE_LEN;
+            break;
+    }
+
     return retStatus;
 }
 
@@ -226,7 +232,7 @@ STATUS validateStreamInfo(PStreamInfo pStreamInfo, PClientCallbacks pClientCallb
         pStreamInfo->retention >= MIN_RETENTION_PERIOD, STATUS_INVALID_RETENTION_PERIOD);
 
     // Validate the tags
-    CHK_STATUS(validateTags(pStreamInfo->tagCount, pStreamInfo->tags));
+    CHK_STATUS(validateClientTags(pStreamInfo->tagCount, pStreamInfo->tags));
 
     // If we have tags then the tagResource callback should be present
     CHK(pStreamInfo->tagCount == 0 || pClientCallbacks->tagResourceFn != NULL, STATUS_SERVICE_CALL_CALLBACKS_MISSING);

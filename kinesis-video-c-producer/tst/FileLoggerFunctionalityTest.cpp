@@ -1,6 +1,7 @@
 #include "ProducerTestFixture.h"
 
-#define TIMESTRING_OFFSET               21
+// length of time and log level string in log: "2019-11-09 19:11:16 VERBOSE "
+#define TIMESTRING_OFFSET               28
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -202,8 +203,6 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
         BOOL fileFound = FALSE;
         LogPrintFunc logFunc;
 
-        MEMSET(logMessage, 'a', logMessageSize);
-        logMessage[logMessageSize] = '\0';
         EXPECT_EQ(STATUS_SUCCESS, createAbstractDefaultCallbacksProvider(TEST_DEFAULT_CHAIN_COUNT,
                                                                          FALSE,
                                                                          TEST_CACHING_ENDPOINT_PERIOD,
@@ -309,7 +308,8 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
         EXPECT_EQ(STATUS_SUCCESS, readFile((PCHAR) (TEST_TEMP_DIR_PATH "kvsProducerLog.3"), TRUE, (PBYTE) fileBuffer, &fileBufferLen));
         fileBuffer[fileBufferLen] = '\0';
         // skip over the timestamp string
-        EXPECT_EQ(0, STRCMP(logMessage, fileBuffer + TIMESTRING_OFFSET));
+        // use STRNCMP to not catch the newline at the end of fileBuffer
+        EXPECT_EQ(0, STRNCMP(logMessage, fileBuffer + TIMESTRING_OFFSET, STRLEN(logMessage)));
 
         EXPECT_EQ(STATUS_SUCCESS, freeCallbacksProvider(&pClientCallbacks));
 
@@ -373,7 +373,8 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
         fileBuffer[fileBufferLen] = '\0';
 
         // skip over the timestamp string
-        EXPECT_EQ(0, STRCMP(logMessage, fileBuffer + TIMESTRING_OFFSET));
+        // use STRNCMP to not catch the newline at the end of fileBuffer
+        EXPECT_EQ(0, STRNCMP(logMessage, fileBuffer + TIMESTRING_OFFSET, STRLEN(logMessage)));
 
         MEMFREE(logMessage);
         MEMFREE(fileBuffer);

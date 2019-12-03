@@ -70,8 +70,11 @@ This library is licensed under the Apache License, 2.0.
 ----
 ### Release notes
 
-#### Release 2.0.2 (17th Oct 2019)
-* fix bug where producer cannot recover from STATUS_STORE_OUT_OF_MEMORY after network outage
+#### Release 2.1.0 (2nd Dec 2019)
+* C/CPP-Producer - Updates
+  * Fix bug where iot and file credentials failed to get cycled promptly.
+  * Reworked stream and client shutdown flow.
+  * Other minor stability and bug fixes.
 
 #### Release 2.0.1 (25th Jul 2019)
 * C-Producer - Updates

@@ -82,6 +82,8 @@ public:
                   const uint8_t* codecPrivateData = nullptr,
                   uint32_t codecPrivateDataSize = 0);
 
+    void setFrameOrderMode(FRAME_ORDER_MODE mode);
+
     ~StreamDefinition();
 
     /**

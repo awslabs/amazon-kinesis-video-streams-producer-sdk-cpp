@@ -389,7 +389,7 @@ STATUS trimstrall(PCHAR pStr, UINT32 strLen, PCHAR* ppStart, PCHAR* ppEnd)
 
     // Calculate the new length
     if (strLen != 0) {
-        strLen -= *ppStart - pStr;
+        strLen -= (UINT32) (*ppStart - pStr);
         if (strLen == 0) {
             // This is the case where we have no more string left and we can't call the rtrimstr API
             // as it will interpret the strLen of 0 as a signal to calculate the length

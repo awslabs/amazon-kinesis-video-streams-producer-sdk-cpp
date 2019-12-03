@@ -183,7 +183,8 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
     frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-    frame->duration = 5 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    // set duration to 0 due to potential high spew from rtsp streams
+    frame->duration = 0;
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(data);
     frame->trackId = DEFAULT_TRACK_ID;
@@ -202,6 +203,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     string stream_handle_key = string(g_stream_handle_key);
     GstCaps *gstcaps = (GstCaps *) gst_sample_get_caps(sample);
     GST_LOG("caps are %" GST_PTR_FORMAT, gstcaps);
+    bool isHeader, isDroppable;
 
     GstStructure *gststructforcaps = gst_caps_get_structure(gstcaps, 0);
 
@@ -218,28 +220,38 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     GstBuffer *buffer = gst_sample_get_buffer(sample);
     size_t buffer_size = gst_buffer_get_size(buffer);
 
-    UINT32 frame_data_size = data->frame_data_size_map[stream_handle_key];
-    if (frame_data_size < buffer_size) {
-        frame_data_size = frame_data_size * 2;
-        delete [] data->frame_data_map[stream_handle_key];
-        data->frame_data_size_map[stream_handle_key] = frame_data_size;
-        data->frame_data_map[stream_handle_key] = new uint8_t[frame_data_size];
-    }
+    isHeader = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_HEADER);
+    isDroppable = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_CORRUPTED) ||
+                  GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DECODE_ONLY) ||
+                  (GST_BUFFER_FLAGS(buffer) == GST_BUFFER_FLAG_DISCONT) ||
+                  (GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DISCONT) && GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT)) ||
+                  // drop if buffer contains header only and has invalid timestamp
+                  (isHeader && (!GST_BUFFER_PTS_IS_VALID(buffer) || !GST_BUFFER_DTS_IS_VALID(buffer)));
 
-    gst_buffer_extract(buffer, 0, data->frame_data_map[stream_handle_key], buffer_size);
+    if (!isDroppable) {
+        UINT32 frame_data_size = data->frame_data_size_map[stream_handle_key];
+        if (frame_data_size < buffer_size) {
+            frame_data_size = frame_data_size * 2;
+            delete [] data->frame_data_map[stream_handle_key];
+            data->frame_data_size_map[stream_handle_key] = frame_data_size;
+            data->frame_data_map[stream_handle_key] = new uint8_t[frame_data_size];
+        }
 
-    bool delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
-    FRAME_FLAGS kinesis_video_flags;
+        gst_buffer_extract(buffer, 0, data->frame_data_map[stream_handle_key], buffer_size);
 
-    if (!delta) {
-        kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
-    } else {
-        kinesis_video_flags = FRAME_FLAG_NONE;
-    }
+        bool delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
+        FRAME_FLAGS kinesis_video_flags;
 
-    if (false == put_frame(data->kinesis_video_stream_handles[stream_handle_key], data->frame_data_map[stream_handle_key], buffer_size, std::chrono::nanoseconds(buffer->pts),
-                           std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
-        GST_WARNING("Dropped frame");
+        if (!delta) {
+            kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+        } else {
+            kinesis_video_flags = FRAME_FLAG_NONE;
+        }
+
+        if (false == put_frame(data->kinesis_video_stream_handles[stream_handle_key], data->frame_data_map[stream_handle_key], buffer_size, std::chrono::nanoseconds(buffer->pts),
+                               std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
+            GST_WARNING("Dropped frame");
+        }
     }
 
     gst_sample_unref(sample);

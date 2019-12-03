@@ -336,6 +336,11 @@ CleanUp:
     return streamHandle;
 }
 
+SyncMutex& KinesisVideoClientWrapper::getSyncLock()
+{
+    return mSyncLock;
+}
+
 void KinesisVideoClientWrapper::putKinesisVideoFrame(jlong streamHandle, jobject kinesisVideoFrame)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -1770,7 +1775,6 @@ STATUS KinesisVideoClientWrapper::streamDataAvailableFunc(UINT64 customData, STR
     JNIEnv *env;
     BOOL detached = FALSE;
     STATUS retStatus = STATUS_SUCCESS;
-    jstring jstrStreamName = NULL;
 
     INT32 envState = pWrapper->mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
     if (envState == JNI_EDETACHED) {
@@ -1780,21 +1784,10 @@ STATUS KinesisVideoClientWrapper::streamDataAvailableFunc(UINT64 customData, STR
         detached = TRUE;
     }
 
-    // Call the Java func
-    jstrStreamName = env->NewStringUTF(streamName);
-    if (jstrStreamName == NULL) {
-        retStatus = STATUS_NOT_ENOUGH_MEMORY;
-        goto CleanUp;
-    }
-
-    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamDataAvailableMethodId, streamHandle, jstrStreamName, uploadHandle, duration, availableSize);
+    env->CallVoidMethod(pWrapper->mGlobalJniObjRef, pWrapper->mStreamDataAvailableMethodId, streamHandle, NULL, uploadHandle, duration, availableSize);
     CHK_JVM_EXCEPTION(env);
 
 CleanUp:
-
-    if (jstrStreamName != NULL) {
-        env->DeleteLocalRef(jstrStreamName);
-    }
 
     // Detach the thread if we have attached it to JVM
     if (detached) {

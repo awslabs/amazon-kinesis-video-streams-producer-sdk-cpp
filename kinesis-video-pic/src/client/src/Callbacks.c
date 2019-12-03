@@ -109,7 +109,7 @@ STATUS kinesisVideoStreamDefaultWaitConditionVariable(UINT64 customData, CVAR cv
 VOID kinesisVideoStreamDefaultFreeConditionVariable(UINT64 customData, CVAR cvar)
 {
     UNUSED_PARAM(customData);
-    return CVAR_FREE(cvar);
+    CVAR_FREE(cvar);
 }
 
 /**

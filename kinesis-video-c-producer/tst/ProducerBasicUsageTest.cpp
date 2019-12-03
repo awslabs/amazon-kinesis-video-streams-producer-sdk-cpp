@@ -17,7 +17,7 @@ TEST_F(ProducerBasicUsageTest, videoOnlyUsage)
         return;
     }
 
-    createDefaultProducerClient();
+    createDefaultProducerClient(FALSE, 30 * HUNDREDS_OF_NANOS_IN_A_SECOND);
     ASSERT_EQ(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, 20 * HUNDREDS_OF_NANOS_IN_A_SECOND, 60 * HUNDREDS_OF_NANOS_IN_A_SECOND));
 
     STREAM_HANDLE streamHandle = mStreams[0];

@@ -8,7 +8,6 @@
 #define KVS_PRODUCER_LAST_LOG_FILE_INDEX_FILE_NAME      ((PCHAR) "kvsProducerLogIndex")
 #define KVS_PRODUCER_FILE_INDEX_BUFFER_SIZE             256
 
-extern UINT32 gLoggerLogLevel;
 static PFileLogger gFileLogger = NULL;
 
 STATUS flushLogToFile()
@@ -68,10 +67,10 @@ VOID fileLoggerLogPrintFn(UINT32 level, PCHAR tag, PCHAR fmt, ...)
 
     UNUSED_PARAM(tag);
 
-    if (level >= gLoggerLogLevel && gFileLogger != NULL) {
+    if (level >= GET_LOGGER_LOG_LEVEL() && gFileLogger != NULL) {
         MUTEX_LOCK(gFileLogger->lock);
 
-        updateLogFormat(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt);
+        addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt);
 
         if (gFileLogger->printLog) {
             va_start(valist, fmt);
@@ -241,8 +240,7 @@ STATUS freeFileLoggerPlatformCallbacksFunc(PUINT64 customData)
     STATUS retStatus = STATUS_SUCCESS;
 
     UNUSED_PARAM(customData);
-
-    freeFileLogger();
+    CHK_STATUS(freeFileLogger());
 
 CleanUp:
 

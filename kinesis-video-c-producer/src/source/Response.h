@@ -16,33 +16,22 @@ extern "C" {
 // Setting this timeout to terminate CURL connection
 #define TIMEOUT_AFTER_STREAM_STOPPED                            (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
-// HTTP status OK
-#define HTTP_STATUS_CODE_OK                                     200
-
-// HTTP status Request timed out
-#define HTTP_STATUS_REQUEST_TIMEOUT                             408
-
 // HTTP status code not set
 #define HTTP_STATUS_CODE_NOT_SET                                0
-
-// Slow speed time
-#define CURLOPT_LOW_SPEED_TIME_VALUE                            30
-
-// Slow speed limit in bytes per time
-#define CURLOPT_LOW_SPEED_LIMIT_VALUE                           30
-
-// Request id header name
-#define KVS_REQUEST_ID_HEADER_NAME                              ((PCHAR) "x-amzn-RequestId")
-
-// Header delimiter for curl requests and it's size
-#define CURL_REQUEST_HEADER_DELIMITER                           ((PCHAR) ": ")
-#define CURL_REQUEST_HEADER_DELIMITER_SIZE                      (2 * SIZEOF(CHAR))
 
 // Pause/unpause interval for curl
 #define CURL_PAUSE_UNPAUSE_INTERVAL                             (10 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
+// CA file extension
+#define CA_CERT_FILE_SUFFIX                                     ".pem"
+
 // Debug dump data file environment variable
-#define KVS_DEBUG_DUMP_DATA_FILE_DIR_ENV_VAR       "KVS_DEBUG_DUMP_DATA_FILE_DIR"
+#define KVS_DEBUG_DUMP_DATA_FILE_DIR_ENV_VAR                    "KVS_DEBUG_DUMP_DATA_FILE_DIR"
+
+/**
+ * CURL callback function definitions
+ */
+typedef SIZE_T (*CurlCallbackFunc)(PCHAR, SIZE_T, SIZE_T, PVOID);
 
 /**
  * Curl Response structure
@@ -55,32 +44,14 @@ struct __CurlResponse {
     // Curl object to use for the calls
     CURL* pCurl;
 
-    // Whether the call was force-terminated
-    volatile BOOL terminated;
-
-    // HTTP status code of the execution
-    UINT32 httpStatus;
-
-    // Execution result
-    SERVICE_CALL_RESULT callResult;
-
-    // Error buffer for curl calls
-    CHAR errorBuffer[CURL_ERROR_SIZE + 1];
-
     // Request Curl headers list
     struct curl_slist* pRequestHeaders;
 
-    // Response Headers list
-    PStackQueue pResponseHeaders;
+    // Curl call data
+    CallInfo callInfo;
 
-    // Request ID if specified
-    PCurlRequestHeader pRequestId;
-
-    // Buffer to write the data to - will be allocated
-    PCHAR responseData;
-
-    // Response data size
-    UINT32 responseDataLen;
+    // Whether the call was force-terminated
+    volatile BOOL terminated;
 
     ///////////////////////////////////////////////
     // Variables needed for putMedia session
@@ -129,7 +100,7 @@ STATUS freeCurlResponse(PCurlResponse*);
 /**
  * Closes curl handles
  *
- * @param - PCurlResponse - IN - Response object
+ * @param - PCurlResponse - IN - Curl response object to close
  *
  * @return - STATUS code of the execution
  */
@@ -175,15 +146,6 @@ STATUS curlCompleteSync(PCurlResponse);
 STATUS notifyDataAvailable(PCurlResponse, UINT64, UINT64);
 
 /**
- * Convenience method to convert HTTP statuses to SERVICE_CALL_RESULT status.
- *
- * @param - UINT32 - http_status the HTTP status code of the call
- *
- * @return The HTTP status translated into a SERVICE_CALL_RESULT value.
- */
-SERVICE_CALL_RESULT getServiceCallResultFromHttpStatus(UINT32);
-
-/**
  * Convenience method to convert CURL return status to SERVICE_CALL_RESULT status.
  *
  * @param - CURLcode - curl_status the CURL status code of the call
@@ -191,6 +153,22 @@ SERVICE_CALL_RESULT getServiceCallResultFromHttpStatus(UINT32);
  * @return The CURL code translated into a SERVICE_CALL_RESULT value.
  */
 SERVICE_CALL_RESULT getServiceCallResultFromCurlStatus(CURLcode);
+
+/**
+ * Initializes curl session
+ *
+ * @param - PRequestInfo - IN - Request info object
+ * @param - PCurlCallInfo - IN - Curl call info object to initialize values for
+ * @param - Curl** - OUT - Curl object pointer to be set
+ * @param - PVOID - IN - Data object to pass to Curl
+ * @param - CurlCallbackFunc - IN - Curl write header callback
+ * @param - CurlCallbackFunc - IN - Curl read callback
+ * @param - CurlCallbackFunc - IN - Curl write callback
+ * @param - CurlCallbackFunc - IN - Curl post write callback
+ *
+ * @return - STATUS code of the execution
+ */
+STATUS initializeCurlSession(PRequestInfo, PCallInfo, CURL**, PVOID, CurlCallbackFunc, CurlCallbackFunc, CurlCallbackFunc, CurlCallbackFunc);
 
 ////////////////////////////////////////////////////
 // Curl callbacks

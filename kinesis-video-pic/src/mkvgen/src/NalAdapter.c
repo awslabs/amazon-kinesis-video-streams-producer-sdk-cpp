@@ -34,9 +34,9 @@ STATUS adaptFrameNalsFromAnnexBToAvcc(PBYTE pFrameData,
 
             // Reset the last marker
             markerFound = FALSE;
-
+        } else if (zeroCount > 3) {
             // Ensure we don't have over 3 zero's in a row
-            CHK(zeroCount <= 3, STATUS_MKV_INVALID_ANNEXB_NALU_IN_FRAME_DATA);
+            CHK(FALSE, STATUS_MKV_INVALID_ANNEXB_NALU_IN_FRAME_DATA);
         } else if (*pCurPnt == 0x01 && (zeroCount == 2 || zeroCount == 3)) {
             // Found the Annex-B NAL
             // Check if we have previous run and fix it up
@@ -161,7 +161,7 @@ STATUS adaptFrameNalsFromAvccToAnnexB(PBYTE pFrameData,
         // Check if we can still read 32 bit
         CHK(pCurPnt + SIZEOF(UINT32) <= pEndPnt, STATUS_MKV_INVALID_AVCC_NALU_IN_FRAME_DATA);
 
-        runLen = getInt32(*(PUINT32) pCurPnt);
+        runLen = (UINT32) getInt32(*(PUINT32) pCurPnt);
 
         CHK(pCurPnt + runLen <= pEndPnt, STATUS_MKV_INVALID_AVCC_NALU_IN_FRAME_DATA);
 
@@ -220,7 +220,7 @@ STATUS adaptH264CpdNalsFromAnnexBToAvcc(PBYTE pCpd,
     pSrcPnt = pAdaptedBits;
 
     // Get the size of the run
-    spsSize = getInt32(*(PUINT32) pSrcPnt);
+    spsSize = (UINT32) getInt32(*(PUINT32) pSrcPnt);
     pSrcPnt += SIZEOF(UINT32);
 
     // See if we are still in the buffer
@@ -247,7 +247,7 @@ STATUS adaptH264CpdNalsFromAnnexBToAvcc(PBYTE pCpd,
     pSrcPnt += spsSize;
 
     // Get the pps size
-    ppsSize = getInt32(*(PUINT32) pSrcPnt);
+    ppsSize = (UINT32) getInt32(*(PUINT32) pSrcPnt);
     pSrcPnt += SIZEOF(UINT32);
 
     CHK(spsSize + 8 + 1 + ppsSize <= *pAdaptedCpdSize && spsSize + 4 + 4 + ppsSize <= adaptedRawSize, STATUS_MKV_INVALID_ANNEXB_NALU_IN_CPD);
@@ -322,7 +322,7 @@ STATUS adaptH265CpdNalsFromAnnexBToHvcc(PBYTE pCpd,
     // In some cases the PPS might be missing
     while((UINT32)(pSrcPnt - pAdaptedBits) < adaptedRawSize) {
         CHK(pSrcPnt - pAdaptedBits + SIZEOF(UINT32) <= adaptedRawSize, STATUS_MKV_INVALID_ANNEXB_CPD_NALUS);
-        naluSize = getInt32(*(PUINT32) pSrcPnt);
+        naluSize = (UINT32) getInt32(*(PUINT32) pSrcPnt);
 
         // Store the NALU pointer
         naluPtrs[naluCount] = pSrcPnt + SIZEOF(UINT32);
@@ -361,9 +361,9 @@ STATUS adaptH265CpdNalsFromAnnexBToHvcc(PBYTE pCpd,
     *pCurPnt++ = HEVC_CONFIG_VERSION_CODE;
 
     // general_profile_space, general_tier_flag, general_profile_idc
-    *pCurPnt++ = (((UINT8) spsInfo.general_profile_space) << 6) |
-            (((UINT8) spsInfo.general_tier_flag) & 0x1 << 5) |
-            (((UINT8) spsInfo.general_profile_idc) & 0x1f);
+    *pCurPnt++ = (UINT8) (spsInfo.general_profile_space << 6 |
+                          (spsInfo.general_tier_flag & 0x01) << 5 |
+                          (spsInfo.general_profile_idc & 0x1f));
 
     // general_profile_compatibility_flags
     *pCurPnt++ = spsInfo.general_profile_compatibility_flags[0];
@@ -390,13 +390,13 @@ STATUS adaptH265CpdNalsFromAnnexBToHvcc(PBYTE pCpd,
     *pCurPnt++ = 0xfc;
 
     // chroma_format_idc
-    *pCurPnt++ = 0xfc | (((UINT8) spsInfo.chroma_format_idc) & 0x03);
+    *pCurPnt++ = (UINT8) (0xfc | (spsInfo.chroma_format_idc & 0x03));
 
     // bit_depth_luma_minus8
-    *pCurPnt++ = 0xf8 | (((UINT8) spsInfo.bit_depth_luma_minus8) & 0x07);
+    *pCurPnt++ = (UINT8) (0xf8 | (spsInfo.bit_depth_luma_minus8 & 0x07));
 
     // bit_depth_luma_minus8
-    *pCurPnt++ = 0xf8 | (((UINT8) spsInfo.bit_depth_chroma_minus8) & 0x07);
+    *pCurPnt++ = (UINT8) (0xf8 | (spsInfo.bit_depth_chroma_minus8 & 0x07));
 
     // avgFrameRate
     *pCurPnt++ = 0x00;
@@ -406,7 +406,7 @@ STATUS adaptH265CpdNalsFromAnnexBToHvcc(PBYTE pCpd,
     *pCurPnt++ = 0x0f;
 
     // numOfArrays
-    *pCurPnt++ = naluCount;
+    *pCurPnt++ = (UINT8) naluCount;
 
     for (i = 0; i < naluCount; i++) {
         // array_completeness, reserved, NAL_unit_type

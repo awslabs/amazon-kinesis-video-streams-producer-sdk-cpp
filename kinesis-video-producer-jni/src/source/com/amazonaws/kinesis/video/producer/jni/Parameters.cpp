@@ -637,7 +637,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
         DLOGW("Couldn't find method id getTrackId");
     } else {
         for(UINT32 i = 0; i < trackInfoCount; ++i) {
-            pStreamInfo->streamCaps.trackInfoList[i].trackId = (UINT64) env->CallIntMethod(streamInfo, methodId, i);
+            pStreamInfo->streamCaps.trackInfoList[i].trackId = (UINT64) env->CallLongMethod(streamInfo, methodId, i);
             CHK_JVM_EXCEPTION(env);
         }
     }
@@ -751,7 +751,7 @@ BOOL setFrame(JNIEnv* env, jobject kinesisVideoFrame, PFrame pFrame)
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getTrackId");
     } else {
-        pFrame->trackId = env->CallIntMethod(kinesisVideoFrame, methodId);
+        pFrame->trackId = env->CallLongMethod(kinesisVideoFrame, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
@@ -1004,7 +1004,7 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getRetention");
     } else {
-        pStreamDesc->retention = (STREAM_STATUS) env->CallLongMethod(streamDescription, methodId);
+        pStreamDesc->retention = env->CallLongMethod(streamDescription, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
