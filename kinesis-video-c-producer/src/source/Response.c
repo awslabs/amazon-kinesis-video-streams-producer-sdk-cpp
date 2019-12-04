@@ -143,7 +143,6 @@ STATUS initializeCurlSession(PRequestInfo pRequestInfo,
     STATUS retStatus = STATUS_SUCCESS;
     BOOL secureConnection;
     CURL* pCurl = NULL;
-    UINT32 length;
     STAT_STRUCT entryStat;
 
     CHK(pRequestInfo != NULL && pCallInfo != NULL && ppCurl != NULL, STATUS_NULL_ARG);
@@ -178,13 +177,6 @@ STATUS initializeCurlSession(PRequestInfo pRequestInfo,
                 // Assume it's the path as we have a directory
                 curl_easy_setopt(pCurl, CURLOPT_CAPATH, pRequestInfo->certPath);
             } else {
-                // We should check for the extension being PEM
-                length = (UINT32) STRNLEN(pRequestInfo->certPath, MAX_PATH_LEN);
-                CHK(length > ARRAY_SIZE(CA_CERT_FILE_SUFFIX), STATUS_INVALID_ARG_LEN);
-                CHK(0 ==
-                    STRCMPI(CA_CERT_FILE_SUFFIX, &pRequestInfo->certPath[length - ARRAY_SIZE(CA_CERT_FILE_SUFFIX) + 1]),
-                    STATUS_INVALID_CA_CERT_PATH);
-
                 curl_easy_setopt(pCurl, CURLOPT_CAINFO, pRequestInfo->certPath);
             }
         }
