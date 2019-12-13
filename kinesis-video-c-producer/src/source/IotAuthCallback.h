@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 /**
 * Forward declarations
@@ -40,7 +40,7 @@ STATUS getStreamingTokenIotFunc(UINT64, PCHAR, STREAM_ACCESS_MODE, PServiceCallC
 STATUS getSecurityTokenIotFunc(UINT64, PBYTE *, PUINT32, PUINT64);
 STATUS freeIotAuthCallbacksFunc(PUINT64);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

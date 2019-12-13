@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #pragma once
-#pragma pack(push, include, 1) // for byte alignment
+
 
 #define ALLOCATION_FLAGS_NONE 0x00
 #define ALLOCATION_FLAGS_ALLOC 0x01
@@ -189,7 +189,7 @@ BOOL checkOverlap(PAIV_ALLOCATION_HEADER, PAIV_ALLOCATION_HEADER);
 PAIV_ALLOCATION_HEADER getLeftBlock(PAivHeap, PAIV_ALLOCATION_HEADER);
 PAIV_ALLOCATION_HEADER getRightBlock(PAivHeap, PAIV_ALLOCATION_HEADER);
 
-#pragma pack(pop, include) // pop the existing settings
+
 
 #ifdef __cplusplus
 }

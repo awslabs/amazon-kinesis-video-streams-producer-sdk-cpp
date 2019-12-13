@@ -20,7 +20,7 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/mkvgen/Include.h>
 
 // For tight packing
-#pragma pack(push, include, 1) // for byte alignment
+
 
 ////////////////////////////////////////////////////
 // Status return codes
@@ -103,7 +103,7 @@ PUBLIC_API STATUS getStateMachineCurrentState(PStateMachine, PStateMachineState*
 PUBLIC_API STATUS setStateMachineCurrentState(PStateMachine, UINT64);
 PUBLIC_API STATUS resetStateMachineRetryCount(PStateMachine);
 
-#pragma pack(pop, include)
+
 
 #ifdef  __cplusplus
 }

@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 // Setting this timeout to terminate CURL connection
 #define TIMEOUT_AFTER_STREAM_STOPPED                            (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
@@ -178,7 +178,7 @@ SIZE_T postWriteCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 SIZE_T postReadCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 SIZE_T postResponseWriteCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

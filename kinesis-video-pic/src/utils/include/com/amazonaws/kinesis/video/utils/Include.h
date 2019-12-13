@@ -14,7 +14,7 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/common/PlatformUtils.h>
 
 // For tight packing
-#pragma pack(push, include, 1) // for byte alignment
+
 
 #define MAX_STRING_CONVERSION_BASE          36
 
@@ -1217,7 +1217,7 @@ PUBLIC_API STATUS semaphoreUnlock(SEMAPHORE_HANDLE);
  */
 PUBLIC_API STATUS semaphoreWaitUntilClear(SEMAPHORE_HANDLE, UINT64);
 
-#pragma pack(pop, include)
+
 
 #ifdef __cplusplus
 }

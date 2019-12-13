@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 #define IOT_REQUEST_CONNECTION_TIMEOUT      (3 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define IOT_REQUEST_COMPLETION_TIMEOUT      (5 * HUNDREDS_OF_NANOS_IN_A_SECOND)
@@ -74,7 +74,7 @@ STATUS getIotCredentials(PAwsCredentialProvider, PAwsCredentials*);
 STATUS iotCurlHandler(PIotCredentialProvider);
 STATUS parseIotResponse(PIotCredentialProvider, PCallInfo);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

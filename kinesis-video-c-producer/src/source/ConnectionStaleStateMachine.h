@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 #define GRACE_PERIOD_CONNECTION_STALE_STATE_MACHINE                     (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define VERIFICATION_PERIOD_CONNECTION_STALE_STATE_MACHINE              (60 * HUNDREDS_OF_NANOS_IN_A_SECOND)
@@ -41,7 +41,7 @@ STATUS setConnectionStaleStateMachine(struct __CallbackStateMachine*, STREAM_CAL
 STATUS connectionStaleStateMachineSetResetConnectionState(STREAM_HANDLE, PConnectionStaleStateMachine);
 STATUS connectionStaleStateMachineHandleConnectionStale(STREAM_HANDLE, PConnectionStaleStateMachine);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

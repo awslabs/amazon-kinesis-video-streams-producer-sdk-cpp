@@ -11,7 +11,7 @@ extern "C" {
 #pragma once
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 ////////////////////////////////////////////////////
 // Internal functionality
@@ -122,7 +122,7 @@ VOID fixupFrame(PFrame pFrame);
  */
 SIZE_T sizeOfStreamDescription(PStreamDescription);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef __cplusplus
 }

@@ -21,7 +21,7 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/heap/Include.h>
 
 // For tight packing
-#pragma pack(push, include, 1) // for byte alignment
+
 
 /**
  * Minimum number of items in the window
@@ -377,7 +377,7 @@ PUBLIC_API STATUS contentViewRemoveAll(PContentView);
  */
 PUBLIC_API STATUS contentViewCheckAvailability(PContentView, PBOOL, PBOOL);
 
-#pragma pack(pop, include)
+
 
 #ifdef  __cplusplus
 }

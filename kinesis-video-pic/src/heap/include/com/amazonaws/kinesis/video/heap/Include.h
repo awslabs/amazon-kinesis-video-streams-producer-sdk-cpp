@@ -11,7 +11,7 @@ extern "C" {
 #pragma once
 #include <com/amazonaws/kinesis/video/common/CommonDefs.h>
 #include <com/amazonaws/kinesis/video/common/PlatformUtils.h>
-#pragma pack(push, include, 1) // for byte alignment
+
 
 /**
  * We define minimal heap size as 1 MB
@@ -197,7 +197,7 @@ PUBLIC_API STATUS heapUnmap(PHeap, PVOID);
  */
 PUBLIC_API STATUS heapDebugCheckAllocator(PHeap, BOOL);
 
-#pragma pack(pop, include) // pop the existing settings
+
 
 #ifdef __cplusplus
 }

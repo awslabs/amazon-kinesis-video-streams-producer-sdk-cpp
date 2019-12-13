@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 typedef struct __FileAuthCallbacks FileAuthCallbacks;
 
@@ -35,7 +35,7 @@ STATUS getStreamingTokenFileFunc(UINT64, PCHAR, STREAM_ACCESS_MODE, PServiceCall
 STATUS getSecurityTokenFileFunc(UINT64, PBYTE *, PUINT32, PUINT64);
 STATUS freeFileAuthCallbacksFunc(PUINT64);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

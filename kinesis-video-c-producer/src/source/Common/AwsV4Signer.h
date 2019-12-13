@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 #define AWS_SIG_V4_HEADER_AMZ_DATE              (PCHAR) "X-Amz-Date"
 #define AWS_SIG_V4_HEADER_AMZ_SECURITY_TOKEN    (PCHAR) "x-amz-security-token"
@@ -251,7 +251,7 @@ STATUS uriDecodeString(PCHAR, UINT32, PCHAR, PUINT32);
  */
 PCHAR getRequestVerbString(HTTP_REQUEST_VERB);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

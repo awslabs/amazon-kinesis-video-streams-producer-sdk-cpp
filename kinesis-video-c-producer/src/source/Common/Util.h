@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 #define EARLY_EXPIRATION_FACTOR                                     1.0
 #define IOT_EXPIRATION_PARSE_CONVERSION_BASE                        10
@@ -23,7 +23,7 @@ extern "C" {
 
 PCHAR getSslCertNameFromType(SSL_CERTIFICATE_TYPE);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

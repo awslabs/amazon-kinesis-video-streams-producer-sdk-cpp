@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #pragma once
-#pragma pack(push, include, 1) // for byte alignment
+
 
 /**
  * 'Magic' - aka a sentinel which will be added as a guard band for each allocation in debug mode
@@ -106,7 +106,7 @@ STATUS commonHeapCreate(PHeap*, UINT32);
  */
 STATUS validateHeap(PHeap);
 
-#pragma pack(pop, include) // pop the existing settings
+
 
 #ifdef __cplusplus
 }

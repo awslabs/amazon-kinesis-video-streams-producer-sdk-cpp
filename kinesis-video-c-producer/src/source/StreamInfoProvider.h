@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 // Calculate defaults for the following using buffer duration
 #define REPLAY_DURATION_FACTOR      0.5
@@ -84,7 +84,7 @@ STATUS createAudioVideoStreamInfo(STREAMING_TYPE, PCHAR, UINT64, UINT64, PStream
 
 
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

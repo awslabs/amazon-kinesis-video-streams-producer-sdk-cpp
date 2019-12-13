@@ -16,7 +16,7 @@ extern "C" {
 #include "com/amazonaws/kinesis/video/view/Include.h"
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 ////////////////////////////////////////////////////
 // General defines and data structures
@@ -66,7 +66,7 @@ typedef struct {
 ////////////////////////////////////////////////////
 PViewItem findViewItemWithTimestamp(PRollingContentView, PViewItem, PViewItem, UINT64, BOOL);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

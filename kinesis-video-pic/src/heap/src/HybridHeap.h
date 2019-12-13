@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #pragma once
-#pragma pack(push, include, 1) // for byte alignment
+
 
 /**
  * VRAM function definitions with their symbol names
@@ -148,7 +148,7 @@ DEFINE_FOOTER_SIZE(hybridGetAllocationFooterSize);
 DEFINE_ALLOC_SIZE(hybridGetAllocationSize);
 DEFINE_HEAP_LIMITS(hybridGetHeapLimits);
 
-#pragma pack(pop, include) // pop the existing settings
+
 
 #ifdef __cplusplus
 }

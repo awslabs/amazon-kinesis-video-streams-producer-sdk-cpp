@@ -16,7 +16,7 @@ extern "C" {
 #include "com/amazonaws/kinesis/video/state/Include.h"
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 ////////////////////////////////////////////////////
 // General defines and data structures
@@ -70,7 +70,7 @@ typedef struct __StateMachineImpl* PStateMachineImpl;
 ////////////////////////////////////////////////////
 
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

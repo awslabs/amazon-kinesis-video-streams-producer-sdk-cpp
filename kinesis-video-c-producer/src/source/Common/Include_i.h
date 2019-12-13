@@ -27,7 +27,7 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/common/Include.h>
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 ////////////////////////////////////////////////////
 // Project internal includes
@@ -62,7 +62,7 @@ extern "C" {
 // Project internal functions
 ////////////////////////////////////////////////////
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

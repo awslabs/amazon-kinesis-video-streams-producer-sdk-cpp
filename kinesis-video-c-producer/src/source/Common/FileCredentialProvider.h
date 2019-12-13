@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 /**
 * Grace period which is added to the current time to determine whether the extracted credentials are still valid
@@ -43,7 +43,7 @@ STATUS getFileCredentials(PAwsCredentialProvider, PAwsCredentials*);
 // Internal functionality
 STATUS readFileCredentials(PFileCredentialProvider);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef  __cplusplus
 }

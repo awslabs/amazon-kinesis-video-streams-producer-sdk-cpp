@@ -11,7 +11,7 @@ extern "C" {
 #pragma once
 
 // For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
+
 
 // Various significant chars
 #define ACK_PARSER_OPEN_BRACE                   '{'
@@ -192,7 +192,7 @@ SERVICE_CALL_RESULT getAckErrorTypeFromErrorId(UINT64);
  */
 STATUS processParsedAck(PKinesisVideoStream);
 
-#pragma pack(pop, include_i)
+
 
 #ifdef __cplusplus
 }

@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 #pragma once
-#pragma pack(push, include, 1) // for byte alignment
+
 
 /**
  * Including the headers
@@ -151,7 +151,7 @@ typedef struct
 #include "AivHeap.h"
 #include "HybridHeap.h"
 
-#pragma pack(pop, include) // pop the existing settings
+
 
 #ifdef __cplusplus
 }
