@@ -682,8 +682,8 @@ cd "${KINESIS_VIDEO_ROOT}"
 # invoked first.
 # adding $KINESIS_VIDEO_ROOT/downloads/local/lib to $LD_LIBRARY_PATH so the linker can find the libraries.
 cat > set_kvs_sdk_env.sh << END_TEXT
-export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin":$PATH
-export LD_LIBRARY_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib:$LD_LIBRARY_PATH"
+export PATH="$KINESIS_VIDEO_ROOT/downloads/local/bin:\$PATH"
+export LD_LIBRARY_PATH="$KINESIS_VIDEO_ROOT/downloads/local/lib:\$LD_LIBRARY_PATH"
 END_TEXT
 chmod a+x set_kvs_sdk_env.sh
 
