@@ -15,9 +15,6 @@ extern "C" {
 #include "FrameOrderCoordinator.h"
 #include "AckParser.h"
 
-// For tight packing
-
-
 ////////////////////////////////////////////////////
 // General defines and data structures
 ////////////////////////////////////////////////////
@@ -730,8 +727,6 @@ STATUS executePutStreamState(UINT64, UINT64);
 STATUS executeStreamingStreamState(UINT64, UINT64);
 STATUS executeStoppedStreamState(UINT64, UINT64);
 STATUS executeTagStreamState(UINT64, UINT64);
-
-
 
 #ifdef __cplusplus
 }

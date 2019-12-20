@@ -10,9 +10,6 @@ CURL API callbacks internal include file
 extern "C" {
 #endif
 
-// For tight packing
-
-
 // Dummy value returned as a device arn
 #define DUMMY_DEVICE_ARN        "arn:aws:kinesisvideo:us-west-2:11111111111:mediastream/device"
 
@@ -233,8 +230,6 @@ PVOID describeStreamCurlHandler(PVOID);
 PVOID getStreamingEndpointCurlHandler(PVOID);
 PVOID tagResourceCurlHandler(PVOID);
 PVOID putStreamCurlHandler(PVOID);
-
-
 
 #ifdef  __cplusplus
 }

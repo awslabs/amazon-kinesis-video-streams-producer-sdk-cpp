@@ -7,9 +7,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 /////////////////////////////////////////
 // File logging functionality
 /////////////////////////////////////////
@@ -89,8 +86,6 @@ STATUS freeFileLogger();
  * @return - STATUS of execution
  */
 STATUS freeFileLoggerPlatformCallbacksFunc(PUINT64);
-
-
 
 #ifdef  __cplusplus
 }

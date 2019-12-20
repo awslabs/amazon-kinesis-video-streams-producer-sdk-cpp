@@ -7,9 +7,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 /**
 * Forward declarations
 */
@@ -39,8 +36,6 @@ typedef struct __IotAuthCallbacks* PIotAuthCallbacks;
 STATUS getStreamingTokenIotFunc(UINT64, PCHAR, STREAM_ACCESS_MODE, PServiceCallContext);
 STATUS getSecurityTokenIotFunc(UINT64, PBYTE *, PUINT32, PUINT64);
 STATUS freeIotAuthCallbacksFunc(PUINT64);
-
-
 
 #ifdef  __cplusplus
 }

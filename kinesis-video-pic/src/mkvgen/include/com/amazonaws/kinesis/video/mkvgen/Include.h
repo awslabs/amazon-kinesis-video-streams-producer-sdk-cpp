@@ -19,9 +19,6 @@ extern "C" {
 ////////////////////////////////////////////////////
 #include <com/amazonaws/kinesis/video/utils/Include.h>
 
-// For tight packing
-
-
 ////////////////////////////////////////////////////
 // Status return codes
 ////////////////////////////////////////////////////
@@ -558,8 +555,6 @@ PUBLIC_API STATUS mkvgenSetCodecPrivateData(PMkvGenerator, UINT64, UINT32, PBYTE
  * @return Status of the operation
  */
 PUBLIC_API STATUS mkvgenGetTrackInfo(PTrackInfo, UINT32, UINT64, PTrackInfo*, PUINT32);
-
-
 
 #ifdef  __cplusplus
 }

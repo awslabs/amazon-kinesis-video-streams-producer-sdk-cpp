@@ -8,9 +8,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 // Calculate defaults for the following using buffer duration
 #define REPLAY_DURATION_FACTOR      0.5
 #define LATENCY_PRESSURE_FACTOR     0.85
@@ -81,10 +78,6 @@ STATUS createVideoStreamInfo(STREAMING_TYPE, PCHAR, UINT64, UINT64, PStreamInfo*
  * @return - STATUS code of the execution
 */
 STATUS createAudioVideoStreamInfo(STREAMING_TYPE, PCHAR, UINT64, UINT64, PStreamInfo*);
-
-
-
-
 
 #ifdef  __cplusplus
 }

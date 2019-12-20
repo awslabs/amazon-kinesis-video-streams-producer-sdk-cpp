@@ -7,9 +7,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 #define GRACE_PERIOD_CONNECTION_STALE_STATE_MACHINE                     (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define VERIFICATION_PERIOD_CONNECTION_STALE_STATE_MACHINE              (60 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define CONNECTION_STALE_STATE_MACHINE_UPDATE_TIMESTAMP(stateMachine) { \
@@ -40,8 +37,6 @@ STATUS setConnectionStaleStateMachine(struct __CallbackStateMachine*, STREAM_CAL
 ////////////////////////////////////////////////////////////////////////
 STATUS connectionStaleStateMachineSetResetConnectionState(STREAM_HANDLE, PConnectionStaleStateMachine);
 STATUS connectionStaleStateMachineHandleConnectionStale(STREAM_HANDLE, PConnectionStaleStateMachine);
-
-
 
 #ifdef  __cplusplus
 }

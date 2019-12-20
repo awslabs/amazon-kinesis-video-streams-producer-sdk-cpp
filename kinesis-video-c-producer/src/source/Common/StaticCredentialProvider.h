@@ -8,9 +8,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 /**
 * Forward declarations
 */
@@ -29,8 +26,6 @@ typedef struct __StaticCredentialProvider* PStaticCredentialProvider;
 // Callback function implementations
 ////////////////////////////////////////////////////////////////////////
 STATUS getStaticCredentials(PAwsCredentialProvider, PAwsCredentials*);
-
-
 
 #ifdef  __cplusplus
 }

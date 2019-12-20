@@ -26,9 +26,6 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/client/Include.h>
 #include <com/amazonaws/kinesis/video/common/Include.h>
 
-// For tight packing
-
-
 ////////////////////////////////////////////////////
 // Project internal includes
 ////////////////////////////////////////////////////

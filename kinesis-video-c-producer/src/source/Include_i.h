@@ -31,9 +31,6 @@ typedef StreamLatencyStateMachine* PStreamLatencyStateMachine;
 #include <signal.h>
 #endif
 
-// For tight packing
-
-
 /**
  * Continuous retry state machinery states
  */
@@ -76,8 +73,6 @@ typedef enum {
 ////////////////////////////////////////////////////
 // Project internal functions
 ////////////////////////////////////////////////////
-
-
 
 #ifdef  __cplusplus
 }

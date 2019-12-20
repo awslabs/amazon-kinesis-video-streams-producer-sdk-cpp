@@ -10,9 +10,6 @@ Request internal include file
 extern "C" {
 #endif
 
-// For tight packing
-
-
 /**
  * Forward declarations
  */
@@ -90,8 +87,6 @@ STATUS createCurlRequest(HTTP_REQUEST_VERB, PCHAR, PCHAR, STREAM_HANDLE, PCHAR, 
  * @return - STATUS code of the execution
  */
 STATUS freeCurlRequest(PCurlRequest*);
-
-
 
 #ifdef  __cplusplus
 }

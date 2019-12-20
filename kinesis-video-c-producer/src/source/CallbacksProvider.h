@@ -10,9 +10,6 @@ CallbacksProvider internal include file
 extern "C" {
 #endif
 
-// For tight packing
-
-
 /**
  * The KVS callbacks provider structure
  */

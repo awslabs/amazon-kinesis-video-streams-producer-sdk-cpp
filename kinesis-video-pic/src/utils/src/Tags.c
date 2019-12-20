@@ -40,7 +40,8 @@ CleanUp:
 STATUS packageTags(UINT32 tagCount, PTag pSrcTags, UINT32 tagsSize, PTag pDstTags, PUINT32 pSize)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    UINT32 i, curSize = tagCount * TAG_FULL_LENGTH, remaining = tagsSize, nameSize, valueSize, structSize;
+    UINT32 i, curSize = tagCount * TAG_FULL_LENGTH, remaining = tagsSize,
+        nameSize, valueSize, structSize, alignedNameSize, alignedValueSize;
     PBYTE pCurPtr;
 
     CHK(tagCount == 0 || pSrcTags != NULL, STATUS_UTIL_TAGS_COUNT_NON_ZERO_TAGS_NULL);
@@ -58,21 +59,23 @@ STATUS packageTags(UINT32 tagCount, PTag pSrcTags, UINT32 tagsSize, PTag pDstTag
         // Get the name and value lengths - those should have been validated already
         nameSize = (UINT32) (STRLEN(pSrcTags[i].name) + 1) * SIZEOF(CHAR);
         valueSize = (UINT32) (STRLEN(pSrcTags[i].value) + 1) * SIZEOF(CHAR);
-        CHK(remaining >= nameSize + valueSize, STATUS_NOT_ENOUGH_MEMORY);
+        alignedNameSize = ROUND_UP(nameSize, SIZEOF(SIZE_T));
+        alignedValueSize = ROUND_UP(valueSize, SIZEOF(SIZE_T));
+        CHK(remaining >= alignedNameSize + alignedValueSize, STATUS_NOT_ENOUGH_MEMORY);
 
         pDstTags[i].version = pSrcTags[i].version;
 
         // Fix-up the pointers first then copy
         pDstTags[i].name = (PCHAR) pCurPtr;
         MEMCPY(pDstTags[i].name, pSrcTags[i].name, nameSize);
-        pCurPtr += nameSize;
+        pCurPtr += alignedNameSize;
 
         pDstTags[i].value = (PCHAR) pCurPtr;
         MEMCPY(pDstTags[i].value, pSrcTags[i].value, valueSize);
-        pCurPtr += valueSize;
+        pCurPtr += alignedValueSize;
 
-        remaining -= nameSize + valueSize;
-        curSize += nameSize + valueSize;
+        remaining -= alignedNameSize + alignedValueSize;
+        curSize += alignedNameSize + alignedValueSize;
     }
 
 CleanUp:

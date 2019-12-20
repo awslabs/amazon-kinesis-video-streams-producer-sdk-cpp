@@ -10,9 +10,6 @@ extern "C" {
 
 #pragma once
 
-// For tight packing
-
-
 ////////////////////////////////////////////////////
 // Internal functionality
 ////////////////////////////////////////////////////
@@ -121,8 +118,6 @@ VOID fixupFrame(PFrame pFrame);
  * @return The size of the object
  */
 SIZE_T sizeOfStreamDescription(PStreamDescription);
-
-
 
 #ifdef __cplusplus
 }

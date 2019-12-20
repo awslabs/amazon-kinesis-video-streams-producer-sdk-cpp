@@ -8,12 +8,7 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 STATUS blockingLwsCall(PRequestInfo, PCallInfo);
-    
-
 
 #ifdef  __cplusplus
 }

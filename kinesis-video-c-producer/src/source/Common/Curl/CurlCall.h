@@ -8,9 +8,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 // CA pem file extension
 #define CA_CERT_PEM_FILE_EXTENSION                          ".pem"
 

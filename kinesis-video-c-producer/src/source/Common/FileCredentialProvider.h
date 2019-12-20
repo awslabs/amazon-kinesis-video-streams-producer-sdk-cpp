@@ -8,9 +8,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 /**
 * Grace period which is added to the current time to determine whether the extracted credentials are still valid
 */

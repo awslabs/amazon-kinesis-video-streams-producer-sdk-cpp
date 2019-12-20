@@ -7,9 +7,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 struct __CallbackStateMachine;
 struct __CallbacksProvider;
 
@@ -60,8 +57,6 @@ STATUS continuousRetryStreamReadyHandler(UINT64, STREAM_HANDLE);
 STATUS continuousRetryStreamFreeHandler(PUINT64);
 STATUS continuousRetryStreamShutdownHandler(UINT64, STREAM_HANDLE, BOOL);
 STATUS continuousRetryStreamClosedHandler(UINT64, STREAM_HANDLE, UPLOAD_HANDLE);
-
-
 
 #ifdef  __cplusplus
 }

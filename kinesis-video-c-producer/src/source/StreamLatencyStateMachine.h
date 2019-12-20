@@ -7,9 +7,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 #define GRACE_PERIOD_STREAM_LATENCY_STATE_MACHINE                   (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define VERIFICATION_PERIOD_STREAM_LATENCY_STATE_MACHINE            (60 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 

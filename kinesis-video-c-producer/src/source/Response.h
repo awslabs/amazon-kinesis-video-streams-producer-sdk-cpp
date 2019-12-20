@@ -10,9 +10,6 @@ Response internal include file
 extern "C" {
 #endif
 
-// For tight packing
-
-
 // Setting this timeout to terminate CURL connection
 #define TIMEOUT_AFTER_STREAM_STOPPED                            (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
@@ -177,8 +174,6 @@ SIZE_T writeHeaderCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 SIZE_T postWriteCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 SIZE_T postReadCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 SIZE_T postResponseWriteCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
-
-
 
 #ifdef  __cplusplus
 }

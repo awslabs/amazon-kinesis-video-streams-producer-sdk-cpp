@@ -15,9 +15,6 @@ extern "C" {
 ////////////////////////////////////////////////////
 #include "com/amazonaws/kinesis/video/mkvgen/Include.h"
 
-// For tight packing
-
-
 ////////////////////////////////////////////////////
 // Packager version
 //
@@ -652,8 +649,6 @@ STATUS mkvgenAdaptCodecPrivateData(PStreamMkvGenerator, MKV_TRACK_INFO_TYPE, PCH
  * @return Status of the operation
  */
 STATUS mkvgenExtractCpdFromAnnexBFrame(PStreamMkvGenerator, PFrame, PTrackInfo);
-
-
 
 #ifdef  __cplusplus
 }

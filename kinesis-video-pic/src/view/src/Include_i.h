@@ -15,9 +15,6 @@ extern "C" {
 ////////////////////////////////////////////////////
 #include "com/amazonaws/kinesis/video/view/Include.h"
 
-// For tight packing
-
-
 ////////////////////////////////////////////////////
 // General defines and data structures
 ////////////////////////////////////////////////////
@@ -65,8 +62,6 @@ typedef struct {
 // Internal functionality
 ////////////////////////////////////////////////////
 PViewItem findViewItemWithTimestamp(PRollingContentView, PViewItem, PViewItem, UINT64, BOOL);
-
-
 
 #ifdef  __cplusplus
 }

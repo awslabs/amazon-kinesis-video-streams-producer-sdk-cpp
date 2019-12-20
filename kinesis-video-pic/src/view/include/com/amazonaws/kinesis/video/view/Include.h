@@ -20,9 +20,6 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/utils/Include.h>
 #include <com/amazonaws/kinesis/video/heap/Include.h>
 
-// For tight packing
-
-
 /**
  * Minimum number of items in the window
  */
@@ -376,8 +373,6 @@ PUBLIC_API STATUS contentViewRemoveAll(PContentView);
  * PBOOL - OUT OPT - Whether there is available space to put an item without tail eviction.
  */
 PUBLIC_API STATUS contentViewCheckAvailability(PContentView, PBOOL, PBOOL);
-
-
 
 #ifdef  __cplusplus
 }

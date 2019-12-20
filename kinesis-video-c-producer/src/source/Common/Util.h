@@ -10,9 +10,6 @@ Util internal include file
 extern "C" {
 #endif
 
-// For tight packing
-
-
 #define EARLY_EXPIRATION_FACTOR                                     1.0
 #define IOT_EXPIRATION_PARSE_CONVERSION_BASE                        10
 
@@ -22,8 +19,6 @@ extern "C" {
 #define SSL_CERTIFICATE_TYPE_PEM_STR                                ((PCHAR) "PEM")
 
 PCHAR getSslCertNameFromType(SSL_CERTIFICATE_TYPE);
-
-
 
 #ifdef  __cplusplus
 }

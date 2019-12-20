@@ -8,9 +8,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 /**
 * Forward declarations
 */
@@ -38,8 +35,6 @@ typedef struct __StaticAuthCallbacks* PStaticAuthCallbacks;
 STATUS getStreamingTokenStaticFunc(UINT64, PCHAR, STREAM_ACCESS_MODE, PServiceCallContext);
 STATUS getSecurityTokenStaticFunc(UINT64, PBYTE *, PUINT32, PUINT64);
 STATUS freeStaticAuthCallbacksFunc(PUINT64);
-
-
 
 #ifdef  __cplusplus
 }

@@ -8,9 +8,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
 // Max send buffer size for LWS
 #define IOT_LWS_SEND_BUFFER_SIZE                        (LWS_PRE + MAX_URI_CHAR_LEN)
 

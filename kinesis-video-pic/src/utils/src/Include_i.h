@@ -12,9 +12,6 @@ extern "C" {
 
 #include "com/amazonaws/kinesis/video/utils/Include.h"
 
-// For tight packing
-
-
 /**
  * Thread wrapper for Windows
  */
@@ -198,8 +195,6 @@ STATUS semaphoreAcquireInternal(PSemaphore, UINT64);
 STATUS semaphoreReleaseInternal(PSemaphore);
 STATUS semaphoreSetLockInternal(PSemaphore, BOOL);
 STATUS semaphoreWaitUntilClearInternal(PSemaphore, UINT64);
-
-
 
 #ifdef __cplusplus
 }

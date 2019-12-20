@@ -10,9 +10,6 @@ AWS V4 Signer internal include file
 extern "C" {
 #endif
 
-// For tight packing
-
-
 #define AWS_SIG_V4_HEADER_AMZ_DATE              (PCHAR) "X-Amz-Date"
 #define AWS_SIG_V4_HEADER_AMZ_SECURITY_TOKEN    (PCHAR) "x-amz-security-token"
 #define AWS_SIG_V4_HEADER_AUTH                  (PCHAR) "Authorization"

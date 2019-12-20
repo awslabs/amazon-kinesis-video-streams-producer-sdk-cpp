@@ -8,11 +8,6 @@
 extern "C" {
 #endif
 
-// For tight packing
-
-
-
-
 #ifdef  __cplusplus
 }
 #endif
