@@ -388,6 +388,8 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND NOT "${CMAKE_CXX_COMPILER_ID}"
   add_executable(cproducer_test ${C_PRODUCER_TEST_SOURCE_FILES})
 
   add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
+  add_executable(kinesis_video_gstreamer_audio_video_sample_app ${GST_DEMO_APP})
+  add_executable(kinesis_video_gstreamer_sample_multistream_app ${GST_DEMO_APP})
 
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
 
@@ -435,6 +437,10 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND NOT "${CMAKE_CXX_COMPILER_ID}"
 
   target_link_libraries(kinesis_video_gstreamer_sample_app producer
                         gstreamer-1.0 gstapp-1.0 gobject-2.0 glib-2.0)
+
+  target_link_libraries(kinesis_video_gstreamer_audio_video_sample_app producer gstreamer-1.0 gstapp-1.0 gobject-2.0 glib-2.0)
+
+  target_link_libraries(kinesis_video_gstreamer_sample_multistream_app producer gstreamer-1.0 gstapp-1.0 gobject-2.0 glib-2.0)
 
   target_link_libraries(
     producer
