@@ -1,6 +1,7 @@
 #include "Include_i.h"
 
 getTime globalGetTime = defaultGetTime;
+getMonotonicTime globalGetMonotonicTime = defaultGetMonotonicTime;
 
 STATUS generateTimestampStr(UINT64 timestamp, PCHAR formatStr, PCHAR pDestBuffer, UINT32 destBufferLen,
                             PUINT32 pFormattedStrLen)
@@ -25,6 +26,33 @@ STATUS generateTimestampStr(UINT64 timestamp, PCHAR formatStr, PCHAR pDestBuffer
 CleanUp:
 
     return retStatus;
+}
+
+UINT64 defaultGetMonotonicTime()
+{
+#if defined __linux__ || defined __MACH__ || defined __CYGWIN__
+    struct timespec nowTime;
+    clock_gettime(CLOCK_MONOTONIC, &nowTime);
+
+    // The precision needs to be on a 100th nanosecond resolution
+    return (UINT64)nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64)nowTime.tv_nsec / DEFAULT_TIME_UNIT_IN_NANOS;
+#elif defined _WIN32 || defined _WIN64
+    #define POW10_9                 1000000000
+
+    LARGE_INTEGER pf, pc;
+    QueryPerformanceFrequency(&pf);
+    QueryPerformanceCounter(&pc);
+
+    int tv_sec = pc.QuadPart / pf.QuadPart;
+    int tv_nsec = (int) (((pc.QuadPart % pf.QuadPart) * POW10_9 + (pf.QuadPart >> 1)) / pf.QuadPart);
+    if (tv_nsec >= POW10_9) {
+        tv_sec++;
+        tv_nsec -= POW10_9;
+    }
+    return ((UINT64)tv_sec)*1000*1000*1000 + tv_nsec;
+#else
+    return defaultGetTime();
+#endif
 }
 
 UINT64 defaultGetTime()

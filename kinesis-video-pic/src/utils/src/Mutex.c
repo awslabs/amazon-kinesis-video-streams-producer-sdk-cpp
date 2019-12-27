@@ -170,10 +170,6 @@ CleanUp:
 
 #else
 
-// Definition of the static global mutexes
-pthread_mutex_t globalKvsReentrantMutex = GLOBAL_MUTEX_INIT_RECURSIVE;
-pthread_mutex_t globalKvsNonReentrantMutex = GLOBAL_MUTEX_INIT;
-
 MUTEX defaultCreateMutex(BOOL reentrant)
 {
     pthread_mutex_t* pMutex;
@@ -181,18 +177,10 @@ MUTEX defaultCreateMutex(BOOL reentrant)
 
     // Allocate the mutex
     pMutex = (pthread_mutex_t*) MEMCALLOC(1, SIZEOF(pthread_mutex_t));
-    if (NULL == pMutex) {
-        return (MUTEX) (reentrant ? &globalKvsReentrantMutex : &globalKvsNonReentrantMutex);
-    }
 
-    if (0 != pthread_mutexattr_init(&mutexAttributes) ||
-        0 != pthread_mutexattr_settype(&mutexAttributes, reentrant ? PTHREAD_MUTEX_RECURSIVE : PTHREAD_MUTEX_NORMAL) ||
-        0 != pthread_mutex_init(pMutex, &mutexAttributes))
-    {
-        // In case of an error return the global mutexes
-        MEMFREE(pMutex);
-        return (MUTEX) (reentrant ? &globalKvsReentrantMutex : &globalKvsNonReentrantMutex);
-    }
+    pthread_mutexattr_init(&mutexAttributes);
+    pthread_mutexattr_settype(&mutexAttributes, reentrant ? PTHREAD_MUTEX_RECURSIVE : PTHREAD_MUTEX_NORMAL);
+    pthread_mutex_init(pMutex, &mutexAttributes);
 
     return (MUTEX) pMutex;
 }
@@ -217,24 +205,21 @@ VOID defaultFreeMutex(MUTEX mutex)
     pthread_mutex_t* pMutex = (pthread_mutex_t*) mutex;
     pthread_mutex_destroy(pMutex);
 
-    // De-allocate the memory if it's not a well-known mutex - aka if we had allocated it previously
-    if (pMutex != &globalKvsReentrantMutex && pMutex != &globalKvsNonReentrantMutex) {
-        MEMFREE(pMutex);
-    }
+    MEMFREE(pMutex);
 }
-
-pthread_cond_t globalKvsConditionVariable = PTHREAD_COND_INITIALIZER;
 
 CVAR defaultConditionVariableCreate()
 {
     CVAR pVar = (CVAR)MEMCALLOC(1, SIZEOF(pthread_cond_t));
-    if (NULL == pVar) {
-        return &globalKvsConditionVariable;
-    }
+    pthread_condattr_t attr;
 
-    if (0 != pthread_cond_init(pVar, NULL)) {
-        return &globalKvsConditionVariable;
-    }
+    pthread_condattr_init (&attr);
+#if defined __linux__ || defined __CYGWIN__
+    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+#endif
+
+    pthread_cond_init(pVar, NULL);
+    pthread_condattr_destroy (&attr);
 
     return pVar;
 }
@@ -249,9 +234,7 @@ VOID defaultConditionVariableFree(CVAR cvar)
 
     pthread_cond_destroy(pCondVar);
 
-    if (pCondVar != &globalKvsConditionVariable) {
-        MEMFREE(pCondVar);
-    }
+    MEMFREE(pCondVar);
 }
 
 STATUS defaultConditionVariableSignal(CVAR cvar)
@@ -284,7 +267,12 @@ STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeout)
     INT32 retVal = 0;
     struct timespec timeSpec;
     pthread_mutex_t* pMutex = (pthread_mutex_t*) mutex;
+
+#if defined __linux__ || defined __CYGWIN__ || defined __MACH__
+    UINT64 curTime = GETMONOTONICTIME();
+#else
     UINT64 curTime = GETTIME();
+#endif
 
     // Timeout is a duration so we need to construct an absolute time
     UINT64 time = timeout + curTime;
@@ -294,9 +282,15 @@ STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeout)
         CHK(0 == (retVal = pthread_cond_wait(cvar, pMutex)), STATUS_WAIT_FAILED);
     }
     else {
+#ifdef __MACH__
+        timeSpec.tv_sec = timeout / HUNDREDS_OF_NANOS_IN_A_SECOND;
+        timeSpec.tv_nsec = (timeout % HUNDREDS_OF_NANOS_IN_A_SECOND) * DEFAULT_TIME_UNIT_IN_NANOS;
+        CHK(0 == (retVal = pthread_cond_timedwait_relative_np(cvar, pMutex, &timeSpec)), STATUS_WAIT_FAILED);
+#else
         timeSpec.tv_sec = time / HUNDREDS_OF_NANOS_IN_A_SECOND;
         timeSpec.tv_nsec = (time % HUNDREDS_OF_NANOS_IN_A_SECOND) * DEFAULT_TIME_UNIT_IN_NANOS;
         CHK(0 == (retVal = pthread_cond_timedwait(cvar, pMutex, &timeSpec)), STATUS_WAIT_FAILED);
+#endif
     }
 
 CleanUp:

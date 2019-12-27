@@ -650,6 +650,7 @@ extern getTName globalGetThreadName;
 // Time library function definitions
 //
 typedef UINT64 (*getTime)();
+typedef UINT64 (*getMonotonicTime)();
 
 //
 // Default time library functions
@@ -657,11 +658,13 @@ typedef UINT64 (*getTime)();
 #define TIME_DIFF_UNIX_WINDOWS_TIME     116444736000000000ULL
 
 PUBLIC_API INLINE UINT64 defaultGetTime();
+PUBLIC_API INLINE UINT64 defaultGetMonotonicTime();
 
 //
 // Thread related functionality
 //
 extern getTime globalGetTime;
+extern getMonotonicTime globalGetMonotonicTime;
 
 //
 // Thread library function definitions
@@ -943,6 +946,7 @@ extern PUBLIC_API atomicXor globalAtomicXor;
 // Time functionality
 //
 #define GETTIME                     globalGetTime
+#define GETMONOTONICTIME            globalGetMonotonicTime
 #define STRFTIME                    strftime
 #define GMTIME                      gmtime
 
