@@ -103,14 +103,14 @@ if [[ $build_producer == TRUE ]]; then
   echo "Checking openssl at $DOWNLOADS/local/lib/libssl.a"
   if [ ! -f $DOWNLOADS/local/lib/libssl.a ]; then
     echo "openssl lib not found. Installing"
-    if [ ! -f $DOWNLOADS/openssl-1.1.0f.tar.gz ]; then
+    if [ ! -f $DOWNLOADS/openssl-1.1.1d.tar.gz ]; then
       cd $DOWNLOADS
-      #download_cmd="curl -L "https://www.openssl.org/source/openssl-1.1.0f.tar.gz" -o "openssl-1.1.0f.tar.gz" "
-      $SYS_CURL -L "https://www.openssl.org/source/openssl-1.1.0f.tar.gz" -o "openssl-1.1.0f.tar.gz"
+      #download_cmd="curl -L "https://www.openssl.org/source/openssl-1.1.1d.tar.gz" -o "openssl-1.1.1d.tar.gz" "
+      $SYS_CURL -L "https://www.openssl.org/source/openssl-1.1.1d.tar.gz" -o "openssl-1.1.1d.tar.gz"
     fi
     cd $DOWNLOADS
-    tar -xvf openssl-1.1.0f.tar.gz
-    cd $DOWNLOADS/openssl-1.1.0f
+    tar -xvf openssl-1.1.1d.tar.gz
+    cd $DOWNLOADS/openssl-1.1.1d
     ./config  --prefix=$DOWNLOADS/local/ --openssldir=$DOWNLOADS/local/
     make -j $max_parallel
     make install
@@ -692,4 +692,3 @@ echo Now you can set the environment variables before running the sample applica
 echo by running source set_kvs_sdk_env.sh
 echo Also, you may want to add to the following environment variables to set it permanently
 echo in ~/.bashrc or ~/.bash_profile or ~/.zshrc
-
