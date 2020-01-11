@@ -2,9 +2,9 @@
 
 static volatile SIZE_T gLoggerLogLevel = LOG_LEVEL_WARN;
 
-PCHAR getLogLevelStr()
+PCHAR getLogLevelStr(UINT32 loglevel)
 {
-    switch (loggerGetLogLevel()) {
+    switch (loglevel) {
         case LOG_LEVEL_VERBOSE:
             return LOG_LEVEL_VERBOSE_STR;
         case LOG_LEVEL_DEBUG:
@@ -22,7 +22,7 @@ PCHAR getLogLevelStr()
     }
 }
 
-VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt)
+VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt, UINT32 logLevel)
 {
     UINT32 timeStrLen = 0;
     /* space for "yyyy-mm-dd HH:MM:SS\0" + space + null */
@@ -44,7 +44,7 @@ VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt)
         timeString[0] = '\0';
     }
 
-    offset = (UINT32) SNPRINTF(buffer, bufferLen, "%s%-*s ", timeString, MAX_LOG_LEVEL_STRLEN, getLogLevelStr());
+    offset = (UINT32) SNPRINTF(buffer, bufferLen, "%s%-*s ", timeString, MAX_LOG_LEVEL_STRLEN, getLogLevelStr(logLevel));
 #ifdef ENABLE_LOG_THREAD_ID
     offset += SNPRINTF(buffer + offset, bufferLen - offset, "%s ", tidString);
 #endif
@@ -62,7 +62,7 @@ VOID defaultLogPrint(UINT32 level, PCHAR tag, PCHAR fmt, ...)
     UNUSED_PARAM(tag);
 
     if (level >= logLevel) {
-        addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt);
+        addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt, level);
 
         va_list valist;
         va_start(valist, fmt);
