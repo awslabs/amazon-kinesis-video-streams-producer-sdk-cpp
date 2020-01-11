@@ -70,7 +70,7 @@ VOID fileLoggerLogPrintFn(UINT32 level, PCHAR tag, PCHAR fmt, ...)
     if (level >= GET_LOGGER_LOG_LEVEL() && gFileLogger != NULL) {
         MUTEX_LOCK(gFileLogger->lock);
 
-        addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt);
+        addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt, level);
 
         if (gFileLogger->printLog) {
             va_start(valist, fmt);

@@ -909,9 +909,10 @@ PUBLIC_API UINT32 loggerGetLogLevel();
  * @PCHAR - IN - buffer holding the log
  * @UINT32 - IN - buffer length
  * @PCHAR - IN - log format string
+ * @UINT32 - IN - log level
  * @return - VOID
  */
-PUBLIC_API VOID addLogMetadata(PCHAR, UINT32, PCHAR);
+PUBLIC_API VOID addLogMetadata(PCHAR, UINT32, PCHAR, UINT32);
 
 /**
  * Updates a CRC32 checksum
