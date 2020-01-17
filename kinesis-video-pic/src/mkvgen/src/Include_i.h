@@ -388,6 +388,12 @@ typedef struct {
     // Size of the version string
     UINT32 versionSize;
 
+    // The maximum timestamp of frame in the stream
+    UINT64 maxFramePts;
+
+    // The maximum timestamp of frame in the stream
+    UINT64 maxFrameDts;
+
 } StreamMkvGenerator, *PStreamMkvGenerator;
 
 ////////////////////////////////////////////////////
@@ -428,6 +434,20 @@ UINT32 mkvgenGetFrameOverhead(PStreamMkvGenerator, MKV_STREAM_STATE);
  * @return - STATUS code of the execution
  **/
 STATUS mkvgenValidateFrame(PStreamMkvGenerator, PFrame, PTrackInfo, PUINT64, PUINT64, PUINT64, PMKV_STREAM_STATE);
+
+/**
+ * * Adjust current frame timestamp to +1 when it is the same as previous max frame timestamp
+ *
+ * @PStreamMkvGenerator - the current generator object
+ * @PTrackInfo - IN - Track info the frame belongs to
+ * @PFrame - IN/OUT Frame object
+ * @UINT64 - IN/OUT - Extracted presentation timestamp
+ * @UINT64 - IN/OUT - Extracted decoding timestamp
+ *
+ * @return - STATUS code of the execution
+ **/
+STATUS mkvgenAdjustFrameTimestamp(PStreamMkvGenerator, PTrackInfo, PFrame, PUINT64, PUINT64);
+
 
 /**
  * Returns the MKV content type from the provided content type string by tokenizing and matching the string

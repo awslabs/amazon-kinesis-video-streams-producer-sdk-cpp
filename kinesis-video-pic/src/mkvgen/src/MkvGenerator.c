@@ -90,6 +90,8 @@ STATUS createMkvGenerator(PCHAR contentType, UINT32 behaviorFlags, UINT64 timeco
     pMkvGenerator->streamStartTimestamp = 0;
     pMkvGenerator->streamStartTimestampStored = FALSE;
     pMkvGenerator->trackInfoCount = trackInfoCount;
+    pMkvGenerator->maxFramePts = 0;
+    pMkvGenerator->maxFrameDts = 0;
 
     // Package the version
     if (clientId != NULL && clientId[0] != '\0') {
@@ -259,6 +261,9 @@ STATUS mkvgenPackageFrame(PMkvGenerator pMkvGenerator, PFrame pFrame, PTrackInfo
     CHK_STATUS(getAdaptedFrameSize(pFrame, nalsAdaptation, &adaptedFrameSize));
     packagedSize = overheadSize + adaptedFrameSize;
 
+    // Adjust current timestmap if timestamps of current frame and previous max frame are the same at cluster boundry
+    CHK_STATUS(mkvgenAdjustFrameTimestamp(pStreamMkvGenerator, pTrackInfo, pFrame, &pts, &dts));
+
     // Check if we are asked for size only and early return if so
     CHK(pBuffer != NULL, STATUS_SUCCESS);
 
@@ -267,6 +272,10 @@ STATUS mkvgenPackageFrame(PMkvGenerator pMkvGenerator, PFrame pFrame, PTrackInfo
 
     // Start with the full buffer
     bufferSize = *pSize;
+
+    // Store the maximum frame timestamp
+    pStreamMkvGenerator->maxFramePts = MAX(pStreamMkvGenerator->maxFramePts, pts);
+    pStreamMkvGenerator->maxFrameDts = MAX(pStreamMkvGenerator->maxFrameDts, dts);;
 
     // Generate the actual data
     switch(streamState) {
@@ -769,7 +778,7 @@ STATUS mkvgenValidateFrame(PStreamMkvGenerator pStreamMkvGenerator, PFrame pFram
     dts = TIMESTAMP_TO_MKV_TIMECODE(dts, pStreamMkvGenerator->timecodeScale);
     duration = TIMESTAMP_TO_MKV_TIMECODE(duration, pStreamMkvGenerator->timecodeScale);
 
-    CHK(pts >= pStreamMkvGenerator->lastClusterPts && dts >= pStreamMkvGenerator->lastClusterDts,
+    CHK(pts + 1 >= pStreamMkvGenerator->lastClusterPts && dts + 1 >= pStreamMkvGenerator->lastClusterDts,
         STATUS_MKV_INVALID_FRAME_TIMESTAMP);
 
     // Evaluate the current state
@@ -780,6 +789,35 @@ STATUS mkvgenValidateFrame(PStreamMkvGenerator pStreamMkvGenerator, PFrame pFram
     *pDts = dts;
     *pStreamState = streamState;
     *pDuration = duration;
+
+CleanUp:
+    return retStatus;
+}
+
+/**
+ * Adjust current frame timestamp to +1 when it is the same as previous max frame timestamp
+ */
+STATUS mkvgenAdjustFrameTimestamp(PStreamMkvGenerator pStreamMkvGenerator, PTrackInfo pTrackInfo, PFrame pFrame, PUINT64 pPts, PUINT64 pDts)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    CHK(pStreamMkvGenerator != NULL
+        && pFrame != NULL
+        && pTrackInfo != NULL
+        && pPts != NULL
+        && pDts != NULL, STATUS_NULL_ARG);
+    CHK(pFrame->size > 0 && pFrame->frameData != NULL && pFrame->trackId == pTrackInfo->trackId, STATUS_MKV_INVALID_FRAME_DATA);
+    CHK(pFrame->presentationTs > 0 && *pPts > 0, retStatus);
+
+    // Adjust timestamp to one more timecode scale in two cases
+    // 1. if key frame has same timestamp as previous max frame, then key frame
+    //  increases by 1 timecode scale to avoid FRAGMENT_TIMECODE_LESSER_THAN_PREVIOUS
+    // 2. If following frame have same timestamp as cluster timestamp before adjusting, also update the frame timestamp
+    if ((CHECK_FRAME_FLAG_KEY_FRAME(pFrame->flags) && pStreamMkvGenerator->maxFramePts == *pPts && pStreamMkvGenerator->maxFrameDts == *pDts)
+    || (!CHECK_FRAME_FLAG_KEY_FRAME(pFrame->flags) && pStreamMkvGenerator->lastClusterPts - 1 == *pPts && pStreamMkvGenerator->lastClusterDts - 1 == *pDts)) {
+        printf("mkvgenAdjustFrameTimestamp changed pts %llu\n", *pPts);
+        *pPts = *pPts + 1;
+        *pDts = *pDts + 1;
+    }
 
 CleanUp:
     return retStatus;

@@ -112,6 +112,64 @@ TEST_F(MkvgenApiTest, mkvgenPackageFrame_NegativeTest)
     EXPECT_EQ(MKV_STATE_START_BLOCK, encodedFrameInfo.streamState);
 }
 
+TEST_F(MkvgenApiTest, mkvgenPackageFrame_EqualFrameTimestampTest)
+{
+    UINT32 size = MKV_TEST_BUFFER_SIZE;
+    BYTE frameBuf[10000];
+    EncodedFrameInfo encodedFrameInfo;
+    BYTE encodedframeBuf[10000];
+    Frame frame = {FRAME_CURRENT_VERSION, 0, FRAME_FLAG_KEY_FRAME, 0, 0, MKV_TEST_FRAME_DURATION, SIZEOF(frameBuf), frameBuf, MKV_TEST_TRACKID};
+    TrackInfo trackInfo;
+    trackInfo.trackId = MKV_TEST_TRACKID;
+
+    ((PStreamMkvGenerator) mMkvGenerator)->generatorState = MKV_GENERATOR_STATE_CLUSTER_INFO;
+
+    frame.flags = FRAME_FLAG_KEY_FRAME;
+    frame.presentationTs = frame.decodingTs = 0;
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, NULL, &size, NULL)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, encodedframeBuf, &size, &encodedFrameInfo)));
+    EXPECT_EQ(encodedFrameInfo.framePts + encodedFrameInfo.clusterPts, 0);
+
+    frame.flags = FRAME_FLAG_NONE;
+    frame.presentationTs = frame.decodingTs = 1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, NULL, &size, NULL)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, encodedframeBuf, &size, &encodedFrameInfo)));
+    EXPECT_EQ(encodedFrameInfo.framePts + encodedFrameInfo.clusterPts, 1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+
+    frame.flags = FRAME_FLAG_KEY_FRAME;
+    frame.presentationTs = frame.decodingTs = 2 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, NULL, &size, NULL)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, encodedframeBuf, &size, &encodedFrameInfo)));
+    EXPECT_EQ(encodedFrameInfo.framePts + encodedFrameInfo.clusterPts, 2 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+
+    frame.flags = FRAME_FLAG_NONE;
+    frame.presentationTs = frame.decodingTs = 3 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND + 001;
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, NULL, &size, NULL)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, encodedframeBuf, &size, &encodedFrameInfo)));
+    EXPECT_EQ(encodedFrameInfo.framePts + encodedFrameInfo.clusterPts, 3 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+
+    // key frame having same timestamp as previous frame at ms timecode scale
+    frame.flags = FRAME_FLAG_KEY_FRAME;
+    frame.presentationTs = frame.decodingTs = 3 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND + 002;
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, NULL, &size, NULL)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, encodedframeBuf, &size, &encodedFrameInfo)));
+    EXPECT_EQ(encodedFrameInfo.framePts + encodedFrameInfo.clusterPts, (3 + 1) * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+
+    // non-key frame having same timestamp as previous key frame at ms timecode scale
+    frame.flags = FRAME_FLAG_NONE;
+    frame.presentationTs = frame.decodingTs = 3 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND + 003;
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, NULL, &size, NULL)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, encodedframeBuf, &size, &encodedFrameInfo)));
+    EXPECT_EQ(encodedFrameInfo.framePts + encodedFrameInfo.clusterPts, (3 + 1) * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+
+    // non-key frame having different timestamp as previous key frame at ms timecode scale
+    frame.flags = FRAME_FLAG_NONE;
+    frame.presentationTs = frame.decodingTs = 5 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, NULL, &size, NULL)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(mkvgenPackageFrame(mMkvGenerator, &frame, &trackInfo, encodedframeBuf, &size, &encodedFrameInfo)));
+    EXPECT_EQ(encodedFrameInfo.framePts + encodedFrameInfo.clusterPts, 5 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+}
+
 TEST_F(MkvgenApiTest, mkvgenValidateFrame_NegativeTest)
 {
     PStreamMkvGenerator pStreamGenerator = (PStreamMkvGenerator) mMkvGenerator;
