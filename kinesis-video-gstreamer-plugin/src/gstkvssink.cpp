@@ -87,7 +87,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
 #define DEFAULT_KEY_FRAME_FRAGMENTATION TRUE
 #define DEFAULT_FRAME_TIMECODES TRUE
-#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES FALSE
+#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
@@ -1107,6 +1107,17 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             break;
     }
 
+    if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
+        if (data->first_pts == GST_CLOCK_TIME_NONE) {
+            data->first_pts = buf->pts;
+        }
+        if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
+            data->producer_start_time = chrono::duration_cast<nanoseconds>(
+                    systemCurrentTime().time_since_epoch()).count();
+        }
+        buf->pts += data->producer_start_time - data->first_pts;
+    }
+
     put_frame(data->kinesis_video_stream, info.data, info.size,
               std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
@@ -1342,6 +1353,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             try {
                 kinesis_video_producer_init(kvssink);
                 init_track_data(kvssink);
+                kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+                kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
 
             } catch (runtime_error &err) {
                 oss << "Failed to init kvs producer. Error: " << err.what();
