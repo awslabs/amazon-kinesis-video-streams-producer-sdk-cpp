@@ -37,7 +37,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
 #define DEFAULT_KEY_FRAME_FRAGMENTATION TRUE
 #define DEFAULT_FRAME_TIMECODES TRUE
-#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES FALSE
+#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
@@ -176,6 +176,9 @@ typedef struct _CustomData {
     map<string, bool> stream_started;
     map<string, uint8_t*> frame_data_map;
     map<string, UINT32> frame_data_size_map;
+    // Pts of first frame
+    map<string, uint64_t> first_pts_map;
+    map<string, uint64_t> producer_start_time_map;
 } CustomData;
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
@@ -247,6 +250,13 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         } else {
             kinesis_video_flags = FRAME_FLAG_NONE;
         }
+
+        if (!data->first_pts_map[stream_handle_key]) {
+            data->first_pts_map[stream_handle_key] = buffer->pts;
+            data->producer_start_time_map[stream_handle_key] = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
+        }
+
+        buffer->pts += data->producer_start_time_map[stream_handle_key] - data->first_pts_map[stream_handle_key];
 
         if (false == put_frame(data->kinesis_video_stream_handles[stream_handle_key], data->frame_data_map[stream_handle_key], buffer_size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
@@ -391,6 +401,8 @@ int gstreamer_init(int argc, char *argv[]) {
     data.pipelines = vector<GstElement *>();
     data.frame_data_map = map<string, uint8_t*>();
     data.frame_data_size_map = map<string, UINT32>();
+    data.first_pts_map = map<string, uint64_t>();
+    data.producer_start_time_map = map<string, uint64_t>();;
 
     /* init GStreamer */
     gst_init(&argc, &argv);

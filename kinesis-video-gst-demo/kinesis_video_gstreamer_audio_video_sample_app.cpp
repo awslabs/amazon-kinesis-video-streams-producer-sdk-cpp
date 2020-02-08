@@ -42,7 +42,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
 #define DEFAULT_KEY_FRAME_FRAGMENTATION TRUE
 #define DEFAULT_FRAME_TIMECODES TRUE
-#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES FALSE
+#define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
@@ -87,7 +87,9 @@ typedef struct _CustomData {
             last_unpersisted_file_idx(0),
             kinesis_video_producer(nullptr),
             kinesis_video_stream(nullptr),
-            main_loop(NULL) {
+            main_loop(NULL),
+            first_pts(GST_CLOCK_TIME_NONE),
+            use_absolute_fragment_times(true) {
         producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
     }
 
@@ -157,6 +159,11 @@ typedef struct _CustomData {
     unique_ptr<Credentials> credential;
 
     uint32_t total_track_count;
+
+    bool use_absolute_fragment_times;
+
+    // Pts of first frame
+    uint64_t first_pts;
 
     GstElement *pipeline;
 } CustomData;
@@ -470,6 +477,14 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
             data->key_frame_pts = buffer->pts;
         }
+    } else if (data->use_absolute_fragment_times) {
+        if (data->first_pts == GST_CLOCK_TIME_NONE) {
+            data->first_pts = buffer->pts;
+        }
+        if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
+            data->producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
+        }
+        buffer->pts += data->producer_start_time - data->first_pts;
     }
 
     if (!gst_buffer_map(buffer, &info, GST_MAP_READ)){
@@ -630,11 +645,11 @@ void kinesis_video_init(CustomData *data) {
 void kinesis_video_stream_init(CustomData *data) {
 
     STREAMING_TYPE streaming_type = DEFAULT_STREAMING_TYPE;
-    bool use_absolute_fragment_times = DEFAULT_ABSOLUTE_FRAGMENT_TIMES;
+    data->use_absolute_fragment_times = DEFAULT_ABSOLUTE_FRAGMENT_TIMES;
 
     if (data->uploading_file) {
         streaming_type = STREAMING_TYPE_OFFLINE;
-        use_absolute_fragment_times = true;
+        data->use_absolute_fragment_times = true;
     }
 
     unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
@@ -649,7 +664,7 @@ void kinesis_video_stream_init(CustomData *data) {
         milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
         DEFAULT_KEY_FRAME_FRAGMENTATION,
         DEFAULT_FRAME_TIMECODES,
-        use_absolute_fragment_times,
+        data->use_absolute_fragment_times,
         DEFAULT_FRAGMENT_ACKS,
         DEFAULT_RESTART_ON_ERROR,
         DEFAULT_RECALCULATE_METRICS,
@@ -686,6 +701,12 @@ void kinesis_video_stream_init(CustomData *data) {
 int gstreamer_init(int argc, char *argv[], CustomData &data) {
 
     GstStateChangeReturn ret;
+
+    // Reset first frame pts
+    data.first_pts = GST_CLOCK_TIME_NONE;
+
+    // Reset producer start time
+    data.producer_start_time = GST_CLOCK_TIME_NONE;
 
     //reset state
     data.eos_triggered = false;
