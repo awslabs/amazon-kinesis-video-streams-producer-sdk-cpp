@@ -511,6 +511,11 @@ else()
       ${KINESIS_VIDEO_C_PRODUCER_SRC}/samples/KvsVideoOnlyStreamingSample.c)
     target_link_libraries(kinesis_video_cproducer_video_only_sample cproducer)
 
+    add_executable(
+      kinesis_video_cproducer_aac_audio_video_sample
+      ${KINESIS_VIDEO_C_PRODUCER_SRC}/samples/KvsAacAudioVideoStreamingSample.c)
+    target_link_libraries(kinesis_video_cproducer_aac_audio_video_sample cproducer)
+
     if(LOG4CPLUS_FOUND)
       add_library(producer SHARED ${PRODUCER_SOURCE_FILES})
       target_link_libraries(producer ${PRODUCER_LIBRARIES} cproducer)
