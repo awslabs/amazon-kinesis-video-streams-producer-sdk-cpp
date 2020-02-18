@@ -1499,14 +1499,6 @@ CleanUp:
         deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
         pUploadHandleInfo = NULL;
         pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_ACTIVE);
-
-        if (pUploadHandleInfo == NULL) {
-            // Get the duration and the size
-            getAvailableViewSize(pKinesisVideoStream, &duration, &viewByteSize);
-            if (viewByteSize != 0) {
-                streamTerminatedEvent(pKinesisVideoStream, INVALID_UPLOAD_HANDLE_VALUE, SERVICE_CALL_RESULT_OK, FALSE);
-            }
-        }
     }
 
     if (clientLocked) {

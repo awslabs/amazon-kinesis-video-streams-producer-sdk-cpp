@@ -620,8 +620,10 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HAN
     STATUS retStatus = STATUS_SUCCESS;
     PStateMachineState pState;
     PKinesisVideoClient pKinesisVideoClient = NULL;
-    PUploadHandleInfo pUploadHandleInfo;
-    BOOL locked = FALSE;
+    PUploadHandleInfo pUploadHandleInfo, pUploadHandleInfoItem;
+    UINT32 sessionCount = 0, i = 0;
+    UINT64 item;
+    BOOL locked = FALSE, spawnNewUploadSession = TRUE, otherActiveSessionPresent = FALSE;
 
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
     pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
@@ -632,30 +634,26 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HAN
 
     // We should handle the in-grace termination differently by not setting the terminated state
     if (SERVICE_CALL_STREAM_AUTH_IN_GRACE_PERIOD != callResult) {
-        // Set the indicator of the retrying handle
+
+        // Set default to UPLOAD_CONNECTION_STATE_IN_USE which will trigger rollback
         pKinesisVideoStream->connectionState = UPLOAD_CONNECTION_STATE_IN_USE;
 
-        // Get the first upload handle in case of invalid handle specified
+        // If invalid upload handle is specified, terminated all uploading session, and let
+        // state machine spawn new session.
         if (!IS_VALID_UPLOAD_HANDLE(uploadHandle)) {
-            pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_ACTIVE);
-        } else {
-            pUploadHandleInfo = getStreamUploadInfo(pKinesisVideoStream, uploadHandle);
-        }
 
-        // If the upload handle has streamed some data, set flag to trigger rollback in the next getStreamData call.
-        // If the upload handle has not stream any data, we can safely ignore this event.
-        if (NULL != pUploadHandleInfo) {
-            if ((pUploadHandleInfo->state & UPLOAD_HANDLE_STATE_NOT_IN_USE) != UPLOAD_HANDLE_STATE_NONE) {
-                // Need to indicate to the getStreamData to rollback.
-                pKinesisVideoStream->connectionState = UPLOAD_CONNECTION_STATE_NOT_IN_USE;
-            }
+            CHK_STATUS(stackQueueGetCount(pKinesisVideoStream->pUploadInfoQueue, &sessionCount));
 
-            // Set the state to terminated
-            pUploadHandleInfo->state = UPLOAD_HANDLE_STATE_TERMINATED;
+            for (i = 0; i < sessionCount; i++) {
+                CHK_STATUS(stackQueueGetAt(pKinesisVideoStream->pUploadInfoQueue, i, &item));
+                pUploadHandleInfo = (PUploadHandleInfo) item;
+                CHK(pUploadHandleInfo != NULL, STATUS_INTERNAL_ERROR);
 
-            // In case of reset connection and error acks, need to ping the terminated upload handle so that it
-            // can unpause if paused and then call getStreamData and receive the end-of-stream status
-            if (connectionStillAlive) {
+                pUploadHandleInfo->state = UPLOAD_HANDLE_STATE_TERMINATED;
+
+                // pulse the upload handle to receive the terminated status. The assumption is that
+                // upper layer uploading session should not be dead and should call getStreamData 
+                // after receiving streamDataAvailable callback.
                 CHK_STATUS(pKinesisVideoClient->clientCallbacks.streamDataAvailableFn(
                         pKinesisVideoClient->clientCallbacks.customData,
                         TO_STREAM_HANDLE(pKinesisVideoStream),
@@ -664,18 +662,60 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HAN
                         0,
                         0));
             }
-        }
+        } else {
 
-        // If the connection that upload handle represents is already dead. Then it will not make anymore
-        // getStreamData call so it should be removed.
-        if (!connectionStillAlive) {
-            // Remove the handle info from the queue
-            deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
-            pUploadHandleInfo = NULL;
+            pUploadHandleInfo = getStreamUploadInfo(pKinesisVideoStream, uploadHandle);
+
+            // If the upload handle has not streamde any data, we can safely ignore this event.
+            // else the upload handle has streamed some data, set flag to trigger rollback in the next getStreamData call.
+            if (NULL != pUploadHandleInfo) {
+                if ((pUploadHandleInfo->state & UPLOAD_HANDLE_STATE_NOT_IN_USE) != UPLOAD_HANDLE_STATE_NONE) {
+                    // Need to indicate to the getStreamData to not rollback.
+                    pKinesisVideoStream->connectionState = UPLOAD_CONNECTION_STATE_NOT_IN_USE;
+                } else {
+                    // If the errored handle is the only handle, then rollback,
+                    // otherwise do not rollback because the rollback will corrupt other active handle.
+                    CHK_STATUS(stackQueueGetCount(pKinesisVideoStream->pUploadInfoQueue, &sessionCount));
+
+                    for (i = 0; i < sessionCount && !otherActiveSessionPresent; i++) {
+                        CHK_STATUS(stackQueueGetAt(pKinesisVideoStream->pUploadInfoQueue, i, &item));
+                        pUploadHandleInfoItem = (PUploadHandleInfo) item;
+                        CHK(pUploadHandleInfoItem != NULL, STATUS_INTERNAL_ERROR);
+
+                        if (pUploadHandleInfoItem != pUploadHandleInfo &&
+                            (pUploadHandleInfoItem->state & UPLOAD_HANDLE_STATE_ACTIVE) != UPLOAD_HANDLE_STATE_NONE) {
+                            otherActiveSessionPresent = TRUE;
+                            pKinesisVideoStream->connectionState = UPLOAD_CONNECTION_STATE_NOT_IN_USE;
+                            spawnNewUploadSession = FALSE;
+                        }
+
+                    }
+                }
+
+                // Set the state to terminated
+                pUploadHandleInfo->state = UPLOAD_HANDLE_STATE_TERMINATED;
+
+                // In case of reset connection and error acks, need to ping the terminated upload handle so that it
+                // can unpause if paused and then call getStreamData and receive the end-of-stream status
+                if (connectionStillAlive) {
+                    CHK_STATUS(pKinesisVideoClient->clientCallbacks.streamDataAvailableFn(
+                            pKinesisVideoClient->clientCallbacks.customData,
+                            TO_STREAM_HANDLE(pKinesisVideoStream),
+                            pKinesisVideoStream->streamInfo.name,
+                            pUploadHandleInfo->handle,
+                            0,
+                            0));
+                } else {
+                    // If the connection that upload handle represents is already dead. Then it will not make anymore
+                    // getStreamData call so it should be removed.
+                    deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
+                    pUploadHandleInfo = NULL;
+                }
+            }
         }
     }
 
-    // return early if pic is already in process of traversing control plane states.
+    // return early if pic is already in process of spawning new uploading session
     CHK(!STATUS_SUCCEEDED(acceptStateMachineState(pKinesisVideoStream->base.pStateMachine,
                                                  STREAM_STATE_DESCRIBE |
                                                  STREAM_STATE_CREATE |
@@ -684,20 +724,22 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HAN
                                                  STREAM_STATE_GET_ENDPOINT |
                                                  STREAM_STATE_READY)), retStatus);
 
-    // Stop the stream
-    pKinesisVideoStream->streamState = STREAM_STATE_STOPPED;
+    if (spawnNewUploadSession) {
+        // Stop the stream
+        pKinesisVideoStream->streamState = STREAM_STATE_STOPPED;
 
-    // Get the accepted state
-    CHK_STATUS(getStateMachineState(pKinesisVideoStream->base.pStateMachine, STREAM_STATE_STOPPED, &pState));
+        // Get the accepted state
+        CHK_STATUS(getStateMachineState(pKinesisVideoStream->base.pStateMachine, STREAM_STATE_STOPPED, &pState));
 
-    // Check for the right state
-    CHK_STATUS(acceptStateMachineState(pKinesisVideoStream->base.pStateMachine, pState->acceptStates));
+        // Check for the right state
+        CHK_STATUS(acceptStateMachineState(pKinesisVideoStream->base.pStateMachine, pState->acceptStates));
 
-    // store the result
-    pKinesisVideoStream->base.result = callResult;
+        // store the result
+        pKinesisVideoStream->base.result = callResult;
 
-    // Step the machine
-    CHK_STATUS(stepStateMachine(pKinesisVideoStream->base.pStateMachine));
+        // Step the machine
+        CHK_STATUS(stepStateMachine(pKinesisVideoStream->base.pStateMachine));
+    }
 
 CleanUp:
 

@@ -202,7 +202,7 @@ ProducerClientTestBase::ProducerClientTestBase() :
         mWriteDataSize(0),
         mCurlWriteCallbackPassThrough(TRUE),
         mReadStatus(STATUS_SUCCESS),
-        mReadSize(0),
+        mInjectedReadSize(UINT32_MAX),
         mStreamCallbacks(NULL),
         mProducerCallbacks(NULL),
         mResetStreamCounter(0)
@@ -279,7 +279,7 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mStreamInfo.streamCaps.recoverOnError = TRUE;
     mStreamInfo.streamCaps.avgBandwidthBps = 4 * 1024 * 1024;
     mStreamInfo.streamCaps.bufferDuration = TEST_STREAM_BUFFER_DURATION;
-    mStreamInfo.streamCaps.replayDuration = 10 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    mStreamInfo.streamCaps.replayDuration = 0.5 * TEST_STREAM_BUFFER_DURATION;
     mStreamInfo.streamCaps.fragmentDuration = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND;
     mStreamInfo.streamCaps.connectionStalenessDuration = 20 * HUNDREDS_OF_NANOS_IN_A_SECOND;
     mStreamInfo.streamCaps.maxLatency = TEST_MAX_STREAM_LATENCY;
@@ -315,7 +315,10 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mPersistedFragmentCount = 0;
     mStorageOverflowCount = 0;
 
-    mAbortUploadhandle = INVALID_UPLOAD_HANDLE_VALUE;
+    mReadAbortUploadhandle = INVALID_UPLOAD_HANDLE_VALUE;
+    mWriteAbortUploadhandle = INVALID_UPLOAD_HANDLE_VALUE;
+
+    mInjectReadStatus = CURL_READFUNC_ABORT;
 
     mBufferDurationInPressure = FALSE;
     mBufferStorageInPressure = FALSE;
@@ -585,6 +588,10 @@ STATUS ProducerClientTestBase::curlWriteCallbackHookFunc(PCurlResponse pCurlResp
         *pRetDataSize = pTest->mWriteDataSize;
     }
 
+    if (IS_VALID_UPLOAD_HANDLE(pTest->mWriteAbortUploadhandle) && pCurlResponse->pCurlRequest->uploadHandle != pTest->mWriteAbortUploadhandle) {
+        return STATUS_SUCCESS;
+    }
+
     return pTest->mWriteStatus;
 }
 
@@ -597,8 +604,7 @@ STATUS ProducerClientTestBase::curlReadCallbackHookFunc(PCurlResponse pCurlRespo
 {
     UNUSED_PARAM(pBuffer);
     UNUSED_PARAM(bufferSize);
-    UNUSED_PARAM(uploadHandle);
-    UNUSED_PARAM(pRetrievedSize);
+    STATUS retStatus = status;
 
     if (pCurlResponse == NULL ||
         pCurlResponse->pCurlRequest == NULL ||
@@ -611,13 +617,12 @@ STATUS ProducerClientTestBase::curlReadCallbackHookFunc(PCurlResponse pCurlRespo
 
     pTest->mReadCallbackFnCount++;
 
-    if (IS_VALID_UPLOAD_HANDLE(pTest->mAbortUploadhandle) && uploadHandle == pTest->mAbortUploadhandle) {
-        pTest->mReadStatus = CURL_READFUNC_ABORT;
-    } else {
-        pTest->mReadStatus = status;
+    if (IS_VALID_UPLOAD_HANDLE(pTest->mReadAbortUploadhandle) && uploadHandle == pTest->mReadAbortUploadhandle) {
+        retStatus = pTest->mInjectReadStatus;
+        *pRetrievedSize = pTest->mInjectedReadSize == UINT32_MAX ? *pRetrievedSize : pTest->mInjectedReadSize;
     }
 
-    return pTest->mReadStatus;
+    return retStatus;
 }
 
 STATUS ProducerClientTestBase::testFreeApiCallbackFunc(PUINT64 customData)

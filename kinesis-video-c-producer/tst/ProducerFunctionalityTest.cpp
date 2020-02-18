@@ -420,6 +420,36 @@ TEST_F(ProducerFunctionalityTest, fail_new_connection_at_token_rotation)
     mStreams[0] = INVALID_STREAM_HANDLE_VALUE;
 }
 
+TEST_F(ProducerFunctionalityTest, curl_timeout_new_connection_at_token_rotation)
+{
+    STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
+    UINT32 i;
+    UINT32 totalFrames = 2 * 60 * TEST_FPS; // need to stream until token rotation
+    // this should timeout the new putMedia at token rotation
+    mReadAbortUploadhandle = 1;
+    mInjectReadStatus = STATUS_NO_MORE_DATA_AVAILABLE;
+    mInjectedReadSize = 0;
+
+    createDefaultProducerClient(FALSE, FUNCTIONALITY_TEST_CREATE_STREAM_TIMEOUT);
+
+    EXPECT_EQ(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, TEST_MAX_STREAM_LATENCY, TEST_STREAM_BUFFER_DURATION));
+    streamHandle = mStreams[0];
+
+    for(i = 0; i < totalFrames; ++i) {
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &mFrame));
+        updateFrame();
+        THREAD_SLEEP(mFrame.duration);
+    }
+
+    DLOGD("Stopping the stream with stream handle %" PRIu64, (UINT64) streamHandle);
+    EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStreamSync(streamHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoStream(&streamHandle));
+    EXPECT_EQ(mStreamErrorFnCount, 0);
+    EXPECT_EQ(mPersistedFragmentCount, 120);
+
+    mStreams[0] = INVALID_STREAM_HANDLE_VALUE;
+}
+
 TEST_F(ProducerFunctionalityTest, fail_old_connection_at_token_rotation)
 {
     STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
@@ -434,7 +464,7 @@ TEST_F(ProducerFunctionalityTest, fail_old_connection_at_token_rotation)
     for(i = 0; i < totalFrames; ++i) {
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &mFrame));
         if (mCurlPutMediaCount == 2) {
-            mAbortUploadhandle = 0;
+            mReadAbortUploadhandle = 0;
         }
 
         updateFrame();
@@ -451,6 +481,39 @@ TEST_F(ProducerFunctionalityTest, fail_old_connection_at_token_rotation)
     // no new error during shutdown
     EXPECT_EQ(errCount, mStreamErrorFnCount);
     EXPECT_EQ(60, mPersistedFragmentCount);
+
+    mStreams[0] = INVALID_STREAM_HANDLE_VALUE;
+}
+
+TEST_F(ProducerFunctionalityTest, old_connection_not_receive_last_ack_and_curl_timeout)
+{
+    STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
+    UINT32 i, errCount;
+    UINT32 totalFrames = 2 * 60 * TEST_FPS; // need to stream until token rotation
+    // this should timeout the existing putMedia at token rotation
+    mWriteAbortUploadhandle = 0;
+
+    createDefaultProducerClient(FALSE, FUNCTIONALITY_TEST_CREATE_STREAM_TIMEOUT);
+
+    EXPECT_EQ(STATUS_SUCCESS, createTestStream(0, STREAMING_TYPE_REALTIME, TEST_MAX_STREAM_LATENCY, TEST_STREAM_BUFFER_DURATION));
+    streamHandle = mStreams[0];
+
+    for(i = 0; i < totalFrames; ++i) {
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &mFrame));
+        if (mCurlPutMediaCount == 2) {
+            mWriteStatus = STATUS_INVALID_OPERATION;
+        }
+
+        updateFrame();
+        THREAD_SLEEP(mFrame.duration);
+    }
+
+    DLOGD("Stopping the stream with stream handle %" PRIu64, (UINT64) streamHandle);
+
+    EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStreamSync(streamHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoStream(&streamHandle));
+    EXPECT_EQ(0, mStreamErrorFnCount);
+    EXPECT_GT(mPersistedFragmentCount, 0);
 
     mStreams[0] = INVALID_STREAM_HANDLE_VALUE;
 }
@@ -508,7 +571,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_producer_fail_old_connection_at_t
     for(i = 0; i < totalFrames; ++i) {
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &mFrame));
         if (mCurlPutMediaCount == 2) {
-            mAbortUploadhandle = 0;
+            mReadAbortUploadhandle = 0;
         }
 
         updateFrame();
@@ -582,7 +645,7 @@ TEST_F(ProducerFunctionalityTest, pressure_on_buffer_duration_fail_old_connectio
     for(i = 0; i < totalFrames; ++i) {
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &mFrame));
         if (mCurlPutMediaCount == 2) {
-            mAbortUploadhandle = 0;
+            mReadAbortUploadhandle = 0;
         }
 
         updateFrame();
@@ -669,7 +732,7 @@ TEST_F(ProducerFunctionalityTest, pressure_on_storage_fail_old_connection_at_tok
     for(i = 0; i < totalFrames; ++i) {
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &mFrame));
         if (mCurlPutMediaCount == 2) {
-            mAbortUploadhandle = 0;
+            mReadAbortUploadhandle = 0;
         }
 
         updateFrame();

@@ -2164,7 +2164,8 @@ PUBLIC_API STATUS kinesisVideoStreamGetStreamInfo(STREAM_HANDLE,
 PUBLIC_API STATUS kinesisVideoStreamResetStream(STREAM_HANDLE);
 
 /**
- * Reset connection for stream, continue sending existing data in buffer with new connection
+ * Reset connection for stream. All existing putMedia connection will be terminated first.
+ * Continue sending existing data with new connection
  *
  * @param 1 STREAM_HANDLE - The stream handle to reset
  *

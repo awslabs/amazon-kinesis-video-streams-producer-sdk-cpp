@@ -1135,7 +1135,7 @@ STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, UPLOAD_HANDLE st
     BOOL releaseClientSemaphore = FALSE, releaseStreamSemaphore = FALSE;
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
 
-    DLOGI("Stream terminated event.");
+    DLOGI("Stream 0x%" PRIx64 " terminated upload handle %" PRIu64 " with service call result %u.", streamHandle, streamUploadHandle, callResult);
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
 
     // Shutdown sequencer
