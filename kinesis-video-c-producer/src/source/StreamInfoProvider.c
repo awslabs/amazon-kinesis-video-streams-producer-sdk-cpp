@@ -101,8 +101,7 @@ STATUS setStreamInfoDefaults(STREAMING_TYPE streamingType, UINT64 retention, UIN
     pStreamInfo->streamCaps.adaptive = TRUE;
     pStreamInfo->streamCaps.avgBandwidthBps = DEFAULT_AVG_BANDWIDTH;
     pStreamInfo->streamCaps.bufferDuration = bufferDuration;
-    pStreamInfo->streamCaps.connectionStalenessDuration =
-            (UINT64) (STALENESS_FACTOR * ((DOUBLE) bufferDuration));
+    pStreamInfo->streamCaps.connectionStalenessDuration = STREAM_INFO_DEFAULT_CONNECTION_STALE_DURATION;
     pStreamInfo->streamCaps.frameRate = DEFAULT_VIDEO_AUDIO_FRAME_RATE;
     pStreamInfo->streamCaps.fragmentDuration = STREAM_INFO_DEFAULT_FRAGMENT_DURATION;
     pStreamInfo->streamCaps.fragmentAcks = TRUE;
