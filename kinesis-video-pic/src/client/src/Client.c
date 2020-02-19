@@ -1031,14 +1031,14 @@ CleanUp:
 /**
  * Put stream with endless payload API call result event
  */
-STATUS putStreamResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult, UPLOAD_HANDLE streamHandle)
+STATUS putStreamResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult, UPLOAD_HANDLE uploadHandle)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     BOOL releaseClientSemaphore = FALSE, releaseStreamSemaphore = FALSE;
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(customData);
 
-    DLOGI("Put stream result event.");
+    DLOGI("Put stream result event. New upload handle %" PRIu64, uploadHandle);
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
 
     // Shutdown sequencer
@@ -1048,7 +1048,7 @@ STATUS putStreamResultEvent(UINT64 customData, SERVICE_CALL_RESULT callResult, U
     CHK_STATUS(semaphoreAcquire(pKinesisVideoStream->base.shutdownSemaphore, INFINITE_TIME_VALUE));
     releaseStreamSemaphore = TRUE;
 
-    CHK_STATUS(putStreamResult(pKinesisVideoStream, callResult, streamHandle));
+    CHK_STATUS(putStreamResult(pKinesisVideoStream, callResult, uploadHandle));
 
 CleanUp:
 
@@ -1135,7 +1135,7 @@ STATUS kinesisVideoStreamTerminated(STREAM_HANDLE streamHandle, UPLOAD_HANDLE st
     BOOL releaseClientSemaphore = FALSE, releaseStreamSemaphore = FALSE;
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(streamHandle);
 
-    DLOGI("Stream terminated event.");
+    DLOGI("Stream 0x%" PRIx64 " terminated upload handle %" PRIu64 " with service call result %u.", streamHandle, streamUploadHandle, callResult);
     CHK(pKinesisVideoStream != NULL && pKinesisVideoStream->pKinesisVideoClient != NULL, STATUS_NULL_ARG);
 
     // Shutdown sequencer

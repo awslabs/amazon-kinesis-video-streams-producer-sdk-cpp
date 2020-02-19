@@ -693,7 +693,7 @@ SIZE_T postReadCallback(PCHAR pBuffer, SIZE_T size, SIZE_T numItems, PVOID custo
             // Media pipeline thread might be blocked due to heap or temporal limit.
             // Pause curl read and wait for persisted ack.
             if (bytesWritten == 0) {
-                DLOGD("Pausing CURL read for upload handle: %" PRIu64, uploadHandle);
+                DLOGV("Pausing CURL read for upload handle: %" PRIu64, uploadHandle);
                 bytesWritten = CURL_READFUNC_PAUSE;
             }
             break;

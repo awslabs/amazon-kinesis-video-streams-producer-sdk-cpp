@@ -313,8 +313,10 @@ protected:
     volatile BOOL mCurlWriteCallbackPassThrough;
 
     STATUS mReadStatus;
-    UINT32 mReadSize;
-    UPLOAD_HANDLE mAbortUploadhandle;
+    STATUS mInjectReadStatus;
+    UINT32 mInjectedReadSize;
+    UPLOAD_HANDLE mReadAbortUploadhandle;
+    UPLOAD_HANDLE mWriteAbortUploadhandle;
 
     // reset st connection
     UINT32 mResetStreamCounter;
