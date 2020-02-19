@@ -14,11 +14,11 @@ extern "C" {
 // Calculate defaults for the following using buffer duration
 #define REPLAY_DURATION_FACTOR      0.5
 #define LATENCY_PRESSURE_FACTOR     0.85
-#define STALENESS_FACTOR            0.85
 
 #define VIDEO_ONLY_TRACK_COUNT                 1
 #define VIDEO_WITH_AUDIO_TRACK_COUNT           2
 
+#define STREAM_INFO_DEFAULT_CONNECTION_STALE_DURATION (5 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define STREAM_INFO_DEFAULT_FRAGMENT_DURATION (2 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 #define DEFAULT_AVG_BANDWIDTH ( 2 * 1024 * 1024 )
 
