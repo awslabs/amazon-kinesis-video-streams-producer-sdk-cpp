@@ -185,6 +185,7 @@ extern "C" {
 #define STATUS_MAX_FRAME_TIMESTAMP_DELTA_BETWEEN_TRACKS_EXCEEDED                    STATUS_CLIENT_BASE + 0x00000085
 #define STATUS_STREAM_SHUTTING_DOWN                                                 STATUS_CLIENT_BASE + 0x00000086
 #define STATUS_CLIENT_SHUTTING_DOWN                                                 STATUS_CLIENT_BASE + 0x00000087
+#define STATUS_PUTMEDIA_LAST_PERSIST_ACK_NOT_RECEIVED								STATUS_CLIENT_BASE + 0x00000088
 
 #define IS_RECOVERABLE_ERROR(error)     ((error) == STATUS_ACK_ERR_INVALID_MKV_DATA ||          \
                                         (error) == STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR ||    \

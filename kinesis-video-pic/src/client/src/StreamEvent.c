@@ -666,7 +666,7 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HAN
 
             pUploadHandleInfo = getStreamUploadInfo(pKinesisVideoStream, uploadHandle);
 
-            // If the upload handle has not streamde any data, we can safely ignore this event.
+            // If the upload handle has not streamed any data, we can safely ignore this event.
             // else the upload handle has streamed some data, set flag to trigger rollback in the next getStreamData call.
             if (NULL != pUploadHandleInfo) {
                 if ((pUploadHandleInfo->state & UPLOAD_HANDLE_STATE_NOT_IN_USE) != UPLOAD_HANDLE_STATE_NONE) {
@@ -686,9 +686,23 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HAN
                             (pUploadHandleInfoItem->state & UPLOAD_HANDLE_STATE_ACTIVE) != UPLOAD_HANDLE_STATE_NONE) {
                             otherActiveSessionPresent = TRUE;
                             pKinesisVideoStream->connectionState = UPLOAD_CONNECTION_STATE_NOT_IN_USE;
+                            // dont spawn new session since there is already an active one.
                             spawnNewUploadSession = FALSE;
-                        }
 
+                            DLOGW("Upload handle %" PRIu64 " terminated with result %u while other upload handles are active."
+                                "Data sent through upload handle %" PRIu64 " may not be fully persisted.",
+                                uploadHandle, callResult, uploadHandle);
+
+                            if (pUploadHandleInfo->state == UPLOAD_HANDLE_STATE_AWAITING_ACK &&
+                                pKinesisVideoClient->clientCallbacks.streamErrorReportFn != NULL) {
+                                pKinesisVideoClient->clientCallbacks.streamErrorReportFn(
+                                    pKinesisVideoClient->clientCallbacks.customData,
+                                    TO_STREAM_HANDLE(pKinesisVideoStream),
+                                    uploadHandle,
+                                    pUploadHandleInfo->lastFragmentTs,
+                                    STATUS_PUTMEDIA_LAST_PERSIST_ACK_NOT_RECEIVED);
+                            }
+                        }
                     }
                 }
 
