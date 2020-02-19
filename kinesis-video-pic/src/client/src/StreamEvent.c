@@ -689,9 +689,9 @@ STATUS streamTerminatedEvent(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HAN
                             // dont spawn new session since there is already an active one.
                             spawnNewUploadSession = FALSE;
 
-                            DLOGW("Upload handle %" PRIu64 " terminated with result %u while other upload handles are active."
-                                "Data sent through upload handle %" PRIu64 " may not be fully persisted.",
-                                uploadHandle, callResult, uploadHandle);
+                            DLOGW("Last fragment with timestamp %" PRIu64 " for upload handle %" PRIu64 " might not be fully persisted",
+                                pUploadHandleInfo->lastFragmentTs,
+                                uploadHandle);
 
                             if (pUploadHandleInfo->state == UPLOAD_HANDLE_STATE_AWAITING_ACK &&
                                 pKinesisVideoClient->clientCallbacks.streamErrorReportFn != NULL) {

@@ -1500,7 +1500,6 @@ CleanUp:
 
         // if there is no more active upload handle and we still have bytes to transfer,
         // call kinesisVideoStreamResetConnection to create new upload session.
-        pUploadHandleInfo = NULL;
         pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_ACTIVE);
 
         if (pUploadHandleInfo == NULL) {
