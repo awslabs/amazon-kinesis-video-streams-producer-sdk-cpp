@@ -65,3 +65,44 @@ TEST_F(AudioCpdParserTest, audioCpdParser_invalidChannelConfig)
     EXPECT_EQ(STATUS_MKV_INVALID_AAC_CPD_CHANNEL_CONFIG, getSamplingFreqAndChannelFromAacCpd(cpd, cpdSize, &samplingFrequency, &channelConfig));
 }
 
+TEST_F(AudioCpdParserTest, audioCpdParser_genreateAudioCpd)
+{
+    BYTE generatedCpd[2], actualCpd[] = {0x15, 0x90};
+    UINT32 cpdSize = SIZEOF(generatedCpd);
+    DOUBLE samplingFrequency = 8000;
+    UINT16 channelConfig = 2;
+
+    EXPECT_EQ(STATUS_SUCCESS, generateAacCpd(generatedCpd, &cpdSize, AAC_LC, samplingFrequency, channelConfig));
+    EXPECT_EQ(0, MEMCMP(generatedCpd, actualCpd, cpdSize));
+}
+
+TEST_F(AudioCpdParserTest, audioCpdParser_genreateAudioCpdInvalidFrequency)
+{
+    BYTE generatedCpd[2];
+    UINT32 cpdSize = SIZEOF(generatedCpd);
+    DOUBLE samplingFrequency = 2222;
+    UINT16 channelConfig = 2;
+
+    EXPECT_EQ(STATUS_INVALID_ARG, generateAacCpd(generatedCpd, &cpdSize, AAC_LC, samplingFrequency, channelConfig));
+}
+
+TEST_F(AudioCpdParserTest, audioCpdParser_genreateAudioCpdInvalidChannelConfig)
+{
+    BYTE generatedCpd[2];
+    UINT32 cpdSize = SIZEOF(generatedCpd);
+    DOUBLE samplingFrequency = 8000;
+    UINT16 channelConfig = 100;
+
+    EXPECT_EQ(STATUS_INVALID_ARG, generateAacCpd(generatedCpd, &cpdSize, AAC_LC, samplingFrequency, channelConfig));
+}
+
+TEST_F(AudioCpdParserTest, audioCpdParser_genreateAudioCpdInvalidAudioObjectType)
+{
+    BYTE generatedCpd[2];
+    UINT32 cpdSize = SIZEOF(generatedCpd);
+    DOUBLE samplingFrequency = 8000;
+    UINT16 channelConfig = 2;
+
+    EXPECT_EQ(STATUS_INVALID_ARG, generateAacCpd(generatedCpd, &cpdSize, (MPEG4_AUDIO_OBJECT_TYPE) 120, samplingFrequency, channelConfig));
+}
+

@@ -1606,6 +1606,65 @@ CleanUp:
     return retStatus;
 }
 
+BOOL isValidAudioObjectType(UINT32 objectType)
+{
+    UINT32 i;
+    const UINT32 allObjectTypes[] = {AAC_MAIN, AAC_LC, AAC_SSR, AAC_LTP, AAC_SCALABLE};
+
+    for(i = 0; i < SIZEOF(allObjectTypes); ++i) {
+        if (allObjectTypes[i] == objectType) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+/**
+ * Generate AAC Cpd
+ */
+STATUS generateAacCpd(PBYTE pCpd,
+                      PUINT32 pCpdSize,
+                      MPEG4_AUDIO_OBJECT_TYPE objectType,
+                      DOUBLE samplingFrequency,
+                      UINT16 channelConfig)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    BOOL validSamplingFrequency = FALSE;
+    UINT32 samplingRateIdx;
+    PUINT16 pCpdContainer = NULL;
+
+    CHK(pCpdSize != NULL, STATUS_NULL_ARG);
+    CHK((pCpd == NULL || *pCpdSize >= AAC_CPD_SIZE), STATUS_INVALID_ARG);
+    CHK_ERR(isValidAudioObjectType(objectType), STATUS_INVALID_ARG, "Invalid audio object type");
+    CHK_ERR(channelConfig > 1 && channelConfig < MAX_AUDIO_CHANNEL_CONFIGURATION, STATUS_INVALID_ARG, "Invalid channel configuration %u", channelConfig);
+
+    for (samplingRateIdx = 0; samplingRateIdx < MKV_AAC_SAMPLING_FREQUNECY_IDX_MAX; samplingRateIdx++) {
+        if (gMkvAACSamplingFrequencies[samplingRateIdx] == samplingFrequency) {
+            validSamplingFrequency = TRUE;
+            break;
+        }
+    }
+
+    CHK_ERR(validSamplingFrequency, STATUS_INVALID_ARG, "Invalid sampling frequency %f", samplingFrequency);
+
+    if (pCpd == NULL) {
+        *pCpdSize = AAC_CPD_SIZE;
+        CHK(FALSE, retStatus);
+    }
+
+    MEMSET(pCpd, 0x00, SIZEOF(AAC_CPD_SIZE));
+    
+    pCpdContainer = (PUINT16) pCpd;
+    *pCpdContainer = (UINT16) getInt16(((UINT16)objectType) << 11);
+    *pCpdContainer |= (UINT16) getInt16(samplingRateIdx << 7);
+    *pCpdContainer |= (UINT16) getInt16(channelConfig << 3);
+
+CleanUp:
+
+    return retStatus;
+}
+
 /**
  * Parse A_MS/ACM Cpd
  */

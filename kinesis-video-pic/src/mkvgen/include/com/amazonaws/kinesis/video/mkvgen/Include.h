@@ -234,6 +234,28 @@ typedef enum {
 #define CLEAR_FRAME_FLAG_END_OF_FRAGMENT(f)                     ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_END_OF_FRAGMENT))
 
 /**
+ * AAC MPEG-4 object types enum
+ * https://wiki.multimedia.cx/index.php/MPEG-4_Audio
+ * https://wiki.multimedia.cx/index.php/Understanding_AAC
+ */
+typedef enum {
+    AAC_MAIN        = 1,
+    AAC_LC          = 2,
+    AAC_SSR         = 3,
+    AAC_LTP         = 4,
+    AAC_SCALABLE    = 6,
+} MPEG4_AUDIO_OBJECT_TYPE;
+
+// https://wiki.multimedia.cx/index.php/MPEG-4_Audio
+#define MAX_AUDIO_CHANNEL_CONFIGURATION             7
+
+/*
+ * aac cpd structure
+ * 5 bits (Audio Object Type) | 4 bits (frequency index) | 4 bits (channel configuration) | 3 bits (not used)
+ */
+#define AAC_CPD_SIZE                                2
+
+/**
  * Frame types enum
  */
 typedef enum {
@@ -558,6 +580,11 @@ PUBLIC_API STATUS mkvgenSetCodecPrivateData(PMkvGenerator, UINT64, UINT32, PBYTE
  * @return Status of the operation
  */
 PUBLIC_API STATUS mkvgenGetTrackInfo(PTrackInfo, UINT32, UINT64, PTrackInfo*, PUINT32);
+
+PUBLIC_API STATUS generateAacCpd(PBYTE,PUINT32,
+                      MPEG4_AUDIO_OBJECT_TYPE,
+                      DOUBLE,
+                      UINT16);
 
 #pragma pack(pop, include)
 
