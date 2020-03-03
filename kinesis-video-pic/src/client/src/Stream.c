@@ -1497,14 +1497,16 @@ CleanUp:
     // Remove the upload handle if it is in UPLOAD_HANDLE_STATE_TERMINATED state
     if (NULL != pUploadHandleInfo && pUploadHandleInfo->state == UPLOAD_HANDLE_STATE_TERMINATED) {
         deleteStreamUploadInfo(pKinesisVideoStream, pUploadHandleInfo);
-        pUploadHandleInfo = NULL;
+
+        // if there is no more active upload handle and we still have bytes to transfer,
+        // call kinesisVideoStreamResetConnection to create new upload session.
         pUploadHandleInfo = getStreamUploadInfoWithState(pKinesisVideoStream, UPLOAD_HANDLE_STATE_ACTIVE);
 
         if (pUploadHandleInfo == NULL) {
             // Get the duration and the size
             getAvailableViewSize(pKinesisVideoStream, &duration, &viewByteSize);
             if (viewByteSize != 0) {
-                streamTerminatedEvent(pKinesisVideoStream, INVALID_UPLOAD_HANDLE_VALUE, SERVICE_CALL_RESULT_OK, FALSE);
+                kinesisVideoStreamResetConnection(TO_STREAM_HANDLE(pKinesisVideoStream));
             }
         }
     }

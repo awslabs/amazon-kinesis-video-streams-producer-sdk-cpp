@@ -114,10 +114,10 @@ if not exist "log4cplus-1.2.1" (
 echo "Log4Cplus installed"
 
 
-if not exist "openssl-OpenSSL_1_1_0f" (
+if not exist "openssl-OpenSSL_1_1_1d" (
     echo "Openssl doesn't exist, installing into %CURRENTDIR%"
-    if not exist "openssl-1.1.0f.zip" (
-        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest https://github.com/openssl/openssl/archive/OpenSSL_1_1_0f.zip -OutFile openssl-1.1.0f.zip"
+    if not exist "openssl-1.1.1d.zip" (
+        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest https://github.com/openssl/openssl/archive/OpenSSL_1_1_1d.zip -OutFile openssl-1.1.1d.zip"
     )
     if not exist "strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi" (
         powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri http://strawberryperl.com/download/5.28.2.1/strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi -OutFile strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi"
@@ -126,20 +126,20 @@ if not exist "openssl-OpenSSL_1_1_0f" (
         powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri https://www.nasm.us/pub/nasm/releasebuilds/2.13/win%BITWIDTH%/nasm-2.13-win%BITWIDTH%.zip -OutFile nasm-2.13-win%BITWIDTH%.zip"
     )
 
-    powershell -NoP -NonI -Command "Expand-Archive '.\openssl-1.1.0f.zip' '.\'"
+    powershell -NoP -NonI -Command "Expand-Archive '.\openssl-1.1.1d.zip' '.\'"
     powershell -NoP -NonI -Command "Expand-Archive '.\nasm-2.13-win%BITWIDTH%.zip' '.\'"
 
     msiexec /x strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi /qn
     msiexec /i strawberry-perl-5.28.2.1-%BITWIDTH%bit.msi INSTALLDIR="%CURRENTDIR%\StrawberryPerl" /qb
 
-    cd "%CURRENTDIR%\openssl-OpenSSL_1_1_0f"
+    cd "%CURRENTDIR%\openssl-OpenSSL_1_1_1d"
 
     set "path=%CURRENTDIR%\nasm-2.13;%path%"
 
     IF %BITWIDTH%==32 (
-        "%CURRENTDIR%\StrawberryPerl\perl\bin\perl" Configure VC-WIN32 --openssldir="%CURRENTDIR%\openssl-OpenSSL_1_1_0f\OpenSSL" --prefix="%CURRENTDIR%\openssl-OpenSSL_1_1_0f\OpenSSL"
+        "%CURRENTDIR%\StrawberryPerl\perl\bin\perl" Configure VC-WIN32 --openssldir="%CURRENTDIR%\openssl-OpenSSL_1_1_1d\OpenSSL" --prefix="%CURRENTDIR%\openssl-OpenSSL_1_1_1d\OpenSSL"
     ) ELSE (
-        "%CURRENTDIR%\StrawberryPerl\perl\bin\perl" Configure VC-WIN64A --openssldir="%CURRENTDIR%\openssl-OpenSSL_1_1_0f\OpenSSL" --prefix="%CURRENTDIR%\openssl-OpenSSL_1_1_0f\OpenSSL"
+        "%CURRENTDIR%\StrawberryPerl\perl\bin\perl" Configure VC-WIN64A --openssldir="%CURRENTDIR%\openssl-OpenSSL_1_1_1d\OpenSSL" --prefix="%CURRENTDIR%\openssl-OpenSSL_1_1_1d\OpenSSL"
     )
     nmake
     if ERRORLEVEL 1 goto :showerror
@@ -148,8 +148,8 @@ if not exist "openssl-OpenSSL_1_1_0f" (
 
     cd "%CURRENTDIR%\"
 )
-copy openssl-OpenSSL_1_1_0f\libcrypto-1_1-x64.dll ..\Release\ /Y
-copy openssl-OpenSSL_1_1_0f\libssl-1_1-x64.dll ..\Release\ /Y
+copy openssl-OpenSSL_1_1_1d\libcrypto-1_1-x64.dll ..\Release\ /Y
+copy openssl-OpenSSL_1_1_1d\libssl-1_1-x64.dll ..\Release\ /Y
 echo "Openssl installed"
 
 

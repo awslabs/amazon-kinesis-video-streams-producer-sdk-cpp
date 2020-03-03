@@ -2188,7 +2188,7 @@ CleanUp:
     return (PVOID) (ULONG_PTR) retStatus;
 }
 
-// Accquire activeUploads lock before calling this function!!!
+// Acquire activeUploads lock before calling this function!!!
 STATUS findRequestWithUploadHandle(UPLOAD_HANDLE uploadHandle, PCurlApiCallbacks pCurlApiCallbacks,
                                    PCurlRequest *ppCurlRequest)
 {

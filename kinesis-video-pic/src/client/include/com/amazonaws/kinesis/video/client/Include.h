@@ -185,15 +185,17 @@ extern "C" {
 #define STATUS_MAX_FRAME_TIMESTAMP_DELTA_BETWEEN_TRACKS_EXCEEDED                    STATUS_CLIENT_BASE + 0x00000085
 #define STATUS_STREAM_SHUTTING_DOWN                                                 STATUS_CLIENT_BASE + 0x00000086
 #define STATUS_CLIENT_SHUTTING_DOWN                                                 STATUS_CLIENT_BASE + 0x00000087
+#define STATUS_PUTMEDIA_LAST_PERSIST_ACK_NOT_RECEIVED								STATUS_CLIENT_BASE + 0x00000088
 
-#define IS_RECOVERABLE_ERROR(error)     ((error) == STATUS_ACK_ERR_INVALID_MKV_DATA ||          \
-                                        (error) == STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR ||    \
-                                        (error) == STATUS_INVALID_ACK_KEY_START ||              \
-                                        (error) == STATUS_INVALID_ACK_DUPLICATE_KEY_NAME ||     \
-                                        (error) == STATUS_INVALID_ACK_INVALID_VALUE_START ||    \
-                                        (error) == STATUS_INVALID_ACK_INVALID_VALUE_END ||      \
-                                        (error) == STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW ||   \
-                                        (error) == STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED)    \
+#define IS_RECOVERABLE_ERROR(error)     ((error) == STATUS_ACK_ERR_INVALID_MKV_DATA ||          	\
+                                        (error) == STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR ||    	\
+                                        (error) == STATUS_INVALID_ACK_KEY_START ||              	\
+                                        (error) == STATUS_INVALID_ACK_DUPLICATE_KEY_NAME ||     	\
+                                        (error) == STATUS_INVALID_ACK_INVALID_VALUE_START ||    	\
+                                        (error) == STATUS_INVALID_ACK_INVALID_VALUE_END ||      	\
+                                        (error) == STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW ||   	\
+                                        (error) == STATUS_PUTMEDIA_LAST_PERSIST_ACK_NOT_RECEIVED ||	\
+                                        (error) == STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED)    	\
 
 #define IS_RETRIABLE_ERROR(error)       ((error) == STATUS_DESCRIBE_STREAM_CALL_FAILED ||       \
                                         (error) == STATUS_CREATE_STREAM_CALL_FAILED ||          \
@@ -2164,7 +2166,8 @@ PUBLIC_API STATUS kinesisVideoStreamGetStreamInfo(STREAM_HANDLE,
 PUBLIC_API STATUS kinesisVideoStreamResetStream(STREAM_HANDLE);
 
 /**
- * Reset connection for stream, continue sending existing data in buffer with new connection
+ * Reset connection for stream. All existing putMedia connection will be terminated first.
+ * Continue sending existing data with new connection
  *
  * @param 1 STREAM_HANDLE - The stream handle to reset
  *

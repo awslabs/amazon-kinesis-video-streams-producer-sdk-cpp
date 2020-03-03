@@ -147,7 +147,9 @@ typedef struct _CustomData {
             pts_base(0),
             media_type(VIDEO_ONLY),
             first_video_frame(true),
-            frame_count(0)  {}
+            frame_count(0),
+            first_pts(GST_CLOCK_TIME_NONE),
+            producer_start_time(GST_CLOCK_TIME_NONE) {}
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
 
@@ -162,6 +164,8 @@ typedef struct _CustomData {
 
     uint64_t last_dts;
     uint64_t pts_base;
+    uint64_t first_pts;
+    uint64_t producer_start_time;
 } CustomData;
 
 #endif /* __GST_KVS_SINK_H__ */
