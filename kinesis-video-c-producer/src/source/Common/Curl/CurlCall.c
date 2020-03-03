@@ -15,7 +15,6 @@ STATUS blockingCurlCall(PRequestInfo pRequestInfo, PCallInfo pCallInfo)
     struct curl_slist* pHeaderList = NULL;
     CHAR errorBuffer[CURL_ERROR_SIZE];
     errorBuffer[0] = '\0';
-    UINT32 length;
     STAT_STRUCT entryStat;
     BOOL secureConnection;
 
@@ -39,13 +38,6 @@ STATUS blockingCurlCall(PRequestInfo pRequestInfo, PCallInfo pCallInfo)
                 // Assume it's the path as we have a directory
                 curl_easy_setopt(curl, CURLOPT_CAPATH, pRequestInfo->certPath);
             } else {
-                // We should check for the extension being PEM
-                length = (UINT32) STRNLEN(pRequestInfo->certPath, MAX_PATH_LEN);
-                CHK(length > ARRAY_SIZE(CA_CERT_PEM_FILE_EXTENSION), STATUS_INVALID_ARG_LEN);
-                CHK(0 ==
-                    STRCMPI(CA_CERT_PEM_FILE_EXTENSION, &pRequestInfo->certPath[length - ARRAY_SIZE(CA_CERT_PEM_FILE_EXTENSION) + 1]),
-                    STATUS_INVALID_CA_CERT_PATH);
-
                 curl_easy_setopt(curl, CURLOPT_CAINFO, pRequestInfo->certPath);
             }
         }
