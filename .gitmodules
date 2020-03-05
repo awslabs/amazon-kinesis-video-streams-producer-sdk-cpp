@@ -1,0 +1,3 @@
+[submodule "kinesis-video-c-producer"]
+	path = kinesis-video-c-producer
+	url = https://github.com/awslabs/amazon-kinesis-video-streams-producer-c
