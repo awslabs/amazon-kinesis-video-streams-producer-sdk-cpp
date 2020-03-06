@@ -10,6 +10,11 @@ setup() {
 	    echo "Current working path cannot have space in it !"
 	    exit
 	fi
+    
+	if [ ! "$(ls -A $KINESIS_VIDEO_ROOT/../kinesis-video-pic)" ]; then
+	    # if submodules are empty then initialize them
+	    git submodule update --init
+	fi
 
 	DOWNLOADS="$KINESIS_VIDEO_ROOT/downloads"
 	if [ ! -d "$DOWNLOADS" ]; then
