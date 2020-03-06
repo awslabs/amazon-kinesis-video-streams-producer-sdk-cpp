@@ -491,11 +491,12 @@ else()
   link_directories(${OPEN_SRC_LIBRARY_DIRS})
 
   add_library(kvspic STATIC ${PIC_SOURCE_FILES})
-  target_link_libraries(kvspic ${CMAKE_DL_LIBS} Threads::Threads)
 
   if(UNIX AND NOT APPLE)
     # rt needed for clock_gettime
-    target_link_libraries(kvspic rt)
+    target_link_libraries(kvspic ${CMAKE_DL_LIBS} Threads::Threads rt)
+  else()
+    target_link_libraries(kvspic ${CMAKE_DL_LIBS} Threads::Threads)
   endif()
 
   add_definitions(-DKVS_BUILD_WITH_CURL)
@@ -504,7 +505,9 @@ else()
       cproducer SHARED
       ${C_PRODUCER_SOURCE_FILES} ${C_PRODUCER_COMMON_SOURCE_FILES}
       ${C_PRODUCER_COMMON_CURL_SOURCE_FILES})
-    target_link_libraries(cproducer ${PRODUCER_LIBRARIES} ${Jsmn} kvspic)
+    # Use PRIVATE otherwise anything linking against cproducer will also link with pic again,
+    # causing duplicate symbols
+    target_link_libraries(cproducer PRIVATE ${PRODUCER_LIBRARIES} ${Jsmn} kvspic)
 
     add_executable(
       kinesis_video_cproducer_video_only_sample
