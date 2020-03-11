@@ -3,19 +3,11 @@ FROM ubuntu:18.04
 RUN apt-get upgrade
 RUN apt-get update
 
-RUN apt-get install -y git && \
-    apt-get install -y vim  && \
-    apt-get install -y curl && \
-    apt-get install -y xz-utils && \
-    apt-get install -y byacc  && \
-    apt-get install -y wget  && \
-    apt-get install -y g++ && \
-    apt-get install -y python2.7 && \
-    apt-get install -y pkg-config && \
-    apt-get install -y cmake && \
-    apt-get install -y maven && \
-    apt-get install -y openjdk-8-jdk && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get install -y git vim curl g++ gcc python2.7 pkg-config cmake maven openjdk-8-jdk libssl-dev \
+    libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
+    gstreamer1.0-tools
+RUN rm -rf /var/lib/apt/lists/*
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64/
 WORKDIR /opt/
 
@@ -26,14 +18,13 @@ RUN git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-s
 # ================ Build the Producer SDK (CPP) ============================================================
 
 WORKDIR /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
-RUN  chmod a+x ./install-script
-RUN ./install-script -j 4 -d
+RUN  chmod a+x ./min-install-script
+RUN ./min-install-script
 RUN ./java-install-script
 
 COPY start_rtsp_in_docker.sh /opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/
-ENV LD_LIBRARY_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib:$LD_LIBRARY_PATH
-ENV GST_PLUGIN_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/lib
-ENV PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build/downloads/local/bin:/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build:$PATH
+ENV GST_PLUGIN_PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build
+ENV PATH=/opt/amazon-kinesis-video-streams-producer-sdk-cpp/kinesis-video-native-build:$PATH
 RUN chmod a+x ./start_rtsp_in_docker.sh
 
 # comment the following step if you would like to customize the docker image build
