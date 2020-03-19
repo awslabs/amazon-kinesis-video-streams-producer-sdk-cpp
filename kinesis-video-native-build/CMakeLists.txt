@@ -278,6 +278,7 @@ include_directories(${KINESIS_VIDEO_PRODUCER_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_JNI_SRC}/src/include/)
 include_directories(${KINESIS_VIDEO_C_PRODUCER_SRC}/src/include)
 include_directories(${KINESIS_VIDEO_C_PRODUCER_SRC})
+include_directories(${KINESIS_VIDEO_C_PRODUCER_SRC}/sample)
 include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/include)
 include_directories(${OPEN_SRC_INCLUDE_DIRS})
 include_directories(${JNI_INCLUDE_DIRS})
@@ -499,6 +500,8 @@ else()
     target_link_libraries(kvspic ${CMAKE_DL_LIBS} Threads::Threads)
   endif()
 
+  find_package(AWSSDK REQUIRED COMPONENTS monitoring events logs)
+
   add_definitions(-DKVS_BUILD_WITH_CURL)
   if(BUILD_PRODUCER)
     add_library(
@@ -513,6 +516,13 @@ else()
       kinesis_video_cproducer_video_only_sample
       ${KINESIS_VIDEO_C_PRODUCER_SRC}/samples/KvsVideoOnlyStreamingSample.c)
     target_link_libraries(kinesis_video_cproducer_video_only_sample cproducer)
+
+    add_executable(
+            kinesis_video_cproducer_video_only_sample_cw
+            ${KINESIS_VIDEO_C_PRODUCER_SRC}/samples/KvsVideoOnlyStreamingSampleCloudwatch.cpp
+            ${KINESIS_VIDEO_C_PRODUCER_SRC}/samples/CanaryStreamCallbacks.cpp)
+
+    target_link_libraries(kinesis_video_cproducer_video_only_sample_cw cproducer ${AWSSDK_LINK_LIBRARIES})
 
     add_executable(
       kinesis_video_cproducer_aac_audio_video_sample
