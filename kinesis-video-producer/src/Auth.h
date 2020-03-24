@@ -172,6 +172,8 @@ public:
 protected:
     CredentialProvider();
 
+    const std::chrono::duration<uint64_t> CredentialProviderGracePeriod = std::chrono::seconds(5 + (MIN_STREAMING_TOKEN_EXPIRATION_DURATION + STREAMING_TOKEN_EXPIRATION_GRACE_PERIOD) / HUNDREDS_OF_NANOS_IN_A_SECOND);
+
 private:
     void refreshCredentials(bool forceUpdate = false);
 

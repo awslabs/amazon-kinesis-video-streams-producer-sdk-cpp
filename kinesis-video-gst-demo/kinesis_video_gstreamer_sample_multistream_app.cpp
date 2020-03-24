@@ -51,7 +51,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define APP_SINK_BASE_NAME "appsink"
 #define DEFAULT_BUFFER_SIZE (1 * 1024 * 1024)
 #define DEFAULT_STORAGE_SIZE (128 * 1024 * 1024)
-#define DEFAULT_ROTATION_TIME_SECONDS 2400
+#define DEFAULT_ROTATION_TIME_SECONDS 3600
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
