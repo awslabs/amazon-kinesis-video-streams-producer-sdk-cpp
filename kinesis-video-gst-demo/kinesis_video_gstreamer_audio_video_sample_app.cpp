@@ -481,9 +481,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         if (data->first_pts == GST_CLOCK_TIME_NONE) {
             data->first_pts = buffer->pts;
         }
-        if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
-            data->producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
-        }
         buffer->pts += data->producer_start_time - data->first_pts;
     }
 
@@ -704,9 +701,6 @@ int gstreamer_init(int argc, char *argv[], CustomData &data) {
 
     // Reset first frame pts
     data.first_pts = GST_CLOCK_TIME_NONE;
-
-    // Reset producer start time
-    data.producer_start_time = GST_CLOCK_TIME_NONE;
 
     //reset state
     data.eos_triggered = false;
