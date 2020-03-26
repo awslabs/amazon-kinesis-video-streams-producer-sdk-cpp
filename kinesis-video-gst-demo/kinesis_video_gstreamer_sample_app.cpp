@@ -46,7 +46,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CODEC_ID "V_MPEG4/ISO/AVC"
 #define DEFAULT_TRACKNAME "kinesis_video"
 #define DEFAULT_FRAME_DURATION_MS 1
-#define DEFAULT_CREDENTIAL_ROTATION_SECONDS 2400
+#define DEFAULT_CREDENTIAL_ROTATION_SECONDS 3600
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
 typedef enum _StreamSource {
@@ -393,9 +393,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         } else if (data->use_absolute_fragment_times) {
             if (data->first_pts == GST_CLOCK_TIME_NONE) {
                 data->first_pts = buffer->pts;
-            }
-            if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
-                data->producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
             }
             buffer->pts += data->producer_start_time - data->first_pts;
         }
@@ -988,9 +985,6 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
 
     // Reset first frame pts
     data->first_pts = GST_CLOCK_TIME_NONE;
-
-    // Reset producer start time
-    data->producer_start_time = GST_CLOCK_TIME_NONE;
 
     switch (data->streamSource) {
         case LIVE_SOURCE:
