@@ -220,12 +220,6 @@ static GstFlowReturn gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                                                  GstCollectData * data, GstBuffer * buf, gpointer user_data);
 static gboolean gst_kvs_sink_handle_sink_event (GstCollectPads * pads,
                                                 GstCollectData * data, GstEvent * event, gpointer user_data);
-static gint gst_kvs_sink_collect_compare (GstCollectPads *pads,
-                                          GstCollectData *data1,
-                                          GstClockTime timestamp1,
-                                          GstCollectData *data2,
-                                          GstClockTime timestamp2,
-                                          gpointer user_data);
 
 /* Request pad callback */
 static GstPad* gst_kvs_sink_request_new_pad (GstElement *element, GstPadTemplate *templ,
@@ -329,7 +323,7 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
     // (i.e. starting from 0)
     if (kvssink->streaming_type == STREAMING_TYPE_OFFLINE && kvssink->file_start_time != 0) {
         kvssink->absolute_fragment_times = TRUE;
-        data->pts_base = duration_cast<nanoseconds>(seconds(kvssink->file_start_time)).count();
+        data->pts_base = (uint64_t) duration_cast<nanoseconds>(seconds(kvssink->file_start_time)).count();
     }
 
     switch (data->media_type) {
@@ -381,11 +375,9 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
 
     if (data->media_type == AUDIO_VIDEO) {
         stream_definition->addTrack(KVS_SINK_DEFAULT_AUDIO_TRACKID, DEFAULT_AUDIO_TRACK_NAME, DEFAULT_AUDIO_CODEC_ID, MKV_TRACK_INFO_TYPE_AUDIO);
-        // frames from gstreamer are already ordered.
-        stream_definition->setFrameOrderMode(FRAME_ORDER_MODE_PASS_THROUGH);
+        // Need to reorder frames to avoid fragment overlap error.
+        stream_definition->setFrameOrderMode(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE);
     }
-
-
 
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
     data->frame_count = 0;
@@ -611,8 +603,6 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
                                           GST_DEBUG_FUNCPTR (gst_kvs_sink_handle_buffer), kvssink);
     gst_collect_pads_set_event_function (kvssink->collect,
                                          GST_DEBUG_FUNCPTR (gst_kvs_sink_handle_sink_event), kvssink);
-    gst_collect_pads_set_compare_function(kvssink->collect,
-                                          GST_DEBUG_FUNCPTR (gst_kvs_sink_collect_compare), kvssink);
 
     kvssink->num_streams = 0;
     kvssink->num_audio_streams = 0;
@@ -646,7 +636,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->log_config_path = g_strdup (DEFAULT_LOG_FILE_PATH);
     kvssink->storage_size = DEFAULT_STORAGE_SIZE_MB;
     kvssink->credential_file_path = g_strdup (DEFAULT_CREDENTIAL_FILE_PATH);
-    kvssink->file_start_time = DEFAULT_FILE_START_TIME;
+    kvssink->file_start_time = (uint64_t) chrono::duration_cast<seconds>(
+            systemCurrentTime().time_since_epoch()).count();
     kvssink->track_info_type = MKV_TRACK_INFO_TYPE_VIDEO;
 
     kvssink->data = make_shared<CustomData>();
@@ -1067,6 +1058,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                     (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
 
     if (isDroppable) {
+        LOG_DEBUG("Dropping frame with flag %u" << GST_BUFFER_FLAGS(buf));
         goto CleanUp;
     }
 
@@ -1112,7 +1104,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             data->first_pts = buf->pts;
         }
         if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
-            data->producer_start_time = chrono::duration_cast<nanoseconds>(
+            data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
                     systemCurrentTime().time_since_epoch()).count();
         }
         buf->pts += data->producer_start_time - data->first_pts;
@@ -1132,42 +1124,6 @@ CleanUp:
         gst_buffer_unref (buf);
     }
 
-    return ret;
-}
-
-/**
- * Collectpad function for comparing buffers.
- * If return 0, both buffers are considered equally old.
- * If return -1, first buffer is considered older
- * If return 1, second buffer is considered older
- * Older buffer go first.
- */
-static gint gst_kvs_sink_collect_compare (GstCollectPads *pads,
-                                          GstCollectData *data1,
-                                          GstClockTime timestamp1,
-                                          GstCollectData *data2,
-                                          GstClockTime timestamp2,
-                                          gpointer user_data) {
-    GstKvsSink *kvssink = GST_KVS_SINK(user_data);
-    gint ret = 0;
-    GstKvsSinkTrackData *kvs_sink_track_data1 = (GstKvsSinkTrackData *) data1;
-    GstKvsSinkTrackData *kvs_sink_track_data2 = (GstKvsSinkTrackData *) data2;
-
-    // If two buffer timestamps' mkv timecode are equal, and they are from different tracks, let video go first.
-    // This prevents fragment x's last audio frame timecode being equal to fragment x+1's first video frame timecode.
-    if (GST_TIME_AS_MSECONDS(timestamp1) == GST_TIME_AS_MSECONDS(timestamp2) &&
-        kvs_sink_track_data1->track_type != kvs_sink_track_data2->track_type) {
-        ret = kvs_sink_track_data1->track_type == MKV_TRACK_INFO_TYPE_VIDEO ? -1 : 1;
-        goto CleanUp;
-    }
-
-    if (timestamp1 > timestamp2) {
-        ret = 1;
-    } else if (timestamp1 < timestamp2) {
-        ret = -1;
-    }
-
-CleanUp:
     return ret;
 }
 
