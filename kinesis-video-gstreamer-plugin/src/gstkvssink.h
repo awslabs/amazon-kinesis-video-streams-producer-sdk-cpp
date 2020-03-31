@@ -120,6 +120,7 @@ struct _GstKvsSink {
     GstStructure                *stream_tags;
     guint64                     file_start_time;
     MKV_TRACK_INFO_TYPE         track_info_type;
+    gchar                       *audio_codec_id;
 
 
     guint                       num_streams;
@@ -141,7 +142,6 @@ G_END_DECLS
 typedef struct _CustomData {
 
     _CustomData():
-            stream_ready(false),
             stream_status(STATUS_SUCCESS),
             last_dts(0),
             pts_base(0),
@@ -159,7 +159,6 @@ typedef struct _CustomData {
     bool first_video_frame;
     uint32_t frame_count;
 
-    atomic_bool stream_ready;
     atomic_uint stream_status;
 
     uint64_t last_dts;

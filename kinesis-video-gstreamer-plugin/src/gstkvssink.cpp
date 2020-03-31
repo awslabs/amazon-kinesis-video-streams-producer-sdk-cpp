@@ -79,9 +79,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
 #define DEFAULT_KMS_KEY_ID ""
 #define DEFAULT_STREAMING_TYPE STREAMING_TYPE_REALTIME
-#define DEFAULT_CONTENT_TYPE_VIDEO_H264 "video/h264"
-#define DEFAULT_CONTENT_TYPE_VIDEO_H265 "video/h265"
-#define DEFAULT_CONTENT_TYPE_AUDIO "audio/aac"
 #define DEFAULT_MAX_LATENCY_SECONDS 60
 #define DEFAULT_FRAGMENT_DURATION_MILLISECONDS 2000
 #define DEFAULT_TIMECODE_SCALE_MILLISECONDS 1
@@ -105,7 +102,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_REGION "us-west-2"
 #define DEFAULT_ROTATION_PERIOD_SECONDS 3600
 #define DEFAULT_LOG_FILE_PATH "./kvs_log_configuration"
-#define DEFAULT_FILE_START_TIME 0
 #define DEFAULT_STORAGE_SIZE_MB 128
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 #define DEFAULT_FRAME_DURATION_MS 2
@@ -117,12 +113,17 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CLIENT"
 
 #define DEFAULT_AUDIO_TRACK_NAME "audio"
-#define DEFAULT_AUDIO_CODEC_ID "A_AAC"
+#define DEFAULT_AUDIO_CODEC_ID_AAC "A_AAC"
+#define DEFAULT_AUDIO_CODEC_ID_PCM "A_MS/ACM"
 #define KVS_SINK_DEFAULT_TRACKID 1
 #define KVS_SINK_DEFAULT_AUDIO_TRACKID 2
 
 #define GSTREAMER_MEDIA_TYPE_H265       "video/x-h265"
 #define GSTREAMER_MEDIA_TYPE_H264       "video/x-h264"
+#define GSTREAMER_MEDIA_TYPE_AAC        "audio/mpeg"
+#define GSTREAMER_MEDIA_TYPE_MULAW      "audio/x-mulaw"
+#define GSTREAMER_MEDIA_TYPE_ALAW       "audio/x-alaw"
+
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
 enum {
@@ -183,7 +184,9 @@ static GstStaticPadTemplate audiosink_templ =
                                  GST_PAD_SINK,
                                  GST_PAD_REQUEST,
                                  GST_STATIC_CAPS (
-                                         "audio/mpeg, mpegversion = (int) { 2, 4 }, stream-format = (string) raw, channels = (int) [ 1, MAX ], rate = (int) [ 1, MAX ] ;"
+                                         "audio/mpeg, mpegversion = (int) { 2, 4 }, stream-format = (string) raw, channels = (int) [ 1, MAX ], rate = (int) [ 1, MAX ] ; " \
+                                         "audio/x-alaw, channels = (int) { 1, 2 }, rate = (int) [ 8000, 192000 ] ; " \
+                                         "audio/x-mulaw, channels = (int) { 1, 2 }, rate = (int) [ 8000, 192000 ] ; "
                                  )
         );
 
@@ -332,7 +335,7 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
             break;
         case AUDIO_ONLY:
             g_free(kvssink->codec_id);
-            kvssink->codec_id = g_strdup(DEFAULT_AUDIO_CODEC_ID);
+            kvssink->codec_id = kvssink->audio_codec_id;
             g_free(kvssink->track_name);
             kvssink->track_name = g_strdup(DEFAULT_AUDIO_TRACK_NAME);
             kvssink->track_info_type = MKV_TRACK_INFO_TYPE_AUDIO;
@@ -374,7 +377,7 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
             KVS_SINK_DEFAULT_TRACKID));
 
     if (data->media_type == AUDIO_VIDEO) {
-        stream_definition->addTrack(KVS_SINK_DEFAULT_AUDIO_TRACKID, DEFAULT_AUDIO_TRACK_NAME, DEFAULT_AUDIO_CODEC_ID, MKV_TRACK_INFO_TYPE_AUDIO);
+        stream_definition->addTrack(KVS_SINK_DEFAULT_AUDIO_TRACKID, DEFAULT_AUDIO_TRACK_NAME, kvssink->audio_codec_id, MKV_TRACK_INFO_TYPE_AUDIO);
         // Need to reorder frames to avoid fragment overlap error.
         stream_definition->setFrameOrderMode(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE);
     }
@@ -400,31 +403,6 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
                 ostringstream oss;
                 oss << "Failed to create stream. Error: " << err.what();
                 err_msg = oss.str();
-                ret = false;
-                do_retry = false;
-            } else {
-                this_thread::sleep_for(std::chrono::milliseconds(retry_delay));
-                // double the delay period
-                retry_delay = retry_delay << 1;
-            }
-        }
-    }
-
-    return ret;
-}
-
-bool kinesis_video_stream_start(shared_ptr<CustomData> data, string &cpd, uint64_t track_id) {
-    bool ret = true;
-    int retry_count = DEFAULT_TOTAL_RETRY;
-    int retry_delay = DEFAULT_INITIAL_RETRY_DELAY_MS;
-    bool do_retry = true;
-
-    while(do_retry) {
-        LOG_INFO("try starting stream.");
-        if (data->kinesis_video_stream->start(cpd, track_id)) {
-            do_retry = false;
-        } else {
-            if (--retry_count == 0) {
                 ret = false;
                 do_retry = false;
             } else {
@@ -464,7 +442,7 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
 
     g_object_class_install_property (gobject_class, PROP_CONTENT_TYPE,
                                      g_param_spec_string ("content-type", "Content Type",
-                                                          "content type", DEFAULT_CONTENT_TYPE_VIDEO_H264, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                                                          "content type", MKV_H264_CONTENT_TYPE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_MAX_LATENCY,
                                      g_param_spec_uint ("max-latency", "Max Latency",
@@ -639,6 +617,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->file_start_time = (uint64_t) chrono::duration_cast<seconds>(
             systemCurrentTime().time_since_epoch()).count();
     kvssink->track_info_type = MKV_TRACK_INFO_TYPE_VIDEO;
+    kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
     kvssink->data = make_shared<CustomData>();
 
@@ -664,6 +643,7 @@ gst_kvs_sink_finalize(GObject *object) {
     g_free(kvssink->track_name);
     g_free(kvssink->secret_key);
     g_free(kvssink->access_key);
+    g_free(kvssink->audio_codec_id);
     if (kvssink->iot_certificate) {
         gst_structure_free (kvssink->iot_certificate);
     }
@@ -911,28 +891,62 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
     string err_msg;
     uint64_t track_id = kvs_sink_track_data->track_id;
 
+    gint samplerate = 0, channels = 0;
+    const gchar *media_type;
+
     switch (GST_EVENT_TYPE (event)) {
         case GST_EVENT_CAPS: {
             gst_event_parse_caps(event, &gstcaps);
             GstStructure *gststructforcaps = gst_caps_get_structure(gstcaps, 0);
             GST_INFO ("structure is %" GST_PTR_FORMAT, gststructforcaps);
-            if (data->track_cpd.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
+            media_type = gst_structure_get_name (gststructforcaps);
+
+            if (!strcmp (media_type, GSTREAMER_MEDIA_TYPE_ALAW) || !strcmp (media_type, GSTREAMER_MEDIA_TYPE_MULAW)) {
+                guint8 codec_private_data[KVS_PCM_CPD_SIZE_BYTE];
+                KVS_PCM_FORMAT_CODE format = KVS_PCM_FORMAT_CODE_MULAW;
+
+                gst_structure_get_int (gststructforcaps, "rate", &samplerate);
+                gst_structure_get_int (gststructforcaps, "channels", &channels);
+
+                if (samplerate == 0 || channels == 0) {
+                    GST_ERROR_OBJECT (kvssink, "Missing channels/samplerate on caps");
+                    ret = FALSE;
+                    goto CleanUp;
+                }
+
+                if (!strcmp (media_type, GSTREAMER_MEDIA_TYPE_ALAW)) {
+                    format = KVS_PCM_FORMAT_CODE_ALAW;
+                } else {
+                    format = KVS_PCM_FORMAT_CODE_MULAW;
+                }
+
+                if (mkvgenGeneratePcmCpd(format, (UINT32) samplerate, (UINT16) channels, (PBYTE) codec_private_data, KVS_PCM_CPD_SIZE_BYTE)) {
+                    GST_ERROR_OBJECT (kvssink, "Failed to generate pcm cpd");
+                    ret = FALSE;
+                    goto CleanUp;
+                }
+
+                // Send cpd to kinesis video stream
+                ret = data->kinesis_video_stream->start(codec_private_data, KVS_PCM_CPD_SIZE_BYTE, track_id);
+
+            } else if (data->track_cpd.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
                 const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
                 gchar *cpd = gst_value_serialize(gstStreamFormat);
                 string cpd_str = string(cpd);
                 data->track_cpd[track_id] = cpd_str;
                 g_free(cpd);
 
-                // Send cpd to kinesis video stream and mark kvs stream ready to consume frames.
-                if (!kinesis_video_stream_start(data, cpd_str, track_id)) {
-                    GST_ELEMENT_ERROR(kvssink, STREAM, FAILED, (NULL), ("Failed to start stream"));
-                    ret = false;
-                    goto CleanUp;
-                }
-                data->stream_ready = true;
+                // Send cpd to kinesis video stream
+                ret = data->kinesis_video_stream->start(cpd, track_id);
             }
+
             gst_event_unref (event);
             event = NULL;
+
+            if (!ret) {
+                GST_ELEMENT_ERROR(kvssink, STREAM, FAILED, (NULL), ("Failed to start stream"));
+            }
+
             break;
         }
         case GST_EVENT_CUSTOM_DOWNSTREAM: {
@@ -971,6 +985,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
     }
 
 CleanUp:
+
     if (event != NULL) {
         gst_collect_pads_event_default(pads, track_data, event, FALSE);
     }
@@ -1026,10 +1041,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
 
         ret = GST_FLOW_EOS;
-        goto CleanUp;
-    }
-
-    if (!data->stream_ready.load()) {
         goto CleanUp;
     }
 
@@ -1255,16 +1266,16 @@ init_track_data(GstKvsSink *kvssink) {
             // extract media type from GstCaps to check whether it's h264 or h265
             caps = gst_pad_get_allowed_caps(collect_data->pad);
             media_type = gst_structure_get_name(gst_caps_get_structure(caps, 0));
-            if (STRNCMP(media_type, GSTREAMER_MEDIA_TYPE_H264, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
+            if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_H264, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
                 // default codec id is for h264 video.
-                video_content_type = g_strdup(DEFAULT_CONTENT_TYPE_VIDEO_H264);
-            } else if (STRNCMP(media_type, GSTREAMER_MEDIA_TYPE_H265, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
+                video_content_type = g_strdup(MKV_H264_CONTENT_TYPE);
+            } else if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_H265, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
                 g_free(kvssink->codec_id);
                 kvssink->codec_id = g_strdup(DEFAULT_CODEC_ID_H265);
-                video_content_type = g_strdup(DEFAULT_CONTENT_TYPE_VIDEO_H265);
+                video_content_type = g_strdup(MKV_H265_CONTENT_TYPE);
             } else {
                 // no-op, should result in a caps negotiation error before getting here.
-                LOG_AND_THROW("Code should not reach here");
+                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink");
             }
             gst_caps_unref(caps);
 
@@ -1274,7 +1285,27 @@ init_track_data(GstKvsSink *kvssink) {
                 kvs_sink_track_data->track_id = KVS_SINK_DEFAULT_AUDIO_TRACKID;
             }
 
-            audio_content_type = g_strdup(DEFAULT_CONTENT_TYPE_AUDIO);
+            GstCollectData *collect_data = (GstCollectData *) walk->data;
+
+            // extract media type from GstCaps to check whether it's h264 or h265
+            caps = gst_pad_get_allowed_caps(collect_data->pad);
+            media_type = gst_structure_get_name(gst_caps_get_structure(caps, 0));
+            if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_AAC, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
+                // default codec id is for aac audio.
+                audio_content_type = g_strdup(MKV_AAC_CONTENT_TYPE);
+            } else if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_ALAW, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
+                g_free(kvssink->audio_codec_id);
+                kvssink->audio_codec_id = g_strdup(DEFAULT_AUDIO_CODEC_ID_PCM);
+                audio_content_type = g_strdup(MKV_ALAW_CONTENT_TYPE);
+            } else if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_MULAW, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
+                g_free(kvssink->audio_codec_id);
+                kvssink->audio_codec_id = g_strdup(DEFAULT_AUDIO_CODEC_ID_PCM);
+                audio_content_type = g_strdup(MKV_MULAW_CONTENT_TYPE);
+            } else {
+                // no-op, should result in a caps negotiation error before getting here.
+                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink");
+            }
+            gst_caps_unref(caps);
         }
     }
 
