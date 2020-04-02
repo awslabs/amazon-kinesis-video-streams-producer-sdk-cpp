@@ -103,14 +103,14 @@ if [[ $build_producer == TRUE ]]; then
   echo "Checking openssl at $DOWNLOADS/local/lib/libssl.a"
   if [ ! -f $DOWNLOADS/local/lib/libssl.a ]; then
     echo "openssl lib not found. Installing"
-    if [ ! -f $DOWNLOADS/openssl-1.1.1d.tar.gz ]; then
+    if [ ! -f $DOWNLOADS/openssl-1.1.1f.tar.gz ]; then
       cd $DOWNLOADS
       #download_cmd="curl -L "https://www.openssl.org/source/openssl-1.1.1d.tar.gz" -o "openssl-1.1.1d.tar.gz" "
-      $SYS_CURL -L "https://www.openssl.org/source/openssl-1.1.1d.tar.gz" -o "openssl-1.1.1d.tar.gz"
+      $SYS_CURL -L "https://www.openssl.org/source/openssl-1.1.1f.tar.gz" -o "openssl-1.1.1f.tar.gz"
     fi
     cd $DOWNLOADS
-    tar -xvf openssl-1.1.1d.tar.gz
-    cd $DOWNLOADS/openssl-1.1.1d
+    tar -xvf openssl-1.1.1f.tar.gz
+    cd $DOWNLOADS/openssl-1.1.1f
     ./config  --prefix=$DOWNLOADS/local/ --openssldir=$DOWNLOADS/local/
     make -j $max_parallel
     make install
