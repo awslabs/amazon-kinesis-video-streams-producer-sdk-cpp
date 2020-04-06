@@ -937,7 +937,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 g_free(cpd);
 
                 // Send cpd to kinesis video stream
-                ret = data->kinesis_video_stream->start(cpd_str.c_str(), track_id);
+                ret = data->kinesis_video_stream->start(cpd_str, track_id);
             }
 
             gst_event_unref (event);
