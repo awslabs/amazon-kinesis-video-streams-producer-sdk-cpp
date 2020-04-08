@@ -1,0 +1,29 @@
+cmake_minimum_required(VERSION 2.8)
+
+project(libcurl-download NONE)
+
+find_program(MAKE_EXE NAMES make)
+
+if (DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot${CMAKE_OSX_SYSROOT}")
+endif()
+
+include(ExternalProject)
+
+set(CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX}
+        -DBUILD_CURL_EXE=0
+        -DHTTP_ONLY=1)
+
+# By default use openssl
+if (USE_MBEDTLS)
+    set(CMAKE_ARGS ${CMAKE_ARGS} -DCMAKE_USE_MBEDTLS=1)
+endif()
+
+ExternalProject_Add(project_libcurl
+    GIT_REPOSITORY    https://github.com/curl/curl.git
+    GIT_TAG           curl-7_68_0
+    PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
+    CMAKE_ARGS        ${CMAKE_ARGS}
+    BUILD_ALWAYS      TRUE
+    TEST_COMMAND      "")
