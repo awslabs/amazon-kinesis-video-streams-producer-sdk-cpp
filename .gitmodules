@@ -1,9 +1,6 @@
-
-[submodule "kinesis-video-c-producer"]
-	path = kinesis-video-c-producer
-	url = https://github.com/awslabs/amazon-kinesis-video-streams-producer-c
-	branch = master
-[submodule "kinesis-video-pic"]
-	path = kinesis-video-pic
-	url = https://github.com/awslabs/amazon-kinesis-video-streams-pic
-	branch = master
+[submodule "open-source/amazon-kinesis-video-streams-pic"]
+	path = open-source/amazon-kinesis-video-streams-pic
+	url = https://github.com/awslabs/amazon-kinesis-video-streams-pic.git
+[submodule "open-source/amazon-kinesis-video-streams-producer-c"]
+	path = open-source/amazon-kinesis-video-streams-producer-c
+	url = https://github.com/awslabs/amazon-kinesis-video-streams-producer-c.git
