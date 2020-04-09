@@ -160,8 +160,8 @@ typedef struct _CustomData {
     MediaType media_type;
     bool first_video_frame;
     uint32_t frame_count;
-    atomic_uint32_t frame_put;
-    atomic_bool terminate_putFrame_monitor;
+    volatile SIZE_T frame_put;
+    volatile ATOMIC_BOOL terminate_putFrame_monitor;
     std::thread worker;
 
     atomic_uint stream_status;

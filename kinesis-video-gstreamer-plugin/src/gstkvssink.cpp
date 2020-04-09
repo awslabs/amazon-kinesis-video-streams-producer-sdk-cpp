@@ -625,6 +625,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
     kvssink->data = make_shared<CustomData>();
+    kvssink->data->frame_put = 0;
+    kvssink->data->terminate_putFrame_monitor = FALSE;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
@@ -1172,7 +1174,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     put_frame(data->kinesis_video_stream, info.data, info.size,
               std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
-    data->frame_put++;
+    ATOMIC_INCREMENT(&data->frame_put);
     data->frame_count++;
 
 CleanUp:
@@ -1376,10 +1378,10 @@ init_track_data(GstKvsSink *kvssink) {
 
 void frameFlowMonitor(shared_ptr<CustomData> data)
 {
-    while (!data->terminate_putFrame_monitor.load()) {
+    while (!ATOMIC_LOAD_BOOL(&data->terminate_putFrame_monitor)) {
         this_thread::sleep_for(std::chrono::seconds(5));
-        LOG_DEBUG("frame put in last 5 seconds " << data->frame_put.load());
-        data->frame_put = 0;
+        LOG_DEBUG("frame put in last 5 seconds " << ATOMIC_LOAD(&data->frame_put));
+        ATOMIC_STORE(&data->frame_put, 0);
     }
 }
 
@@ -1419,7 +1421,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             break;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             gst_collect_pads_stop (kvssink->collect);
-            data->terminate_putFrame_monitor = true;
+            ATOMIC_STORE_BOOL(&data->terminate_putFrame_monitor, TRUE);
             data->worker.join();
             break;
         default:
