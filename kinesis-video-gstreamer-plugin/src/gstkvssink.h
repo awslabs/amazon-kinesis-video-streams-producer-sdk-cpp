@@ -149,7 +149,9 @@ typedef struct _CustomData {
             first_video_frame(true),
             frame_count(0),
             first_pts(GST_CLOCK_TIME_NONE),
-            producer_start_time(GST_CLOCK_TIME_NONE) {}
+            producer_start_time(GST_CLOCK_TIME_NONE),
+            frame_put(0),
+            terminate_putFrame_monitor(false) {}
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
 
@@ -158,6 +160,9 @@ typedef struct _CustomData {
     MediaType media_type;
     bool first_video_frame;
     uint32_t frame_count;
+    atomic_uint32_t frame_put;
+    atomic_bool terminate_putFrame_monitor;
+    std::thread worker;
 
     atomic_uint stream_status;
 

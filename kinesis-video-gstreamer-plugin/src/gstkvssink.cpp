@@ -223,6 +223,11 @@ static GstFlowReturn gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                                                  GstCollectData * data, GstBuffer * buf, gpointer user_data);
 static gboolean gst_kvs_sink_handle_sink_event (GstCollectPads * pads,
                                                 GstCollectData * data, GstEvent * event, gpointer user_data);
+static GstFlowReturn gst_kvs_sink_clip_running_time (GstCollectPads * pads,
+                                                     GstCollectData * cdata,
+                                                     GstBuffer * buf,
+                                                     GstBuffer ** outbuf,
+                                                     gpointer user_data);
 
 /* Request pad callback */
 static GstPad* gst_kvs_sink_request_new_pad (GstElement *element, GstPadTemplate *templ,
@@ -576,7 +581,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->collect = gst_collect_pads_new();
 
     gst_collect_pads_set_clip_function (kvssink->collect,
-                                        GST_DEBUG_FUNCPTR (gst_collect_pads_clip_running_time), kvssink);
+                                        GST_DEBUG_FUNCPTR (gst_kvs_sink_clip_running_time), kvssink);
     gst_collect_pads_set_buffer_function (kvssink->collect,
                                           GST_DEBUG_FUNCPTR (gst_kvs_sink_handle_buffer), kvssink);
     gst_collect_pads_set_event_function (kvssink->collect,
@@ -890,7 +895,8 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
     gboolean ret = TRUE;
     GstCaps *gstcaps = NULL;
     string err_msg;
-    uint64_t track_id = kvs_sink_track_data->track_id;
+    guint track_id = kvs_sink_track_data->track_id;
+    GstSegment *segment = NULL;
 
     gint samplerate = 0, channels = 0;
     const gchar *media_type;
@@ -981,6 +987,31 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             event = NULL;
             break;
         }
+        case GST_EVENT_SEGMENT: {
+            segment = gst_segment_new();
+            gst_event_copy_segment(event, segment);
+            printf("TrackId: %u, segment start: %" GST_TIME_FORMAT ", segment stop: %" GST_TIME_FORMAT ", segment offset: %" G_GUINT64_FORMAT "\n",
+                   track_id, GST_TIME_ARGS(segment->start), GST_TIME_ARGS(segment->stop), segment->offset);
+
+            // In some cases segment start and stop are both GST_CLOCK_TIME_NONE. In such case set start to 0.
+            if (!GST_CLOCK_TIME_IS_VALID(segment->start) && !GST_CLOCK_TIME_IS_VALID(segment->stop)) {
+                printf("Segment start cant be GST_CLOCK_TIME_NONE. Resetting to 0\n");
+                segment->start = 0;
+                gst_event_unref(event);
+                event = gst_event_new_segment(segment);
+            }
+
+            if (!(segment->start < segment->stop)) {
+                LOG_ERROR("Invalid segment range " << segment->start << "-" << segment->stop << ". Segment stop need to be greater than segment start.");
+                ret = FALSE;
+            }
+
+            if (segment != NULL) {
+                gst_segment_free(segment);
+            }
+
+
+        }
         default:
             break;
     }
@@ -989,6 +1020,22 @@ CleanUp:
 
     if (event != NULL) {
         gst_collect_pads_event_default(pads, track_data, event, FALSE);
+    }
+
+    return ret;
+}
+
+static GstFlowReturn
+gst_kvs_sink_clip_running_time (GstCollectPads * pads,
+                                GstCollectData * cdata,
+                                GstBuffer * buf,
+                                GstBuffer ** outbuf,
+                                gpointer user_data)
+{
+    GstFlowReturn ret = gst_collect_pads_clip_running_time(pads, cdata, buf, outbuf, user_data);
+
+    if (outbuf == NULL) {
+        printf("buffer with dts %" GST_TIME_FORMAT ", pts %" GST_TIME_FORMAT " was clipped.\n", GST_TIME_ARGS(buf->dts), GST_TIME_ARGS(buf->pts));
     }
 
     return ret;
@@ -1070,7 +1117,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                     (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
 
     if (isDroppable) {
-        LOG_DEBUG("Dropping frame with flag %u" << GST_BUFFER_FLAGS(buf));
+        printf("Dropping frame with flag %u", GST_BUFFER_FLAGS(buf));
         goto CleanUp;
     }
 
@@ -1125,6 +1172,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     put_frame(data->kinesis_video_stream, info.data, info.size,
               std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+    data->frame_put++;
     data->frame_count++;
 
 CleanUp:
@@ -1326,6 +1374,15 @@ init_track_data(GstKvsSink *kvssink) {
     g_free(audio_content_type);
 }
 
+void frameFlowMonitor(shared_ptr<CustomData> data)
+{
+    while (!data->terminate_putFrame_monitor.load()) {
+        this_thread::sleep_for(std::chrono::seconds(5));
+        LOG_DEBUG("frame put in last 5 seconds " << data->frame_put.load());
+        data->frame_put = 0;
+    }
+}
+
 static GstStateChangeReturn
 gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
@@ -1355,12 +1412,15 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto CleanUp;
             }
+            data->worker = std::thread(frameFlowMonitor, data);
             break;
         case GST_STATE_CHANGE_READY_TO_PAUSED:
             gst_collect_pads_start (kvssink->collect);
             break;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             gst_collect_pads_stop (kvssink->collect);
+            data->terminate_putFrame_monitor = true;
+            data->worker.join();
             break;
         default:
             break;
