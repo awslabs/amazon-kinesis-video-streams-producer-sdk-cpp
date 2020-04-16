@@ -32,24 +32,22 @@ StreamDefinition::StreamDefinition(
         uint32_t codecPrivateDataSize,
         MKV_TRACK_INFO_TYPE track_type,
         const vector<uint8_t> segment_uuid,
-        const uint64_t default_track_id)
+        const uint64_t default_track_id,
+        CONTENT_STORE_PRESSURE_POLICY contentStorePressurePolicy,
+        CONTENT_VIEW_OVERFLOW_POLICY contentViewOverflowPolicy)
         : tags_(tags),
           stream_name_(stream_name) {
     memset(&stream_info_, 0x00, sizeof(StreamInfo));
 
     LOG_AND_THROW_IF(MAX_STREAM_NAME_LEN < stream_name.size(), "StreamName exceeded max length " << MAX_STREAM_NAME_LEN);
     strcpy(stream_info_.name, stream_name.c_str());
-
     stream_info_.version = STREAM_INFO_CURRENT_VERSION;
     stream_info_.retention = duration_cast<nanoseconds>(
             retention_period).count() / DEFAULT_TIME_UNIT_IN_NANOS;
-
     LOG_AND_THROW_IF(MAX_ARN_LEN < kms_key_id.size(), "KMS Key Id exceeded max length of " << MAX_ARN_LEN);
     strcpy(stream_info_.kmsKeyId, kms_key_id.c_str());
-
     LOG_AND_THROW_IF(MAX_CONTENT_TYPE_LEN < content_type.size(), "ContentType exceeded max length of " << MAX_CONTENT_TYPE_LEN);
     strcpy(stream_info_.streamCaps.contentType, content_type.c_str());
-
     stream_info_.streamCaps.streamingType = streaming_type;
     stream_info_.streamCaps.adaptive = FALSE;
     stream_info_.streamCaps.maxLatency = duration_cast<nanoseconds>(
@@ -74,6 +72,8 @@ StreamDefinition::StreamDefinition(
     stream_info_.streamCaps.connectionStalenessDuration = duration_cast<nanoseconds>(
             connection_staleness).count() / DEFAULT_TIME_UNIT_IN_NANOS;
     stream_info_.streamCaps.frameOrderingMode = FRAME_ORDER_MODE_PASS_THROUGH;
+    stream_info_.streamCaps.storePressurePolicy = contentStorePressurePolicy;
+    stream_info_.streamCaps.viewOverflowPolicy = contentViewOverflowPolicy;
 
     if (segment_uuid.empty()) {
         stream_info_.streamCaps.segmentUuid = NULL;

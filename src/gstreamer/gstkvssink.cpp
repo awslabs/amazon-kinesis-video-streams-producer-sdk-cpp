@@ -637,6 +637,7 @@ gst_kvs_sink_finalize(GObject *object) {
         data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
     }
 
+    gst_object_unref(kvssink->collect);
     g_free(kvssink->stream_name);
     g_free(kvssink->content_type);
     g_free(kvssink->codec_id);
