@@ -379,7 +379,7 @@ static void cb_rtsp_pad_created(GstElement *element, GstPad *pad, gpointer data)
 }
 
 int gstreamer_init(int argc, char *argv[]) {
-    PropertyConfigurator::doConfigure("../kinesis-video-native-build/kvs_log_configuration");
+    PropertyConfigurator::doConfigure("../samples/kvs_log_configuration");
 
     if (argc < 3) {
         LOG_ERROR(
