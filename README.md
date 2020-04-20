@@ -69,6 +69,11 @@ To build the library run make in the build directory you executed CMake.
 
 `make`
 
+### GStreamer sample
+To generate GStreamer samples in the `build` directory, run the following from the build directory:
+
+`cmake .. -DBUILD_GSTREAMER_PLUGIN=ON`; `make`
+
 ## Documentation
 
 ## Related
