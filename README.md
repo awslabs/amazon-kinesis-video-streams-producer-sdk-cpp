@@ -31,7 +31,7 @@ les stream creation, token rotation for secure and uninterrupted streaming, proc
 ### Download
 To download run the following command:
 
-`git clone --recursive https://github.com/awslabs/amazon-kinesis-video-streams-producersdk-cpp.git`
+`git clone --recursive https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git`
 
 Note: If you miss running git clone with --recursive, run `git submodule update --init` in the amazon-kinesis-video-streams-producersdk-cpp/open-source directory
 You will also need to install `pkg-config`, `automake` and `CMake` and a build enviroment
