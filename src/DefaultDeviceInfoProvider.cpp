@@ -22,9 +22,12 @@ using std::string;
  */
 #define DEFAULT_MAX_STREAM_COUNT        16
 
-DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_useragent, const std::string &cert_path)
+DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_useragent,
+                                                     const std::string &cert_path,
+                                                     const std::string &filePath,
+                                                     bool use_parsed)
         : custom_useragent_(custom_useragent),
-        cert_path_(cert_path){
+        cert_path_(cert_path) {
     memset(&device_info_, 0, sizeof(device_info_));
     device_info_.version = DEVICE_INFO_CURRENT_VERSION;
 
@@ -38,11 +41,18 @@ DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_u
     // TODO: Device tags are not supported as of yet
     device_info_.tags = nullptr;
     device_info_.tagCount = 0;
-
-    // Set storage info
     device_info_.storageInfo.version = STORAGE_INFO_CURRENT_VERSION;
-    device_info_.storageInfo.storageType = DEVICE_STORAGE_TYPE_IN_MEM;
-    device_info_.storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
+
+    if(use_parsed == TRUE) {
+        char fPathArray[256];
+        STRCPY(fPathArray, filePath.c_str());
+        setDeviceInfoFromConfigFile(&device_info_, fPathArray);
+    }
+    else {
+        // Set storage info
+        device_info_.storageInfo.storageType = DEVICE_STORAGE_TYPE_IN_MEM;
+        device_info_.storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
+    }
 
     // We put any overflow storage in /tmp as it is in memory.
     strcpy(device_info_.storageInfo.rootDirectory, "/tmp");

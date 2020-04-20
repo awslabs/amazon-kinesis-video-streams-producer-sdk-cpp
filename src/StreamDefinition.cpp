@@ -34,11 +34,12 @@ StreamDefinition::StreamDefinition(
         const vector<uint8_t> segment_uuid,
         const uint64_t default_track_id,
         CONTENT_STORE_PRESSURE_POLICY contentStorePressurePolicy,
-        CONTENT_VIEW_OVERFLOW_POLICY contentViewOverflowPolicy)
+        CONTENT_VIEW_OVERFLOW_POLICY contentViewOverflowPolicy,
+        bool use_parsed,
+        string filePath)
         : tags_(tags),
           stream_name_(stream_name) {
     memset(&stream_info_, 0x00, sizeof(StreamInfo));
-
     LOG_AND_THROW_IF(MAX_STREAM_NAME_LEN < stream_name.size(), "StreamName exceeded max length " << MAX_STREAM_NAME_LEN);
     strcpy(stream_info_.name, stream_name.c_str());
     stream_info_.version = STREAM_INFO_CURRENT_VERSION;
@@ -75,6 +76,12 @@ StreamDefinition::StreamDefinition(
     stream_info_.streamCaps.storePressurePolicy = contentStorePressurePolicy;
     stream_info_.streamCaps.viewOverflowPolicy = contentViewOverflowPolicy;
 
+    if(use_parsed) {
+        char fPathArray[256];
+        STRCPY(fPathArray, filePath.c_str());
+        createStreamInfoFromConfigFile(&stream_info_, fPathArray);
+    }
+
     if (segment_uuid.empty()) {
         stream_info_.streamCaps.segmentUuid = NULL;
     } else {
@@ -93,6 +100,15 @@ StreamDefinition::StreamDefinition(
     stream_info_.tags = tags_.asPTag();
 }
 
+//StreamDefinition::StreamDefinition(string stream_name,
+//                                  PCHAR filePath,
+//                                  const map<string, string>* tags = nullptr)
+//                                   : tags_(tags),
+//                                     stream_name_(stream_name){
+//    memset(&stream_info_, 0x00, sizeof(StreamInfo));
+//    strcpy(stream_info_.name, stream_name.c_str());
+//    createStreamInfoFromConfigFile(&stream_info_, filePath);
+//}
 void StreamDefinition::addTrack(const uint64_t track_id,
                                 const string &track_name,
                                 const string &codec_id,

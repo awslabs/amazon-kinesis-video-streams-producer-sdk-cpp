@@ -1,6 +1,7 @@
 #pragma once
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
+#include "com/amazonaws/kinesis/video/cproducer/Include.h"
 #include <string>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {

@@ -161,10 +161,21 @@ typedef struct _CustomData {
     uint32_t total_track_count;
 
     bool use_absolute_fragment_times;
+    bool use_parsed;
 
     // Pts of first frame
     uint64_t first_pts;
 
+    uint64_t retention_period_hours;
+    uint64_t timecode_scale_milliseconds;
+    uint32_t avg_bandwidth_bps;
+    uint64_t fragment_duration_milliseconds;
+    uint32_t stream_framerate;
+    uint64_t storage_size;
+    uint64_t max_latency_seconds;
+    uint64_t buffer_duration_seconds;
+    uint64_t replay_duration_seconds;
+    uint64_t connection_staleness_seconds;
     GstElement *pipeline;
 } CustomData;
 
@@ -327,6 +338,98 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 }  // namespace kinesis
 }  // namespace amazonaws
 }  // namespace com;
+
+
+void get_parsed_value(PBYTE params, jsmntok_t tokens, CHAR* param_str) {
+    PCHAR json_key = NULL;
+    UINT32 params_val_length = 0;
+    params_val_length = (UINT32) (tokens.end - tokens.start);
+    json_key = (PCHAR)params + tokens.start;
+    SNPRINTF(param_str, params_val_length + 1, "%s\n", json_key);
+}
+
+void parse_file_for_args(CustomData *data) {
+    data->use_parsed = TRUE;
+    UINT64 size;
+    PBYTE params;
+    CHAR frameFilePath[MAX_PATH_LEN + 1];
+    MEMSET(frameFilePath, 0x00, MAX_PATH_LEN + 1);
+    STRCPY(frameFilePath, (PCHAR) "../param.json");
+
+    STATUS retStatus = readFile(frameFilePath, TRUE, NULL, &size);
+    params = (PBYTE)MEMCALLOC(1, size);
+    retStatus = readFile(frameFilePath, TRUE, params, &size);
+
+    jsmn_parser parser;
+    jsmn_init(&parser);
+    jsmntok_t tokens[256];
+
+    int r;
+    CHAR final_attr_str[256];
+    r = jsmn_parse(&parser, (PCHAR)params, size, tokens, 256);
+
+    for (UINT32 i = 1; i < (UINT32) r; i++) {
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_RETENTION_PERIOD_HOURS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->retention_period_hours);
+            LOG_DEBUG("Retention Period (hours) parsed:"<<data->retention_period_hours);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_TIMECODE_SCALE_MILLISECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->timecode_scale_milliseconds);
+            LOG_DEBUG("Timecode scale (milliseconds) parsed:"<<data->timecode_scale_milliseconds);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_AVG_BANDWIDTH_BPS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI32(final_attr_str, NULL, 10, &data->avg_bandwidth_bps);
+            LOG_DEBUG("Average bandwidth parsed:"<<data->avg_bandwidth_bps);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_FRAGMENT_DURATION_MILLISECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->fragment_duration_milliseconds);
+            LOG_DEBUG("Fragment duration (milliseconds) parsed:"<<data->fragment_duration_milliseconds);
+            i++;
+        }
+        if(compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_STORAGE_SIZE")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->storage_size);
+            LOG_DEBUG("Storage size parsed:"<<data->storage_size);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_STREAM_FRAMERATE")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI32(final_attr_str, NULL, 10, &data->stream_framerate);
+            LOG_DEBUG("Stream frame rate parsed:"<<data->stream_framerate);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_MAX_LATENCY_SECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->max_latency_seconds);
+            LOG_DEBUG("Max latency (seconds) parsed:"<<data->max_latency_seconds);
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_BUFFER_DURATION_SECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->buffer_duration_seconds);
+            LOG_DEBUG("Buffer Duration (seconds) parsed:"<<data->buffer_duration_seconds);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_REPLAY_DURATION_SECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->replay_duration_seconds);
+            LOG_DEBUG("Replay Duration (seconds) parsed:"<<data->replay_duration_seconds);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_CONNECTION_STALENESS_SECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->connection_staleness_seconds);
+            LOG_DEBUG("Connection stale (seconds) parsed:"<<data->connection_staleness_seconds);
+            i++;
+        }
+    }
+}
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
                                 void *data, size_t len, UINT64 track_id) {
@@ -569,6 +672,8 @@ static gboolean demux_pad_cb(GstElement *element, GstPad *pad, CustomData *data)
 
 void kinesis_video_init(CustomData *data) {
     unique_ptr<DeviceInfoProvider> device_info_provider(new SampleDeviceInfoProvider());
+    DeviceInfo device_info = device_info_provider->getDeviceInfo();
+    device_info.storageInfo.storageSize = data->storage_size;
     unique_ptr<ClientCallbackProvider> client_callback_provider(new SampleClientCallbackProvider());
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new SampleStreamCallbackProvider(
             reinterpret_cast<UINT64>(data)));
@@ -648,17 +753,28 @@ void kinesis_video_stream_init(CustomData *data) {
         streaming_type = STREAMING_TYPE_OFFLINE;
         data->use_absolute_fragment_times = true;
     }
+    if(!data->use_parsed) {
+        data->retention_period_hours = DEFAULT_RETENTION_PERIOD_HOURS;
+        data->timecode_scale_milliseconds = DEFAULT_TIMECODE_SCALE_MILLISECONDS;
+        data->avg_bandwidth_bps = DEFAULT_AVG_BANDWIDTH_BPS;
+        data->fragment_duration_milliseconds = DEFAULT_FRAGMENT_DURATION_MILLISECONDS;
+        data->max_latency_seconds = DEFAULT_MAX_LATENCY_SECONDS;
+        data->stream_framerate = DEFAULT_STREAM_FRAMERATE;
+        data->buffer_duration_seconds = DEFAULT_BUFFER_DURATION_SECONDS;
+        data->replay_duration_seconds = DEFAULT_REPLAY_DURATION_SECONDS;
+        data->connection_staleness_seconds = DEFAULT_CONNECTION_STALENESS_SECONDS;
+    }
 
     unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
         data->stream_name,
-        hours(DEFAULT_RETENTION_PERIOD_HOURS),
+        hours(data->retention_period_hours),
         nullptr,
         DEFAULT_KMS_KEY_ID,
         streaming_type,
         DEFAULT_CONTENT_TYPE,
-        duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
-        milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
-        milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
+        duration_cast<milliseconds> (seconds(data->max_latency_seconds)),
+        milliseconds(data->fragment_duration_milliseconds),
+        milliseconds(data->timecode_scale_milliseconds),
         DEFAULT_KEY_FRAME_FRAGMENTATION,
         DEFAULT_FRAME_TIMECODES,
         data->use_absolute_fragment_times,
@@ -666,11 +782,11 @@ void kinesis_video_stream_init(CustomData *data) {
         DEFAULT_RESTART_ON_ERROR,
         DEFAULT_RECALCULATE_METRICS,
         NAL_ADAPTATION_FLAG_NONE,
-        DEFAULT_STREAM_FRAMERATE,
-        DEFAULT_AVG_BANDWIDTH_BPS,
-        seconds(DEFAULT_BUFFER_DURATION_SECONDS),
-        seconds(DEFAULT_REPLAY_DURATION_SECONDS),
-        seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
+        data->stream_framerate,
+        data->avg_bandwidth_bps,
+        seconds(data->buffer_duration_seconds),
+        seconds(data->replay_duration_seconds),
+        seconds(data->connection_staleness_seconds),
         DEFAULT_CODEC_ID,
         DEFAULT_TRACKNAME,
         nullptr,
@@ -985,19 +1101,19 @@ int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name /path/to/file"
-                        "AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name /path/to/file\n \
+                        AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name\n \
+                        AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name parse \n \
+                        AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name parse /path/to/file\n");
         return 1;
     }
 
     const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
-
     CustomData data;
     char stream_name[MAX_STREAM_NAME_LEN];
     string file_path;
     int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
     STATUS stream_status = STATUS_SUCCESS;
-
 
     /* init Kinesis Video */
     STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
@@ -1005,10 +1121,18 @@ int main(int argc, char *argv[]) {
     data.stream_name = stream_name;
     data.total_track_count = 2;
     data.uploading_file = false;
+    data.use_parsed = FALSE;
 
-    if (argc >= 3) {
+    if (argc > 2) {
+        string arg = string(argv[2]);
+        int i = 2;
+        if(arg.compare("parse") == 0) {
+            parse_file_for_args(&data);
+            i = 3;
+        }
+
         // skip over stream name
-        for(int i = 2; i < argc; ++i) {
+        for(; i < argc; ++i) {
             file_path = string(argv[i]);
             // file path should be at least 4 char (shortest example: a.ts)
             if (file_path.size() < 4) {

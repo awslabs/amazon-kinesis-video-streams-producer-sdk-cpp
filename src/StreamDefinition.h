@@ -11,7 +11,7 @@
 #include <chrono>
 
 #include "StreamTags.h"
-
+#include "com/amazonaws/kinesis/video/common/Include.h"
 #define DEFAULT_TRACK_ID 1
 
 using namespace std;
@@ -74,8 +74,14 @@ public:
             const vector<uint8_t> segment_uuid = vector<uint8_t>(),
             const uint64_t default_track_id = DEFAULT_TRACK_ID,
             CONTENT_STORE_PRESSURE_POLICY contentStorePressurePolicy = CONTENT_STORE_PRESSURE_POLICY_DROP_TAIL_ITEM,
-            CONTENT_VIEW_OVERFLOW_POLICY contentViewOverflowPolicy = CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START
+            CONTENT_VIEW_OVERFLOW_POLICY contentViewOverflowPolicy = CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START,
+            bool use_parsed = false,
+            string filePath = ""
     );
+
+//    StreamDefinition(string stream_name,
+//                     PCHAR filePath,
+//                     const map<string, string>* tags);
 
     void addTrack(const uint64_t track_id,
                   const string &track_name,
@@ -134,3 +140,4 @@ private:
 } // namespace kinesis
 } // namespace amazonaws
 } // namespace com
+

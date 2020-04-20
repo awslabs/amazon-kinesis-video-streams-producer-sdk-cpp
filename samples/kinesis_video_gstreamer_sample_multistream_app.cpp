@@ -179,7 +179,110 @@ typedef struct _CustomData {
     // Pts of first frame
     map<string, uint64_t> first_pts_map;
     map<string, uint64_t> producer_start_time_map;
+
+    bool use_parsed;
+    uint64_t retention_period_hours;
+    uint64_t timecode_scale_milliseconds;
+    uint32_t avg_bandwidth_bps;
+    uint64_t fragment_duration_milliseconds;
+    uint32_t stream_framerate;
+    uint64_t storage_size;
+    uint64_t max_latency_seconds;
+    uint64_t buffer_duration_seconds;
+    uint64_t replay_duration_seconds;
+    uint64_t connection_staleness_seconds;
 } CustomData;
+
+void get_parsed_value(PBYTE params, jsmntok_t tokens, CHAR* param_str) {
+    PCHAR json_key = NULL;
+    UINT32 params_val_length = 0;
+    params_val_length = (UINT32) (tokens.end - tokens.start);
+    json_key = (PCHAR)params + tokens.start;
+    SNPRINTF(param_str, params_val_length + 1, "%s\n", json_key);
+}
+
+void parse_file_for_args(CustomData *data) {
+    data->use_parsed = TRUE;
+    UINT64 size;
+    PBYTE params;
+    CHAR frameFilePath[MAX_PATH_LEN + 1];
+    MEMSET(frameFilePath, 0x00, MAX_PATH_LEN + 1);
+    STRCPY(frameFilePath, (PCHAR) "../param.json");
+
+    STATUS retStatus = readFile(frameFilePath, TRUE, NULL, &size);
+    params = (PBYTE)MEMCALLOC(1, size);
+    retStatus = readFile(frameFilePath, TRUE, params, &size);
+
+    jsmn_parser parser;
+    jsmn_init(&parser);
+    jsmntok_t tokens[256];
+
+    int r;
+    CHAR final_attr_str[256];
+    r = jsmn_parse(&parser, (PCHAR)params, size, tokens, 256);
+
+    for (UINT32 i = 1; i < (UINT32) r; i++) {
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_RETENTION_PERIOD_HOURS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->retention_period_hours);
+            LOG_DEBUG("Retention Period (hours) parsed:"<<data->retention_period_hours);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_TIMECODE_SCALE_MILLISECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->timecode_scale_milliseconds);
+            LOG_DEBUG("Timecode scale (milliseconds) parsed:"<<data->timecode_scale_milliseconds);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_AVG_BANDWIDTH_BPS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI32(final_attr_str, NULL, 10, &data->avg_bandwidth_bps);
+            LOG_DEBUG("Average bandwidth parsed:"<<data->avg_bandwidth_bps);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_FRAGMENT_DURATION_MILLISECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->fragment_duration_milliseconds);
+            LOG_DEBUG("Fragment duration (milliseconds) parsed:"<<data->fragment_duration_milliseconds);
+            i++;
+        }
+        if(compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_STORAGE_SIZE")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->storage_size);
+            LOG_DEBUG("Storage size parsed:"<<data->storage_size);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_STREAM_FRAMERATE")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI32(final_attr_str, NULL, 10, &data->stream_framerate);
+            LOG_DEBUG("Stream frame rate parsed:"<<data->stream_framerate);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_MAX_LATENCY_SECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->max_latency_seconds);
+            LOG_DEBUG("Max latency (seconds) parsed:"<<data->max_latency_seconds);
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_BUFFER_DURATION_SECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->buffer_duration_seconds);
+            LOG_DEBUG("Buffer Duration (seconds) parsed:"<<data->buffer_duration_seconds);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_REPLAY_DURATION_SECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->replay_duration_seconds);
+            LOG_DEBUG("Replay Duration (seconds) parsed:"<<data->replay_duration_seconds);
+            i++;
+        }
+        if (compareJsonString((PCHAR)params, &tokens[i], JSMN_STRING, (PCHAR) "DEFAULT_CONNECTION_STALENESS_SECONDS")) {
+            get_parsed_value(params, tokens[i+1], final_attr_str);
+            STRTOUI64(final_attr_str, NULL, 10, &data->connection_staleness_seconds);
+            LOG_DEBUG("Connection stale (seconds) parsed:"<<data->connection_staleness_seconds);
+            i++;
+        }
+    }
+}
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
                                 void *data, size_t len) {
@@ -331,17 +434,29 @@ void kinesis_video_init(CustomData *data) {
 }
 
 void kinesis_stream_init(string stream_name, CustomData *data, string stream_handle_key) {
+    if(!data->use_parsed) {
+        data->retention_period_hours = DEFAULT_RETENTION_PERIOD_HOURS;
+        data->timecode_scale_milliseconds = DEFAULT_TIMECODE_SCALE_MILLISECONDS;
+        data->avg_bandwidth_bps = DEFAULT_AVG_BANDWIDTH_BPS;
+        data->fragment_duration_milliseconds = DEFAULT_FRAGMENT_DURATION_MILLISECONDS;
+        data->max_latency_seconds = DEFAULT_MAX_LATENCY_SECONDS;
+        data->stream_framerate = DEFAULT_STREAM_FRAMERATE;
+        data->buffer_duration_seconds = DEFAULT_BUFFER_DURATION_SECONDS;
+        data->replay_duration_seconds = DEFAULT_REPLAY_DURATION_SECONDS;
+        data->connection_staleness_seconds = DEFAULT_CONNECTION_STALENESS_SECONDS;
+    }
+
     /* create a test stream */
     unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
         stream_name.c_str(),
-        hours(DEFAULT_RETENTION_PERIOD_HOURS),
+        hours(data->retention_period_hours),
         nullptr,
         DEFAULT_KMS_KEY_ID,
         DEFAULT_STREAMING_TYPE,
         DEFAULT_CONTENT_TYPE,
-        duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
-        milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
-        milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
+        duration_cast<milliseconds> (seconds(data->max_latency_seconds)),
+        milliseconds(data->fragment_duration_milliseconds),
+        milliseconds(data->timecode_scale_milliseconds),
         DEFAULT_KEY_FRAME_FRAGMENTATION,
         DEFAULT_FRAME_TIMECODES,
         DEFAULT_ABSOLUTE_FRAGMENT_TIMES,
@@ -349,11 +464,11 @@ void kinesis_stream_init(string stream_name, CustomData *data, string stream_han
         DEFAULT_RESTART_ON_ERROR,
         DEFAULT_RECALCULATE_METRICS,
         NAL_ADAPTATION_FLAG_NONE,
-        DEFAULT_STREAM_FRAMERATE,
-        DEFAULT_AVG_BANDWIDTH_BPS,
-        seconds(DEFAULT_BUFFER_DURATION_SECONDS),
-        seconds(DEFAULT_REPLAY_DURATION_SECONDS),
-        seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
+        data->stream_framerate,
+        data->avg_bandwidth_bps,
+        seconds(data->buffer_duration_seconds),
+        seconds(data->replay_duration_seconds),
+        seconds(data->connection_staleness_seconds),
         DEFAULT_CODEC_ID,
         DEFAULT_TRACKNAME,
         nullptr,
@@ -380,7 +495,6 @@ static void cb_rtsp_pad_created(GstElement *element, GstPad *pad, gpointer data)
 
 int gstreamer_init(int argc, char *argv[]) {
     PropertyConfigurator::doConfigure("../samples/kvs_log_configuration");
-
     if (argc < 3) {
         LOG_ERROR(
                 "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_multistream_app base-stream-name rtsp-url-file-name\n" <<
@@ -403,11 +517,12 @@ int gstreamer_init(int argc, char *argv[]) {
     data.frame_data_size_map = map<string, UINT32>();
     data.first_pts_map = map<string, uint64_t>();
     data.producer_start_time_map = map<string, uint64_t>();;
-
+    data.use_parsed = FALSE;
     /* init GStreamer */
     gst_init(&argc, &argv);
 
     ifstream rtsp_url_file (argv[2]);
+
     if (!rtsp_url_file.is_open()) {
         LOG_ERROR("Failed to open rtsp-urls file");
         return 1;
@@ -427,6 +542,14 @@ int gstreamer_init(int argc, char *argv[]) {
     /* init Kinesis Video */
     string base_stream_name(argv[1]);
     string base_appsink_name(APP_SINK_BASE_NAME);
+
+    if(argc > 3) {
+        string parse_arg = argv[3];
+        if(parse_arg.compare("parse") == 0) {
+            parse_file_for_args(&data);
+        }
+    }
+
     kinesis_video_init(&data);
     for (int i = 0; i < rtsp_urls.size(); ++i) {
         // create a complete gstreamer pipeline for each rtsp url
