@@ -39,7 +39,7 @@ You will also need to install `pkg-config`, `automake` and `CMake` and a build e
 ### Configure
 Create a build directory in the newly checked out repository, and execute CMake from it.
 
-`mkdir -p amazon-kinesis-video-streams-producersdk-cpp/build; cd amazon-kinesis-video-streams-producersdk-cpp/build; cmake .. `
+`mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build; cd amazon-kinesis-video-streams-producersdk-cpp/build; cmake .. `
 
 By default we download all the libraries from GitHub and build them locally, so should require nothing to be installed ahead of time.
 If you do wish to link to existing libraries you can use the following flags to customize your build.
