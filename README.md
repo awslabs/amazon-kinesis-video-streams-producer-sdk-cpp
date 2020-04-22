@@ -33,19 +33,22 @@ To download run the following command:
 
 `git clone --recursive https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git`
 
-Note: If you miss running git clone with --recursive, run `git submodule update --init` in the amazon-kinesis-video-streams-producersdk-cpp/open-source directory
-You will also need to install `pkg-config`, `automake` and `CMake` and a build enviroment
+Note: If you miss running git clone with --recursive, run `git submodule update --init` in the amazon-kinesis-video-streams-producer-sdk-cpp/open-source directory
+You will also need to install `pkg-config`, `automake-1.16` and `CMake` and a build enviroment. If you are build the GStreamer plugin you will also need to install it locally.
+
+Refer to the [FAQ](#FAQ) for platform specific instructions.
 
 ### Configure
 Create a build directory in the newly checked out repository, and execute CMake from it.
 
-`mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build; cd amazon-kinesis-video-streams-producersdk-cpp/build; cmake .. `
+`mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build; cd amazon-kinesis-video-streams-producer-sdk-cpp/build; cmake .. `
+
+GStreamer and JNI is NOT built by default, if you wish to build both you MUST execute `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
 
 By default we download all the libraries from GitHub and build them locally, so should require nothing to be installed ahead of time.
 If you do wish to link to existing libraries you can use the following flags to customize your build.
 
 #### Cross-Compilation
-
 If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [.travis.yml](.travis.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
 
 
@@ -67,16 +70,70 @@ You can pass the following options to `cmake ..`.
 ### Build
 To build the library run make in the build directory you executed CMake.
 
-`make`
+```
+make
+```
 
-### GStreamer sample
-To generate GStreamer samples in the `build` directory, run the following from the build directory:
+In your build directory you will now have shared objects for all the targets you have selected
 
-`cmake .. -DBUILD_GSTREAMER_PLUGIN=ON`; `make`
+## Run
+### GStreamer Plugin (kvssink)
 
-## Documentation
+#### Loading Element
+The GStreamer plugin will be in your `build` directory, to load this plugin it will need to be in your `GST_PLUGIN_PATH`. Do this you can run
+
+```
+export GST_PLUGIN_PATH=`pwd`/build
+```
+
+Now if you execute `gst-inspect-1.0 kvssink` you should get information on the plugin like
+
+```text
+Factory Details:
+  Rank                     primary + 10 (266)
+  Long-name                KVS Sink
+  Klass                    Sink/Video/Network
+  Description              GStreamer AWS KVS plugin
+  Author                   AWS KVS <kinesis-video-support@amazon.com>
+
+Plugin Details:
+  Name                     kvssink
+  Description              GStreamer AWS KVS plugin
+  Filename                 /Users/seaduboi/workspaces/amazon-kinesis-video-streams-producer-sdk-cpp/build/libgstkvssink.so
+  Version                  1.0
+  License                  Proprietary
+  Source module            kvssinkpackage
+  Binary package           GStreamer
+  Origin URL               http://gstreamer.net
+```
+
+If the build failed, or `GST_PLUGIN_PATH` is not proprely set you will get output like
+
+```text
+No such element or plugin 'kvssink'
+```
+
+
+#### Using Element
+The kvssink element has the following required parameters:
+
+* `stream-name` -- The name of the destination Kinesis video stream.
+* `storage-size` -- The storage size of the device in kilobytes. For information about configuring device storage, see StorageInfo.
+* `access-key` -- The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path.
+* `secret-key` -- The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path.
+* `credential-path` -- A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files, see Sample Static Credential and Sample Rotating Credential. For more information on rotating credentials, see Managing Access Keys for IAM Users. You must provide either this parameter or access-key and secret-key.
+
+
+For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
+
+## FAQ
+* Is CPP-SDK and GStreamer supported on Mac/Windows/Linux (Supported Platforms)
+Yes! We have FAQs and platform specific instructions for [Windows](docs/windows.md), [MacOS](docs/macos.md) and [Linux](docs/linux.md)
 
 ## Related
+* [What Is Amazon Kinesis Video Streams](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/what-is-kinesis-video.html)
+* [C SDK](https://github.com/awslabs/amazon-kinesis-video-streams-producer-c)
+* [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
 
 ## License
 
