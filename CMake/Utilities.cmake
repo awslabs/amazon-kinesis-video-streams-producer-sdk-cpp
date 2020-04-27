@@ -6,6 +6,8 @@ function(build_dependency lib_name)
       openssl
       curl
       mbedtls
+      autoconf
+      automake
       log4cplus)
   list(FIND supported_libs ${lib_name} index)
   if(${index} EQUAL -1)
@@ -13,17 +15,28 @@ function(build_dependency lib_name)
     return()
   endif()
 
-  set(lib_file_name ${lib_name})
-  if (${lib_name} STREQUAL "openssl")
-    set(lib_file_name ssl)
+  set(target_found NOTFOUND)
+
+  if (${lib_name} STREQUAL "autoconf" OR ${lib_name} STREQUAL "automake")
+    find_program(
+      target_found
+      NAMES ${lib_name}
+      PATHS ${OPEN_SRC_INSTALL_PREFIX}/bin
+      NO_DEFAULT_PATH)
+  else()
+    set(lib_file_name ${lib_name})
+    if (${lib_name} STREQUAL "openssl")
+      set(lib_file_name ssl)
+    endif()
+
+    find_library(
+      target_found
+      NAMES ${lib_file_name}
+      PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib
+      NO_DEFAULT_PATH)
   endif()
-  set(library_found NOTFOUND)
-  find_library(
-    library_found
-    NAMES ${lib_file_name}
-    PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib
-    NO_DEFAULT_PATH)
-  if(library_found)
+
+  if(target_found)
     message(STATUS "${lib_name} already built")
     return()
   endif()
