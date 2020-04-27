@@ -17,9 +17,6 @@ addons:
       - libgstreamer-plugins-base1.0-dev
       - default-jdk
 
-before_install:
-    - wget http://ftp.gnu.org/gnu/automake/automake-1.16.1.tar.gz && tar xzvf automake-1.16.1.tar.gz && cd automake-1.16.1 && ./configure && make && sudo make install && cd ..
-
 script:
   - export AWS_KVS_LOG_LEVEL=2
   - make

@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 2.8)
+
+project(libautomake-download NONE)
+
+find_program(MAKE_EXE NAMES make)
+
+include(ExternalProject)
+ExternalProject_Add(project_libautomake
+    URL               http://ftp.gnu.org/gnu/automake/automake-1.16.1.tar.gz
+    PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
+    CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_libautomake/configure --prefix=${OPEN_SRC_INSTALL_PREFIX}
+    BUILD_COMMAND     ${MAKE_EXE} -j 4
+    BUILD_IN_SOURCE   TRUE
+    INSTALL_COMMAND   ${MAKE_EXE} install
+    TEST_COMMAND      ""
+)

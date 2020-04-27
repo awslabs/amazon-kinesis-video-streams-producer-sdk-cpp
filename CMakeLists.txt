@@ -66,6 +66,7 @@ if(BUILD_DEPENDENCIES)
 
   set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
   set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
+  set(ENV{PATH} "$ENV{PATH}:${OPEN_SRC_INSTALL_PREFIX}/bin")
   set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
 
   message(STATUS "Begin building dependencies.")
@@ -74,6 +75,8 @@ if(BUILD_DEPENDENCIES)
   build_dependency(curl -DBUILD_STATIC=${BUILD_STATIC} -DUSE_OPENSSL=${USE_OPENSSL} -DUSE_MBEDTLS=${USE_MBEDTLS})
 
   build_dependency(jsmn)
+  build_dependency(autoconf)
+  build_dependency(automake)
   build_dependency(log4cplus)
 
   if(BUILD_TEST)
