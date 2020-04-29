@@ -5,13 +5,21 @@ file(GLOB PRODUCER_TEST_SOURCES *.cpp)
 
 set(INCLUDES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../src/")
 
-set(GTEST_ROOT $ENV{KVS_GTEST_ROOT})
-find_package(GTest REQUIRED)
+if (OPEN_SRC_INSTALL_PREFIX)
+  find_package(GTest REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
+else()
+  find_package(GTest REQUIRED)
+endif()
+
+SET(GTEST_LIBNAME GTest::gtest)
+if (TARGET GTest::GTest)
+  SET(GTEST_LIBNAME GTest::GTest)
+endif()
 
 add_executable(${PROJECT_NAME} ${PRODUCER_TEST_SOURCES})
 target_link_libraries(${PROJECT_NAME}
-            GTest::GTest
-            KinesisVideoProducer)
+            KinesisVideoProducer
+            ${GTEST_LIBNAME})
 add_test(${PROJECT_NAME} ${PROJECT_NAME})
 
 if(BUILD_GSTREAMER_PLUGIN)
@@ -24,7 +32,7 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_executable(${GST_KVS_PLUGIN_TEST_NAME} ${GST_PLUGIN_TEST_SOURCES})
   target_link_libraries(${GST_KVS_PLUGIN_TEST_NAME}
-              GTest::GTest
+              ${GTEST_LIBNAME}
               KinesisVideoProducer
               ${GST_APP_LIBRARIES}
               ${GST_CHECK_LIBRARIES})
