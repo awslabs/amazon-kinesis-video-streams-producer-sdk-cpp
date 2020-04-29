@@ -33,6 +33,8 @@ get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
 if(BUILD_STATIC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
   set(LINKAGE STATIC)
+elseif(WIN32)
+  set(LINKAGE STATIC)
 else()
   set(LINKAGE SHARED)
 endif()
@@ -64,49 +66,66 @@ if(BUILD_DEPENDENCIES)
     file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
   endif()
 
-  set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
-  set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
-  set(ENV{PATH} "$ENV{PATH}:${OPEN_SRC_INSTALL_PREFIX}/bin")
-  set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
+  if (NOT OPEN_SRC_INSTALL_PREFIX)
+    set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
+    set(ENV{PKG_CONFIG_PATH}
+          "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
+    set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
+    set(ENV{PATH} "$ENV{PATH}:${OPEN_SRC_INSTALL_PREFIX}/bin")
+  endif()
+
 
   message(STATUS "Begin building dependencies.")
 
-  build_dependency(openssl -DBUILD_STATIC=${BUILD_STATIC} -DBUILD_OPENSSL_PLATFORM=${BUILD_OPENSSL_PLATFORM})
-  build_dependency(curl -DBUILD_STATIC=${BUILD_STATIC} -DUSE_OPENSSL=${USE_OPENSSL} -DUSE_MBEDTLS=${USE_MBEDTLS})
-
-  build_dependency(jsmn)
-  build_dependency(autoconf)
-  build_dependency(automake)
-  build_dependency(log4cplus)
-
-  if(BUILD_TEST)
-    build_dependency(gtest)
+  if (NOT WIN32)
+    build_dependency(autoconf)
+    build_dependency(automake)
   endif()
+  build_dependency(log4cplus)
 
   message(STATUS "Finished building dependencies.")
 endif()
 
+set(BUILD_COMMON_LWS
+    FALSE
+    CACHE BOOL "Build ProducerC without LWS Support" FORCE)
+set(BUILD_COMMON_CURL
+    TRUE
+    CACHE BOOL "Build ProducerC with CURL Support" FORCE)
+add_subdirectory(${KINESIS_VIDEO_PRODUCER_C_SRC} ./kvscproducer EXCLUDE_FROM_ALL)
+
+
 ############# find dependent libraries ############
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
+
 find_package(OpenSSL REQUIRED)
+set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIRS})
 
-pkg_check_modules(LIBCURL REQUIRED libcurl)
+if (OPEN_SRC_INSTALL_PREFIX)
+  find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
+else()
+  find_package(CURL REQUIRED)
+endif()
 
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${LIBCURL_INCLUDE_DIRS})
-link_directories(${LIBCURL_LIBRARY_DIRS})
+set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS})
+link_directories(${CURL_LIBRARY_DIRS})
 
-set(OPEN_SRC_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
+if (WIN32)
+  find_package(Log4cplus
+    NAMES log4cplus REQUIRED
+    PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+else()
+  find_library(Log4cplus
+    NAMES log4cplus REQUIRED
+    PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+endif()
 
-find_library(
-  Log4cplus
-  NAMES log4cplus REQUIRED
-  PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${LOG4CPLUS_INCLUDE_DIRS})
+link_directories(${LOG4CPLUS_LIBRARY_DIRS})
 
-
-find_library(Jsmn
-  NAMES jsmn REQUIRED
-  PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+find_library(Jsmn REQUIRED)
+set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${JSMN_INCLUDE_DIRS})
 
 ############# Enable Sanitizers ############
 if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU|Clang")
@@ -137,6 +156,10 @@ if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU|Clang")
   endif()
 endif()
 
+if(MSVC)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_WARNINGS -D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+endif()
+
 ############# Build Targets ############
 file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credential-providers/*.cpp")
 file(GLOB GST_PLUGIN_SOURCE_FILES "src/gstreamer/*.cpp" "src/gstreamer/Util/*.cpp")
@@ -152,13 +175,10 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 include_directories(${KINESIS_VIDEO_PRODUCER_C_SRC}/src/include)
 
-set(BUILD_COMMON_LWS
-    FALSE
-    CACHE BOOL "Build ProducerC without LWS Support" FORCE)
-set(BUILD_COMMON_CURL
-    TRUE
-    CACHE BOOL "Build ProducerC with CURL Support" FORCE)
-add_subdirectory(${KINESIS_VIDEO_PRODUCER_C_SRC} ./kvscproducer EXCLUDE_FROM_ALL)
+if (WIN32)
+  SET(JSMN_LIBRARY "../../open-source/local/lib/jsmn")
+  SET(Log4cplus "log4cplus::log4cplus")
+endif()
 
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 target_link_libraries(
@@ -171,7 +191,7 @@ target_link_libraries(
          cproducer
          ${OPENSSL_SSL_LIBRARY}
          ${OPENSSL_CRYPTO_LIBRARY}
-         ${Jsmn}
+         ${JSMN_LIBRARY}
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
 

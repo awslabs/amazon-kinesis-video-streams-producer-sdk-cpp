@@ -103,3 +103,12 @@ matrix:
         - sudo apt-get -q update
         - sudo apt-get -y install gcc-4.4
         - export CC=gcc-4.4 && mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+
+    - name: "Windows MSVC"
+      os: windows
+      script:
+        - choco install nasm strawberryperl
+        - unset CC CC_FOR_BUILD CXX CXX_FOR_BUILD # We want to use MSVC
+        - export "PATH=/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:/c/Program Files/NASM:`pwd`/open-source/local/lib:`pwd`/open-source/local/bin:$PATH"
+        - .github/build_windows.bat
+        - cd build/tst && ./producerTest.exe
