@@ -138,3 +138,22 @@ Yes! We have FAQs and platform specific instructions for [Windows](docs/windows.
 ## License
 
 This library is licensed under the Apache 2.0 License.
+
+
+## Release Notes
+
+Release 3.0.0 (1st May 2020)
+
+Release tagged at: 8f6b7731139b0d94142c7b73f7d78912c9830981
+
+Whats new:
+- Migrated to CMake build system.
+- Stripped down the SDK to contain only GStreamer related samples JNI interface
+- Removed docker_native_scripts directory. For reference to the scripts, please take a look at 2.1.0.
+- Updated openssl version to 1.1.1g
+- Migrated producer C samples to https://github.com/awslabs/amazon-kinesis-video-streams-producer-c
+- Migrated PIC to  https://github.com/awslabs/amazon-kinesis-video-streams-pic
+
+Known work items:
+- Update AWS documentation to reflect the changes in the version
+- Move window docker scripts to demos repo (https://github.com/aws-samples/amazon-kinesis-video-streams-demos)
