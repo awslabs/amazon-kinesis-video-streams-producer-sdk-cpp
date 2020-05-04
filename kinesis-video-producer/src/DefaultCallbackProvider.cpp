@@ -359,12 +359,12 @@ DefaultCallbackProvider::DefaultCallbackProvider(
     getPlatformCallbacks();
     if (STATUS_FAILED(retStatus = createAbstractDefaultCallbacksProvider(
             DEFAULT_CALLBACK_CHAIN_COUNT,
-            is_caching_endpoint,
+            API_CALL_CACHE_TYPE_ALL,
             caching_update_period,
             STRING_TO_PCHAR(region),
             STRING_TO_PCHAR(control_plane_uri),
             STRING_TO_PCHAR(cert_path),
-            DEFAULT_USER_AGENT_NAME,
+            (PCHAR) DEFAULT_USER_AGENT_NAME,
             STRING_TO_PCHAR(custom_user_agent_),
             &client_callbacks_))) {
         std::stringstream status_strstrm;

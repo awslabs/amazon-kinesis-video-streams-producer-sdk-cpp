@@ -30,8 +30,8 @@ void CredentialProvider::getUpdatedCredentials(Credentials& credentials) {
 
 void CredentialProvider::refreshCredentials(bool forceUpdate) {
     auto now_time = systemCurrentTime().time_since_epoch();
-    // update if we've exceeded the refresh interval
-    if (now_time > next_rotation_time_ || forceUpdate) {
+    // update if we've exceeded the refresh interval with grace period
+    if (forceUpdate || now_time + CredentialProviderGracePeriod > next_rotation_time_) {
         LOG_DEBUG("Refreshing credentials. Force refreshing: " << forceUpdate
                          << " Now time is: " << now_time.count()
                          << " Expiration: " << next_rotation_time_.count());
