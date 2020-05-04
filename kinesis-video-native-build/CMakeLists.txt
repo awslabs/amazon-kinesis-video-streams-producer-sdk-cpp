@@ -508,6 +508,7 @@ else()
       cproducer SHARED
       ${C_PRODUCER_SOURCE_FILES} ${C_PRODUCER_COMMON_SOURCE_FILES}
       ${C_PRODUCER_COMMON_CURL_SOURCE_FILES})
+    target_compile_definitions(cproducer PRIVATE KVS_BUILD_WITH_CURL KVS_USE_OPENSSL)
     # Use PRIVATE otherwise anything linking against cproducer will also link with pic again,
     # causing duplicate symbols
     target_link_libraries(cproducer PRIVATE ${PRODUCER_LIBRARIES} ${Jsmn} kvspic)
@@ -522,7 +523,7 @@ else()
             ${KINESIS_VIDEO_C_PRODUCER_SRC}/samples/KvsVideoOnlyStreamingSampleCloudwatch.cpp
             ${KINESIS_VIDEO_C_PRODUCER_SRC}/samples/CanaryStreamCallbacks.cpp)
 
-    target_link_libraries(kinesis_video_cproducer_video_only_sample_cw cproducer ${AWSSDK_LINK_LIBRARIES})
+    target_link_libraries(kinesis_video_cproducer_video_only_sample_cw PRIVATE cproducer kvspic ${AWSSDK_LINK_LIBRARIES})
 
     add_executable(
       kinesis_video_cproducer_aac_audio_video_sample
