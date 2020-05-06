@@ -220,6 +220,9 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_executable(kinesis_video_gstreamer_audio_video_sample_app samples/kinesis_video_gstreamer_audio_video_sample_app.cpp)
   target_link_libraries(kinesis_video_gstreamer_audio_video_sample_app ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
+  add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
+  target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
 endif()
 
 if(BUILD_TEST)
