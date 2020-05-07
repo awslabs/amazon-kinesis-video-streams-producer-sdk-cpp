@@ -212,14 +212,14 @@ if(BUILD_GSTREAMER_PLUGIN)
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
-  add_executable(kinesis_video_gstreamer_sample_app samples/kinesis_video_gstreamer_sample_app.cpp)
-  target_link_libraries(kinesis_video_gstreamer_sample_app ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
+  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
-  add_executable(kinesis_video_gstreamer_sample_multistream_app samples/kinesis_video_gstreamer_sample_multistream_app.cpp)
-  target_link_libraries(kinesis_video_gstreamer_sample_multistream_app ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
+  target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
-  add_executable(kinesis_video_gstreamer_audio_video_sample_app samples/kinesis_video_gstreamer_audio_video_sample_app.cpp)
-  target_link_libraries(kinesis_video_gstreamer_audio_video_sample_app ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  add_executable(kvs_gstreamer_audio_video_sample samples/kvs_gstreamer_audio_video_sample.cpp)
+  target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
   target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
