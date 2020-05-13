@@ -22,7 +22,7 @@ target_link_libraries(${PROJECT_NAME}
             ${GTEST_LIBNAME})
 add_test(${PROJECT_NAME} ${PROJECT_NAME})
 
-if(BUILD_GSTREAMER_PLUGIN)
+if(BUILD_GSTREAMER_PLUGIN AND NOT WIN32)
   pkg_check_modules(GST_CHECK REQUIRED gstreamer-check-1.0)
 
   file(GLOB GST_PLUGIN_TEST_SOURCES gstreamer/*.cpp)

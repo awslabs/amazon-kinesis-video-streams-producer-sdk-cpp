@@ -107,7 +107,8 @@ matrix:
     - name: "Windows MSVC"
       os: windows
       script:
-        - choco install nasm strawberryperl
+        - choco install nasm strawberryperl gstreamer
+        - choco install gstreamer-devel --version=1.16.2 # gstreamer-devel has not been approved yet. Version number must be explicit to install
         - unset CC CC_FOR_BUILD CXX CXX_FOR_BUILD # We want to use MSVC
         - export "PATH=/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:/c/Program Files/NASM:`pwd`/open-source/local/lib:`pwd`/open-source/local/bin:$PATH"
         - .github/build_windows.bat

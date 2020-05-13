@@ -34,7 +34,7 @@ To download run the following command:
 `git clone --recursive https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git`
 
 Note: If you miss running git clone with --recursive, run `git submodule update --init` in the amazon-kinesis-video-streams-producer-sdk-cpp/open-source directory
-You will also need to install `pkg-config` and `CMake` and a build enviroment. If you are build the GStreamer plugin you will also need to install it locally.
+You will also need to install `pkg-config` and `CMake` and a build enviroment. If you are building the GStreamer plugin you will also need GStreamer and GStreamer (Development Libraries).
 
 Refer to the [FAQ](#FAQ) for platform specific instructions.
 
@@ -42,6 +42,8 @@ Refer to the [FAQ](#FAQ) for platform specific instructions.
 Create a build directory in the newly checked out repository, and execute CMake from it.
 
 `mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build; cd amazon-kinesis-video-streams-producer-sdk-cpp/build; cmake .. `
+
+If you are building on Windows you need to generate `NMake Makefiles`, you should run `cmake .. -G "NMake Makefiles"`
 
 GStreamer and JNI is NOT built by default, if you wish to build both you MUST execute `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
 
@@ -74,16 +76,28 @@ To build the library run make in the build directory you executed CMake.
 make
 ```
 
+On Windows you should run `nmake` instead of `make`
+
 In your build directory you will now have shared objects for all the targets you have selected
 
 ## Run
 ### GStreamer Plugin (kvssink)
 
 #### Loading Element
-The GStreamer plugin will be in your `build` directory, to load this plugin it will need to be in your `GST_PLUGIN_PATH`. Do this you can run
+The GStreamer plugin is located in your `build` directory.
+
+To load this plugin set the following environment variables. This should be run from the root of the repo, NOT the `build` directory.
 
 ```
 export GST_PLUGIN_PATH=`pwd`/build
+export LD_LIBRARY_PATH=`pwd`/open-source/local/lib
+```
+
+The equivalent for Windows is
+
+```
+set GST_PLUGIN_PATH=%CD%\build
+set PATH=%PATH%;%CD%\open-source\local\bin;%CD%\open-source\local\lib
 ```
 
 Now if you execute `gst-inspect-1.0 kvssink` you should get information on the plugin like
@@ -107,7 +121,7 @@ Plugin Details:
   Origin URL               http://gstreamer.net
 ```
 
-If the build failed, or `GST_PLUGIN_PATH` is not proprely set you will get output like
+If the build failed, or `GST_PLUGIN_PATH` is not properly set you will get output like
 
 ```text
 No such element or plugin 'kvssink'
