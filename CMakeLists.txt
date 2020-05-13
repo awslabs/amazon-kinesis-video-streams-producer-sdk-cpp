@@ -127,6 +127,10 @@ link_directories(${LOG4CPLUS_LIBRARY_DIRS})
 find_library(Jsmn REQUIRED)
 set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${JSMN_INCLUDE_DIRS})
 
+if (WIN32)
+       set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+endif()
+
 ############# Enable Sanitizers ############
 if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU|Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
@@ -176,7 +180,6 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 include_directories(${KINESIS_VIDEO_PRODUCER_C_SRC}/src/include)
 
 if (WIN32)
-  SET(JSMN_LIBRARY "../../open-source/local/lib/jsmn")
   SET(Log4cplus "log4cplus::log4cplus")
 endif()
 

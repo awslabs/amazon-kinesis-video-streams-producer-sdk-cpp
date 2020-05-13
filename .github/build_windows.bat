@@ -2,5 +2,5 @@ call "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliar
 mkdir build
 cd build
 cmd.exe /c cmake -G "NMake Makefiles" ..
-cmake -G "NMake Makefiles" -DBUILD_TEST=TRUE ..
+cmake -G "NMake Makefiles" -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 nmake

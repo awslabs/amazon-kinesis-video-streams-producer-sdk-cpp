@@ -1,3 +1,8 @@
+#### Installing GStreamer
+Install GStreamer and GStreamer development from https://gstreamer.freedesktop.org/download/
+
+Make sure when install that you do a full install, the standard install is missing important elements like `x264enc`
+
 ##### Discovering available devices:
 
 Run the command `gst-device-monitor-1.0` to discover available devices. A sample output of the command looks like following:

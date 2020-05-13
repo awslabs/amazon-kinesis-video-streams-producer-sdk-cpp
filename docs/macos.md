@@ -8,18 +8,6 @@ $ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
 ```
 optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS_DEFAULT_REGION` for the region other than `us-west-2`
 
-----
-##### Setting the environment variables for library path
-* Export the **LD_LIBRARY_PATH**=`<full path to your sdk cpp directory`>/open-source/local/lib. For example, if you have downloaded the CPP SDK in `/opt/awssdk` directory then you can set
-the LD_LIBRARY_PATH as below:
-```
-export LD_LIBRARY_PATH=/opt/awssdk/amazon-kinesis-video-streams-producer-sdk-cpp/open-source/local/lib:$LD_LIBRARY_PATH
-```
-* Set the path for the producer **SDK GStreamer plugin** so that GStreamer can locate it.
-```
-$ export GST_PLUGIN_PATH=<YourSdkFolderPath>/build:$GST_PLUGIN_PATH
-```
-
 ###### Discovering available devices.
 Run the `gst-device-monitor-1.0` command to identify available media devices in your system. An example output as follows:
 ```
@@ -203,16 +191,7 @@ The addFileLoggerPlatformCallbacksProvider API takes five parameters.
 #### Troubleshooting:
 
 ##### Library not found error when running the sample application
-If any error similar to the following shows that the library path is not properly set:
-```
- liblog4cplus-1.2.so.5: cannot open shared object file: No such file or directory
-```
-To resolve this issue, export the LD_LIBRARY_PATH=`<full path to your sdk cpp directory`>/open-source/local/lib. If you have downloaded the CPP SDK in `/opt/awssdk` directory then you can set
-	the LD_LIBRARY_PATH as below:
-
-```
-export LD_LIBRARY_PATH=/opt/awssdk/amazon-kinesis-video-streams-producer-sdk-cpp/open-source/local/lib:$LD_LIBRARY_PATH
-```
+Make sure you have set `GST_PLUGIN_PATH` and `LD_LIBRARY_PATH` in the `Loading Element` section of the main README.md
 
 #####  Build fails with "crypto/include/internal/cryptlib.h:13:11: fatal error: 'stdlib.h`"
 run `export MACOSX_DEPLOYMENT_TARGET=10.14`
@@ -229,7 +208,6 @@ The projects depend on the following open source components. Running `CMake` wil
 * automake 1.15.1 (GNU License)
 * flex 2.5.35 Apple(flex-31)
 * libtool (Apple Inc. version cctools-898)
-* jsoncpp - [License](https://github.com/open-source-parsers/jsoncpp/blob/master/LICENSE)
 
 ###### Unit test dependencies
 * [googletest](https://github.com/google/googletest)
