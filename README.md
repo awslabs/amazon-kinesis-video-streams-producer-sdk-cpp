@@ -34,7 +34,7 @@ To download run the following command:
 `git clone --recursive https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git`
 
 Note: If you miss running git clone with --recursive, run `git submodule update --init` in the amazon-kinesis-video-streams-producer-sdk-cpp/open-source directory
-You will also need to install `pkg-config` and `CMake` and a build enviroment. If you are building the GStreamer plugin you will also need GStreamer and GStreamer (Development Libraries).
+You will also need to install `pkg-config`, `CMake`, `m4` and a build enviroment. If you are building the GStreamer plugin you will also need GStreamer and GStreamer (Development Libraries).
 
 Refer to the [FAQ](#FAQ) for platform specific instructions.
 

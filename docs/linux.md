@@ -1,3 +1,8 @@
+### Installing libraries needed to build
+
+* Ubuntu/Debian - `apt-get install cmake m4 git build-essential`
+* RHEL/CentOS - `yum install cmake git m4 && yum groupinstall 'Development Tools'`
+
 ### How to run sample applications for sending media to KVS using [GStreamer](https://gstreamer.freedesktop.org/):
 
 ##### Setting credentials in environment variables
