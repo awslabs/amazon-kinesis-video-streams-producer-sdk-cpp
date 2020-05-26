@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 2.8)
+
+project(libkvspic-download NONE)
+
+include(ExternalProject)
+
+ExternalProject_Add(libkvspic-download
+    GIT_REPOSITORY    https://github.com/awslabs/amazon-kinesis-video-streams-pic.git
+    GIT_TAG           8f0db7900d6e847ae8072ae5e8205ef81551c685
+    PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
+    CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX}
+        BUILD_ALWAYS      TRUE
+    TEST_COMMAND      ""
+)
