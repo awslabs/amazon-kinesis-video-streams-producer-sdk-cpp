@@ -6,9 +6,9 @@
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
     class KvsSinkStreamCallbackProvider : public StreamCallbackProvider {
-        std::shared_ptr<CustomData> data;
+        std::shared_ptr<KvsSinkCustomData> data;
     public:
-        KvsSinkStreamCallbackProvider(std::shared_ptr<CustomData> data) : data(data) {}
+        KvsSinkStreamCallbackProvider(std::shared_ptr<KvsSinkCustomData> data) : data(data) {}
 
         UINT64 getCallbackCustomData() override {
             return reinterpret_cast<UINT64> (data.get());
