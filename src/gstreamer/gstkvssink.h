@@ -37,7 +37,7 @@
 #include <mutex>
 #include <atomic>
 #include <gst/base/gstcollectpads.h>
-#include <map>
+#include <unordered_set>
 
 using namespace com::amazonaws::kinesis::video;
 
@@ -60,8 +60,7 @@ G_BEGIN_DECLS
 
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
-
-typedef struct _CustomData CustomData;
+typedef struct _KvsSinkCustomData KvsSinkCustomData;
 
 /* all information needed for one track */
 typedef struct _GstKvsSinkTrackData {
@@ -128,7 +127,7 @@ struct _GstKvsSink {
     guint                       num_video_streams;
 
     unique_ptr<Credentials> credentials_;
-    shared_ptr<CustomData> data;
+    shared_ptr<KvsSinkCustomData> data;
 };
 
 struct _GstKvsSinkClass {
@@ -139,9 +138,9 @@ GType gst_kvs_sink_get_type (void);
 
 G_END_DECLS
 
-typedef struct _CustomData {
+struct _KvsSinkCustomData {
 
-    _CustomData():
+    _KvsSinkCustomData():
             stream_status(STATUS_SUCCESS),
             last_dts(0),
             pts_base(0),
@@ -153,7 +152,7 @@ typedef struct _CustomData {
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
 
-    map<uint64_t, string> track_cpd;
+    unordered_set<uint64_t> track_cpd_received;
     GstKvsSink *kvsSink;
     MediaType media_type;
     bool first_video_frame;
@@ -165,6 +164,6 @@ typedef struct _CustomData {
     uint64_t pts_base;
     uint64_t first_pts;
     uint64_t producer_start_time;
-} CustomData;
+};
 
 #endif /* __GST_KVS_SINK_H__ */

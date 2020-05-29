@@ -619,7 +619,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->track_info_type = MKV_TRACK_INFO_TYPE_VIDEO;
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
-    kvssink->data = make_shared<CustomData>();
+    kvssink->data = make_shared<KvsSinkCustomData>();
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
@@ -930,11 +930,11 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 // Send cpd to kinesis video stream
                 ret = data->kinesis_video_stream->start(codec_private_data, KVS_PCM_CPD_SIZE_BYTE, track_id);
 
-            } else if (data->track_cpd.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
+            } else if (data->track_cpd_received.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
                 const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
                 gchar *cpd = gst_value_serialize(gstStreamFormat);
                 string cpd_str = string(cpd);
-                data->track_cpd[track_id] = cpd_str;
+                data->track_cpd_received.insert(track_id);
                 g_free(cpd);
 
                 // Send cpd to kinesis video stream
