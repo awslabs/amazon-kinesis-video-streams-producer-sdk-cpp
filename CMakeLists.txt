@@ -39,22 +39,12 @@ else()
   set(LINKAGE SHARED)
 endif()
 
-set(KINESIS_VIDEO_PIC_SRC "${CMAKE_CURRENT_SOURCE_DIR}/open-source/amazon-kinesis-video-streams-pic/")
-set(KINESIS_VIDEO_PRODUCER_C_SRC "${CMAKE_CURRENT_SOURCE_DIR}/open-source/amazon-kinesis-video-streams-producer-c/")
-set(KINESIS_VIDEO_PRODUCER_CPP_SRC "${CMAKE_SOURCE_DIR}")
-set(KINESIS_VIDEO_OPEN_SOURCE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/open-source)
+set(KINESIS_VIDEO_PRODUCER_CPP_SRC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-message(STATUS "Kinesis Video PIC path is ${KINESIS_VIDEO_PIC_SRC}")
-message(STATUS "Kinesis Video C Producer path is ${KINESIS_VIDEO_PRODUCER_C_SRC}")
-message(STATUS "Kinesis Video WebRTC Client path is ${KINESIS_VIDEO_PRODUCER_CPP_SRC}")
-message(STATUS "dependencies install path is ${KINESIS_VIDEO_OPEN_SOURCE_SRC}")
+message(STATUS "Kinesis Video Producer CPP path is ${KINESIS_VIDEO_PRODUCER_CPP_SRC}")
 
-if(NOT EXISTS ${KINESIS_VIDEO_PIC_SRC})
-  message(FATAL_ERROR "KINESIS_VIDEO_PIC_SRC ${KINESIS_VIDEO_PIC_SRC} does not exist")
-elseif(NOT EXISTS ${KINESIS_VIDEO_PRODUCER_CPP_SRC})
+if(NOT EXISTS ${KINESIS_VIDEO_PRODUCER_CPP_SRC})
   message(FATAL_ERROR "KINESIS_VIDEO_PRODUCER_CPP_SRC ${KINESIS_VIDEO_PRODUCER_CPP_SRC} does not exist")
-elseif(NOT EXISTS ${KINESIS_VIDEO_PRODUCER_C_SRC})
-  message(FATAL_ERROR "KINESIS_VIDEO_PRODUCER_C_SRC ${KINESIS_VIDEO_PRODUCER_C_SRC} does not exist")
 endif()
 
 # pass ca cert location to sdk
@@ -62,38 +52,39 @@ add_definitions(-DKVS_CA_CERT_PATH="${CMAKE_SOURCE_DIR}/certs/cert.pem")
 add_definitions(-DCMAKE_DETECTED_CACERT_PATH)
 
 if(BUILD_DEPENDENCIES)
-  if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
-    file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
-  endif()
 
   if (NOT OPEN_SRC_INSTALL_PREFIX)
-    set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
+    set(OPEN_SRC_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/open-source)
     set(ENV{PKG_CONFIG_PATH}
           "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
     set(ENV{PATH} "$ENV{PATH}:${OPEN_SRC_INSTALL_PREFIX}/bin")
   endif()
 
+  if(NOT EXISTS ${OPEN_SRC_INSTALL_PREFIX})
+    file(MAKE_DIRECTORY ${OPEN_SRC_INSTALL_PREFIX})
+  endif()
 
   message(STATUS "Begin building dependencies.")
+
+  set(BUILD_ARGS -DBUILD_STATIC=${BUILD_STATIC}
+                 -DBUILD_OPENSSL_PLATFORM=${BUILD_OPENSSL_PLATFORM})
+  build_dependency(openssl ${BUILD_ARGS})
+  set(OPENSSL_ROOT_DIR ${OPEN_SRC_INSTALL_PREFIX})
+
+  set(BUILD_ARGS  -DBUILD_STATIC=${BUILD_STATIC})
+  build_dependency(curl ${BUILD_ARGS})
 
   if (NOT WIN32)
     build_dependency(autoconf)
     build_dependency(automake)
   endif()
   build_dependency(log4cplus)
+  build_dependency(cproducer)
+  build_dependency(kvspic)
 
   message(STATUS "Finished building dependencies.")
 endif()
-
-set(BUILD_COMMON_LWS
-    FALSE
-    CACHE BOOL "Build ProducerC without LWS Support" FORCE)
-set(BUILD_COMMON_CURL
-    TRUE
-    CACHE BOOL "Build ProducerC with CURL Support" FORCE)
-add_subdirectory(${KINESIS_VIDEO_PRODUCER_C_SRC} ./kvscproducer EXCLUDE_FROM_ALL)
-
 
 ############# find dependent libraries ############
 find_package(Threads)
@@ -107,6 +98,28 @@ if (OPEN_SRC_INSTALL_PREFIX)
 else()
   find_package(CURL REQUIRED)
 endif()
+
+if (WIN32)
+  find_library(LIBKVSPIC_LIBRARIES kvspic REQUIRED)
+  find_library(LIBKVSPIC_UTILS_LIBRARIES kvspicUtils REQUIRED)
+  find_library(LIBKVSPIC_CLIENT_LIBRARIES kvspicClient REQUIRED)
+  find_library(LIBKVSPIC_STATE_LIBRARIES kvspicState REQUIRED)
+  find_library(LIBCPRODUCER_LIBRARIES cproducer REQUIRED)
+  find_library(LIBKVS_COMMON_CURL_LIBRARIES kvsCommonCurl REQUIRED)
+else()
+  pkg_check_modules(LIBKVSPIC REQUIRED libkvspic)
+  pkg_check_modules(LIBKVSPIC_UTILS REQUIRED libkvspicUtils)
+  pkg_check_modules(LIBKVSPIC_CLIENT REQUIRED libkvspicClient)
+  pkg_check_modules(LIBKVSPIC_STATE REQUIRED libkvspicState)
+  pkg_check_modules(LIBCPRODUCER REQUIRED libcproducer)
+  pkg_check_modules(LIBKVS_COMMON_CURL REQUIRED libkvsCommonCurl)
+endif()
+
+set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} 
+  ${LIBKVSPIC_INCLUDE_DIRS} ${LIBKVSPIC_UTILS_INCLUDE_DIRS}
+  ${LIBKVSPIC_CLIENT_INCLUDE_DIRS} ${LIBKVSPIC_STATE_INCLUDE_DIRS}
+  ${LIBCPRODUCER_INCLUDE_DIRS} ${LIBKVS_COMMON_CURL_INCLUDE_DIRS})
+link_directories(${LIBKVSPIC_LIBRARY_DIRS} ${LIBCPRODUCER_LIBRARY_DIRS})
 
 set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS})
 link_directories(${CURL_LIBRARY_DIRS})
@@ -128,7 +141,7 @@ find_library(Jsmn REQUIRED)
 set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${JSMN_INCLUDE_DIRS})
 
 if (WIN32)
-       set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
 endif()
 
 ############# Enable Sanitizers ############
@@ -168,16 +181,12 @@ endif()
 file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credential-providers/*.cpp")
 file(GLOB GST_PLUGIN_SOURCE_FILES "src/gstreamer/*.cpp" "src/gstreamer/Util/*.cpp")
 file(GLOB_RECURSE JNI_SOURCE_FILES "src/JNI/*.cpp")
-file(GLOB PIC_HEADERS "${KINESIS_VIDEO_PIC_SRC}/src/*/include")
 
-include_directories(${PIC_HEADERS})
 include_directories(${OPEN_SRC_INCLUDE_DIRS})
-include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/include)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
-include_directories(${KINESIS_VIDEO_PRODUCER_C_SRC}/src/include)
 
 if (WIN32)
   SET(Log4cplus "log4cplus::log4cplus")
@@ -195,8 +204,7 @@ target_link_libraries(
          ${OPENSSL_SSL_LIBRARY}
          ${OPENSSL_CRYPTO_LIBRARY}
          ${JSMN_LIBRARY}
-         ${Log4cplus}
-         ${LIBCURL_LIBRARIES})
+         ${Log4cplus})
 
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
@@ -210,7 +218,7 @@ endif()
 if(BUILD_GSTREAMER_PLUGIN)
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
-  link_directories(${GST_APP_LIBRARY_DIRS})
+  link_directories(${GST_APP_LIBRARY_DIRS} ${LIBKVSPIC_LIBRARY_DIRS})
 
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
@@ -229,6 +237,7 @@ if(BUILD_GSTREAMER_PLUGIN)
 endif()
 
 if(BUILD_TEST)
-  set(ENV{KVS_GTEST_ROOT} ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
+  build_dependency(gtest)
+  set(ENV{KVS_GTEST_ROOT} ${OPEN_SRC_INSTALL_PREFIX})
   add_subdirectory(tst)
 endif()
