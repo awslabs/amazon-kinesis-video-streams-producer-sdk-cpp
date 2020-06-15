@@ -94,13 +94,10 @@ set(BUILD_COMMON_CURL
     CACHE BOOL "Build ProducerC with CURL Support" FORCE)
 add_subdirectory(${KINESIS_VIDEO_PRODUCER_C_SRC} ./kvscproducer EXCLUDE_FROM_ALL)
 
-
 ############# find dependent libraries ############
+
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
-
-find_package(OpenSSL REQUIRED)
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIRS})
 
 if (OPEN_SRC_INSTALL_PREFIX)
   find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
@@ -115,20 +112,15 @@ if (WIN32)
   find_package(Log4cplus
     NAMES log4cplus REQUIRED
     PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+  SET(Log4cplus "log4cplus::log4cplus")
 else()
-  find_library(Log4cplus
-    NAMES log4cplus REQUIRED
-    PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+  find_package(Log4cplus REQUIRED)
+  include_directories(${LOG4CPLUS_INCLUDE_DIR})
+  set(Log4cplus ${LOG4CPLUS_LIBRARIES})
 endif()
 
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${LOG4CPLUS_INCLUDE_DIRS})
-link_directories(${LOG4CPLUS_LIBRARY_DIRS})
-
-find_library(Jsmn REQUIRED)
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${JSMN_INCLUDE_DIRS})
-
 if (WIN32)
-       set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
 endif()
 
 ############# Enable Sanitizers ############
@@ -179,10 +171,6 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 include_directories(${KINESIS_VIDEO_PRODUCER_C_SRC}/src/include)
 
-if (WIN32)
-  SET(Log4cplus "log4cplus::log4cplus")
-endif()
-
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 target_link_libraries(
   KinesisVideoProducer
@@ -192,9 +180,6 @@ target_link_libraries(
          kvspicState
          kvsCommonCurl
          cproducer
-         ${OPENSSL_SSL_LIBRARY}
-         ${OPENSSL_CRYPTO_LIBRARY}
-         ${JSMN_LIBRARY}
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
 

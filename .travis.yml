@@ -113,3 +113,4 @@ matrix:
         - export "PATH=/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:/c/Program Files/NASM:`pwd`/open-source/local/lib:`pwd`/open-source/local/bin:$PATH"
         - .github/build_windows.bat
         - cd build/tst && ./producerTest.exe
+
