@@ -48,7 +48,16 @@ If you are building on Windows you need to generate `NMake Makefiles`, you shoul
 GStreamer and JNI is NOT built by default, if you wish to build both you MUST execute `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
 
 By default we download all the libraries from GitHub and build them locally, so should require nothing to be installed ahead of time.
-If you do wish to link to existing libraries you can use the following flags to customize your build.
+If you do wish to link to existing libraries you can do `cmake .. -DBUILD_DEPENDENCIES=OFF`
+Libraries needed to build producer are: Curl, Openssl and Log4cplus. If you want to build the gstreamer plugin you will need to have gstreamer in your system.
+On Mac OS you can get the libraries using homebrew
+```
+$ brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
+```
+On Ubuntu and Raspberry Pi OS you can get the libraries by running
+```
+$ sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+```
 
 #### Cross-Compilation
 If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [.travis.yml](.travis.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
@@ -139,6 +148,9 @@ The kvssink element has the following required parameters:
 
 
 For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
+
+## DEBUG
+* If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
 
 ## FAQ
 * Is CPP-SDK and GStreamer supported on Mac/Windows/Linux (Supported Platforms)
