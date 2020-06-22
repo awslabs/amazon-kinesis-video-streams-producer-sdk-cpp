@@ -1,3 +1,34 @@
+# only fetch target repo for add_subdirectory later
+function(fetch_repo lib_name)
+  set(supported_libs
+      kvscproducer)
+  list(FIND supported_libs ${lib_name} index)
+  if(${index} EQUAL -1)
+    message(WARNING "${lib_name} is not supported for fetch_repo")
+    return()
+  endif()
+
+  # build library
+  configure_file(
+    ./CMake/Dependencies/lib${lib_name}-CMakeLists.txt
+    ${DEPENDENCY_DOWNLOAD_PATH}/lib${lib_name}/CMakeLists.txt COPYONLY)
+  execute_process(
+    COMMAND ${CMAKE_COMMAND}
+            ${CMAKE_GENERATOR} .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH}/lib${lib_name})
+  if(result)
+    message(FATAL_ERROR "CMake step for lib${lib_name} failed: ${result}")
+  endif()
+  execute_process(
+    COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH}/lib${lib_name})
+  if(result)
+    message(FATAL_ERROR "CMake step for lib${lib_name} failed: ${result}")
+  endif()
+endfunction()
+
 # build library from source
 function(build_dependency lib_name)
   set(supported_libs

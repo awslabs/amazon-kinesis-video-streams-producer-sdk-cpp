@@ -39,22 +39,14 @@ else()
   set(LINKAGE SHARED)
 endif()
 
-set(KINESIS_VIDEO_PIC_SRC "${CMAKE_CURRENT_SOURCE_DIR}/open-source/amazon-kinesis-video-streams-pic/")
-set(KINESIS_VIDEO_PRODUCER_C_SRC "${CMAKE_CURRENT_SOURCE_DIR}/open-source/amazon-kinesis-video-streams-producer-c/")
 set(KINESIS_VIDEO_PRODUCER_CPP_SRC "${CMAKE_SOURCE_DIR}")
 set(KINESIS_VIDEO_OPEN_SOURCE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/open-source)
 
-message(STATUS "Kinesis Video PIC path is ${KINESIS_VIDEO_PIC_SRC}")
-message(STATUS "Kinesis Video C Producer path is ${KINESIS_VIDEO_PRODUCER_C_SRC}")
-message(STATUS "Kinesis Video WebRTC Client path is ${KINESIS_VIDEO_PRODUCER_CPP_SRC}")
+message(STATUS "Kinesis Video Cpp Producer path is ${KINESIS_VIDEO_PRODUCER_CPP_SRC}")
 message(STATUS "dependencies install path is ${KINESIS_VIDEO_OPEN_SOURCE_SRC}")
 
-if(NOT EXISTS ${KINESIS_VIDEO_PIC_SRC})
-  message(FATAL_ERROR "KINESIS_VIDEO_PIC_SRC ${KINESIS_VIDEO_PIC_SRC} does not exist")
-elseif(NOT EXISTS ${KINESIS_VIDEO_PRODUCER_CPP_SRC})
+if(NOT EXISTS ${KINESIS_VIDEO_PRODUCER_CPP_SRC})
   message(FATAL_ERROR "KINESIS_VIDEO_PRODUCER_CPP_SRC ${KINESIS_VIDEO_PRODUCER_CPP_SRC} does not exist")
-elseif(NOT EXISTS ${KINESIS_VIDEO_PRODUCER_C_SRC})
-  message(FATAL_ERROR "KINESIS_VIDEO_PRODUCER_C_SRC ${KINESIS_VIDEO_PRODUCER_C_SRC} does not exist")
 endif()
 
 # pass ca cert location to sdk
@@ -92,7 +84,12 @@ set(BUILD_COMMON_LWS
 set(BUILD_COMMON_CURL
     TRUE
     CACHE BOOL "Build ProducerC with CURL Support" FORCE)
-add_subdirectory(${KINESIS_VIDEO_PRODUCER_C_SRC} ./kvscproducer EXCLUDE_FROM_ALL)
+set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
+if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
+  file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
+endif()
+fetch_repo(kvscproducer)
+add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
 
 ############# find dependent libraries ############
 
@@ -160,25 +157,21 @@ endif()
 file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credential-providers/*.cpp")
 file(GLOB GST_PLUGIN_SOURCE_FILES "src/gstreamer/*.cpp" "src/gstreamer/Util/*.cpp")
 file(GLOB_RECURSE JNI_SOURCE_FILES "src/JNI/*.cpp")
-file(GLOB PIC_HEADERS "${KINESIS_VIDEO_PIC_SRC}/src/*/include")
+file(GLOB PIC_HEADERS "${pic_project_SOURCE_DIR}/src/*/include")
 
 include_directories(${PIC_HEADERS})
+include_directories(${KinesisVideoProducerC_SOURCE_DIR}/src/include)
 include_directories(${OPEN_SRC_INCLUDE_DIRS})
 include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/include)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
-include_directories(${KINESIS_VIDEO_PRODUCER_C_SRC}/src/include)
 
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 target_link_libraries(
   KinesisVideoProducer
-  PUBLIC kvspic
-         kvspicUtils
-         kvspicClient
-         kvspicState
-         kvsCommonCurl
+  PUBLIC kvsCommonCurl
          cproducer
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
