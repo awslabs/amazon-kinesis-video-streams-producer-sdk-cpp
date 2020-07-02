@@ -242,7 +242,7 @@ The addFileLoggerPlatformCallbacksProvider API takes five parameters.
 ----
 
 ### Open Source Dependencies
-The projects depend on the following open source components. Running `install-script` will download and build the necessary components automatically.
+The projects depend on the following open source components. Running `CMake` will download and build the necessary components automatically.
 
 #### Producer SDK Core
 * openssl (crypto and ssl) - [License](https://github.com/openssl/openssl/blob/master/LICENSE)
