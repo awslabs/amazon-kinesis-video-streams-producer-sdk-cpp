@@ -39,7 +39,7 @@ else()
   set(LINKAGE SHARED)
 endif()
 
-set(KINESIS_VIDEO_PRODUCER_CPP_SRC "${CMAKE_SOURCE_DIR}")
+set(KINESIS_VIDEO_PRODUCER_CPP_SRC "${CMAKE_CURRENT_SOURCE_DIR}")
 set(KINESIS_VIDEO_OPEN_SOURCE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/open-source)
 
 message(STATUS "Kinesis Video Cpp Producer path is ${KINESIS_VIDEO_PRODUCER_CPP_SRC}")
@@ -50,7 +50,7 @@ if(NOT EXISTS ${KINESIS_VIDEO_PRODUCER_CPP_SRC})
 endif()
 
 # pass ca cert location to sdk
-add_definitions(-DKVS_CA_CERT_PATH="${CMAKE_SOURCE_DIR}/certs/cert.pem")
+add_definitions(-DKVS_CA_CERT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/certs/cert.pem")
 add_definitions(-DCMAKE_DETECTED_CACERT_PATH)
 
 if(BUILD_DEPENDENCIES)
