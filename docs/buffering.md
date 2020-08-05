@@ -3,7 +3,8 @@
 Producer SDK PIC handles the frame buffering by separating the physical storage called Content Store from the logical view known as Content View. The Content Store is a simple storage based on an internal heap implementation. The DeviceInfo.StorageInfo https://github.com/awslabs/amazon-kinesis-video-streams-pic/blob/master/src/client/include/com/amazonaws/kinesis/video/client/Include.h#L1012 controls the type of the storage and the amount of memory to reserve. The Content Store is shared among all of the streams within the client object. Content View, on the other hand, contains the temporal logic of the frames that are in the buffer. The Content View is created per each stream. As the frames are pushed to the SDK using PutFrame API, the frames are being packaged and put in the Content Store and the reference with timestamp information is being produced into the Content View. 
 
 
-https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/docs/Content_View_Storage.png
+![GitHub Logo](/docs/Content_View_Storage.png)
+Format: ![Alt Text](url)
 
 
 ### Content Store
