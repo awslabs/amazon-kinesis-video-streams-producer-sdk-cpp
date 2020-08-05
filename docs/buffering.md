@@ -4,7 +4,7 @@ Producer SDK PIC handles the frame buffering by separating the physical storage 
 
 
 ![GitHub Logo](/docs/Content_View_Storage.png)
-Format: ![Alt Text](url)
+
 
 
 ### Content Store
