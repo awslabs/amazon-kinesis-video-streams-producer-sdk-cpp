@@ -6,7 +6,6 @@ Producer SDK PIC handles the frame buffering by separating the physical storage 
 ![GitHub Logo](/docs/Content_View_Storage.png)
 
 
-
 ### Content Store
 
 Content store is an abstraction of the underlying storage that can have different implementations. By default, the implementation is based on low-fragmentation, tightly packed heap which can provide good performance characteristics processing "rolling window"-like allocations of similar sizes with minimal waste of memory. Moreover, the content store abstraction allows for dynamic resizing and indirect mapping which are useful in cases of "hybrid" store chaining with spill-over (for example RAM-based heap with spill-over on eMMC-backed storage). 
@@ -21,13 +20,15 @@ The production into the buffer is done at frame granularity (PutFrame takes an e
 
 ### Controlling SDK buffering and callbacks
 
+Two main structures control most of the SDK behavior. DeviceInfo structure is applicable to the client object overall whereas each stream can be configured with StreamInfo structure. The values in the structure can affect how the SDK core behaves. At runtime, the SDK communicates with the application through callbacks. The following members affect the buffering logic.
+
 StreamInfo.streamCaps.bufferDuration - specifies the entire duration of the buffer keep in the content store before purging from the tail. As the frames fall off the Tail, DroppedFragmentReportFunc callback will be called if the frames have not been yet sent (aka. the Tail crosses the Current pointer). 
 
 
-StreamInfo.streamCaps.maxLatency - specifies the duration in excess of which StreamLatencyPressureFunc callback will be called. The value should be anywhere between a couple of fragments duration to bufferDuration. If the value is 0 or greater than bufferDuration, no latency pressure callback will be issued. C Producer layer default logic will attempt to re-connect when this callback is fired potentially resulting in a better connection.
+StreamInfo.streamCaps.maxLatency - specifies the duration in excess of which StreamLatencyPressureFunc callback will be called. The value should be anywhere between a couple of fragments duration to bufferDuration. If the value is 0 or greater than bufferDuration, no latency pressure callback will be issued. C Producer layer default logic will attempt to reset the connection (re-connect) when this callback is fired potentially resulting in a better connection.
 
 
-DeviceInfo.storageInfo.storageSize - specifies the overall content store size to allocate for storing all of the buffered frames for all of the streams (in case the for a given Client object). The default behavior on overflowing the storage is to evict the tail frames until there is enough storage available to put a new frame. As the content store fills up and the utilization reaches 95%, content store pressure callback will be issued.
+DeviceInfo.storageInfo.storageSize - specifies the overall content store size to allocate for storing all of the buffered frames for all of the streams (in case there are multiple streams for a given Client object). The default behavior on overflowing the storage is to evict the tail frames until there is enough storage available to put a new frame. As the content store fills up (due to buffering) storage pressure callback will be issued when the Content Store utilization reaches 95% (less than 5% available storage).
 
 
 ### Dropping frames
@@ -36,10 +37,11 @@ The SDK drops frames from the Content View in the following scenarios
 
 * If the stream is configured with persistence and the Persisted ACK is received.
 * When the frames naturally fall off the tail as the new frames are being added and the delta between the new frame and the oldest Tail frame is greater than the buffer_duration.
+* When there is not enough physical storage available in the Content Store to store the new frame.
 
 In the first case, the ACK timestamp is mapped in the Content View timeline to find the Key-frame that the ACK applies to. The tail is then moved past to the next Key-frame to trim the workset as those frames are no longer needed (the fragment had already been durably persisted).
 
-In the latter case, the frames that get dropped at the tail might or might not yet have been sent out. The Tail frame could be partially sent out. The default policy controls on how the frames are being dropped. If the Tail frame has been sent out, it will be dropped without calling the dropped frame callback (success case). In case it's been partially sent, it will be preserved and attempted to be sent to ensure syntactic correctness of the resulting MKV stream. The following frames will be dropped until the next Key-frame to free up buffer space.
+In the latter cases, the stream said to have "pressures" - latency and storage respectively. The frames that get dropped at the tail might or might not yet have been sent out. The Tail frame could be partially sent out. The default policy controls on how the frames are being dropped. If the Tail frame has been sent out, it will be dropped without calling the dropped frame callback (success case). In case it's been partially sent, it will be preserved and attempted to be sent to ensure syntactic correctness of the resulting MKV stream. The following frames will be dropped until the next Key-frame to free up buffer space.
 
 The default policy applied to PutFrame API call on storage pressure is to attempt to evict the tail frames to make space for the newly produced frame.
 
