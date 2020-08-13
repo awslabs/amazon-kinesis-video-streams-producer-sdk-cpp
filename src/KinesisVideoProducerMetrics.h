@@ -4,8 +4,6 @@
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
 
-using namespace std;
-
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /**

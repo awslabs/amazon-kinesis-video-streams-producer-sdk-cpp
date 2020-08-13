@@ -5,6 +5,8 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
+using std::shared_ptr;
+
 PutFrameHelper::PutFrameHelper(
         shared_ptr<KinesisVideoStream> kinesis_video_stream,
         uint64_t mkv_timecode_scale_ns,

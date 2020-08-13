@@ -1,6 +1,10 @@
 #include "ProducerTestFixture.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
+
+using namespace std;
+using namespace std::chrono;
+
 class ProducerApiTest : public ProducerTestBase {
 };
 
@@ -574,4 +578,3 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
 }  // namespace kinesis
 }  // namespace amazonaws
 }  // namespace com
-

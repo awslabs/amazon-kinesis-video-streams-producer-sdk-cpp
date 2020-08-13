@@ -65,6 +65,7 @@
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
 using namespace std;
+using namespace std::chrono;
 using namespace log4cplus;
 
 GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);

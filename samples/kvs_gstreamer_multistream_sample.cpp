@@ -9,6 +9,7 @@
 #include <map>
 
 using namespace std;
+using namespace std::chrono;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 

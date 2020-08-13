@@ -5,6 +5,15 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
+using std::map;
+using std::milli;
+using std::ratio;
+using std::string;
+using std::vector;
+using std::chrono::duration;
+using std::chrono::duration_cast;
+using std::chrono::nanoseconds;
+
 StreamDefinition::StreamDefinition(
         string stream_name,
         duration <uint64_t, ratio<3600>> retention_period,
