@@ -5,6 +5,10 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
+using std::shared_ptr;
+using std::stringstream;
+using std::unique_ptr;
+
 unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
         unique_ptr<DeviceInfoProvider> device_info_provider,
         unique_ptr<ClientCallbackProvider> client_callback_provider,
