@@ -100,8 +100,20 @@ Using Frame abstraction allows applications to represent frames from a variety o
 NOTE: The frame data is copied upon the call of the putKinesisVideoFrame API so the media pipeline can dereference the frame bits.
 
 
+### Optimizing for different scenarios
+
+KVS is designed to handle a variety of streaming scenarios. Applications can control various behaviors by setting the appropriate parameters in the structures that are being passed in.
 
 
+#### Realtime and Offline streaming modes
+
+The SDK can be configured to stream in Realtime or Offline mode. The Realtime mode is intended to be used with a media pipeline that produces frames at the frame rate that's advertised in the StreamInfo structure. The behavior of the Realtime mode on the temporal or storage pressure is to evict the tail frames without blocking. The Offline mode is primarily designed for the case where the frames are produced at a much faster rate than the frame rate that's specified in the StreamInfo - for example, loading media from a file and streaming it. In this case, the frames are produced at the CPU/IO pipeline speed and will quickly saturate the buffer. The SDK in this mode blocks the media pipeline thread that's producing frames and awaits for the availability - either storage or temporal. As the frames are uploaded to the KVS backend, the Persisted ACKs will free the buffering space, unblocking the media thread to produce more frames into the buffer. This allows uploading of the media at the Network speed. Note: Offline mode requires persistence to be enabled on the stream by specifying a non-zero retention period.
+
+The parameter is controlled by: the STREAMING_TYPE enum selection in https://github.com/awslabs/amazon-kinesis-video-streams-pic/blob/master/src/client/include/com/amazonaws/kinesis/video/client/Include.h#L885
+
+When using Offline mode with a single client object multiple stream configuration, it is possible to have some of the streams become "starved" when the streams are blocked on the content store availability (physical storage which is shared amongs the streams rather than the temporal view). In this scenario, when a few streams get blocked on the availability of the storage, a stream that has faster ACKs delievered will "win" and the other streams will "starve" and the putFrame thread that's blocked will eventually timeout. It is therefore recommended to have a single client/single stream configuration.
+
+The default putFrame timeout is specified as 15 seconds. This can be modified by specifying the timeout value other than 0 in offlineBufferAvailabilityTimeout member in https://github.com/awslabs/amazon-kinesis-video-streams-pic/blob/master/src/client/include/com/amazonaws/kinesis/video/client/Include.h#L1048
 
 
 
