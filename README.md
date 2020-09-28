@@ -149,6 +149,10 @@ The kvssink element has the following required parameters:
 
 For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
 
+
+## Dockerscripts
+* The sample docker scripts for RTSP plugin, raspberry pi and linux can be found in the [Kinesis demos repository](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/tree/master/producer-cpp).
+
 ## DEBUG
 * If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
 
