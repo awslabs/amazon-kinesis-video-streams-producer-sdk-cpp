@@ -403,7 +403,6 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
     EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
     EXPECT_EQ(0, latency_pressure_count_) << "Should not have latency pressure events";
     EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-    EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 }
