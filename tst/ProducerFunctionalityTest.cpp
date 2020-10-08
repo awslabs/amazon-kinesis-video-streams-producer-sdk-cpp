@@ -325,6 +325,259 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space) {
 
 }
 
+/**
+ * Set short max latency in the stream info.
+ * Send a few fragments then pause as in an intermittent
+ * scenario. Put an EoFR before pausing to ensure we terminate the fragment on the backend
+ * which will issue a persistent ACK, causing the state machine to not rollback
+ * on the next frame produced after the pause. The pause will cause the connection timeout
+ * which would then set the state machine to change state to issue a new session. The new
+ * session will not rollback due to the previous session being closed and persisted ACK
+ * received. If, however, this is not the case, the rollback would cause a latency pressure.
+ */
+TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr) {
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    CreateProducer();
+
+    buffering_ack_in_sequence_ = true;
+    key_frame_interval_ = 60;
+    total_frame_count_ = 6 * key_frame_interval_;
+
+    UINT64 timestamp = 0;
+    Frame frame;
+    frame.duration = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame.frameData = frameBuffer_;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.trackId = DEFAULT_TRACK_ID;
+    Frame eofr = EOFR_FRAME_INITIALIZER;
+
+    // Set the value of the frame buffer
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
+
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
+                                   15000,
+                                   120);
+    auto kinesis_video_stream = streams_[0];
+
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
+        frame.index = i;
+        frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+        // Pause on the 5th
+        if (i == 5 * key_frame_interval_) {
+            EXPECT_TRUE(kinesis_video_stream->putFrame(eofr));
+
+            // Make sure we hit the connection idle timeout
+            THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+        }
+
+        timestamp = GETTIME();
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+
+        std::stringstream strstrm;
+        strstrm << " TID: 0x" << std::hex << GETTID();
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
+
+        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        timestamp += frame_duration_;
+
+        THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
+    THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
+    LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
+    EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
+    EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
+    EXPECT_EQ(0, latency_pressure_count_) << "Should not have latency pressure events";
+    EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
+    EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+    kinesis_video_producer_->freeStreams();
+    streams_[0] = nullptr;
+}
+
+/**
+ * Set short max latency in the stream info.
+ * Set an automatic intermittent producer case handling (intra-frame timeout/closing fragment).
+ * Send a few fragments then pause as in an intermittent
+ * scenario. No EoFR produced before pausing.
+ * Automatic fragment closing fired on timeout to ensure we terminate the fragment on the backend
+ * which will issue a persistent ACK, causing the state machine to not rollback
+ * on the next frame produced after the pause. The pause will cause the connection timeout
+ * which would then set the state machine to change state to issue a new session. The new
+ * session will not rollback due to the previous session being closed and persisted ACK
+ * received. If, however, this is not the case, the rollback would cause a latency pressure.
+ */
+ /**
+  * TODO: This is disabled until we implement the auto fragment closing feature
+  */
+TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pressure_auto) {
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    CreateProducer();
+
+    buffering_ack_in_sequence_ = true;
+    key_frame_interval_ = 60;
+    total_frame_count_ = 6 * key_frame_interval_;
+
+    UINT64 timestamp = 0;
+    Frame frame;
+    frame.duration = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame.frameData = frameBuffer_;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.trackId = DEFAULT_TRACK_ID;
+
+    // Set the value of the frame buffer
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
+
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
+                                   15000,
+                                   120);
+    auto kinesis_video_stream = streams_[0];
+
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
+        frame.index = i;
+        frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+        // Pause on the 5th
+        if (i == 5 * key_frame_interval_) {
+            // Make sure we hit the connection idle timeout
+            THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+        }
+
+        timestamp = GETTIME();
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+
+        std::stringstream strstrm;
+        strstrm << " TID: 0x" << std::hex << GETTID();
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
+
+        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        timestamp += frame_duration_;
+
+        THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
+    THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
+    LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
+    EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
+    EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
+    EXPECT_EQ(0, latency_pressure_count_) << "Should not have latency pressure events";
+    EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
+    EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+    kinesis_video_producer_->freeStreams();
+    streams_[0] = nullptr;
+}
+
+/**
+ * Set short max latency in the stream info.
+ * Send a few fragments then pause as in an intermittent
+ * scenario. No EoFR produced before pausing.
+ * The backend doesn't terminate the fragment so no ACKs will be issued.
+ * The pause will cause the connection timeout
+ * which would then set the state machine to change state to issue a new session. The new
+ * session will not rollback due to the previous session being closed and persisted ACK
+ * received.
+ * As we haven't received a persistent ACK, the rollback will roll it back to the previous
+ * fragment and re-stream. The previous fragment timestamps are in the past causing latency
+ * pressure callback to fire.
+ */
+TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    KinesisVideoLogger::getInstance().setLogLevel(log4cplus::DEBUG_LOG_LEVEL);
+
+    CreateProducer();
+
+    buffering_ack_in_sequence_ = true;
+    key_frame_interval_ = 60;
+    total_frame_count_ = 6 * key_frame_interval_;
+
+    UINT64 timestamp = 0;
+    Frame frame;
+    frame.duration = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame.frameData = frameBuffer_;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.trackId = DEFAULT_TRACK_ID;
+
+    // Set the value of the frame buffer
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
+
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
+                                   15000,
+                                   120);
+    auto kinesis_video_stream = streams_[0];
+
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
+        frame.index = i;
+        frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+        // Pause on the 5th
+        if (i == 5 * key_frame_interval_) {
+            // Make sure we hit the connection idle timeout
+            THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+        }
+
+        timestamp = GETTIME();
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+
+        std::stringstream strstrm;
+        strstrm << " TID: 0x" << std::hex << GETTID();
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
+
+        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        timestamp += frame_duration_;
+
+        THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
+    THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
+    LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
+    EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
+    EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
+    EXPECT_NE(0, latency_pressure_count_) << "Should fire latency pressure events";
+    EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
+    EXPECT_FALSE(buffering_ack_in_sequence_);
+    kinesis_video_producer_->freeStreams();
+    streams_[0] = nullptr;
+}
+
 }
 }
 }
