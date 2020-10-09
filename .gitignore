@@ -13,6 +13,7 @@ open-source/libsrtp
 open-source/libusrsctp
 open-source/libwebsockets
 open-source/local
+open-source/libautoconf
 outputs
 tags
 dependency
