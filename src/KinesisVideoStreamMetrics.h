@@ -4,9 +4,6 @@
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
 
-using namespace std;
-using namespace std::chrono;
-
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /**
@@ -27,15 +24,15 @@ public:
     /**
      * Returns the current view duration in millis
      */
-    duration<uint64_t, milli> getCurrentViewDuration() const {
-        return milliseconds(stream_metrics_.currentViewDuration / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    std::chrono::duration<uint64_t, std::milli> getCurrentViewDuration() const {
+        return std::chrono::milliseconds(stream_metrics_.currentViewDuration / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
     }
 
     /**
      * Returns the overall view duration in millis
      */
-    duration<uint64_t, milli> getOverallViewDuration() const {
-        return milliseconds(stream_metrics_.overallViewDuration / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    std::chrono::duration<uint64_t, std::milli> getOverallViewDuration() const {
+        return std::chrono::milliseconds(stream_metrics_.overallViewDuration / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
     }
 
     /**

@@ -15,9 +15,6 @@
 #include <atomic>
 #include <map>
 
-using namespace std;
-using namespace std::chrono;
-
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video.TEST");
@@ -183,6 +180,7 @@ public:
                          defaultRegion_(DEFAULT_AWS_REGION),
                          caCertPath_(""),
                          error_status_(STATUS_SUCCESS),
+                         latency_pressure_count_(0),
                          device_storage_size_(TEST_STORAGE_SIZE_IN_BYTES),
                          fps_(TEST_FPS),
                          total_frame_count_(TEST_TOTAL_FRAME_COUNT),
@@ -225,17 +223,18 @@ public:
         return key_frame_interval_ * frame_duration_ / HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
     }
 
-    atomic_bool stop_called_;
-    atomic_bool frame_dropped_;
-    atomic_bool buffer_duration_pressure_;
-    atomic_bool storage_overflow_;
-    atomic_bool buffering_ack_in_sequence_;
-    atomic_uint error_status_;
-    map<UPLOAD_HANDLE, uint64_t> previous_buffering_ack_timestamp_;
+    std::atomic_bool stop_called_;
+    std::atomic_bool frame_dropped_;
+    std::atomic_bool buffer_duration_pressure_;
+    std::atomic_bool storage_overflow_;
+    std::atomic_bool buffering_ack_in_sequence_;
+    std::atomic_uint error_status_;
+    std::atomic_uint latency_pressure_count_;
+    std::map<UPLOAD_HANDLE, uint64_t> previous_buffering_ack_timestamp_;
 
 protected:
 
-    void handlePressure(atomic_bool &pressure_flag, uint32_t grace_period_seconds) {
+    void handlePressure(std::atomic_bool &pressure_flag, uint32_t grace_period_seconds) {
         // first time pressure is detected
         if (pressure_flag && current_pressure_state_ == OK) {
             current_pressure_state_ = PRESSURING; // update state
@@ -275,7 +274,7 @@ protected:
         char const *sessionToken;
         char const *defaultRegion;
         char const *caCertPath;
-        string sessionTokenStr;
+        std::string sessionTokenStr;
         if (nullptr == (accessKey = getenv(ACCESS_KEY_ENV_VAR))) {
             accessKey = "AccessKey";
             access_key_set_ = false;
@@ -288,19 +287,19 @@ protected:
         if (nullptr == (sessionToken = getenv(SESSION_TOKEN_ENV_VAR))) {
             sessionTokenStr = "";
         } else {
-            sessionTokenStr = string(sessionToken);
+            sessionTokenStr = std::string(sessionToken);
         }
 
         if (nullptr != (defaultRegion = getenv(DEFAULT_REGION_ENV_VAR))) {
-            defaultRegion_ = string(defaultRegion);
+            defaultRegion_ = std::string(defaultRegion);
         }
 
         if (nullptr != (caCertPath = getenv(CACERT_PATH_ENV_VAR))) {
-            caCertPath_ = string(caCertPath);
+            caCertPath_ = std::string(caCertPath);
         }
 
-        credentials_.reset(new Credentials(string(accessKey),
-                string(secretKey),
+        credentials_.reset(new Credentials(std::string(accessKey),
+                std::string(secretKey),
                 sessionTokenStr,
                 std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
 
@@ -316,7 +315,7 @@ protected:
         stream_callback_provider_.reset(new TestStreamCallbackProvider(this));
 
         try {
-            unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
+          std::unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
             if (cachingEndpoingProvider) {
                 defaultCallbackProvider.reset(new CachingEndpointOnlyCallbackProvider(
                         move(client_callback_provider_),
@@ -348,13 +347,13 @@ protected:
         }
     };
 
-    shared_ptr<KinesisVideoStream> CreateTestStream(int index,
+    std::shared_ptr<KinesisVideoStream> CreateTestStream(int index,
                                                     STREAMING_TYPE streaming_type = STREAMING_TYPE_REALTIME,
                                                     uint32_t max_stream_latency_ms = TEST_MAX_STREAM_LATENCY_IN_MILLIS,
                                                     int buffer_duration_seconds = 120) {
         char stream_name[MAX_STREAM_NAME_LEN];
         sprintf(stream_name, "ScaryTestStream_%d", index);
-        map<string, string> tags;
+        std::map<std::string, std::string> tags;
         char tag_name[MAX_TAG_NAME_LEN];
         char tag_val[MAX_TAG_VALUE_LEN];
         for (int i = 0; i < 5; i++) {
@@ -364,15 +363,15 @@ protected:
             tags.emplace(std::make_pair(tag_name, tag_val));
         }
 
-        unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(stream_name,
-                hours(2),
+        std::unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(stream_name,
+                std::chrono::hours(2),
                 &tags,
                 "",
                 streaming_type,
                 "video/h264",
-                milliseconds(max_stream_latency_ms),
-                seconds(2),
-                milliseconds(1),
+                std::chrono::milliseconds(max_stream_latency_ms),
+                std::chrono::seconds(2),
+                std::chrono::milliseconds(1),
                 true,
                 true,
                 true,
@@ -382,9 +381,9 @@ protected:
                 0,
                 25,
                 4 * 1024 * 1024,
-                seconds(buffer_duration_seconds),
-                seconds(buffer_duration_seconds),
-                seconds(50)));
+                std::chrono::seconds(buffer_duration_seconds),
+                std::chrono::seconds(buffer_duration_seconds),
+                std::chrono::seconds(50)));
         return kinesis_video_producer_->createStreamSync(move(stream_definition));
     };
 
@@ -410,15 +409,15 @@ protected:
         frame_duration_ = 1000LLU * HUNDREDS_OF_NANOS_IN_A_MILLISECOND / fps_;
     }
 
-    unique_ptr<KinesisVideoProducer> kinesis_video_producer_;
-    unique_ptr<DeviceInfoProvider> device_provider_;
-    unique_ptr<ClientCallbackProvider> client_callback_provider_;
-    unique_ptr<StreamCallbackProvider> stream_callback_provider_;
-    unique_ptr<Credentials> credentials_;
-    unique_ptr<CredentialProvider> credential_provider_;
+    std::unique_ptr<KinesisVideoProducer> kinesis_video_producer_;
+    std::unique_ptr<DeviceInfoProvider> device_provider_;
+    std::unique_ptr<ClientCallbackProvider> client_callback_provider_;
+    std::unique_ptr<StreamCallbackProvider> stream_callback_provider_;
+    std::unique_ptr<Credentials> credentials_;
+    std::unique_ptr<CredentialProvider> credential_provider_;
 
-    string defaultRegion_;
-    string caCertPath_;
+    std::string defaultRegion_;
+    std::string caCertPath_;
 
     bool access_key_set_;
 
@@ -438,7 +437,7 @@ protected:
     int64_t pressure_cooldown_time_;
 
     BYTE frameBuffer_[TEST_FRAME_SIZE];
-    shared_ptr<KinesisVideoStream> streams_[TEST_STREAM_COUNT];
+    std::shared_ptr<KinesisVideoStream> streams_[TEST_STREAM_COUNT];
 };
 
 }  // namespace video

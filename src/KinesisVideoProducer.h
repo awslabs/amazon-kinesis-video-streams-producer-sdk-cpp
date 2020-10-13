@@ -186,7 +186,7 @@ protected:
     /**
      * Map of the handle to stream object
      */
-    ThreadSafeMap<STREAM_HANDLE, shared_ptr<KinesisVideoStream>> active_streams_;
+    ThreadSafeMap<STREAM_HANDLE, std::shared_ptr<KinesisVideoStream>> active_streams_;
 };
 
 } // namespace video

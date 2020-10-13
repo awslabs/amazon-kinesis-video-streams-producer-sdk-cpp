@@ -2,6 +2,7 @@
 #define __PUT_FRAME_HELPER_H__
 
 #include "KinesisVideoProducer.h"
+#include <memory>
 #include <queue>
 #include <vector>
 
@@ -29,13 +30,13 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
  * video key frame can be put into the stream.
  */
 class PutFrameHelper {
-    shared_ptr<KinesisVideoStream> kinesis_video_stream;
+    std::shared_ptr<KinesisVideoStream> kinesis_video_stream;
     bool put_frame_status;
     uint8_t* data_buffer;
     uint32_t data_buffer_size;
 public:
     PutFrameHelper(
-            shared_ptr<KinesisVideoStream> kinesis_video_stream,
+            std::shared_ptr<KinesisVideoStream> kinesis_video_stream,
             uint64_t mkv_timecode_scale_ns = DEFAULT_MKV_TIMECODE_SCALE_NS,
             uint32_t max_audio_queue_size = DEFAULT_MAX_AUDIO_QUEUE_SIZE,
             uint32_t max_video_queue_size = DEFAULT_MAX_VIDEO_QUEUE_SIZE,
