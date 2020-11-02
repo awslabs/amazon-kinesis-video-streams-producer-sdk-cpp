@@ -70,6 +70,15 @@ STATUS TestStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data,
 STATUS TestStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 duration) {
     UNUSED_PARAM(stream_handle);
     LOG_WARN("Reporting stream latency pressure. Current buffer duration " << duration);
+
+    ProducerTestBase* testBase;
+    STATUS ret = getProducerTestBase(custom_data, &testBase);
+    if (STATUS_FAILED(ret)) {
+        return ret;
+    }
+
+    testBase->latency_pressure_count_++;
+
     return validateCallback(custom_data);
 }
 
