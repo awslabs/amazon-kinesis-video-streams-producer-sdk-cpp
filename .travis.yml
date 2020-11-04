@@ -29,25 +29,25 @@ matrix:
 
   include:
     # MacOS Builds
-    # - name: "OSX GCC"
-    #   os: osx
-    #   compiler: gcc
-    #   before_install: skip # Only for Linux
-    #   before_script:
-    #     - mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE
-    #   script:
-    #     - make
-    #     - ./tst/producerTest
+    - name: "OSX GCC"
+      os: osx
+      compiler: gcc
+      before_install: skip # Only for Linux
+      before_script:
+        - mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE
+      script:
+        - make
+        - ./tst/producerTest
 
-    # - name: "OSX Clang"
-    #   os: osx
-    #   compiler: clang
-    #   before_install: skip # Only for Linux
-    #   before_script:
-    #     - mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE
-    #   script:
-    #     - make
-    #     - ./tst/producerTest
+    - name: "OSX Clang"
+      os: osx
+      compiler: clang
+      before_install: skip # Only for Linux
+      before_script:
+        - mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE
+      script:
+        - make
+        - ./tst/producerTest
 
     # Code Coverage
     - name: "Linux GCC Code Coverage"
