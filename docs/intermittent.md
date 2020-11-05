@@ -1,2 +1,0 @@
-### Intermittent producer handling
-

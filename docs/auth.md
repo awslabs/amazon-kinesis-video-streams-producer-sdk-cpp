@@ -32,6 +32,8 @@ IoT credential provider makes a synchronous RESTful call to IoT endpoint in orde
 
 IoT credential provider object is freed calling a single freeIotCredentialProvider API.
 
+By default, C, C++ Producers will compile against the Curl version as the streaming is based on libCurl and the WebRtc will compile against the LWS version as the Signaling in WebRtc is already based on libWebSockets.
+
 #### File based credential provider
 
 Some applications have a separate authentication module running in a different process. The auth module will periodically retrieve the new credentials (potentially integrating with IAM directly) but it's hard to share these credentials via an inter-process communication in a cross-platform fashion. For this, the SDK implements a file-based credential provider. The credentials are shared via a file which can be on a persistent media or a memory mapped file. The auth module will produce the frash credentials into the file and the SDK file based credential provider will read from the file and use the credentials.

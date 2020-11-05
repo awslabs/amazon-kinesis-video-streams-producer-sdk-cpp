@@ -100,6 +100,37 @@ Using Frame abstraction allows applications to represent frames from a variety o
 NOTE: The frame data is copied upon the call of the putKinesisVideoFrame API so the media pipeline can dereference the frame bits.
 
 
+#### Fragment
+
+While the integration of the media pipeline with the SDK (Producer interface) happens at the Frame granularity, the indexing and persistence in the KVS Service side happens at the Fragment granularity. Fragment is an abstraction - a collection of a set of frames which can be independently reproduced. Fragments durations should be within 1 - 10 seconds long. Some media types naturally have similar concepts - for example h264/h265 (and similar ones) have a concept of GoP (Group-of-Pictures) which includes an Idr frame followed by an I/P/B frames. Having the CPD (Codec Private Data) a decoder could unpack and playback a single fragment by itself. Most of the applications would map a single GoP to a single Fragment. Fragments are represented internally as MKV Clusters (https://www.matroska.org/). Other codecs do not have a concept of a Fragment built-in. For example, AAC audio encoder of M-JPG video encoding has same types of frames. In this case, the application could still integrate with the SDK as defined in below (see Key-frame-fragmentation).
+
+The packaging which drives the fragmentation in the backend service is a high-level concept and should not affect the end-to-end elementary stream producing and consuming as shown in the following diagram:
+
+![GitHub Logo](/docs/Realtime_e2e.png)
+
+
+#### Codec Private Data
+
+While the Fragments are self-contained, many encoders require a special set of bits which are required to get more information in order to reproduce the fragments. Collectively, the set of bits to configure the encoder is known as Codec Private Data or CPD. In case of H264, this is an SPS/PPS combination (see H264 spec) and in case of H265 it's VPS/SPS/PPS combination. Some audio encoders require channel configuration which is mapped as a CPD. Each one of the encoders will have it's specific format and meaning for the CPD. 
+
+The KVS playback/reader API require CPD to be present for H264/H265 and AAC/PCM playback. The SDK appends the CPD in the SegmentInfo of the generated MKV header which is followed by the actual cluster and frame bits in a streamable fashion. The KVS service backend extracts the CPD and pre-pends it to every fragment, thus making each fragment a self-contained file. This is important to remember as GetMedia API consumer application should "strip" the following MKV headers in order to feed into most of the downstream media pipelines or processing engines. Consumer Parser Library contains a sample called OutputSegmentMerger which demonstrates how GetMedia output can be parsed and the interim MKV headers can be removed in order to generate a continuous MKV file.
+
+
+#### Streaming session
+
+KVS Stream is the managed AWS resource that can be created, tagged, updated, deleted, etc... Streams could be sparsely filled and some might have no fragments yet produced at all. Multiple streaming sessions could produce into the stream over time. Each streaming session is a single PutMedia request https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_dataplane_PutMedia.html
+
+KVS SDK issuing a PutMedia API call packages a single MKV header with following single or multiple fragments. 
+
+#### Fragment metadata
+
+KVS SDK supports FragmentMetadata which is defined in https://github.com/awslabs/amazon-kinesis-video-streams-pic/blob/master/src/client/include/com/amazonaws/kinesis/video/client/Include.h#L1218. It represents a key/value pair that can be inserted into the stream as the frames are being produced. It could contain arbitrary information specific to the application itself. 
+
+Fragment metadata is implemented as MKV tags and as such they can not be inserted into the cluster or it will violate MKV syntax. The metadata is produced by calling putKinesisVideoFragmentMetadata API. The metadata will be collected internally and will be applied after the cluster is closed.
+
+There are two types of fragment metadata - single time and persistent. The single will be inserted into the stream once while the persistent will be applied to every fragment.
+
+
 ### Optimizing for different scenarios
 
 KVS is designed to handle a variety of streaming scenarios. Applications can control various behaviors by setting the appropriate parameters in the structures that are being passed in.
@@ -116,15 +147,29 @@ When using Offline mode with a single client object multiple stream configuratio
 The default putFrame timeout is specified as 15 seconds. This can be modified by specifying the timeout value other than 0 in offlineBufferAvailabilityTimeout member in https://github.com/awslabs/amazon-kinesis-video-streams-pic/blob/master/src/client/include/com/amazonaws/kinesis/video/client/Include.h#L1048
 
 
+#### Fragment ACKs
 
+During streaming the SDK is uploading frame data and receiving a stream of ACKs. KVS is using application ACKs instead of relying on the transport/network ACKs for the following reasons:
 
+* KVS business level logic is separated from the networking layer and as such we can't rely on it due to different network layer implementations of ACKs (nacks) or the lack of thereof.
+* KVS has different types of acknowledgments (listed below) and a single networking nack won't work
+* KVS needs to have a Fragment level and not a network packet level granularity
+* Network packets can be nack-ed from the intermediate GW or load balancers and never reach the KVS ingestion backend.
 
+The fragment ACKs are defined in https://github.com/awslabs/amazon-kinesis-video-streams-pic/blob/master/src/client/include/com/amazonaws/kinesis/video/client/Include.h#L794
 
+The different types of fragment ACKs are 
 
+* FRAGMENT_ACK_TYPE_BUFFERING - this ACK is sent by the ingestion backend as soon as the backend starts parsing the fragment
+* FRAGMENT_ACK_TYPE_RECEIVED - the ingestion backend sends this ACK as soon as the fragment is successfully parsed and a fragment sequence number is generated.
+* FRAGMENT_ACK_TYPE_PERSISTED - the ingestion backend sends this ACK after the fragment has been durably persisted and indexed. 
+* FRAGMENT_ACK_TYPE_ERROR - this ACK type is an indication of an error during the ingestion. The different error types are listed in the AWS documentation. It's important to note that the ingestion backend itself will terminate the current connection. 
+* FRAGMENT_ACK_TYPE_IDLE - sent periodically to keep the connection alive - not currently used.
 
+KVS serializes the ACKs according to the fragment ingestion order. There is no hard guarantee however in the order of the types of ACKs but in general, the buffering ACK will follow by received and then persisted ACK. 
 
+Receiving persisted ACK, the SDK will purge the tail from the content view and content store up-to and including the fragment at the timestamp referenced by the ACK. The ACK timestamp in this case is the timestamp of the first frame in the fragment.
 
+Fragment ACK timestamp is the timestamp of the first frame in the fragment when parsed out. Error ACKs may in some cases have no timestamps (for example if the backend fails to parse the stream). 
 
-
-
-
+In case an error ACK is received, the SDK will attempt to re-stream (more info on re-streaming is available in buffering.md document). 
