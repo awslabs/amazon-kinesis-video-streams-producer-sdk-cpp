@@ -13,16 +13,7 @@ JNI layer allows the integration with Java SDK and expose Java Producer interfac
 
 The SDK also has some integration with "known" media pipelines in a form of GStreamer kvssink plugin, which takes care of the integration with the actual frames, similar to Android/Java MediaSource interface.
 
-
-+=======================================+
-|   GStreamer   |   Android/Java client |   <- MediaSource interfaces
-+=======================================+
-|   C++ SDK     |                       |
-+================    JNI/Java adapter   +   <- Producer interfaces
-|   C SDK       |                       | 
-+=======================================+
-|              PIC                      |   <- Core logic
-+=======================================+
+![GitHub Logo](/docs/Layering_and_Interfaces.png)
 
 Many real-life devices and applications have their own custom media pipeline which can be integrated with the KVS Producer interface with relative ease, needing codec configuration and frame data from the media pipeline. SDK provides capabilities of extracting or generating the CPD (Codec Private Data) for some media types listed below.
 
