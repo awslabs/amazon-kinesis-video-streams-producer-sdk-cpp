@@ -39,7 +39,7 @@ else()
   set(LINKAGE SHARED)
 endif()
 
-set(KINESIS_VIDEO_PRODUCER_CPP_SRC "${CMAKE_CURRENT_SOURCE_DIR}")
+set(KINESIS_VIDEO_PRODUCER_CPP_SRC ${CMAKE_CURRENT_SOURCE_DIR})
 set(KINESIS_VIDEO_OPEN_SOURCE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/open-source)
 
 message(STATUS "Kinesis Video Cpp Producer path is ${KINESIS_VIDEO_PRODUCER_CPP_SRC}")
@@ -121,7 +121,7 @@ if (WIN32)
 endif()
 
 ############# Enable Sanitizers ############
-if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU|Clang")
+if(${CMAKE_C_COMPILER_ID} MATCHES "GNU|Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
   if(ADD_MUCLIBC)
