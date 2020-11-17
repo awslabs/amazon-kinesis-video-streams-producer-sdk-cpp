@@ -180,6 +180,7 @@ public:
                          defaultRegion_(DEFAULT_AWS_REGION),
                          caCertPath_(""),
                          error_status_(STATUS_SUCCESS),
+                         latency_pressure_count_(0),
                          device_storage_size_(TEST_STORAGE_SIZE_IN_BYTES),
                          fps_(TEST_FPS),
                          total_frame_count_(TEST_TOTAL_FRAME_COUNT),
@@ -228,6 +229,7 @@ public:
     std::atomic_bool storage_overflow_;
     std::atomic_bool buffering_ack_in_sequence_;
     std::atomic_uint error_status_;
+    std::atomic_uint latency_pressure_count_;
     std::map<UPLOAD_HANDLE, uint64_t> previous_buffering_ack_timestamp_;
 
 protected:

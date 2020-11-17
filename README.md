@@ -141,7 +141,7 @@ No such element or plugin 'kvssink'
 The kvssink element has the following required parameters:
 
 * `stream-name` -- The name of the destination Kinesis video stream.
-* `storage-size` -- The storage size of the device in kilobytes. For information about configuring device storage, see StorageInfo.
+* `storage-size` -- The storage size of the device in megabytes. For information about configuring device storage, see StorageInfo.
 * `access-key` -- The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path.
 * `secret-key` -- The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path.
 * `credential-path` -- A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files, see Sample Static Credential and Sample Rotating Credential. For more information on rotating credentials, see Managing Access Keys for IAM Users. You must provide either this parameter or access-key and secret-key.
