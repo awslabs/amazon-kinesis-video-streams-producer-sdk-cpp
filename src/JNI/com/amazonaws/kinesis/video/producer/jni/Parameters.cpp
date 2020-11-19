@@ -189,7 +189,7 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getCreateStreamTimeout");
     } else {
-        pClientInfo->stopStreamTimeout = env->CallLongMethod(clientInfo, methodId);
+        pClientInfo->createStreamTimeout = env->CallLongMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
