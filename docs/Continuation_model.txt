@@ -1,0 +1,52 @@
+title Async API threading model in PIC
+
+loop Continuation model
+state over Application: CreateStream (async)
+note left of Application: Application thread calling PIC
+PIC->PIC: Allocate and initialize internals
+PIC->PIC: Step State machine to DescribeStream
+PIC->CallbackProvider: DescribeStreamCallback
+CallbackProvider->Networking: Schedule a DescribeStream call
+note right of Networking: The call is handled by a Networking thread.
+Networking->CallbackProvider: Successfully scheduled
+CallbackProvider->PIC: Success
+PIC->Application: Success
+Networking->Networking: HTTP Call completed
+Networking->CallbackProvider: DescribeStream completed
+note left of CallbackProvider: The Networking has completed the call with a success or failure result.
+CallbackProvider->PIC: DescribeStreamResult
+PIC->PIC: Step the state machinery
+note right of PIC: On failure of the call re-try. On success, if the stream is missing call CreateStream
+PIC->CallbackProvider: CreateStreamCallback
+CallbackProvider->Networking: Schedule CreateStream call
+Networking->CallbackProvider: Success
+CallbackProvider->PIC: Success
+note right of PIC: The DescribeStreamResult Network thread returns.
+PIC->CallbackProvider: DescribeStreamResult Success
+CallbackProvider->Networking: Success, release thread
+Networking->Networking: HTTP Call completed
+Networking->CallbackProvider: CreateStream completed
+note left of CallbackProvider: The Networking has completed the call with a success or failure result.
+CallbackProvider->PIC: CreateStreamResult
+PIC->PIC: Step the state machinery
+note right of PIC: On failure of the call re-try. On success, move to Next state
+PIC->CallbackProvider: TagStreamCallback
+CallbackProvider->Networking: Schedule TagStream call
+Networking->CallbackProvider: Success
+CallbackProvider->PIC: Success
+note right of PIC: The CreateStreamResult Network thread returns.
+PIC->CallbackProvider: CreateStreamResult Success
+CallbackProvider->Networking: Success, release thread
+opt Iterating over the other states in a similar way
+    PIC->CallbackProvider: Iterating over states/API calls
+    CallbackProvider->Network:
+    Network->CallbackProvider:
+    CallbackProvider->PIC:
+end
+Networking->CallbackProvider: GetEndpointResult
+CallbackProvider->PIC: GetEndpointResult (success)
+state over PIC: STREAM_READY state
+PIC->CallbackProvider: StreamReady callback
+CallbackProvider->Application: Stream ready
+Application->Application: Returning when CreateStreamSync API is called
+option footer=bar

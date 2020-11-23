@@ -1,0 +1,14 @@
+Layering of the Producer assets and interfaces
+
++---------------+-----------------------+
+|   GStreamer   |   Android/Java client |   <- MediaSource interfaces
+|   c888        |   c588                |
++---------------+-----------------------+
+|   C++ SDK     |                       |
++---------------+    JNI/Java adapter   |   <- Producer interfaces
+|   C SDK       |    c555               |
++---------------+-----------------------+
+|                                       |
+|              PIC                      |   <- Core logic
+|              c594                     |
++---------------------------------------+

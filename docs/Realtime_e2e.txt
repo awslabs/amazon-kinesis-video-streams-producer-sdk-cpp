@@ -1,0 +1,19 @@
+
+               Device/Producer                                    Service                               KVS Consumer Client
+
++-------------+-------------+--------------------+            +----------------+            +--------------------+-------------+-------------+
+|             |             | HTTP Client  cFDA  |            |                |            | Parser        cFDA |             |             |
+| Produced    |  Produced   +--------------------+  +------>  | KVS Realtime   |  +------>  +------+------+------+  Consumed   |  Consumed   |
+| Frame N + 1 |   Frame N   |Frame |Frame |Frame |  <------+  |   end-to-end   |  <------+  |Frame |Frame |Frame | Frame N - 1 | Frame N - 2 |
+| c888        | c888        | Bits | Bits | Bits |    HTTP    | c888           |    HTTP    | Bits | Bits | Bits | c888        | c888        |
++-------------+-------------+------+------+------+    with    +----------------+    with    +------+------+------+-----+-------+-----+-------+
+                                                    endless                        endless                             |             |
+                                                    payload                        payload                             | Call        | Call
+          Data flow                                                                                                    | back        | back
+       :============>                                                                                                  v             v
+                                                                                                                   +-------+     +-------+
+                                                                                                                   |       |     |       |
+                                                                                                                   | Frame |     | Frame |
+                                                                                                                   | Func  |     | Func  |
+                                                                                                                   | cFF9  |     | cFF9  |
+                                                                                                                   +-------+     +-------+
