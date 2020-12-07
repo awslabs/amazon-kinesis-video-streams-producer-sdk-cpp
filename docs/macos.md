@@ -149,11 +149,27 @@ For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Vid
 ##### [Kinesis Video Streams Android SDK](https://github.com/awslabs/aws-sdk-android-samples/tree/master/AmazonKinesisVideoDemoApp)
 -----
 
-##### Running C++ Unit tests
+##### Running C++ unit tests
 
-The executable for **unit tests** will be built as `./tst/producerTest` inside the `build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
+**Note:** Please set the credentials before running the unit tests:
+
+```
+$ export AWS_ACCESS_KEY_ID=YourAccessKeyId
+$ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
+optionally, set AWS_SESSION_TOKEN if integrating with temporary token and AWS_DEFAULT_REGION for the region other than us-west-2
+```
+
+The executable for **unit tests** will be built as `./tst/producer_test` inside the `build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
 
 ##### Running GStreamer Unit tests
+
+**Note:** Please set the credentials before running the unit tests:
+
+```
+$ export AWS_ACCESS_KEY_ID=YourAccessKeyId
+$ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
+optionally, set AWS_SESSION_TOKEN if integrating with temporary token and AWS_DEFAULT_REGION for the region other than us-west-2
+```
 
 The executable for **GStreamer unit tests** will be built as `./tst/gstkvsplugintest` inside the `build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
 
