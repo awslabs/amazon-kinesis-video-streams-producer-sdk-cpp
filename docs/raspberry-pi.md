@@ -1,9 +1,26 @@
+
+The following steps were tested on a Debian buster platform
+
 ### Installing libraries needed to build
 
-* Ubuntu/Debian - `apt-get install cmake m4 git build-essential`
-* RHEL/CentOS - `yum install cmake git m4 && yum groupinstall 'Development Tools'`
+Run the following commands to install the prerequisite libraries to get started:
+
+`sudo apt-get install cmake m4 git build-essential`
+`sudo apt-get install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-tools`
+
+Also, install the gstreamer1.0-omx package to get the omxh264enc hardware encoder:
+
+`sudo apt-get install gstreamer1.0-omx`
+
+If building JNI, ensure Java JDK is available on the system. To check this, run:
+`java -showversion`
+If nothing shows up, install `OpenJDK`:
+`sudo apt-get install openjdk-8-jdk`
+
 
 ### How to run sample applications for sending media to KVS using [GStreamer](https://gstreamer.freedesktop.org/):
+
+Ensure you run `cmake` with `BUILD_GSTREAMER_PLUGIN=ON` option from build directory
 
 ##### Setting credentials in environment variables
 Define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables with the AWS access key id and secret key:
@@ -13,6 +30,11 @@ $ export AWS_ACCESS_KEY_ID=YourAccessKeyId
 $ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
 ```
 optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS_DEFAULT_REGION` for the region other than `us-west-2`
+
+##### Set GST_PLUGIN_PATH in environment variables
+```
+$ export GST_PLUGIN_PATH=>SDK_FOLDER_PATH/build
+```
 
 ###### Discovering audio and video devices available in your system.
 Run the `gst-device-monitor-1.0` command to identify available media devices in your system. An example output as follows:
@@ -57,13 +79,19 @@ $ gst-launch-1.0 -v rtspsrc location="rtsp://YourCameraRtspUrl" short-header=TRU
 ```
 You can find the RTSP URL from your IP camera manual or manufacturers product page.
 
-###### Running the `gst-launch-1.0` command to start streaming from USB camera source in **Ubuntu**.
-```
-$ gst-launch-1.0 -v v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! x264enc  bframes=0 key-int-max=45 bitrate=500 tune=zerolatency ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
-```
 ###### Running the `gst-launch-1.0` command to start streaming from USB camera source which has h264 encoded stream already:
 ```
 $ gst-launch-1.0 -v v4l2src device=/dev/video0 ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
+```
+
+###### Running the `gst-launch-1.0` command to start streaming from camera source:
+
+```
+$ gst-launch-1.0 -v v4l2src do-timestamp=TRUE device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! omxh264enc periodicty-idr=45 inline-header=FALSE ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName access-key="YourAccessKey" secret-key="YourSecretKey"
+```
+or use a different encoder
+```
+$ gst-launch-1.0 -v v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! x264enc  bframes=0 key-int-max=45 bitrate=500 tune=zerolatency ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
 ```
 
 
@@ -89,14 +117,13 @@ card 3: Camera [H264 USB Camera], device 0: USB Audio [USB Audio]
   Subdevice #0: subdevice #0
 ```
 
-The audio recording device is represented by `hw:card_number,device_number`. So to use the second device in the example, use `hw:3,0` as the device in `gst-launch-1.0` command.
+The audio recording device is represented by `hw:card_number,device_numer`. So to use the second device in the example, use `hw:3,0` as the device in `gst-launch-1.0` command.
 
 ```
-gst-launch-1.0 -v v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! x264enc  bframes=0 key-int-max=45 bitrate=500 tune=zerolatency ! h264parse ! video/x-h264,stream-format=avc,alignment=au,profile=baseline ! kvssink name=sink stream-name="my-stream-name" access-key="YourAccessKey" secret-key="YourSecretKey" alsasrc device=hw:1,0 ! audioconvert ! avenc_aac ! queue ! sink.
+gst-launch-1.0 -v v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! omxh264enc periodicty-idr=45 inline-header=FALSE ! h264parse ! video/x-h264,stream-format=avc,alignment=au,profile=baseline ! kvssink name=sink stream-name="my-stream-name" access-key="YourAccessKey" secret-key="YourSecretKey" alsasrc device=hw:1,0 ! audioconvert ! avenc_aac ! queue ! sink.
 ```
 
 if your camera supports outputting h264 encoded stream directly, then you can use this command:
-
 ```
 gst-launch-1.0 -v v4l2src device=/dev/video0 ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="my-stream-name" access-key="YourAccessKey" secret-key="YourSecretKey" alsasrc device=hw:1,0 ! audioconvert ! avenc_aac ! queue ! sink.
 ```
@@ -125,6 +152,24 @@ Change your current working directory to `build`. Launch the sample application 
 
 ```
 AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my-stream> </path/to/file>
+```
+
+###### Running the `gst-launch-1.0` command to upload [MKV](https://www.matroska.org/) file that contains both *audio and video* in **Raspberry-PI**. Note that video should be H264 encoded and audio should be AAC encoded.
+
+```
+gst-launch-1.0 -v filesrc location="YourAudioVideo.mkv" ! matroskademux name=demux ! queue ! h264parse ! kvssink name=sink stream-name="my_stream_name" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
+```
+
+###### Running the `gst-launch-1.0` command to upload MP4 file that contains both *audio and video*:
+
+```
+gst-launch-1.0 -v  filesrc location="YourAudioVideo.mp4" ! qtdemux name=demux ! queue ! h264parse !  video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
+```
+
+###### Running the `gst-launch-1.0` command to upload MPEG2TS file that contains both *audio and video*:
+
+```
+gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! queue ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
 ##### Running the GStreamer sample application to upload a *audio and video* file
@@ -209,9 +254,9 @@ Refer sample configuration in the folder `build` for details on how to set the l
 
 By default C producer prints all logging information to stdout.
 
-To send log information to a file (named kvsProducerLog.index), you need to use the `addFileLoggerPlatformCallbacksProvider` API after ClientCallbacks has been initialized.
+To send log information to a file (named kvsProducerLog.index), you need to use the addFileLoggerPlatformCallbacksProvider API after ClientCallbacks has been initialized.
 
-The `addFileLoggerPlatformCallbacksProvider` API takes five parameters.
+The addFileLoggerPlatformCallbacksProvider API takes five parameters.
 
 * First parameter is the PClientCallbacks that is created during the createCallback provider API (e.g.createDefaultCallbacksProviderWithAuthCallbacks.
 * Second parameter is the size of string buffer that file logger will use. Logs are buffered in the string buffer and flushed into files when the buffer is full.
@@ -242,3 +287,39 @@ The projects depend on the following open source components. Running `CMake` wil
 * [x264]( https://www.videolan.org/developers/x264.html)
 
 ----
+
+### Troubleshooting:
+
+##### Raspberry PI failure to load the camera device.
+To check this is the case run `ls /dev/video*` - it should be file not found. The remedy is to run the following:
+```
+$ls /dev/video*
+{not found}
+```
+```
+$vcgencmd get_camera
+```
+Example output:
+```
+supported=1 detected=1
+```
+if the driver does not detect the camera then
+
+* Check for the camera setup and whether it's connected properly
+* Run firmware update `$ sudo rpi-update` and restart
+```
+$sudo modprobe bcm2835-v4l2
+```
+```
+$ls /dev/video*
+{lists the device}
+```
+
+##### Raspberry PI timestamp/range assertion at runtime.
+Update the Raspberry PI firmware.
+```
+$ sudo rpi-update
+$ sudo reboot
+```
+
+* Raspberry PI GStreamer assertion on gst_value_set_fraction_range_full: assertion 'gst_util_fraction_compare (numerator_start, denominator_start, numerator_end, denominator_end) < 0' failed. The uv4l service running in the background. Kill the service and restart the sample app.
