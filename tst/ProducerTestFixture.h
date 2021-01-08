@@ -135,13 +135,15 @@ private:
 
 class TestDeviceInfoProvider : public DefaultDeviceInfoProvider {
     uint64_t device_storage_size_;
+    AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags_;
 public:
-    TestDeviceInfoProvider(uint64_t device_storage_size): device_storage_size_(device_storage_size) {}
+    TestDeviceInfoProvider(uint64_t device_storage_size, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags): device_storage_size_(device_storage_size), automaticStreamingFlags_(automaticStreamingFlags) {}
 
     device_info_t getDeviceInfo() override {
         auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
         device_info.storageInfo.storageSize = (UINT64) device_storage_size_;
         device_info.streamCount = TEST_STREAM_COUNT;
+        device_info.clientInfo.automaticStreamingFlags = automaticStreamingFlags_;
         return device_info;
     }
 };
@@ -307,16 +309,16 @@ protected:
     }
 
 
-    void CreateProducer(bool cachingEndpoingProvider = false) {
+    void CreateProducer(bool cachingEndpointProvider = false, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER) {
         // Create the producer client
         CreateCredentialProvider();
-        device_provider_.reset(new TestDeviceInfoProvider(device_storage_size_));
+        device_provider_.reset(new TestDeviceInfoProvider(device_storage_size_, automaticStreamingFlags));
         client_callback_provider_.reset(new TestClientCallbackProvider(this));
         stream_callback_provider_.reset(new TestStreamCallbackProvider(this));
 
         try {
           std::unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
-            if (cachingEndpoingProvider) {
+            if (cachingEndpointProvider) {
                 defaultCallbackProvider.reset(new CachingEndpointOnlyCallbackProvider(
                         move(client_callback_provider_),
                         move(stream_callback_provider_),

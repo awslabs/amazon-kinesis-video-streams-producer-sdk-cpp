@@ -493,6 +493,7 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
 }
 
 /**
+ * This test assumes client info AUTOMATIC_STREAMING_FLAGS set to AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS
  * Set short max latency in the stream info.
  * Send a few fragments then pause as in an intermittent
  * scenario. No EoFR produced before pausing.
@@ -513,7 +514,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
 
     KinesisVideoLogger::getInstance().setLogLevel(log4cplus::DEBUG_LOG_LEVEL);
 
-    CreateProducer();
+    CreateProducer(false, AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS);
 
     buffering_ack_in_sequence_ = true;
     key_frame_interval_ = 60;
@@ -576,6 +577,87 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 }
+
+/**
+ * This test assumes client info AUTOMATIC_STREAMING_FLAGS set to AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER (default)
+ * Set short max latency in the stream info.
+ * Send a few fragments then pause as in an intermittent
+ * scenario. EoFR should be automatically produced after pause
+ * Backend should NOT timeout so we should get an ACK
+ */
+TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    KinesisVideoLogger::getInstance().setLogLevel(log4cplus::DEBUG_LOG_LEVEL);
+
+    CreateProducer();
+
+    buffering_ack_in_sequence_ = true;
+    key_frame_interval_ = 60;
+    total_frame_count_ = 6 * key_frame_interval_;
+
+    UINT64 timestamp = 0;
+    Frame frame;
+    frame.duration = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame.frameData = frameBuffer_;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.trackId = DEFAULT_TRACK_ID;
+
+    // Set the value of the frame buffer
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
+
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
+                                   15000,
+                                   120);
+    auto kinesis_video_stream = streams_[0];
+
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
+        frame.index = i;
+        frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+        // Pause on the 5th
+        if (i == 5 * key_frame_interval_) {
+            // Make sure we hit the connection idle timeout
+            THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+        }
+
+        timestamp = GETTIME();
+        frame.decodingTs = timestamp;
+        frame.presentationTs = timestamp;
+
+        std::stringstream strstrm;
+        strstrm << " TID: 0x" << std::hex << GETTID();
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
+
+        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        timestamp += frame_duration_;
+
+        THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
+    THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
+    LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
+    EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
+    EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
+    EXPECT_EQ(0, latency_pressure_count_) << "Should fire latency pressure events";
+    EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
+    EXPECT_TRUE(buffering_ack_in_sequence_);
+    kinesis_video_producer_->freeStreams();
+    streams_[0] = nullptr;
+}
+
+
 
 }
 }
