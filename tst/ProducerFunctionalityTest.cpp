@@ -610,7 +610,7 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
     streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
-                                   15000,
+                                   22000,
                                    120);
     auto kinesis_video_stream = streams_[0];
 
