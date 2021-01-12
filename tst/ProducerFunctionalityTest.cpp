@@ -521,7 +521,9 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
     total_frame_count_ = 6 * key_frame_interval_;
     frame_duration_ = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
 
+    UINT64 startTime = 0;
     UINT64 timestamp = 0;
+    UINT64 delta = 0;
     Frame frame;
     frame.duration = frame_duration_;
     frame.frameData = frameBuffer_;
@@ -536,6 +538,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
                                    120);
     auto kinesis_video_stream = streams_[0];
 
+    startTime = GETTIME();
     for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
@@ -543,13 +546,15 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
         // Pause on the 5th
         if (i == 5 * key_frame_interval_) {
             // Make sure we hit the connection idle timeout
+            UINT64 start = GETTIME();
             THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+            delta = GETTIME() - start;
         } else if ( i < 5 * key_frame_interval_ ) {
             // This should not flip to false until after the 60s sleep when we start putting frames
             EXPECT_TRUE(buffering_ack_in_sequence_);
         }
 
-        timestamp = GETTIME();
+        timestamp = startTime + i*frame_duration_ + delta;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
 
@@ -566,13 +571,8 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
                                               << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
-        timestamp += frame_duration_;
 
-        UINT64 diff = GETTIME() - timestamp;
-
-        if ( diff < frame_duration_ ) {
-            THREAD_SLEEP(frame_duration_ - diff);
-        }
+        THREAD_SLEEP(frame_duration_);
     }
 
     THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
@@ -608,7 +608,9 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
     total_frame_count_ = 6 * key_frame_interval_;
     frame_duration_ = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
 
+    UINT64 startTime = 0;
     UINT64 timestamp = 0;
+    UINT64 delta = 0;
     Frame frame;
     frame.duration = frame_duration_;
     frame.frameData = frameBuffer_;
@@ -623,6 +625,7 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
                                    120);
     auto kinesis_video_stream = streams_[0];
 
+    startTime = GETTIME();
     for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
@@ -630,10 +633,12 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
         // Pause on the 5th
         if (i == 5 * key_frame_interval_) {
             // Make sure we hit the connection idle timeout
+            UINT64 start = GETTIME();
             THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+            delta = GETTIME() - start;
         }
 
-        timestamp = GETTIME();
+        timestamp = startTime + i*frame_duration_ + delta;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
 
@@ -650,13 +655,8 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
                                               << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
-        timestamp += frame_duration_;
 
-        UINT64 diff = GETTIME() - timestamp;
-
-        if ( diff < frame_duration_ ) {
-            THREAD_SLEEP(frame_duration_ - diff);
-        }
+        THREAD_SLEEP(frame_duration_);
     }
 
     THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
