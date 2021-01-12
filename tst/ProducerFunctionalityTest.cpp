@@ -519,10 +519,11 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
     buffering_ack_in_sequence_ = true;
     key_frame_interval_ = 60;
     total_frame_count_ = 6 * key_frame_interval_;
+    frame_duration_ = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
 
     UINT64 timestamp = 0;
     Frame frame;
-    frame.duration = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame.duration = frame_duration_;
     frame.frameData = frameBuffer_;
     frame.size = SIZEOF(frameBuffer_);
     frame.trackId = DEFAULT_TRACK_ID;
@@ -543,6 +544,9 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
         if (i == 5 * key_frame_interval_) {
             // Make sure we hit the connection idle timeout
             THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+        } else if ( i < 5 * key_frame_interval_ ) {
+            // This should not flip to false until after the 60s sleep when we start putting frames
+            EXPECT_TRUE(buffering_ack_in_sequence_);
         }
 
         timestamp = GETTIME();
@@ -564,7 +568,11 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
         timestamp += frame_duration_;
 
-        THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+        UINT64 diff = GETTIME() - timestamp;
+
+        if ( diff < frame_duration_ ) {
+            THREAD_SLEEP(frame_duration_ - diff);
+        }
     }
 
     THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
@@ -598,10 +606,11 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
     buffering_ack_in_sequence_ = true;
     key_frame_interval_ = 60;
     total_frame_count_ = 6 * key_frame_interval_;
+    frame_duration_ = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
 
     UINT64 timestamp = 0;
     Frame frame;
-    frame.duration = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame.duration = frame_duration_;
     frame.frameData = frameBuffer_;
     frame.size = SIZEOF(frameBuffer_);
     frame.trackId = DEFAULT_TRACK_ID;
@@ -610,7 +619,7 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
     streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
-                                   22000,
+                                   15000,
                                    120);
     auto kinesis_video_stream = streams_[0];
 
@@ -643,7 +652,11 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
         timestamp += frame_duration_;
 
-        THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+        UINT64 diff = GETTIME() - timestamp;
+
+        if ( diff < frame_duration_ ) {
+            THREAD_SLEEP(frame_duration_ - diff);
+        }
     }
 
     THREAD_SLEEP(WAIT_5_SECONDS_FOR_ACKS);
