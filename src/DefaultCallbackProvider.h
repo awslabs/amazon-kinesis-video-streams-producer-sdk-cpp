@@ -27,6 +27,18 @@ public:
     explicit DefaultCallbackProvider(
             std::unique_ptr <ClientCallbackProvider> client_callback_provider,
             std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr <CredentialProvider> credentials_provider,
+            const std::string &region,
+            const std::string &control_plane_uri,
+            const std::string &user_agent_name,
+            const std::string &custom_user_agent,
+            const std::string &cert_path,
+            bool is_caching_endpoint,
+            uint64_t caching_update_period);
+
+    explicit DefaultCallbackProvider(
+            std::unique_ptr <ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
             std::unique_ptr <CredentialProvider> credentials_provider = (std::unique_ptr<CredentialProvider>) new EmptyCredentialProvider(),
             const std::string &region = DEFAULT_AWS_REGION,
             const std::string &control_plane_uri = "",
@@ -34,7 +46,7 @@ public:
             const std::string &custom_user_agent = "",
             const std::string &cert_path = "",
             bool is_caching_endpoint = false,
-            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
+            std::chrono::duration<uint64_t> caching_update_period = std::chrono::seconds(DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD / HUNDREDS_OF_NANOS_IN_A_SECOND));
 
     virtual ~DefaultCallbackProvider();
 

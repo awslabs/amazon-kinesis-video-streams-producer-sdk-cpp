@@ -328,7 +328,7 @@ protected:
                         "",
                         "",
                         caCertPath_,
-                        DEFAULT_CACHE_UPDATE_PERIOD_IN_SECONDS));
+                        DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
             } else {
                 defaultCallbackProvider.reset(new DefaultCallbackProvider(
                         move(client_callback_provider_),
