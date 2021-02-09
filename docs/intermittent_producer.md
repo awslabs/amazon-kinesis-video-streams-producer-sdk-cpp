@@ -6,7 +6,7 @@ Intermittent streaming is when you want to send and stop video at will.  For exa
 The KVS back-end times out after 30s of not receiving any frames.  If the SDK received frames after 30+ seconds of no frames then it would error.  We introduced a complex way for client applications to be able to make an API call which would signal to the backend that we're done recording and to close out the session.  However this does not work in cases where the stream application doesn't know that it's "done" streaming and it also doesn't know in advance whether or not it will need to stream again within the next 30s. 
 
 
-## Since v3.1.0
+### Since v3.1.0
 By default we have automatic handling for intermittent streaming.  This means client applications don't need to do anything other than just put frames when they have them and simply do nothing when there are no frames to send, the SDK will take care of making sure the back-end is notified when there are gaps in the stream and even if it's hours between streaming the client application doesn't need to do anything simply continue putting frames as you would normally.  
 This comes at a cost of using 1 extra thread to manage the timer used by the SDK to automatically signal to the KVS back-end that a fragment can be closed out.  If on a prior release of the SDK you were manually setting fields like `stream_info_.streamCaps.frameOrderingMode` you no longer should do that.  
 
