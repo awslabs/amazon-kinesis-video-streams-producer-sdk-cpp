@@ -1,5 +1,5 @@
 ## What is intermittent streaming?
-Intermittent streaming is when you want to send and stop video at will.  For example consider a doorbell camera which only wants to record motion events.  The application might want to start producing frames as soon as it detects motion and then stop at some point when there is no longer motion and then not stream again until it detects motion. 
+Intermittent streaming is when you want to send and stop video at will without having to teardown and setup the SDK pipeline again.  For example consider a doorbell camera which only wants to record motion events.  The application might want to start producing frames as soon as it detects motion and then stop at some point when there is no longer motion and then not stream again until it detects motion. 
 
 ## Intermittent Producer Handling
 ### Before v3.1.0
