@@ -108,7 +108,7 @@ void StreamDefinition::addTrack(const uint64_t track_id,
                                 MKV_TRACK_INFO_TYPE track_type,
                                 const uint8_t* codecPrivateData,
                                 uint32_t codecPrivateDataSize) {
-    stream_info_.streamCaps.frameOrderingMode = FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE;
+    stream_info_.streamCaps.frameOrderingMode = FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE_EOFR;
     track_info_.push_back(StreamTrackInfo{track_id,
                                           track_name,
                                           codec_id,
