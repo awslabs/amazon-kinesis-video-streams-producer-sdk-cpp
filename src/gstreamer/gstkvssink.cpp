@@ -89,6 +89,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
+#define DEFAULT_DISABLE_BUFFER_CLIPPING FALSE
 #define DEFAULT_STREAM_FRAMERATE 25
 #define DEFAULT_STREAM_FRAMERATE_HIGH_DENSITY 100
 #define DEFAULT_AVG_BANDWIDTH_BPS (4 * 1024 * 1024)
@@ -158,7 +159,8 @@ enum {
     PROP_CREDENTIAL_FILE_PATH,
     PROP_IOT_CERTIFICATE,
     PROP_STREAM_TAGS,
-    PROP_FILE_START_TIME
+    PROP_FILE_START_TIME,
+    PROP_DISABLE_BUFFER_CLIPPING
 };
 
 #define GST_TYPE_KVS_SINK_STREAMING_TYPE (gst_kvs_sink_streaming_type_get_type())
@@ -380,7 +382,7 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
     if (data->media_type == AUDIO_VIDEO) {
         stream_definition->addTrack(KVS_SINK_DEFAULT_AUDIO_TRACKID, DEFAULT_AUDIO_TRACK_NAME, kvssink->audio_codec_id, MKV_TRACK_INFO_TYPE_AUDIO);
         // Need to reorder frames to avoid fragment overlap error.
-        stream_definition->setFrameOrderMode(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE);
+        stream_definition->setFrameOrderMode(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE_EOFR);
     }
 
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
@@ -558,6 +560,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                         "Epoch time that the file starts in kinesis video stream. By default, current time is used. Unit: Seconds",
                                                          0, G_MAXULONG, 0, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_DISABLE_BUFFER_CLIPPING,
+                                     g_param_spec_boolean ("disable-buffer-clipping", "Disable Buffer Clipping",
+                                                           "Set to true only if your src/mux elements produce GST_CLOCK_TIME_NONE for segment start times.  It is non-standard behavior to set this to true, only use if there are known issues with your src/mux segment start/stop times.", DEFAULT_DISABLE_BUFFER_CLIPPING,
+                                                           (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     gst_element_class_set_static_metadata(gstelement_class,
                                           "KVS Sink",
                                           "Sink/Video/Network",
@@ -575,9 +582,6 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
 static void
 gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->collect = gst_collect_pads_new();
-
-    gst_collect_pads_set_clip_function (kvssink->collect,
-                                        GST_DEBUG_FUNCPTR (gst_collect_pads_clip_running_time), kvssink);
     gst_collect_pads_set_buffer_function (kvssink->collect,
                                           GST_DEBUG_FUNCPTR (gst_kvs_sink_handle_buffer), kvssink);
     gst_collect_pads_set_event_function (kvssink->collect,
@@ -606,6 +610,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->buffer_duration_seconds = DEFAULT_BUFFER_DURATION_SECONDS;
     kvssink->replay_duration_seconds = DEFAULT_REPLAY_DURATION_SECONDS;
     kvssink->connection_staleness_seconds = DEFAULT_CONNECTION_STALENESS_SECONDS;
+    kvssink->disable_buffer_clipping = DEFAULT_DISABLE_BUFFER_CLIPPING;
     kvssink->codec_id = g_strdup (DEFAULT_CODEC_ID_H264);
     kvssink->track_name = g_strdup (DEFAULT_TRACKNAME);
     kvssink->access_key = g_strdup (DEFAULT_ACCESS_KEY);
@@ -772,6 +777,14 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_FILE_START_TIME:
             kvssink->file_start_time = g_value_get_uint64 (value);
             break;
+        case PROP_DISABLE_BUFFER_CLIPPING: {
+            kvssink->disable_buffer_clipping = g_value_get_boolean(value);
+            if (kvssink->disable_buffer_clipping == FALSE) {
+                gst_collect_pads_set_clip_function(kvssink->collect,
+                                                   GST_DEBUG_FUNCPTR(gst_collect_pads_clip_running_time), kvssink);
+            }
+            break;
+        }
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -875,6 +888,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
             break;
         case PROP_FILE_START_TIME:
             g_value_set_uint64 (value, kvssink->file_start_time);
+            break;
+        case PROP_DISABLE_BUFFER_CLIPPING:
+            g_value_set_boolean (value, kvssink->disable_buffer_clipping);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1071,7 +1087,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                     (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
 
     if (isDroppable) {
-        LOG_DEBUG("Dropping frame with flag %u" << GST_BUFFER_FLAGS(buf));
+        LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf));
         goto CleanUp;
     }
 
