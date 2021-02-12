@@ -250,7 +250,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     bool credential_is_static = true;
 
     // This needs to happen after we've read in ALL of the properties
-    if (kvssink->disable_buffer_clipping == FALSE) {
+    if (!kvssink->disable_buffer_clipping) {
         gst_collect_pads_set_clip_function(kvssink->collect,
                                            GST_DEBUG_FUNCPTR(gst_collect_pads_clip_running_time), kvssink);
     }
@@ -981,7 +981,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             LOG_INFO("received kvs-add-metadata event");
             if (NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
                 NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
-                FALSE == gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
+                !gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
 
                 LOG_WARN("Event structure contains invalid field: " << std::string(gst_structure_to_string (structure)));
                 goto CleanUp;
@@ -992,7 +992,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             is_persist = persistent;
 
             bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
-            if (false == result) {
+            if (!result) {
                 LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
             }
             gst_event_unref (event);
