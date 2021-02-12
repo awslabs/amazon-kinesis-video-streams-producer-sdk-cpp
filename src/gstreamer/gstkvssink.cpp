@@ -779,16 +779,18 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             break;
         case PROP_DISABLE_BUFFER_CLIPPING: {
             kvssink->disable_buffer_clipping = g_value_get_boolean(value);
-            if (kvssink->disable_buffer_clipping == FALSE) {
-                gst_collect_pads_set_clip_function(kvssink->collect,
-                                                   GST_DEBUG_FUNCPTR(gst_collect_pads_clip_running_time), kvssink);
-            }
             break;
         }
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
     }
+
+    if (kvssink->disable_buffer_clipping == FALSE) {
+        gst_collect_pads_set_clip_function(kvssink->collect,
+                                           GST_DEBUG_FUNCPTR(gst_collect_pads_clip_running_time), kvssink);
+    }
+
 }
 
 static void
