@@ -24,7 +24,10 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
             region,
             control_plane_uri,
             user_agent_name,
-            device_info_provider->getCustomUserAgent()));
+            device_info_provider->getCustomUserAgent(),
+            EMPTY_STRING,
+            false,
+            DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
 
     return KinesisVideoProducer::create(move(device_info_provider), move(callback_provider));
 }

@@ -310,6 +310,10 @@ protected:
 
 
     void CreateProducer(bool cachingEndpointProvider = false, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER) {
+        CreateProducer(cachingEndpointProvider ? API_CALL_CACHE_TYPE_ENDPOINT_ONLY : API_CALL_CACHE_TYPE_NONE,automaticStreamingFlags);
+    }
+
+    void CreateProducer(API_CALL_CACHE_TYPE api_call_caching, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags) {
         // Create the producer client
         CreateCredentialProvider();
         device_provider_.reset(new TestDeviceInfoProvider(device_storage_size_, automaticStreamingFlags));
@@ -318,28 +322,17 @@ protected:
 
         try {
           std::unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
-            if (cachingEndpointProvider) {
-                defaultCallbackProvider.reset(new CachingEndpointOnlyCallbackProvider(
-                        move(client_callback_provider_),
-                        move(stream_callback_provider_),
-                        move(credential_provider_),
-                        defaultRegion_,
-                        "",
-                        "",
-                        "",
-                        caCertPath_,
-                        DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
-            } else {
-                defaultCallbackProvider.reset(new DefaultCallbackProvider(
-                        move(client_callback_provider_),
-                        move(stream_callback_provider_),
-                        move(credential_provider_),
-                        defaultRegion_,
-                        "",
-                        "",
-                        "",
-                        caCertPath_));
-            }
+          defaultCallbackProvider.reset(new DefaultCallbackProvider(
+                  move(client_callback_provider_),
+                  move(stream_callback_provider_),
+                  move(credential_provider_),
+                  defaultRegion_,
+                  EMPTY_STRING,
+                  EMPTY_STRING,
+                  EMPTY_STRING,
+                  caCertPath_,
+                  api_call_caching,
+                  DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
 
             // testDefaultCallbackProvider = reinterpret_cast<TestDefaultCallbackProvider *>(defaultCallbackProvider.get());
             kinesis_video_producer_ = KinesisVideoProducer::createSync(move(device_provider_),

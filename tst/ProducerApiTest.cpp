@@ -242,7 +242,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream)
     // Set the value of the frame buffer
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
-    for (uint32_t i = 0; i < 10; i++) {
+    for (uint32_t i = 0; i < 3; i++) {
         // Create stream
         streams_[0] = CreateTestStream(0);
         shared_ptr<KinesisVideoStream> kinesis_video_stream = streams_[0];
@@ -283,6 +283,270 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream)
         kinesis_video_producer_->freeStream(move(streams_[0]));
         streams_[0] = nullptr;
     }
+}
+
+TEST_F(ProducerApiTest, create_produce_start_stop_stream_endpoint_cached)
+{
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    key_frame_interval_ = 50;
+    setFps(25);
+
+    CreateProducer(true);
+
+    UINT64 timestamp;
+    Frame frame;
+    frame.duration = frame_duration_;
+    frame.frameData = frameBuffer_;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.trackId = DEFAULT_TRACK_ID;
+
+    // Set the value of the frame buffer
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
+
+    for (uint32_t i = 0; i < 2; i++) {
+        // Create stream
+        streams_[0] = CreateTestStream(0);
+        shared_ptr<KinesisVideoStream> kinesis_video_stream = streams_[0];
+
+        // Start streaming
+        for (uint32_t index = 0; index < 100; index++) {
+            // Produce frames
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            frame.index = index++;
+            frame.decodingTs = timestamp;
+            frame.presentationTs = timestamp;
+
+            // Key frame every 50th
+            frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+            std::stringstream strstrm;
+            strstrm << " TID: 0x" << std::hex << GETTID();
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                                   << strstrm.str()
+                                                   << " Id: " << frame.index
+                                                   << ", Key Frame: "
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                       ? "true" : "false")
+                                                   << ", Size: " << frame.size
+                                                   << ", Dts: " << frame.decodingTs
+                                                   << ", Pts: " << frame.presentationTs);
+
+            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+
+            THREAD_SLEEP(frame_duration_);
+        }
+
+        LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
+        EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
+        EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
+
+        kinesis_video_producer_->freeStream(move(streams_[0]));
+        streams_[0] = nullptr;
+    }
+}
+
+TEST_F(ProducerApiTest, create_produce_start_stop_stream_all_cached)
+{
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    key_frame_interval_ = 50;
+    setFps(25);
+
+    CreateProducer(API_CALL_CACHE_TYPE_ALL, AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER);
+
+    UINT64 timestamp;
+    Frame frame;
+    frame.duration = frame_duration_;
+    frame.frameData = frameBuffer_;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.trackId = DEFAULT_TRACK_ID;
+
+    // Set the value of the frame buffer
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
+
+    for (uint32_t i = 0; i < 2; i++) {
+        // Create stream
+        streams_[0] = CreateTestStream(0);
+        shared_ptr<KinesisVideoStream> kinesis_video_stream = streams_[0];
+
+        // Start streaming
+        for (uint32_t index = 0; index < 100; index++) {
+            // Produce frames
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            frame.index = index++;
+            frame.decodingTs = timestamp;
+            frame.presentationTs = timestamp;
+
+            // Key frame every 50th
+            frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+            std::stringstream strstrm;
+            strstrm << " TID: 0x" << std::hex << GETTID();
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                                   << strstrm.str()
+                                                   << " Id: " << frame.index
+                                                   << ", Key Frame: "
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                       ? "true" : "false")
+                                                   << ", Size: " << frame.size
+                                                   << ", Dts: " << frame.decodingTs
+                                                   << ", Pts: " << frame.presentationTs);
+
+            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+
+            THREAD_SLEEP(frame_duration_);
+        }
+
+        LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
+        EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
+        EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
+
+        kinesis_video_producer_->freeStream(move(streams_[0]));
+        streams_[0] = nullptr;
+    }
+}
+
+TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_endpoint_cached)
+{
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    key_frame_interval_ = 50;
+    setFps(25);
+
+    CreateProducer(true);
+
+    UINT64 timestamp;
+    Frame frame;
+    frame.duration = frame_duration_;
+    frame.frameData = frameBuffer_;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.trackId = DEFAULT_TRACK_ID;
+
+    // Set the value of the frame buffer
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
+
+    // Create stream
+    streams_[0] = CreateTestStream(0);
+    shared_ptr<KinesisVideoStream> kinesis_video_stream = streams_[0];
+
+    for (uint32_t i = 0; i < 2; i++) {
+        // Start streaming
+        for (uint32_t index = 0; index < 100; index++) {
+            // Produce frames
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            frame.index = index++;
+            frame.decodingTs = timestamp;
+            frame.presentationTs = timestamp;
+
+            // Key frame every 50th
+            frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+            std::stringstream strstrm;
+            strstrm << " TID: 0x" << std::hex << GETTID();
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                                   << strstrm.str()
+                                                   << " Id: " << frame.index
+                                                   << ", Key Frame: "
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                       ? "true" : "false")
+                                                   << ", Size: " << frame.size
+                                                   << ", Dts: " << frame.decodingTs
+                                                   << ", Pts: " << frame.presentationTs);
+
+            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+
+            THREAD_SLEEP(frame_duration_);
+        }
+
+        LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
+        EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
+        EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
+
+        kinesis_video_stream->resetStream();
+    }
+
+    kinesis_video_producer_->freeStream(move(streams_[0]));
+    streams_[0] = nullptr;
+}
+
+TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_all_cached)
+{
+    // Check if it's run with the env vars set if not bail out
+    if (!access_key_set_) {
+        return;
+    }
+
+    key_frame_interval_ = 50;
+    setFps(25);
+
+    CreateProducer(API_CALL_CACHE_TYPE_ALL, AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER);
+
+    UINT64 timestamp;
+    Frame frame;
+    frame.duration = frame_duration_;
+    frame.frameData = frameBuffer_;
+    frame.size = SIZEOF(frameBuffer_);
+    frame.trackId = DEFAULT_TRACK_ID;
+
+    // Set the value of the frame buffer
+    MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
+
+    // Create stream
+    streams_[0] = CreateTestStream(0);
+    shared_ptr<KinesisVideoStream> kinesis_video_stream = streams_[0];
+
+    for (uint32_t i = 0; i < 2; i++) {
+        // Start streaming
+        for (uint32_t index = 0; index < 100; index++) {
+            // Produce frames
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            frame.index = index++;
+            frame.decodingTs = timestamp;
+            frame.presentationTs = timestamp;
+
+            // Key frame every 50th
+            frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+            std::stringstream strstrm;
+            strstrm << " TID: 0x" << std::hex << GETTID();
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                                   << strstrm.str()
+                                                   << " Id: " << frame.index
+                                                   << ", Key Frame: "
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                       ? "true" : "false")
+                                                   << ", Size: " << frame.size
+                                                   << ", Dts: " << frame.decodingTs
+                                                   << ", Pts: " << frame.presentationTs);
+
+            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+
+            THREAD_SLEEP(frame_duration_);
+        }
+
+        LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
+        EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
+        EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
+
+        kinesis_video_stream->resetStream();
+    }
+
+    kinesis_video_producer_->freeStream(move(streams_[0]));
+    streams_[0] = nullptr;
 }
 
 TEST_F(ProducerApiTest, create_produce_stream)
