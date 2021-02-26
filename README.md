@@ -44,8 +44,6 @@ Create a build directory in the newly checked out repository, and execute CMake 
 
 If you are building on Windows you need to generate `NMake Makefiles`, you should run `cmake .. -G "NMake Makefiles"`
 
-GStreamer and JNI is NOT built by default, if you wish to build both you MUST execute `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
-
 By default we download all the libraries from GitHub and build them locally, so should require nothing to be installed ahead of time.
 If you do wish to link to existing libraries you can do `cmake .. -DBUILD_DEPENDENCIES=OFF`
 Libraries needed to build producer are: Curl, Openssl and Log4cplus. If you want to build the gstreamer plugin you will need to have gstreamer in your system.
@@ -56,6 +54,14 @@ $ brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-g
 On Ubuntu and Raspberry Pi OS you can get the libraries by running
 ```
 $ sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+```
+
+#### Building the Sample Code
+
+The GStreamer and JNI examples are NOT built by default.  If you wish to build JNI you MUST add -DBUILD_JNI=TRUE and for GStreamer examples you MUST add -DBUILD_JNI=TRUE.  To build both:
+
+```
+cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE
 ```
 
 #### Cross-Compilation
