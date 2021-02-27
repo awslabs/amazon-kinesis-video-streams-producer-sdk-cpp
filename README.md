@@ -58,7 +58,7 @@ $ sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstre
 
 #### Building the Sample Code
 
-The GStreamer and JNI examples are NOT built by default.  If you wish to build JNI you MUST add -DBUILD_JNI=TRUE and for GStreamer examples you MUST add -DBUILD_JNI=TRUE.  To build both:
+The GStreamer and JNI examples are NOT built by default.  If you wish to build JNI you MUST add -DBUILD_JNI=TRUE and for the GStreamer plugin and examples you MUST add -DBUILD_JNI=TRUE.  To build both:
 
 ```
 cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE
