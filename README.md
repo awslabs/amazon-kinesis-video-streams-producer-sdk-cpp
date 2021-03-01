@@ -92,10 +92,10 @@ cmake -DBUILD_JNI=TRUE
 
 #### To Include Building GStreamer Sample Programs
 
-The GStreamer examples are NOT built by default.  If you wish to build them you MUST add -DBUILD_GSTREAMER_PLUGIN=true when running cmake:
+The GStreamer plugin and samples are NOT built by default.  If you wish to build them you MUST add -DBUILD_GSTREAMER_PLUGIN=TRUE when running cmake:
 
 ```
-cmake -DBUILD_GSTREAMER_PLUGIN=true
+cmake -DBUILD_GSTREAMER_PLUGIN=TRUE
 ```
 
 ### Compiling 
