@@ -38,15 +38,20 @@ Note: You will also need to install `pkg-config`, `CMake`, `m4` and a build envi
 Refer to the [FAQ](#FAQ) for platform specific instructions.
 
 ### Configure
-Create a build directory in the newly checked out repository, and execute CMake from it.
 
-`mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build; cd amazon-kinesis-video-streams-producer-sdk-cpp/build; cmake .. `
+Prepare a build directory in the newly checked out repository:
+
+```
+mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build
+cd amazon-kinesis-video-streams-producer-sdk-cpp/build
+```
 
 If you are building on Windows you need to generate `NMake Makefiles`, you should run `cmake .. -G "NMake Makefiles"`
 
 GStreamer and JNI is NOT built by default, if you wish to build both you MUST execute `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
 
-By default we download all the libraries from GitHub and build them locally, so should require nothing to be installed ahead of time.
+By default we download all the libraries from GitHub and build them locally, so should require nothing to be installed ahead of time.  
+
 If you do wish to link to existing libraries you can do `cmake .. -DBUILD_DEPENDENCIES=OFF`
 Libraries needed to build producer are: Curl, Openssl and Log4cplus. If you want to build the gstreamer plugin you will need to have gstreamer in your system.
 On Mac OS you can get the libraries using homebrew
@@ -77,8 +82,25 @@ You can pass the following options to `cmake ..`.
 * `-DUNDEFINED_BEHAVIOR_SANITIZER` Build with UndefinedBehaviorSanitizer
 * `-DALIGNED_MEMORY_MODEL` Build for aligned memory model only devices. Default is OFF.
 
-### Build
-To build the library run make in the build directory you executed CMake.
+#### To Include JNI
+
+JNI examples are NOT built by default.  If you wish to build JNI you MUST add -DBUILD_JNI=TRUE when running cmake:
+
+```
+cmake -DBUILD_JNI=TRUE
+```
+
+#### To Include Building GStreamer Sample Programs
+
+The GStreamer examples are NOT built by default.  If you wish to build them you MUST add -DBUILD_GSTREAMER_PLUGIN=true when running cmake:
+
+```
+cmake -DBUILD_GSTREAMER_PLUGIN=true
+```
+
+### Compiling 
+
+After running cmake, in the same build directior run make:
 
 ```
 make
