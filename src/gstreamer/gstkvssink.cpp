@@ -645,10 +645,6 @@ gst_kvs_sink_finalize(GObject *object) {
     GstKvsSink *kvssink = GST_KVS_SINK (object);
     auto data = kvssink->data;
 
-    if (data->kinesis_video_stream) {
-        data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
-    }
-
     gst_object_unref(kvssink->collect);
     g_free(kvssink->stream_name);
     g_free(kvssink->content_type);
@@ -663,6 +659,11 @@ gst_kvs_sink_finalize(GObject *object) {
     if (kvssink->stream_tags) {
         gst_structure_free (kvssink->stream_tags);
     }
+
+    if (data->kinesis_video_producer) {
+        data->kinesis_video_producer.reset();
+    }
+    
     G_OBJECT_CLASS (parent_class)->finalize(object);
 }
 
