@@ -45,13 +45,13 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
                           << "\n\t>> Available storage byte size: " << client_metrics.getContentStoreAvailableSize()
                           << "\n\t>> Allocated storage byte size: " << client_metrics.getContentStoreAllocatedSize()
                           << "\n\t>> Total view allocation byte size: " << client_metrics.getTotalContentViewsSize()
-                          << "\n\t>> Total streams frame rate (fps): " << client_metrics.getTotalFrameRate()
+                          << "\n\t>> Total streams elementary frame rate (fps): " << client_metrics.getTotalElementaryFrameRate()
                           << "\n\t>> Total streams transfer rate (bps): " <<  total_transfer_tate << " (" << total_transfer_tate / 1024 << " Kbps)"
                           << "\n\t>> Current view duration (ms): " << stream_metrics.getCurrentViewDuration().count()
                           << "\n\t>> Overall view duration (ms): " << stream_metrics.getOverallViewDuration().count()
                           << "\n\t>> Current view byte size: " << stream_metrics.getCurrentViewSize()
                           << "\n\t>> Overall view byte size: " << stream_metrics.getOverallViewSize()
-                          << "\n\t>> Current frame rate (fps): " << stream_metrics.getCurrentFrameRate()
+                          << "\n\t>> Current elementary frame rate (fps): " << stream_metrics.getCurrentElementaryFrameRate()
                           << "\n\t>> Current transfer rate (bps): " << transfer_rate << " (" << transfer_rate / 1024 << " Kbps)");
     }
 

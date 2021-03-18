@@ -102,19 +102,19 @@ gst-launch-1.0 -v v4l2src device=/dev/video0 ! h264parse ! video/x-h264,stream-f
 ```
 
 ##### Running the GStreamer webcam sample application
-The sample application `kinesis_video_gstreamer_sample_app` in the `build` directory uses GStreamer pipeline to get video data from the camera. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution (width and height) through command line arguments.
+The sample application `kvs_gstreamer_sample` in the `build` directory uses GStreamer pipeline to get video data from the camera. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution (width and height) through command line arguments.
 
 ```
-Usage: AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my_stream_name> -w <width> -h <height> -f <framerate> -b <bitrateInKBPS>
+Usage: AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_sample <my_stream_name> -w <width> -h <height> -f <framerate> -b <bitrateInKBPS>
 ```
 * **A.** If **resolution is provided** then the sample will try to check if the camera supports that resolution. If it does detect that the camera can support the resolution supplied in command line, then streaming starts; else, it will fail with an error message `Resolution not supported`.
 * **B.** If **no resolution is specified**, the sample application will try to use these three resolutions **640x480, 1280x720 and 1920x1080** and will **start streaming** once the camera supported resolution is detected.
 
 ##### Running the GStreamer RTSP sample application
-`kinesis_video_gstreamer_sample_app` supports sending video from a RTSP URL (IP camera). You can find the RTSP URL from your IP camera manual or manufacturers product page. Change your current working direcctory to `build` directory. Launch it with a stream name and `rtsp_url`  and it will start streaming.
+`kvs_gstreamer_sample` supports sending video from a RTSP URL (IP camera). You can find the RTSP URL from your IP camera manual or manufacturers product page. Change your current working direcctory to `build` directory. Launch it with a stream name and `rtsp_url`  and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my-rtsp-stream> <my_rtsp_url>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_sample <my-rtsp-stream> <my_rtsp_url>
 ```
 
 ##### Running the GStreamer sample application to upload a *video* file
@@ -124,22 +124,22 @@ AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./ki
 Change your current working directory to `build`. Launch the sample application with a stream name and a path to the file and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my-stream> </path/to/file>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_sample <my-stream> </path/to/file>
 ```
 
 ##### Running the GStreamer sample application to upload a *audio and video* file
 
-`kinesis_video_gstreamer_audio_video_sample_app` supports uploading a video that is either MKV, MPEGTS, or MP4. The sample application expects the video is encoded in H264 and audio is encoded in AAC format. Note: If your media uses a different format, then you can revise the pipeline elements in the sample application to suit your media format.
+`kvs_gstreamer_audio_video_sample` supports uploading a video that is either MKV, MPEGTS, or MP4. The sample application expects the video is encoded in H264 and audio is encoded in AAC format. Note: If your media uses a different format, then you can revise the pipeline elements in the sample application to suit your media format.
 
 Change your current working directory to `build`. Launch the sample application with a stream name and a path to the file and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_audio_video_sample_app <my-stream> </path/to/file>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_audio_video_sample <my-stream> </path/to/file>
 ```
 
 ##### Running the GStreamer sample application to stream audio and video from live source
 
-`kinesis_video_gstreamer_audio_video_sample_app` supports streaming audio and video from live sources such as a audio enabled webcam. First you need to figure out what your audio device is using the steps mentioned above and export it as environment variable like such:
+`kvs_gstreamer_audio_video_sample` supports streaming audio and video from live sources such as a audio enabled webcam. First you need to figure out what your audio device is using the steps mentioned above and export it as environment variable like such:
 
 `export AWS_KVS_AUDIO_DEVICE=hw:1,0`
 
@@ -150,17 +150,8 @@ You can also choose to use other video devices by doing
 If no `AWS_KVS_VIDEO_DEVICE` environment variable was detected, the sample application will use the default video device.
 After the environment variables are set, launch the sample application with a stream name and it will start streaming.
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_audio_video_sample_app <my-stream>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_audio_video_sample <my-stream>
 ```
-
-### How to run sample applications for sending H264 video files to KVS
-
-The sample application `kinesis_video_cproducer_video_only_sample` sends h264  video frames inside the folder `kinesis-video-c-producer/samples/h264SampleFrames` to KVS.
-The following command sends the video frames in a loop for ten seconds to KVS.
-`./kinesis_video_cproducer_video_only_sample YourStreamName 10`
-
-If you want to send H264 files from another folder (`MyH264FramesFolder`) you can run the sample with the following arguments
-`./kinesis_video_cproducer_video_only_sample YourStreamName 10 MyH264FramesFolder`
 
 ##### Additional examples
 
