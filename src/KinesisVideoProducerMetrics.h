@@ -57,6 +57,13 @@ public:
     }
 
     /**
+     * Returns the elementary frame rate in frames per second for all streams
+     */
+    uint64_t getTotalElementaryFrameRate() const {
+        return client_metrics_.totalElementaryFrameRate;
+    }
+
+    /**
      * Returns the observed transfer rate in bytes per second for all streams
      */
     uint64_t getTotalTransferRate() const {

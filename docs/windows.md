@@ -119,9 +119,9 @@ gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! q
 
       * Run the demo
           * **Example**:
-            * Run the sample demo application for sending **webcam video** by executing ` kinesis_video_gstreamer_sample_app.exe my-test-stream `  or
-            * Run the sample application for sending **IP camera video** by executing  `kinesis_video_gstreamer_sample_app.exe my-test-rtsp-stream <rtsp_url>`
-            * Run the sample application for sending **MKV File** by executing  `kinesis_video_gstreamer_sample_app.exe my-test-stream <path/to/file.mkv>`
+            * Run the sample demo application for sending **webcam video** by executing ` kvs_gstreamer_sample.exe my-test-stream `  or
+            * Run the sample application for sending **IP camera video** by executing  `kvs_gstreamer_sample.exe my-test-rtsp-stream <rtsp_url>`
+            * Run the sample application for sending **MKV File** by executing  `kvs_gstreamer_sample.exe my-test-stream <path/to/file.mkv>`
 
 4. You can also run the the sample application by executing the following command which will send audio and video to Kinesis Video Streams.
     * Change your current working directory to Release directory first.
@@ -144,20 +144,5 @@ gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! q
         If no `AWS_KVS_VIDEO_DEVICE` environment variable was detected, the sample app will use the default device. Also note that `gst-device-monitor-1.0` output device paths that contain escape characters. Before assigning the device paths to the environment variables, they need to be unescaped as shown in the example. Also note that single quote is used to pass the exact string. Any misconfiguration of devices in windows will cause a segmentation fault.
       * Run the demo
           * **Example**:
-            * Run the sample demo application for sending **webcam audio and video** by executing ` kinesis_video_gstreamer_audio_video_sample_app.exe my-test-stream `  or
-            * Run the sample application for sending a MKV, MP4 or TS, file containing H264 video and AAC audio by executing  `kinesis_video_gstreamer_audio_video_sample_app.exe my-test-stream </path/to/file.mkv>`
-
-#### Running sample applications for sending H264 video files to KVS
-   * Change your current working directory to Release directory first.
-      * ` cd C:\Users\<myuser>\Downloads\amazon-kinesis-video-streams-producer-sdk-cpp\build `
-      * export your access key and secret key by doing:
-
-      ```
-      set AWS_ACCESS_KEY_ID=YourAccessKeyId
-      set AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
-      ```
-
-   * Run the demo
-      * **Example**:
-        * The sample application kinesis_video_cproducer_video_only_sample sends h264 video frames inside the folder C:\Users\<myuser>\Downloads\kinesis-video-c-producer\samples\h264SampleFrames to KVS. The following command sends the video frames in a loop for ten seconds to KVS. `kinesis_video_cproducer_video_only_sample.exe YourStreamName 10`, or
-        * If you want to send H264 files from another folder (MyH264FramesFolder) you can run the sample with the following arguments `kinesis_video_cproducer_video_only_sample.exe YourStreamName 10 <PathToMyH264FramesFolder>`
+            * Run the sample demo application for sending **webcam audio and video** by executing ` kvs_gstreamer_audio_video_sample.exe my-test-stream `  or
+            * Run the sample application for sending a MKV, MP4 or TS, file containing H264 video and AAC audio by executing  `kvs_gstreamer_audio_video_sample.exe my-test-stream </path/to/file.mkv>`
