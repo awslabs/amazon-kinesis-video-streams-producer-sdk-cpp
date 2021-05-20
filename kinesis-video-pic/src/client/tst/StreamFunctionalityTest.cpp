@@ -154,7 +154,7 @@ TEST_P(StreamFunctionalityTest, CreateAwaitReadyStopSyncFree)
 
     ReadyStream();
     EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStream(mStreamHandle));
-    EXPECT_EQ(1, mStreamClosedFuncCount);
+    EXPECT_EQ(1, ATOMIC_LOAD(&mStreamClosedFuncCount));
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoStream(&mStreamHandle));
 }
 
@@ -207,15 +207,96 @@ TEST_P(StreamFunctionalityTest, CreateSyncPutFrameEoFR)
             mockConsumer = mStreamingSession.getConsumer(uploadHandle);
 
             retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
-            EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
+            if (mockConsumer != NULL) {
+                EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
+            }
         }
-    } while((currentTime < stopTime) && !submittedAck);
+    } while ((currentTime < stopTime) && !submittedAck);
 
     // should have submitted ack because a complete fragment has been consumed.
     if (mStreamInfo.streamCaps.fragmentAcks) {
         EXPECT_EQ(TRUE, submittedAck);
     }
+}
+
+TEST_P(StreamFunctionalityTest, CreateSyncPutFrameEoFRFirst)
+{
+    CreateScenarioTestClient();
+    std::vector<UPLOAD_HANDLE> currentUploadHandles;
+
+    PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
+
+    CreateStreamSync();
+    initDefaultProducer();
+    MockProducer producer(mMockProducerConfig, mStreamHandle);
+
+    // Put a eofr frame, this should fail we
+    // should not allow first frame to be eofr
+    EXPECT_NE(STATUS_SUCCESS, producer.putFrame(TRUE));
+
+    // Produce some frames
+    for (UINT32 i = 0; i < 2 * TEST_DEFAULT_PRODUCER_CONFIG_FRAME_RATE; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, producer.putFrame());
+    }
+
+    // Produce a few EoFRs
+    EXPECT_EQ(STATUS_SUCCESS, producer.putFrame(TRUE));
+    EXPECT_EQ(STATUS_MULTIPLE_CONSECUTIVE_EOFR, producer.putFrame(TRUE));
+    EXPECT_EQ(STATUS_MULTIPLE_CONSECUTIVE_EOFR, producer.putFrame(TRUE));
+
+    // Produce some more frames
+    for (UINT32 i = 0; i < 2 * TEST_DEFAULT_PRODUCER_CONFIG_FRAME_RATE; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, producer.putFrame());
+    }
+
+    // Ensure the skipped frame count is zero -- the first eofr is NOT skipped
+    // even if skipNonKeyFrames is true
+    StreamMetrics streamMetrics;
+    streamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
+    EXPECT_EQ(STATUS_SUCCESS, getKinesisVideoStreamMetrics(mStreamHandle, &streamMetrics));
+    EXPECT_EQ(0, streamMetrics.skippedFrames);
+}
+
+TEST_P(StreamFunctionalityTest, CreateSyncPutFrameEoFRFirstForceNotSkipping)
+{
+    CreateScenarioTestClient();
+    std::vector<UPLOAD_HANDLE> currentUploadHandles;
+
+    PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
+
+    CreateStreamSync();
+    initDefaultProducer();
+    MockProducer producer(mMockProducerConfig, mStreamHandle);
+
+    // Minor brain surgery - cast to internal struct and modify skip variable directly to force the EoFR
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
+    pKinesisVideoStream->skipNonKeyFrames = FALSE;
+
+    // Put a eofr frame - ensure fails
+    EXPECT_NE(STATUS_SUCCESS, producer.putFrame(TRUE));
+
+    // Produce some frames
+    for (UINT32 i = 0; i < 2 * TEST_DEFAULT_PRODUCER_CONFIG_FRAME_RATE; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, producer.putFrame());
+    }
+
+    // Produce a few EoFRs
+    EXPECT_EQ(STATUS_SUCCESS, producer.putFrame(TRUE));
+    EXPECT_EQ(STATUS_MULTIPLE_CONSECUTIVE_EOFR, producer.putFrame(TRUE));
+    EXPECT_EQ(STATUS_MULTIPLE_CONSECUTIVE_EOFR, producer.putFrame(TRUE));
+
+    // Produce some more frames
+    for (UINT32 i = 0; i < 2 * TEST_DEFAULT_PRODUCER_CONFIG_FRAME_RATE; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, producer.putFrame());
+    }
+
+    // Ensure the skipped frame count is zero
+    StreamMetrics streamMetrics;
+    streamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
+    EXPECT_EQ(STATUS_SUCCESS, getKinesisVideoStreamMetrics(mStreamHandle, &streamMetrics));
+    EXPECT_EQ(0, streamMetrics.skippedFrames);
+    // There should be no mem leaks
 }
 
 // Validate StreamDescription_V0 structure handling

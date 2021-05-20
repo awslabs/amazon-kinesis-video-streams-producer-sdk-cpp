@@ -1,6 +1,6 @@
 /*******************************************
-* Kinesis Video Stream include file
-*******************************************/
+ * Kinesis Video Stream include file
+ *******************************************/
 #ifndef __KINESIS_VIDEO_STREAM_H__
 #define __KINESIS_VIDEO_STREAM_H__
 
@@ -15,36 +15,31 @@ extern "C" {
 #include "FrameOrderCoordinator.h"
 #include "AckParser.h"
 
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
-
 ////////////////////////////////////////////////////
 // General defines and data structures
 ////////////////////////////////////////////////////
 /**
  * Kinesis Video stream states definitions
  */
-#define STREAM_STATE_NONE                               ((UINT64) 0)            //0x00
-#define STREAM_STATE_NEW                                ((UINT64) (1 << 0))     //0x01
-#define STREAM_STATE_DESCRIBE                           ((UINT64) (1 << 1))     //0x02
-#define STREAM_STATE_CREATE                             ((UINT64) (1 << 2))     //0x04
-#define STREAM_STATE_TAG_STREAM                         ((UINT64) (1 << 3))     //0x08
-#define STREAM_STATE_GET_TOKEN                          ((UINT64) (1 << 4))     //0x10
-#define STREAM_STATE_GET_ENDPOINT                       ((UINT64) (1 << 5))     //0x20
-#define STREAM_STATE_READY                              ((UINT64) (1 << 6))     //0x40
-#define STREAM_STATE_PUT_STREAM                         ((UINT64) (1 << 7))     //0x80
-#define STREAM_STATE_STREAMING                          ((UINT64) (1 << 8))     //0x100
-#define STREAM_STATE_STOPPED                            ((UINT64) (1 << 9))     //0x200
+#define STREAM_STATE_NONE         ((UINT64) 0)       // 0x00
+#define STREAM_STATE_NEW          ((UINT64)(1 << 0)) // 0x01
+#define STREAM_STATE_DESCRIBE     ((UINT64)(1 << 1)) // 0x02
+#define STREAM_STATE_CREATE       ((UINT64)(1 << 2)) // 0x04
+#define STREAM_STATE_TAG_STREAM   ((UINT64)(1 << 3)) // 0x08
+#define STREAM_STATE_GET_TOKEN    ((UINT64)(1 << 4)) // 0x10
+#define STREAM_STATE_GET_ENDPOINT ((UINT64)(1 << 5)) // 0x20
+#define STREAM_STATE_READY        ((UINT64)(1 << 6)) // 0x40
+#define STREAM_STATE_PUT_STREAM   ((UINT64)(1 << 7)) // 0x80
+#define STREAM_STATE_STREAMING    ((UINT64)(1 << 8)) // 0x100
+#define STREAM_STATE_STOPPED      ((UINT64)(1 << 9)) // 0x200
 
-#define STREAM_STATE_REACHED_READY(s) ((s) == STREAM_STATE_READY || \
-                                        (s) == STREAM_STATE_PUT_STREAM || \
-                                        (s) == STREAM_STATE_STREAMING || \
-                                        (s) == STREAM_STATE_STOPPED)
+#define STREAM_STATE_REACHED_READY(s)                                                                                                                \
+    ((s) == STREAM_STATE_READY || (s) == STREAM_STATE_PUT_STREAM || (s) == STREAM_STATE_STREAMING || (s) == STREAM_STATE_STOPPED)
 
 /**
  * Stream object internal version
  */
-#define STREAM_CURRENT_VERSION                  0
+#define STREAM_CURRENT_VERSION 0
 
 /**
  * Default MKV timecode scale - 1ms.
@@ -55,41 +50,39 @@ extern "C" {
  * by multiplying the value with the timecode
  * scale which we define as 1ms.
  */
-#define DEFAULT_MKV_TIMECODE_SCALE      (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define DEFAULT_MKV_TIMECODE_SCALE (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 /**
  * End-of-fragment metadata name
  */
-#define EOFR_METADATA_NAME                   "AWS_KINESISVIDEO_END_OF_FRAGMENT"
+#define EOFR_METADATA_NAME "AWS_KINESISVIDEO_END_OF_FRAGMENT"
 
 /**
  * Internal AWS metadata prefix
  */
-#define AWS_INTERNAL_METADATA_PREFIX         "AWS"
+#define AWS_INTERNAL_METADATA_PREFIX "AWS"
 
 /**
  * Max packaged size for the metadata including metadata name len + value + delta for packaging. The delta is
  * the maximal "bloat" size the MKV packaging could add. The actual packaged size will be calculated properly.
  */
-#define MAX_PACKAGED_METADATA_LEN             (MKV_MAX_TAG_NAME_LEN + MAX(MKV_MAX_TAG_VALUE_LEN, MAX_STREAM_NAME_LEN) + 256)
+#define MAX_PACKAGED_METADATA_LEN (MKV_MAX_TAG_NAME_LEN + MAX(MKV_MAX_TAG_VALUE_LEN, MAX_STREAM_NAME_LEN) + 256)
 
 /**
  * Maximal overhead for an allocation
  */
-#define MAX_ALLOCATION_OVERHEAD_SIZE        100
+#define MAX_ALLOCATION_OVERHEAD_SIZE 100
 
 /**
  * Max wait time for the blocking put frame. An persisted ack should come back within this period.
  */
-#define MAX_BLOCKING_PUT_WAIT               15 * HUNDREDS_OF_NANOS_IN_A_SECOND
+#define MAX_BLOCKING_PUT_WAIT 15 * HUNDREDS_OF_NANOS_IN_A_SECOND
 
 /**
  * Valid status codes from get stream data
  */
-#define IS_VALID_GET_STREAM_DATA_STATUS(s) ((s) == STATUS_SUCCESS || \
-                                            (s) == STATUS_NO_MORE_DATA_AVAILABLE || \
-                                            (s) == STATUS_AWAITING_PERSISTED_ACK || \
-                                            (s) == STATUS_END_OF_STREAM)
+#define IS_VALID_GET_STREAM_DATA_STATUS(s)                                                                                                           \
+    ((s) == STATUS_SUCCESS || (s) == STATUS_NO_MORE_DATA_AVAILABLE || (s) == STATUS_AWAITING_PERSISTED_ACK || (s) == STATUS_END_OF_STREAM)
 
 /**
  * Kinesis Video stream diagnostics information accumulator
@@ -105,11 +98,72 @@ struct __KinesisVideoStreamDiagnostics {
     // Current transfer bytes-per-second
     UINT64 currentTransferRate;
 
-    // Accumuted byte count for the transfer rate calculation
+    // Accumulated byte count for the transfer rate calculation
     UINT64 accumulatedByteCount;
 
     // Last time we took a measurement for the transfer rate
     UINT64 lastTransferRateTimestamp;
+
+    // Stream create time
+    UINT64 createTime;
+
+    // Total transferred bytes
+    UINT64 transferredBytes;
+
+    // Total number of streaming sessions including new/errored/active
+    UINT64 totalSessions;
+
+    // Total number of active streaming sessions - only the ones that actually have streamed some data
+    UINT64 totalActiveSessions;
+
+    // Average session duration
+    UINT64 avgSessionDuration;
+
+    // Total number of buffered ACKs
+    UINT64 bufferedAcks;
+
+    // Total number of received ACKs
+    UINT64 receivedAcks;
+
+    // Total number of persisted ACKs
+    UINT64 persistedAcks;
+
+    // Total number of error ACKs
+    UINT64 errorAcks;
+
+    // Total number of dropped frames
+    UINT64 droppedFrames;
+
+    // Total number of dropped fragments
+    // TODO: Near-realtime streaming mode is not used currently supported and this value will be 0
+    UINT64 droppedFragments;
+
+    // Total number of storage pressure events
+    UINT64 storagePressures;
+
+    // Total number of skipped frames
+    UINT64 skippedFrames;
+
+    // Total number of latency pressure events
+    UINT64 latencyPressures;
+
+    // Total number of Buffer pressure events
+    UINT64 bufferPressures;
+
+    // Total number of stream stale events
+    UINT64 staleEvents;
+
+    // Total number of put frame call errors
+    UINT64 putFrameErrors;
+
+    // Backend Control Plane API call latency which includes success and failure
+    UINT64 cplApiCallLatency;
+
+    // Backend Data Plane API call latency which includes success and failure
+    UINT64 dataApiCallLatency;
+
+    // Tracking when next time we should log the metrics
+    UINT64 nextLoggingTime;
 };
 typedef struct __KinesisVideoStreamDiagnostics* PKinesisVideoStreamDiagnostics;
 
@@ -177,36 +231,22 @@ typedef enum {
     UPLOAD_HANDLE_STATE_ERROR = (1 << 7),
 
     // Not-yet put to use handle
-    UPLOAD_HANDLE_STATE_NOT_IN_USE = UPLOAD_HANDLE_STATE_NEW |
-                                     UPLOAD_HANDLE_STATE_READY,
+    UPLOAD_HANDLE_STATE_NOT_IN_USE = UPLOAD_HANDLE_STATE_NEW | UPLOAD_HANDLE_STATE_READY,
 
     // Active states
-    UPLOAD_HANDLE_STATE_ACTIVE = UPLOAD_HANDLE_STATE_NEW |
-                                 UPLOAD_HANDLE_STATE_READY |
-                                 UPLOAD_HANDLE_STATE_STREAMING |
-                                 UPLOAD_HANDLE_STATE_TERMINATING |
-                                 UPLOAD_HANDLE_STATE_AWAITING_ACK |
-                                 UPLOAD_HANDLE_STATE_ACK_RECEIVED,
+    UPLOAD_HANDLE_STATE_ACTIVE = UPLOAD_HANDLE_STATE_NEW | UPLOAD_HANDLE_STATE_READY | UPLOAD_HANDLE_STATE_STREAMING |
+        UPLOAD_HANDLE_STATE_TERMINATING | UPLOAD_HANDLE_STATE_AWAITING_ACK | UPLOAD_HANDLE_STATE_ACK_RECEIVED,
 
     // Session stopping state
-    UPLOAD_HANDLE_STATE_SEND_EOS = UPLOAD_HANDLE_STATE_TERMINATING |
-                                   UPLOAD_HANDLE_STATE_TERMINATED,
+    UPLOAD_HANDLE_STATE_SEND_EOS = UPLOAD_HANDLE_STATE_TERMINATING | UPLOAD_HANDLE_STATE_TERMINATED,
 
     // States where all items are sent. Currently including UPLOAD_HANDLE_STATE_ERROR because
     // upload handle has to get to UPLOAD_HANDLE_STATE_TERMINATED first then UPLOAD_HANDLE_STATE_ERROR
-    UPLOAD_HANDLE_STATE_READY_TO_TRIM = UPLOAD_HANDLE_STATE_ACK_RECEIVED |
-                                        UPLOAD_HANDLE_STATE_TERMINATED |
-                                        UPLOAD_HANDLE_STATE_ERROR,
+    UPLOAD_HANDLE_STATE_READY_TO_TRIM = UPLOAD_HANDLE_STATE_ACK_RECEIVED | UPLOAD_HANDLE_STATE_TERMINATED | UPLOAD_HANDLE_STATE_ERROR,
 
     // All states combined
-    UPLOAD_HANDLE_STATE_ANY = UPLOAD_HANDLE_STATE_NEW |
-                              UPLOAD_HANDLE_STATE_READY |
-                              UPLOAD_HANDLE_STATE_STREAMING |
-                              UPLOAD_HANDLE_STATE_TERMINATING |
-                              UPLOAD_HANDLE_STATE_AWAITING_ACK |
-                              UPLOAD_HANDLE_STATE_ACK_RECEIVED |
-                              UPLOAD_HANDLE_STATE_TERMINATED |
-                              UPLOAD_HANDLE_STATE_ERROR,
+    UPLOAD_HANDLE_STATE_ANY = UPLOAD_HANDLE_STATE_NEW | UPLOAD_HANDLE_STATE_READY | UPLOAD_HANDLE_STATE_STREAMING | UPLOAD_HANDLE_STATE_TERMINATING |
+        UPLOAD_HANDLE_STATE_AWAITING_ACK | UPLOAD_HANDLE_STATE_ACK_RECEIVED | UPLOAD_HANDLE_STATE_TERMINATED | UPLOAD_HANDLE_STATE_ERROR,
 
 } UPLOAD_HANDLE_STATE;
 
@@ -228,14 +268,19 @@ typedef enum {
 } UPLOAD_CONNECTION_STATE;
 
 /**
+ * Whether the upload handle is in state s
+ */
+#define IS_UPLOAD_HANDLE_IN_STATE(u, s) ((((PUploadHandleInfo)(u))->state & (s)) != UPLOAD_HANDLE_STATE_NONE)
+
+/**
  * Whether the upload handle is in sending EoS state
  */
-#define IS_UPLOAD_HANDLE_IN_SENDING_EOS_STATE(p)    ((((PUploadHandleInfo)(p))->state & UPLOAD_HANDLE_STATE_SEND_EOS) != UPLOAD_HANDLE_STATE_NONE)
+#define IS_UPLOAD_HANDLE_IN_SENDING_EOS_STATE(p) (IS_UPLOAD_HANDLE_IN_STATE(p, UPLOAD_HANDLE_STATE_SEND_EOS))
 
 /**
  * Whether the upload handle has sent all its items, including eos.
  */
-#define IS_UPLOAD_HANDLE_READY_TO_TRIM(p)    ((((PUploadHandleInfo)(p))->state & UPLOAD_HANDLE_STATE_READY_TO_TRIM) != UPLOAD_HANDLE_STATE_NONE)
+#define IS_UPLOAD_HANDLE_READY_TO_TRIM(p) (IS_UPLOAD_HANDLE_IN_STATE(p, UPLOAD_HANDLE_STATE_READY_TO_TRIM))
 
 /**
  * Upload handle information struct
@@ -254,6 +299,9 @@ struct __UploadHandleInfo {
     // Last received persisted ack timestamp
     UINT64 lastPersistedAckTs;
 
+    // The creation time of the upload handle for diagnostics calculations
+    UINT64 createTime;
+
     // Handle state
     UPLOAD_HANDLE_STATE state;
 };
@@ -267,7 +315,7 @@ struct __KinesisVideoStream {
     KinesisVideoBase base;
 
     // The reference to the parent object
-    struct __KinesisVideoClient *pKinesisVideoClient;
+    struct __KinesisVideoClient* pKinesisVideoClient;
 
     // The id of the stream
     UINT32 streamId;
@@ -367,6 +415,9 @@ struct __KinesisVideoStream {
 
     // Manage the order of frames being put depending on FRAME_ORDER_MODE in streamCaps
     PFrameOrderCoordinator pFrameOrderCoordinator;
+
+    // Last PutFrame timestamp
+    UINT64 lastPutFrameTimestamp;
 };
 
 /**
@@ -406,7 +457,7 @@ typedef struct __SerializedMetadata* PSerializedMetadata;
  *
  * @return Status of the function call.
  */
-STATUS createStream(struct __KinesisVideoClient *, PStreamInfo, PKinesisVideoStream*);
+STATUS createStream(struct __KinesisVideoClient*, PStreamInfo, PKinesisVideoStream*);
 
 /**
  * Frees the given stream and deallocates all the objects
@@ -600,7 +651,7 @@ STATUS getAvailableViewSize(PKinesisVideoStream, PUINT64, PUINT64);
  * @param 3 - OUT - Allocation handle if successfully allocated
  * @return Status code of the operation
  */
-STATUS waitForAvailability(PKinesisVideoStream, UINT32, PALLOCATION_HANDLE);
+STATUS handleAvailability(PKinesisVideoStream pKinesisVideoStream, UINT32 allocationSize, PALLOCATION_HANDLE pAllocationHandle);
 
 /**
  * Checks whether space is available in the content store and
@@ -680,6 +731,25 @@ STATUS notifyStreamClosed(PKinesisVideoStream, UPLOAD_HANDLE);
  */
 STATUS logStreamMetric(PKinesisVideoStream);
 
+/**
+ * log the StreamInfo struct
+ *
+ * @param 1 - IN - PStreamInfo
+ *
+ * @return VOID
+ */
+VOID logStreamInfo(PStreamInfo);
+
+/**
+ * Calculates the backend API call latency for diagnostics/metrics purposes
+ *
+ * @param 1 - IN - PKinesisVideoStream object
+ * @param 2 - IN - BOOL - Whether it's control plane API call or data plane API call
+ *
+ * @return Status code of the operation
+ */
+STATUS calculateCallLatency(PKinesisVideoStream, BOOL);
+
 ///////////////////////////////////////////////////////////////////////////
 // Service call event functions
 ///////////////////////////////////////////////////////////////////////////
@@ -699,7 +769,7 @@ STATUS streamFragmentAckEvent(PKinesisVideoStream, UPLOAD_HANDLE, PFragmentAck);
 STATUS streamFragmentBufferingAck(PKinesisVideoStream, UINT64);
 STATUS streamFragmentReceivedAck(PKinesisVideoStream, UINT64);
 STATUS streamFragmentPersistedAck(PKinesisVideoStream, UINT64, PUploadHandleInfo);
-STATUS streamFragmentErrorAck(PKinesisVideoStream, UINT64, SERVICE_CALL_RESULT);
+STATUS streamFragmentErrorAck(PKinesisVideoStream, UINT64, UINT64, SERVICE_CALL_RESULT);
 
 ///////////////////////////////////////////////////////////////////////////
 // Streaming event functions
@@ -730,8 +800,6 @@ STATUS executePutStreamState(UINT64, UINT64);
 STATUS executeStreamingStreamState(UINT64, UINT64);
 STATUS executeStoppedStreamState(UINT64, UINT64);
 STATUS executeTagStreamState(UINT64, UINT64);
-
-#pragma pack(pop, include_i)
 
 #ifdef __cplusplus
 }

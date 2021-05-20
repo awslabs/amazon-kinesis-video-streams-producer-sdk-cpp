@@ -530,6 +530,7 @@ STATUS singleListAppendList(PSingleList pDstList, PSingleList* ppListToAppend)
     pDstList->count += pListToAppend->count;
     MEMFREE(pListToAppend);
     *ppListToAppend = NULL;
+
 CleanUp:
 
     return retStatus;

@@ -10,33 +10,31 @@ extern "C" {
 
 #pragma once
 
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
-
 // Various significant chars
-#define ACK_PARSER_OPEN_BRACE                   '{'
-#define ACK_PARSER_CLOSE_BRACE                  '}'
-#define ACK_PARSER_OPEN_BRACKET                 '['
-#define ACK_PARSER_CLOSE_BRACKET                ']'
-#define ACK_PARSER_QUOTE                        '\"'
-#define ACK_PARSER_DELIMITER                    ':'
-#define ACK_PARSER_COMMA                        ','
+#define ACK_PARSER_OPEN_BRACE    '{'
+#define ACK_PARSER_CLOSE_BRACE   '}'
+#define ACK_PARSER_OPEN_BRACKET  '['
+#define ACK_PARSER_CLOSE_BRACKET ']'
+#define ACK_PARSER_QUOTE         '\"'
+#define ACK_PARSER_DELIMITER     ':'
+#define ACK_PARSER_COMMA         ','
 
 // ACK event names
-#define ACK_EVENT_TYPE_BUFFERING    "BUFFERING"
-#define ACK_EVENT_TYPE_RECEIVED     "RECEIVED"
-#define ACK_EVENT_TYPE_PERSISTED    "PERSISTED"
-#define ACK_EVENT_TYPE_IDLE         "IDLE"
-#define ACK_EVENT_TYPE_ERROR        "ERROR"
+#define ACK_EVENT_TYPE_BUFFERING "BUFFERING"
+#define ACK_EVENT_TYPE_RECEIVED  "RECEIVED"
+#define ACK_EVENT_TYPE_PERSISTED "PERSISTED"
+#define ACK_EVENT_TYPE_IDLE      "IDLE"
+#define ACK_EVENT_TYPE_ERROR     "ERROR"
 
 // ACK JSON key names
-#define ACK_KEY_NAME_EVENT_TYPE             "EventType"
-#define ACK_KEY_NAME_FRAGMENT_NUMBER        "FragmentNumber"
-#define ACK_KEY_NAME_FRAGMENT_TIMECODE      "FragmentTimecode"
-#define ACK_KEY_NAME_ERROR_ID               "ErrorId"
+#define ACK_KEY_NAME_EVENT_TYPE        "EventType"
+#define ACK_KEY_NAME_FRAGMENT_NUMBER   "FragmentNumber"
+#define ACK_KEY_NAME_FRAGMENT_TIMECODE "FragmentTimecode"
+#define ACK_KEY_NAME_ERROR_ID          "ErrorId"
 
 // If the character is start of numeric value
-#define IS_ACK_START_OF_NUMERIC_VALUE(ch)       ((ch) == '-' || (ch) == '+' || (ch) == '.' || ((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z'))
+#define IS_ACK_START_OF_NUMERIC_VALUE(ch)                                                                                                            \
+    ((ch) == '-' || (ch) == '+' || (ch) == '.' || ((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z'))
 
 /**
  * Kinesis Video ACK parser states
@@ -191,8 +189,6 @@ SERVICE_CALL_RESULT getAckErrorTypeFromErrorId(UINT64);
  * @return STATUS of the operation
  */
 STATUS processParsedAck(PKinesisVideoStream);
-
-#pragma pack(pop, include_i)
 
 #ifdef __cplusplus
 }

@@ -21,9 +21,7 @@ STATUS hashTableCreateWithParams(UINT32 bucketCount, UINT32 bucketLength, PHashT
     PHashBucket pHashBucket;
     PHashEntry pHashEntry;
 
-    CHK(bucketCount >= MIN_HASH_BUCKET_COUNT &&
-                bucketLength > 0 &&
-                ppHashTable != NULL, STATUS_NULL_ARG);
+    CHK(bucketCount >= MIN_HASH_BUCKET_COUNT && bucketLength > 0 && ppHashTable != NULL, STATUS_NULL_ARG);
 
     // Pre-set the default
     *ppHashTable = NULL;
@@ -47,7 +45,7 @@ STATUS hashTableCreateWithParams(UINT32 bucketCount, UINT32 bucketLength, PHashT
     // The buckets follow immediately after the hash table
     // The entries follow immediately after the buckets array
     pHashBucket = (PHashBucket)(pHashTable + 1);
-    pHashEntry = (PHashEntry)(((PBYTE)pHashBucket) + bucketAllocSize);
+    pHashEntry = (PHashEntry)(((PBYTE) pHashBucket) + bucketAllocSize);
 
     for (i = 0; i < bucketCount; i++) {
         pHashBucket->count = 0;
@@ -287,7 +285,7 @@ STATUS hashTableUpsert(PHashTable pHashTable, UINT64 key, UINT64 value)
         // Allocate twice larger array or a min allocation whichever is greater and copy items over
         entriesLength = MAX(pHashBucket->length * 2, MIN_HASH_TABLE_ENTRIES_ALLOC_LENGTH);
         allocSize = SIZEOF(HashEntry) * entriesLength;
-        pNewHashEntry = (PHashEntry)MEMALLOC(allocSize);
+        pNewHashEntry = (PHashEntry) MEMALLOC(allocSize);
         CHK(pNewHashEntry != NULL, STATUS_NOT_ENOUGH_MEMORY);
 
         pHashEntry = pHashBucket->entries;
@@ -339,17 +337,18 @@ STATUS hashTableRemove(PHashTable pHashTable, UINT64 key)
 
     // Check if we already have the value
     pHashEntry = pHashBucket->entries;
-    for (i = 0; i < pHashBucket->count; i++, pHashEntry++) {
+    for (i = 0; !found && i < pHashBucket->count; i++) {
         if (pHashEntry->key == key) {
             found = TRUE;
-            break;
+        } else {
+            pHashEntry++;
         }
     }
 
     CHK(found, STATUS_HASH_KEY_NOT_PRESENT);
 
     // Move the rest of the items
-    MEMMOVE(pHashEntry, pHashEntry + 1, (pHashBucket->count - 1) * SIZEOF(HashEntry));
+    MEMMOVE(pHashEntry, pHashEntry + 1, (pHashBucket->count - i) * SIZEOF(HashEntry));
 
     // Decrement the count as we have removed and item
     pHashBucket->count--;
@@ -456,7 +455,6 @@ PHashBucket getHashBucket(PHashTable pHashTable, UINT64 key)
 
     return &pHashBucket[index];
 }
-
 
 /**
  * Calculates the hash of a key.

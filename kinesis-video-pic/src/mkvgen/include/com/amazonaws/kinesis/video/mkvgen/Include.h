@@ -6,7 +6,7 @@
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -19,55 +19,54 @@ extern "C" {
 ////////////////////////////////////////////////////
 #include <com/amazonaws/kinesis/video/utils/Include.h>
 
-// For tight packing
-#pragma pack(push, include, 1) // for byte alignment
-
 ////////////////////////////////////////////////////
 // Status return codes
 ////////////////////////////////////////////////////
-#define STATUS_MKVGEN_BASE                                                          0x32000000
-#define STATUS_MKV_INVALID_FRAME_DATA                                               STATUS_MKVGEN_BASE + 0x00000001
-#define STATUS_MKV_INVALID_FRAME_TIMESTAMP                                          STATUS_MKVGEN_BASE + 0x00000002
-#define STATUS_MKV_INVALID_CLUSTER_DURATION                                         STATUS_MKVGEN_BASE + 0x00000003
-#define STATUS_MKV_INVALID_CONTENT_TYPE_LENGTH                                      STATUS_MKVGEN_BASE + 0x00000004
-#define STATUS_MKV_NUMBER_TOO_BIG                                                   STATUS_MKVGEN_BASE + 0x00000005
-#define STATUS_MKV_INVALID_CODEC_ID_LENGTH                                          STATUS_MKVGEN_BASE + 0x00000006
-#define STATUS_MKV_INVALID_TRACK_NAME_LENGTH                                        STATUS_MKVGEN_BASE + 0x00000007
-#define STATUS_MKV_INVALID_CODEC_PRIVATE_LENGTH                                     STATUS_MKVGEN_BASE + 0x00000008
-#define STATUS_MKV_CODEC_PRIVATE_NULL                                               STATUS_MKVGEN_BASE + 0x00000009
-#define STATUS_MKV_INVALID_TIMECODE_SCALE                                           STATUS_MKVGEN_BASE + 0x0000000a
-#define STATUS_MKV_MAX_FRAME_TIMECODE                                               STATUS_MKVGEN_BASE + 0x0000000b
-#define STATUS_MKV_LARGE_FRAME_TIMECODE                                             STATUS_MKVGEN_BASE + 0x0000000c
-#define STATUS_MKV_INVALID_ANNEXB_NALU_IN_FRAME_DATA                                STATUS_MKVGEN_BASE + 0x0000000d
-#define STATUS_MKV_INVALID_AVCC_NALU_IN_FRAME_DATA                                  STATUS_MKVGEN_BASE + 0x0000000e
-#define STATUS_MKV_BOTH_ANNEXB_AND_AVCC_SPECIFIED                                   STATUS_MKVGEN_BASE + 0x0000000f
-#define STATUS_MKV_INVALID_ANNEXB_NALU_IN_CPD                                       STATUS_MKVGEN_BASE + 0x00000010
-#define STATUS_MKV_PTS_DTS_ARE_NOT_SAME                                             STATUS_MKVGEN_BASE + 0x00000011
-#define STATUS_MKV_INVALID_H264_H265_CPD                                            STATUS_MKVGEN_BASE + 0x00000012
-#define STATUS_MKV_INVALID_H264_H265_SPS_WIDTH                                      STATUS_MKVGEN_BASE + 0x00000013
-#define STATUS_MKV_INVALID_H264_H265_SPS_HEIGHT                                     STATUS_MKVGEN_BASE + 0x00000014
-#define STATUS_MKV_INVALID_H264_H265_SPS_NALU                                       STATUS_MKVGEN_BASE + 0x00000015
-#define STATUS_MKV_INVALID_BIH_CPD                                                  STATUS_MKVGEN_BASE + 0x00000016
-#define STATUS_MKV_INVALID_HEVC_NALU_COUNT                                          STATUS_MKVGEN_BASE + 0x00000017
-#define STATUS_MKV_INVALID_HEVC_FORMAT                                              STATUS_MKVGEN_BASE + 0x00000018
-#define STATUS_MKV_HEVC_SPS_NALU_MISSING                                            STATUS_MKVGEN_BASE + 0x00000019
-#define STATUS_MKV_INVALID_HEVC_SPS_NALU_SIZE                                       STATUS_MKVGEN_BASE + 0x0000001a
-#define STATUS_MKV_INVALID_HEVC_SPS_CHROMA_FORMAT_IDC                               STATUS_MKVGEN_BASE + 0x0000001b
-#define STATUS_MKV_INVALID_HEVC_SPS_RESERVED                                        STATUS_MKVGEN_BASE + 0x0000001c
-#define STATUS_MKV_MIN_ANNEX_B_CPD_SIZE                                             STATUS_MKVGEN_BASE + 0x0000001d
-#define STATUS_MKV_ANNEXB_CPD_MISSING_NALUS                                         STATUS_MKVGEN_BASE + 0x0000001e
-#define STATUS_MKV_INVALID_ANNEXB_CPD_NALUS                                         STATUS_MKVGEN_BASE + 0x0000001f
-#define STATUS_MKV_INVALID_TAG_NAME_LENGTH                                          STATUS_MKVGEN_BASE + 0x00000020
-#define STATUS_MKV_INVALID_TAG_VALUE_LENGTH                                         STATUS_MKVGEN_BASE + 0x00000021
-#define STATUS_MKV_INVALID_GENERATOR_STATE_TAGS                                     STATUS_MKVGEN_BASE + 0x00000022
-#define STATUS_MKV_INVALID_AAC_CPD_SAMPLING_FREQUENCY_INDEX                         STATUS_MKVGEN_BASE + 0x00000023
-#define STATUS_MKV_INVALID_AAC_CPD_CHANNEL_CONFIG                                   STATUS_MKVGEN_BASE + 0x00000024
-#define STATUS_MKV_INVALID_AAC_CPD                                                  STATUS_MKVGEN_BASE + 0x00000025
-#define STATUS_MKV_TRACK_INFO_NOT_FOUND                                             STATUS_MKVGEN_BASE + 0x00000026
-#define STATUS_MKV_INVALID_SEGMENT_UUID                                             STATUS_MKVGEN_BASE + 0x00000027
-#define STATUS_MKV_INVALID_TRACK_UID                                                STATUS_MKVGEN_BASE + 0x00000028
-#define STATUS_MKV_INVALID_CLIENT_ID_LENGTH                                         STATUS_MKVGEN_BASE + 0x00000029
-#define STATUS_MKV_INVALID_AMS_ACM_CPD                                              STATUS_MKVGEN_BASE + 0x0000002a
+#define STATUS_MKVGEN_BASE                                  0x32000000
+#define STATUS_MKV_INVALID_FRAME_DATA                       STATUS_MKVGEN_BASE + 0x00000001
+#define STATUS_MKV_INVALID_FRAME_TIMESTAMP                  STATUS_MKVGEN_BASE + 0x00000002
+#define STATUS_MKV_INVALID_CLUSTER_DURATION                 STATUS_MKVGEN_BASE + 0x00000003
+#define STATUS_MKV_INVALID_CONTENT_TYPE_LENGTH              STATUS_MKVGEN_BASE + 0x00000004
+#define STATUS_MKV_NUMBER_TOO_BIG                           STATUS_MKVGEN_BASE + 0x00000005
+#define STATUS_MKV_INVALID_CODEC_ID_LENGTH                  STATUS_MKVGEN_BASE + 0x00000006
+#define STATUS_MKV_INVALID_TRACK_NAME_LENGTH                STATUS_MKVGEN_BASE + 0x00000007
+#define STATUS_MKV_INVALID_CODEC_PRIVATE_LENGTH             STATUS_MKVGEN_BASE + 0x00000008
+#define STATUS_MKV_CODEC_PRIVATE_NULL                       STATUS_MKVGEN_BASE + 0x00000009
+#define STATUS_MKV_INVALID_TIMECODE_SCALE                   STATUS_MKVGEN_BASE + 0x0000000a
+#define STATUS_MKV_MAX_FRAME_TIMECODE                       STATUS_MKVGEN_BASE + 0x0000000b
+#define STATUS_MKV_LARGE_FRAME_TIMECODE                     STATUS_MKVGEN_BASE + 0x0000000c
+#define STATUS_MKV_INVALID_ANNEXB_NALU_IN_FRAME_DATA        STATUS_MKVGEN_BASE + 0x0000000d
+#define STATUS_MKV_INVALID_AVCC_NALU_IN_FRAME_DATA          STATUS_MKVGEN_BASE + 0x0000000e
+#define STATUS_MKV_BOTH_ANNEXB_AND_AVCC_SPECIFIED           STATUS_MKVGEN_BASE + 0x0000000f
+#define STATUS_MKV_INVALID_ANNEXB_NALU_IN_CPD               STATUS_MKVGEN_BASE + 0x00000010
+#define STATUS_MKV_PTS_DTS_ARE_NOT_SAME                     STATUS_MKVGEN_BASE + 0x00000011
+#define STATUS_MKV_INVALID_H264_H265_CPD                    STATUS_MKVGEN_BASE + 0x00000012
+#define STATUS_MKV_INVALID_H264_H265_SPS_WIDTH              STATUS_MKVGEN_BASE + 0x00000013
+#define STATUS_MKV_INVALID_H264_H265_SPS_HEIGHT             STATUS_MKVGEN_BASE + 0x00000014
+#define STATUS_MKV_INVALID_H264_H265_SPS_NALU               STATUS_MKVGEN_BASE + 0x00000015
+#define STATUS_MKV_INVALID_BIH_CPD                          STATUS_MKVGEN_BASE + 0x00000016
+#define STATUS_MKV_INVALID_HEVC_NALU_COUNT                  STATUS_MKVGEN_BASE + 0x00000017
+#define STATUS_MKV_INVALID_HEVC_FORMAT                      STATUS_MKVGEN_BASE + 0x00000018
+#define STATUS_MKV_HEVC_SPS_NALU_MISSING                    STATUS_MKVGEN_BASE + 0x00000019
+#define STATUS_MKV_INVALID_HEVC_SPS_NALU_SIZE               STATUS_MKVGEN_BASE + 0x0000001a
+#define STATUS_MKV_INVALID_HEVC_SPS_CHROMA_FORMAT_IDC       STATUS_MKVGEN_BASE + 0x0000001b
+#define STATUS_MKV_INVALID_HEVC_SPS_RESERVED                STATUS_MKVGEN_BASE + 0x0000001c
+#define STATUS_MKV_MIN_ANNEX_B_CPD_SIZE                     STATUS_MKVGEN_BASE + 0x0000001d
+#define STATUS_MKV_ANNEXB_CPD_MISSING_NALUS                 STATUS_MKVGEN_BASE + 0x0000001e
+#define STATUS_MKV_INVALID_ANNEXB_CPD_NALUS                 STATUS_MKVGEN_BASE + 0x0000001f
+#define STATUS_MKV_INVALID_TAG_NAME_LENGTH                  STATUS_MKVGEN_BASE + 0x00000020
+#define STATUS_MKV_INVALID_TAG_VALUE_LENGTH                 STATUS_MKVGEN_BASE + 0x00000021
+#define STATUS_MKV_INVALID_GENERATOR_STATE_TAGS             STATUS_MKVGEN_BASE + 0x00000022
+#define STATUS_MKV_INVALID_AAC_CPD_SAMPLING_FREQUENCY_INDEX STATUS_MKVGEN_BASE + 0x00000023
+#define STATUS_MKV_INVALID_AAC_CPD_CHANNEL_CONFIG           STATUS_MKVGEN_BASE + 0x00000024
+#define STATUS_MKV_INVALID_AAC_CPD                          STATUS_MKVGEN_BASE + 0x00000025
+#define STATUS_MKV_TRACK_INFO_NOT_FOUND                     STATUS_MKVGEN_BASE + 0x00000026
+#define STATUS_MKV_INVALID_SEGMENT_UUID                     STATUS_MKVGEN_BASE + 0x00000027
+#define STATUS_MKV_INVALID_TRACK_UID                        STATUS_MKVGEN_BASE + 0x00000028
+#define STATUS_MKV_INVALID_CLIENT_ID_LENGTH                 STATUS_MKVGEN_BASE + 0x00000029
+#define STATUS_MKV_INVALID_AMS_ACM_CPD                      STATUS_MKVGEN_BASE + 0x0000002a
+#define STATUS_MKV_MISSING_SPS_FROM_H264_CPD                STATUS_MKVGEN_BASE + 0x0000002b
+#define STATUS_MKV_MISSING_PPS_FROM_H264_CPD                STATUS_MKVGEN_BASE + 0x0000002c
 
 ////////////////////////////////////////////////////
 // Main structure declarations
@@ -76,49 +75,49 @@ extern "C" {
 /**
  * Max length of the content type in chars
  */
-#define MAX_CONTENT_TYPE_LEN            128
+#define MAX_CONTENT_TYPE_LEN 128
 
 /**
  * Max length of the codec ID
  */
-#define MKV_MAX_CODEC_ID_LEN            32
+#define MKV_MAX_CODEC_ID_LEN 32
 
 /**
  * Max length of the track name
  */
-#define MKV_MAX_TRACK_NAME_LEN          32
+#define MKV_MAX_TRACK_NAME_LEN 32
 
 /**
  * Max codec private data length
  */
-#define MKV_MAX_CODEC_PRIVATE_LEN       (1 * 1024 * 1024)
+#define MKV_MAX_CODEC_PRIVATE_LEN (1 * 1024 * 1024)
 
 /**
  * Max tag name length
  */
-#define MKV_MAX_TAG_NAME_LEN                128
+#define MKV_MAX_TAG_NAME_LEN 128
 
 /**
  * Max tag string value length
  */
-#define MKV_MAX_TAG_VALUE_LEN               256
+#define MKV_MAX_TAG_VALUE_LEN 256
 
 /**
  * Minimal and Maximal cluster durations sanity values
  */
-#define MAX_CLUSTER_DURATION                (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
-#define MIN_CLUSTER_DURATION                (1 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define MAX_CLUSTER_DURATION (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define MIN_CLUSTER_DURATION (1 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 /**
  * Minimal and Maximal timecode scale values - for sanity reasons
  */
-#define MAX_TIMECODE_SCALE                  (1 * HUNDREDS_OF_NANOS_IN_A_SECOND)
-#define MIN_TIMECODE_SCALE                  1
+#define MAX_TIMECODE_SCALE (1 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define MIN_TIMECODE_SCALE 1
 
 /**
  * The size of the Segment UUID in bytes.
  */
-#define MKV_SEGMENT_UUID_LEN                16
+#define MKV_SEGMENT_UUID_LEN 16
 
 /**
  * Max possible timestamp - signed value. This is needed so we won't overflow
@@ -126,46 +125,50 @@ extern "C" {
  * by the value of the timecode scale before subtracting the cluster timecode
  * as the frame timecodes are relative to the beginning of the cluster.
  */
-#define MAX_TIMESTAMP_VALUE                 (MAX_INT64 / DEFAULT_TIME_UNIT_IN_NANOS)
+#define MAX_TIMESTAMP_VALUE (MAX_INT64 / DEFAULT_TIME_UNIT_IN_NANOS)
 
 /**
  * Max frame queue per track definition
  */
-#define DEFAULT_MAX_FRAME_QUEUE_SIZE_PER_TRACK              60
+#define DEFAULT_MAX_FRAME_QUEUE_SIZE_PER_TRACK 60
 
 /**
  * Max MKV client id length
  */
-#define MAX_MKV_CLIENT_ID_STRING_LEN                        64
+#define MAX_MKV_CLIENT_ID_STRING_LEN 64
 
 /**
  * Constant definition for some known content types
  */
-#define MKV_H264_CONTENT_TYPE               ((PCHAR) "video/h264")
-#define MKV_H265_CONTENT_TYPE               ((PCHAR) "video/h265")
-#define MKV_X_MKV_VIDEO_CONTENT_TYPE        ((PCHAR) "video/x-matroska")
-#define MKV_X_MKV_AUDIO_CONTENT_TYPE        ((PCHAR) "audio/x-matroska")
-#define MKV_AAC_CONTENT_TYPE                ((PCHAR) "audio/aac")
-#define MKV_ALAW_CONTENT_TYPE               ((PCHAR) "audio/alaw")
-#define MKV_MULAW_CONTENT_TYPE              ((PCHAR) "audio/mulaw")
-#define MKV_AVC_CONTENT_TYPE                ((PCHAR) "video/avc")
-#define MKV_HEVC_CONTENT_TYPE               ((PCHAR) "video/hevc")
-#define MKV_H264_AAC_MULTI_CONTENT_TYPE     ((PCHAR) "video/h264,audio/aac")
+#define MKV_H264_CONTENT_TYPE             ((PCHAR) "video/h264")
+#define MKV_H265_CONTENT_TYPE             ((PCHAR) "video/h265")
+#define MKV_X_MKV_VIDEO_CONTENT_TYPE      ((PCHAR) "video/x-matroska")
+#define MKV_X_MKV_AUDIO_CONTENT_TYPE      ((PCHAR) "audio/x-matroska")
+#define MKV_AAC_CONTENT_TYPE              ((PCHAR) "audio/aac")
+#define MKV_ALAW_CONTENT_TYPE             ((PCHAR) "audio/alaw")
+#define MKV_MULAW_CONTENT_TYPE            ((PCHAR) "audio/mulaw")
+#define MKV_AVC_CONTENT_TYPE              ((PCHAR) "video/avc")
+#define MKV_HEVC_CONTENT_TYPE             ((PCHAR) "video/hevc")
+#define MKV_H264_AAC_MULTI_CONTENT_TYPE   ((PCHAR) "video/h264,audio/aac")
+#define MKV_H264_MULAW_MULTI_CONTENT_TYPE ((PCHAR) "video/h264,audio/mulaw")
 
 /**
  * Constant definitions for some known codec IDs
  */
-#define MKV_FOURCC_CODEC_ID                 ((PCHAR) "V_MS/VFW/FOURCC")
-#define MKV_H264_AVC_CODEC_ID               ((PCHAR) "V_MPEG4/ISO/AVC")
-#define MKV_H265_HEVC_CODEC_ID              ((PCHAR) "V_MPEGH/ISO/HEVC")
-#define MKV_AAC_MPEG4_MAIN_CODEC_ID         ((PCHAR) "A_AAC/MPEG4/MAIN")
-#define MKV_AAC_CODEC_ID                    ((PCHAR) "A_AAC")
+#define MKV_FOURCC_CODEC_ID         ((PCHAR) "V_MS/VFW/FOURCC")
+#define MKV_H264_AVC_CODEC_ID       ((PCHAR) "V_MPEG4/ISO/AVC")
+#define MKV_H265_HEVC_CODEC_ID      ((PCHAR) "V_MPEGH/ISO/HEVC")
+#define MKV_AAC_MPEG4_MAIN_CODEC_ID ((PCHAR) "A_AAC/MPEG4/MAIN")
+#define MKV_AAC_CODEC_ID            ((PCHAR) "A_AAC")
+#define MKV_PCM_INT_LIT_CODEC_ID    ((PCHAR) "A_PCM/INT/LIT")
+#define MKV_PCM_INT_BIG_CODEC_ID    ((PCHAR) "A_PCM/INT/BIG")
+#define MKV_PCM_FLOAT_IEEE_CODEC_ID ((PCHAR) "A_PCM/FLOAT/IEEE")
 
 /**
  * Current versions of the public facing structures
  */
-#define TRACK_INFO_CURRENT_VERSION                          0
-#define FRAME_CURRENT_VERSION                               0
+#define TRACK_INFO_CURRENT_VERSION 0
+#define FRAME_CURRENT_VERSION      0
 
 /**
  * Frame types enum
@@ -174,27 +177,27 @@ typedef enum {
     /**
      * No flags are set
      */
-    FRAME_FLAG_NONE                     = 0,
+    FRAME_FLAG_NONE = 0,
 
     /**
      * The frame is a key frame - I or IDR
      */
-    FRAME_FLAG_KEY_FRAME                = (1 << 0),
+    FRAME_FLAG_KEY_FRAME = (1 << 0),
 
     /**
      * The frame is discardable - no other frames depend on it
      */
-    FRAME_FLAG_DISCARDABLE_FRAME        = (1 << 1),
+    FRAME_FLAG_DISCARDABLE_FRAME = (1 << 1),
 
     /**
      * The frame is invisible for rendering
      */
-    FRAME_FLAG_INVISIBLE_FRAME          = (1 << 2),
+    FRAME_FLAG_INVISIBLE_FRAME = (1 << 2),
 
     /**
      * The frame is an explicit marker for the end-of-fragment
      */
-    FRAME_FLAG_END_OF_FRAGMENT          = (1 << 3),
+    FRAME_FLAG_END_OF_FRAGMENT = (1 << 3),
 } FRAME_FLAGS;
 
 /**
@@ -204,7 +207,8 @@ typedef enum {
     MKV_STATE_START_STREAM,
     MKV_STATE_START_CLUSTER,
     MKV_STATE_START_BLOCK,
-} MKV_STREAM_STATE, *PMKV_STREAM_STATE;
+} MKV_STREAM_STATE,
+    *PMKV_STREAM_STATE;
 
 /**
  * Track types taken from the MKV specification
@@ -213,25 +217,30 @@ typedef enum {
     MKV_TRACK_INFO_TYPE_VIDEO = (BYTE) 0x01,
     MKV_TRACK_INFO_TYPE_AUDIO = (BYTE) 0x02,
     MKV_TRACK_INFO_TYPE_UNKOWN = (BYTE) 0x03,
-} MKV_TRACK_INFO_TYPE, *PMKV_TRACK_INFO_TYPE;
+} MKV_TRACK_INFO_TYPE,
+    *PMKV_TRACK_INFO_TYPE;
+
+#define GET_TRACK_TYPE_STR(st)                                                                                                                       \
+    ((st) == MKV_TRACK_INFO_TYPE_VIDEO ? (PCHAR) "TRACK_INFO_TYPE_VIDEO"                                                                             \
+                                       : (st) == MKV_TRACK_INFO_TYPE_AUDIO ? (PCHAR) "TRACK_INFO_TYPE_AUDIO" : "TRACK_INFO_TYPE_UNKNOWN")
 
 /**
  * Macros checking for the frame flags
  */
-#define CHECK_FRAME_FLAG_KEY_FRAME(f)                          (((f) & FRAME_FLAG_KEY_FRAME) != FRAME_FLAG_NONE)
-#define CHECK_FRAME_FLAG_DISCARDABLE_FRAME(f)                  (((f) & FRAME_FLAG_DISCARDABLE_FRAME) != FRAME_FLAG_NONE)
-#define CHECK_FRAME_FLAG_INVISIBLE_FRAME(f)                    (((f) & FRAME_FLAG_INVISIBLE_FRAME) != FRAME_FLAG_NONE)
-#define CHECK_FRAME_FLAG_END_OF_FRAGMENT(f)                    (((f) & FRAME_FLAG_END_OF_FRAGMENT) != FRAME_FLAG_NONE)
+#define CHECK_FRAME_FLAG_KEY_FRAME(f)         (((f) &FRAME_FLAG_KEY_FRAME) != FRAME_FLAG_NONE)
+#define CHECK_FRAME_FLAG_DISCARDABLE_FRAME(f) (((f) &FRAME_FLAG_DISCARDABLE_FRAME) != FRAME_FLAG_NONE)
+#define CHECK_FRAME_FLAG_INVISIBLE_FRAME(f)   (((f) &FRAME_FLAG_INVISIBLE_FRAME) != FRAME_FLAG_NONE)
+#define CHECK_FRAME_FLAG_END_OF_FRAGMENT(f)   (((f) &FRAME_FLAG_END_OF_FRAGMENT) != FRAME_FLAG_NONE)
 
-#define SET_FRAME_FLAG_KEY_FRAME(f)                             ((f) = (FRAME_FLAGS) (f | FRAME_FLAG_KEY_FRAME))
-#define SET_FRAME_FLAG_DISCARDABLE_FRAME(f)                     ((f) = (FRAME_FLAGS) (f | FRAME_FLAG_DISCARDABLE_FRAME))
-#define SET_FRAME_FLAG_INVISIBLE_FRAME(f)                       ((f) = (FRAME_FLAGS) (f | FRAME_FLAG_INVISIBLE_FRAME))
-#define SET_FRAME_FLAG_END_OF_FRAGMENT(f)                       ((f) = (FRAME_FLAGS) (f | FRAME_FLAG_END_OF_FRAGMENT))
+#define SET_FRAME_FLAG_KEY_FRAME(f)         ((f) = (FRAME_FLAGS)(f | FRAME_FLAG_KEY_FRAME))
+#define SET_FRAME_FLAG_DISCARDABLE_FRAME(f) ((f) = (FRAME_FLAGS)(f | FRAME_FLAG_DISCARDABLE_FRAME))
+#define SET_FRAME_FLAG_INVISIBLE_FRAME(f)   ((f) = (FRAME_FLAGS)(f | FRAME_FLAG_INVISIBLE_FRAME))
+#define SET_FRAME_FLAG_END_OF_FRAGMENT(f)   ((f) = (FRAME_FLAGS)(f | FRAME_FLAG_END_OF_FRAGMENT))
 
-#define CLEAR_FRAME_FLAG_KEY_FRAME(f)                           ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_KEY_FRAME))
-#define CLEAR_FRAME_FLAG_DISCARDABLE_FRAME(f)                   ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_DISCARDABLE_FRAME))
-#define CLEAR_FRAME_FLAG_INVISIBLE_FRAME(f)                     ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_INVISIBLE_FRAME))
-#define CLEAR_FRAME_FLAG_END_OF_FRAGMENT(f)                     ((f) = (FRAME_FLAGS) (f & ~FRAME_FLAG_END_OF_FRAGMENT))
+#define CLEAR_FRAME_FLAG_KEY_FRAME(f)         ((f) = (FRAME_FLAGS)(f & ~FRAME_FLAG_KEY_FRAME))
+#define CLEAR_FRAME_FLAG_DISCARDABLE_FRAME(f) ((f) = (FRAME_FLAGS)(f & ~FRAME_FLAG_DISCARDABLE_FRAME))
+#define CLEAR_FRAME_FLAG_INVISIBLE_FRAME(f)   ((f) = (FRAME_FLAGS)(f & ~FRAME_FLAG_INVISIBLE_FRAME))
+#define CLEAR_FRAME_FLAG_END_OF_FRAGMENT(f)   ((f) = (FRAME_FLAGS)(f & ~FRAME_FLAG_END_OF_FRAGMENT))
 
 /**
  * Frame types enum
@@ -240,37 +249,37 @@ typedef enum {
     /**
      * No flags are set
      */
-    MKV_GEN_FLAG_NONE                   = 0,
+    MKV_GEN_FLAG_NONE = 0,
 
     /**
      * Always create clusters on the key frame boundary
      */
-    MKV_GEN_KEY_FRAME_PROCESSING        = (1 << 0),
+    MKV_GEN_KEY_FRAME_PROCESSING = (1 << 0),
 
     /**
      * Whether to use in-stream defined timestamps or call get time
      */
-    MKV_GEN_IN_STREAM_TIME              = (1 << 1),
+    MKV_GEN_IN_STREAM_TIME = (1 << 1),
 
     /**
      * Whether to generate absolute cluster timestamps
      */
-    MKV_GEN_ABSOLUTE_CLUSTER_TIME       = (1 << 2),
+    MKV_GEN_ABSOLUTE_CLUSTER_TIME = (1 << 2),
 
     /**
      * Whether to adapt Annex-B NALUs to Avcc NALUs
      */
-    MKV_GEN_ADAPT_ANNEXB_NALS           = (1 << 3),
+    MKV_GEN_ADAPT_ANNEXB_NALS = (1 << 3),
 
     /**
      * Whether to adapt Avcc NALUs to Annex-B NALUs
      */
-    MKV_GEN_ADAPT_AVCC_NALS             = (1 << 4),
+    MKV_GEN_ADAPT_AVCC_NALS = (1 << 4),
 
     /**
      * Whether to adapt Annex-B NALUs for the codec private data to Avcc format NALUs
      */
-    MKV_GEN_ADAPT_ANNEXB_CPD_NALS       = (1 << 5),
+    MKV_GEN_ADAPT_ANNEXB_CPD_NALS = (1 << 5),
 } MKV_BEHAVIOR_FLAGS;
 
 /**
@@ -305,13 +314,16 @@ typedef struct {
 } Frame, *PFrame;
 
 /*
- * End-of-Fragment frame initializer. This is used to easier initialize a local variable in a form of
+ * End-of-Fragment frame initializer. This is used to easily initialize a local variable in a form of
  * Frame eofr = EOFR_FRAME_INITIALIZER;
  * putKinesisVideoFrame(&eofr));
  *
  * The initializer will zero all the fields and set the EoFr flag in flags.
  */
-#define EOFR_FRAME_INITIALIZER {FRAME_CURRENT_VERSION, 0, FRAME_FLAG_END_OF_FRAGMENT, 0, 0, 0, 0, NULL, 0}
+#define EOFR_FRAME_INITIALIZER                                                                                                                       \
+    {                                                                                                                                                \
+        FRAME_CURRENT_VERSION, 0, FRAME_FLAG_END_OF_FRAGMENT, 0, 0, 0, 0, NULL, 0                                                                    \
+    }
 
 /**
  * The representation of mkv video element
@@ -405,6 +417,42 @@ struct __MkvGenerator {
 };
 
 typedef struct __MkvGenerator* PMkvGenerator;
+
+// https://wiki.multimedia.cx/index.php/MPEG-4_Audio
+// should cover most of aac object types. we can always expand this list if needed.
+typedef enum {
+    AAC_MAIN = 1,
+    AAC_LC = 2,
+    AAC_SSR = 3,
+    AAC_LTP = 4,
+    SBR = 5,
+    AAC_SCALABLE = 6,
+} KVS_MPEG4_AUDIO_OBJECT_TYPES;
+
+// 5 bits (Audio Object Type) | 4 bits (frequency index) | 4 bits (channel configuration) | 3 bits (not used)
+#define KVS_AAC_CPD_SIZE_BYTE 2
+
+/*
+ * http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+ * cpd structure (little endian):
+ * - 2 bytes format code (0x06 0x00 for pcm alaw)
+ * - 2 bytes number of channels
+ * - 4 bytes sampling rate
+ * - 4 bytes average bytes per second
+ * - 2 bytes block align
+ * - 2 bytes bit depth
+ * - 2 bytes extra data (usually 0)
+ */
+#define KVS_PCM_CPD_SIZE_BYTE 18
+
+typedef enum {
+    KVS_PCM_FORMAT_CODE_ALAW = (UINT16) 0x0006,
+    KVS_PCM_FORMAT_CODE_MULAW = (UINT16) 0x0007,
+} KVS_PCM_FORMAT_CODE;
+
+// Min/Max sampling rate for PCM alaw and mulaw. Referred pad template of gstreamer alawenc plugin
+#define MIN_PCM_SAMPLING_RATE 8000
+#define MAX_PCM_SAMPLING_RATE 192000
 
 ////////////////////////////////////////////////////
 // Callbacks definitions
@@ -559,9 +607,33 @@ PUBLIC_API STATUS mkvgenSetCodecPrivateData(PMkvGenerator, UINT64, UINT32, PBYTE
  */
 PUBLIC_API STATUS mkvgenGetTrackInfo(PTrackInfo, UINT32, UINT64, PTrackInfo*, PUINT32);
 
-#pragma pack(pop, include)
+/**
+ * Generate AAC audio cpd
+ *
+ * @KVS_MPEG4_AUDIO_OBJECT_TYPES - IN - MPEG4 object type
+ * @UINT32 - IN - Sampling Frequency
+ * @UINT16 - IN - Channel Count
+ * @PBYTE - OUT - Buffer for cpd, should have at least KVS_AAC_CPD_SIZE_BYTE (2 bytes)
+ * @UINT32 - IN - size of buffer
+ *
+ * @return Status of the operation
+ */
+PUBLIC_API STATUS mkvgenGenerateAacCpd(KVS_MPEG4_AUDIO_OBJECT_TYPES, UINT32, UINT16, PBYTE, UINT32);
 
-#ifdef  __cplusplus
+/**
+ * Generate PCM audio cpd
+ *
+ * @KVS_PCM_FORMAT_CODE - IN - pcm format code. Either KVS_PCM_FORMAT_CODE_ALAW or KVS_PCM_FORMAT_CODE_MUALAW
+ * @UINT32 - IN - Sampling Frequency
+ * @UINT16 - IN - Channel Count
+ * @PBYTE - OUT - Buffer for cpd, should have at least KVS_PCM_CPD_SIZE_BYTE (18 bytes)
+ * @UINT32 - IN - size of buffer
+ *
+ * @return Status of the operation
+ */
+PUBLIC_API STATUS mkvgenGeneratePcmCpd(KVS_PCM_FORMAT_CODE, UINT32, UINT16, PBYTE, UINT32);
+
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __MKV_GEN_INCLUDE__ */
+#endif /* __MKV_GEN_INCLUDE__ */

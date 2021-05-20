@@ -3,10 +3,11 @@
 class SemaphoreFunctionalityTest : public UtilTestBase {
 public:
     SemaphoreFunctionalityTest() :
-            acquired(FALSE),
-            threadCount(0),
-            drainThreadCount(0),
-            handle(INVALID_SEMAPHORE_HANDLE_VALUE) {}
+            handle(INVALID_SEMAPHORE_HANDLE_VALUE) {
+        ATOMIC_STORE_BOOL(&acquired, FALSE);
+        ATOMIC_STORE(&threadCount, 0);
+        ATOMIC_STORE(&drainThreadCount, 0);
+    }
 
     volatile ATOMIC_BOOL acquired;
     volatile SIZE_T threadCount;
@@ -132,6 +133,7 @@ TEST_F(SemaphoreFunctionalityTest, acquireAwaitingTest)
     // Spin up a threads to await for the semaphore
     for (i = 0; i < SEMAPHORE_TEST_THREAD_COUNT; i++) {
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&threadId, acquireThreadRoutine, (PVOID) this));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_DETACH(threadId));
     }
 
     // Wait for a little
@@ -145,6 +147,7 @@ TEST_F(SemaphoreFunctionalityTest, acquireAwaitingTest)
     // Spin up the drain threads to await for the semaphore to release all
     for (i = 0; i < SEMAPHORE_TEST_DRAIN_THREAD_COUNT; i++) {
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&threadId, drainThreadRoutine, (PVOID) this));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_DETACH(threadId));
     }
 
     // Wait for a little
@@ -195,6 +198,7 @@ TEST_F(SemaphoreFunctionalityTest, drainTimeoutTest)
     // Spin up a threads to await for the semaphore
     for (i = 0; i < SEMAPHORE_TEST_THREAD_COUNT; i++) {
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&threadId, acquireThreadRoutine, (PVOID) this));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_DETACH(threadId));
     }
 
     // Wait for a little
@@ -263,6 +267,7 @@ TEST_F(SemaphoreFunctionalityTest, freeWithoutReleaseAllThreadsTest)
     // Spin up a threads to await for the semaphore
     for (i = 0; i < SEMAPHORE_TEST_THREAD_COUNT; i++) {
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&threadId, acquireThreadRoutine, (PVOID) this));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_DETACH(threadId));
     }
 
     // Wait for a little
@@ -271,6 +276,9 @@ TEST_F(SemaphoreFunctionalityTest, freeWithoutReleaseAllThreadsTest)
     EXPECT_EQ(SEMAPHORE_TEST_THREAD_COUNT, (UINT32) ATOMIC_LOAD(&threadCount));
 
     EXPECT_EQ(STATUS_SUCCESS, semaphoreFree(&handle));
+
+    // Await for all of the threads to finish
+    THREAD_SLEEP(300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
 
     EXPECT_EQ(0, (UINT32) ATOMIC_LOAD(&threadCount));
 }

@@ -83,6 +83,7 @@ STATUS ProducerClientTestBase::testStreamErrorReportFunc(UINT64 customData,
     BOOL resetStream = FALSE;
     MUTEX_LOCK(pTest->mTestCallbackLock);
     pTest->mStreamErrorFnCount++;
+    pTest->mLastError = errorStatus;
     if (IS_RETRIABLE_ERROR(errorStatus) && pTest->mResetStreamCounter > 0) {
         pTest->mResetStreamCounter--;
         resetStream = TRUE;
@@ -106,9 +107,28 @@ STATUS ProducerClientTestBase::testFragmentAckReceivedFunc(UINT64 customData,
     ProducerClientTestBase* pTest = (ProducerClientTestBase*) customData;
 
     MUTEX_LOCK(pTest->mTestCallbackLock);
-    if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED) {
-        pTest->mPersistedFragmentCount++;
+    switch (pFragmentAck->ackType) {
+        case FRAGMENT_ACK_TYPE_PERSISTED:
+            pTest->mLastPersistedAckTimestamp = pFragmentAck->timestamp;
+            pTest->mPersistedFragmentCount++;
+            break;
+
+        case FRAGMENT_ACK_TYPE_BUFFERING:
+            pTest->mLastBufferingAckTimestamp = pFragmentAck->timestamp;
+            break;
+
+        case FRAGMENT_ACK_TYPE_RECEIVED:
+            pTest->mLastReceivedAckTimestamp = pFragmentAck->timestamp;
+            break;
+
+        case FRAGMENT_ACK_TYPE_ERROR:
+            pTest->mLastErrorAckTimestamp = pFragmentAck->timestamp;
+            break;
+
+        default:
+            break;
     }
+
     pTest->mFragmentAckReceivedFnCount++;
     MUTEX_UNLOCK(pTest->mTestCallbackLock);
 
@@ -205,8 +225,20 @@ ProducerClientTestBase::ProducerClientTestBase() :
         mReadSize(0),
         mStreamCallbacks(NULL),
         mProducerCallbacks(NULL),
-        mResetStreamCounter(0)
+        mResetStreamCounter(0),
+        mAuthCallbacks(NULL),
+        mConnectionStaleFnCount(0),
+        mLastError(STATUS_SUCCESS),
+        mDescribeRetStatus(STATUS_SUCCESS),
+        mDescribeFailCount(0),
+        mDescribeRecoverCount(0)
 {
+    auto logLevelStr = GETENV("AWS_KVS_LOG_LEVEL");
+    if (logLevelStr != NULL) {
+        assert(STRTOUI32(logLevelStr, NULL, 10, &this->loggerLogLevel) == STATUS_SUCCESS);
+        SET_LOGGER_LOG_LEVEL(this->loggerLogLevel);
+    }
+
     // Store the function pointers
     gTotalProducerClientMemoryUsage = 0;
     mStoredMemAlloc = globalMemAlloc;
@@ -243,7 +275,7 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mDeviceInfo.clientInfo.createStreamTimeout = 0;
     mDeviceInfo.clientInfo.createClientTimeout = 0;
     mDeviceInfo.clientInfo.offlineBufferAvailabilityTimeout = 0;
-    mDeviceInfo.clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    mDeviceInfo.clientInfo.loggerLogLevel = this->loggerLogLevel;
     mDeviceInfo.clientInfo.logMetric = TRUE;
 
     mDefaultRegion[0] = '\0';
@@ -261,7 +293,7 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mTrackInfo.trackCustomData.trackVideoConfig.videoHeight = 1080;
     mTrackInfo.trackCustomData.trackVideoConfig.videoWidth = 1920;
 
-    mStreamInfo.version = STORAGE_INFO_CURRENT_VERSION;
+    mStreamInfo.version = STREAM_INFO_CURRENT_VERSION;
     mStreamInfo.kmsKeyId[0] = '\0';
     mStreamInfo.retention = 2 * HUNDREDS_OF_NANOS_IN_AN_HOUR;
     mStreamInfo.streamCaps.streamingType = STREAMING_TYPE_REALTIME;
@@ -281,13 +313,15 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mStreamInfo.streamCaps.bufferDuration = TEST_STREAM_BUFFER_DURATION;
     mStreamInfo.streamCaps.replayDuration = 10 * HUNDREDS_OF_NANOS_IN_A_SECOND;
     mStreamInfo.streamCaps.fragmentDuration = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND;
-    mStreamInfo.streamCaps.connectionStalenessDuration = 20 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    mStreamInfo.streamCaps.connectionStalenessDuration = TEST_STREAM_CONNECTION_STALENESS_DURATION;
     mStreamInfo.streamCaps.maxLatency = TEST_MAX_STREAM_LATENCY;
     mStreamInfo.streamCaps.timecodeScale = 1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
     mStreamInfo.streamCaps.frameRate = 100;
     mStreamInfo.streamCaps.trackInfoCount = 1;
     mStreamInfo.streamCaps.trackInfoList = &mTrackInfo;
     mStreamInfo.streamCaps.frameOrderingMode = FRAME_ORDER_MODE_PASS_THROUGH;
+    mStreamInfo.streamCaps.storePressurePolicy = CONTENT_STORE_PRESSURE_POLICY_OOM;
+    mStreamInfo.streamCaps.viewOverflowPolicy = CONTENT_VIEW_OVERFLOW_POLICY_DROP_TAIL_VIEW_ITEM;
 
     mFps = TEST_FPS;
     mKeyFrameInterval = TEST_FPS;
@@ -313,6 +347,10 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mStreamReadyFnCount = 0;
     mStreamClosedFnCount = 0;
     mPersistedFragmentCount = 0;
+    mLastBufferingAckTimestamp = 0;
+    mLastErrorAckTimestamp = 0;
+    mLastReceivedAckTimestamp = 0;
+    mLastPersistedAckTimestamp = 0;
     mStorageOverflowCount = 0;
 
     mAbortUploadhandle = INVALID_UPLOAD_HANDLE_VALUE;
@@ -332,16 +370,15 @@ VOID ProducerClientTestBase::handlePressure(volatile BOOL* pressureFlag, UINT32 
 
         // whether to give some extra time for the pressure to relieve. For example, storageOverflow takes longer
         // to recover as it needs to wait for persisted acks.
-        if (gracePeriodSeconds != 0){
+        if (gracePeriodSeconds != 0) {
             DLOGD("Pressure handler in grace period. Sleep for %u seconds.", gracePeriodSeconds);
             THREAD_SLEEP(gracePeriodSeconds * HUNDREDS_OF_NANOS_IN_A_SECOND);
         }
-
     } else if (mCurrentPressureState == BufferInPressure) { // if we are already in pressured state
         if (*pressureFlag) { // still getting the pressure signal, remain in pressured state.
             DLOGD("Pressure handler sleep for 1 second.");
             THREAD_SLEEP(1 * HUNDREDS_OF_NANOS_IN_A_SECOND);
-            *pressureFlag = false;
+            *pressureFlag = FALSE;
             mPressureHandlerRetryCount--;
             if (mPressureHandlerRetryCount == 0) {
                 GTEST_FAIL() << "Pressure handler tried " << TEST_DEFAULT_PRESSURE_HANDLER_RETRY_COUNT << " times without relieving pressure.";
@@ -354,12 +391,21 @@ VOID ProducerClientTestBase::handlePressure(volatile BOOL* pressureFlag, UINT32 
     }
 }
 
-VOID ProducerClientTestBase::createDefaultProducerClient(BOOL cachingEndpoint, UINT64 createStreamTimeout, BOOL continuousRetry)
+VOID ProducerClientTestBase::createDefaultProducerClient(BOOL cachingEndpoint, UINT64 createStreamTimeout, UINT64 stopStreamTimeout, BOOL continuousRetry, UINT64 rotationPeriod)
+{
+    createDefaultProducerClient(cachingEndpoint ? API_CALL_CACHE_TYPE_ENDPOINT_ONLY : API_CALL_CACHE_TYPE_NONE,
+            createStreamTimeout,
+            stopStreamTimeout,
+            continuousRetry,
+            rotationPeriod);
+}
+
+VOID ProducerClientTestBase::createDefaultProducerClient(API_CALL_CACHE_TYPE cacheType, UINT64 createStreamTimeout, UINT64 stopStreamTimeout, BOOL continuousRetry, UINT64 rotationPeriod)
 {
     PAuthCallbacks pAuthCallbacks;
     PStreamCallbacks pStreamCallbacks;
     EXPECT_EQ(STATUS_SUCCESS, createAbstractDefaultCallbacksProvider(TEST_DEFAULT_CHAIN_COUNT,
-                                                                     cachingEndpoint,
+                                                                     cacheType,
                                                                      TEST_CACHING_ENDPOINT_PERIOD,
                                                                      mRegion,
                                                                      TEST_CONTROL_PLANE_URI,
@@ -368,12 +414,11 @@ VOID ProducerClientTestBase::createDefaultProducerClient(BOOL cachingEndpoint, U
                                                                      TEST_USER_AGENT,
                                                                      &mCallbacksProvider));
 
-    UINT64 expiration = GETTIME() + TEST_CREDENTIAL_EXPIRATION;
     EXPECT_EQ(STATUS_SUCCESS, createRotatingStaticAuthCallbacks(mCallbacksProvider,
                                                                 mAccessKey,
                                                                 mSecretKey,
                                                                 mSessionToken,
-                                                                expiration,
+                                                                rotationPeriod,
                                                                 mStreamingRotationPeriod,
                                                                 &pAuthCallbacks));
 
@@ -417,6 +462,11 @@ VOID ProducerClientTestBase::createDefaultProducerClient(BOOL cachingEndpoint, U
     // Set quick timeouts
     mDeviceInfo.clientInfo.createClientTimeout = TEST_CREATE_PRODUCER_TIMEOUT;
     mDeviceInfo.clientInfo.createStreamTimeout = createStreamTimeout;
+    mDeviceInfo.clientInfo.stopStreamTimeout = stopStreamTimeout;
+    mDeviceInfo.clientInfo.loggerLogLevel = this->loggerLogLevel;
+
+    // Store the auth callbacks which is used for fault injection
+    mAuthCallbacks = pAuthCallbacks;
 
     // Create the producer client
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(&mDeviceInfo, mCallbacksProvider, &mClientHandle));
@@ -438,7 +488,7 @@ VOID ProducerClientTestBase::updateFrame()
     mFrame.decodingTs = mFrame.presentationTs;
 }
 
-STATUS ProducerClientTestBase::createTestStream(UINT32 index, STREAMING_TYPE streamingType, UINT32 maxLatency, UINT32 bufferDuration)
+STATUS ProducerClientTestBase::createTestStream(UINT32 index, STREAMING_TYPE streamingType, UINT64 maxLatency, UINT64 bufferDuration, BOOL sync)
 {
     if (index >= TEST_MAX_STREAM_COUNT) {
         return STATUS_INVALID_ARG;
@@ -446,6 +496,7 @@ STATUS ProducerClientTestBase::createTestStream(UINT32 index, STREAMING_TYPE str
 
     Tag tags[TEST_TAG_COUNT];
     UINT32 tagCount = TEST_TAG_COUNT;
+    STATUS retStatus;
 
     for (UINT32 i = 0; i < tagCount; i++) {
         tags[i].name = (PCHAR) MEMALLOC(SIZEOF(CHAR) * (MAX_TAG_NAME_LEN + 1));
@@ -462,7 +513,11 @@ STATUS ProducerClientTestBase::createTestStream(UINT32 index, STREAMING_TYPE str
     mStreamInfo.streamCaps.bufferDuration = bufferDuration;
     mStreamInfo.streamCaps.maxLatency = maxLatency;
 
-    STATUS retStatus = createKinesisVideoStreamSync(mClientHandle, &mStreamInfo, &mStreams[index]);
+    if (sync) {
+        retStatus = createKinesisVideoStreamSync(mClientHandle, &mStreamInfo, &mStreams[index]);
+    } else {
+        retStatus = createKinesisVideoStream(mClientHandle, &mStreamInfo, &mStreams[index]);
+    }
 
     for (UINT32 i = 0; i < tagCount; i++) {
         MEMFREE(tags[i].name);
@@ -500,6 +555,8 @@ STATUS ProducerClientTestBase::curlEasyPerformHookFunc(PCurlResponse pCurlRespon
 
     // Get the test object
     ProducerClientTestBase* pTest = (ProducerClientTestBase*) pCurlResponse->pCurlRequest->pCurlApiCallbacks->hookCustomData;
+
+    DLOGV("Curl perform hook for %s", pCurlResponse->pCurlRequest->requestInfo.url);
 
     pTest->mEasyPerformFnCount++;
 
@@ -684,12 +741,19 @@ STATUS ProducerClientTestBase::testDescribeStreamFunc(UINT64 customData, PCHAR s
 {
     UNUSED_PARAM(streamName);
     UNUSED_PARAM(pServiceCallContext);
+    STATUS retStatus = STATUS_SUCCESS;
 
     ProducerClientTestBase* pTestBase = (ProducerClientTestBase*) customData;
 
+    // Fault injection
+    if (pTestBase->mDescribeStreamFnCount >= pTestBase->mDescribeFailCount &&
+            pTestBase->mDescribeStreamFnCount < pTestBase->mDescribeRecoverCount) {
+        retStatus = pTestBase->mDescribeRetStatus;
+    }
+
     pTestBase->mDescribeStreamFnCount++;
 
-    return STATUS_SUCCESS;
+    return retStatus;
 }
 
 STATUS ProducerClientTestBase::testDescribeStreamSecondFunc(UINT64 customData, PCHAR streamName,

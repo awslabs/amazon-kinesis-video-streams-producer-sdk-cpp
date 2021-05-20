@@ -92,7 +92,6 @@ CleanUp:
     return retStatus;
 }
 
-
 /**
  * Gets the index of an item
  */

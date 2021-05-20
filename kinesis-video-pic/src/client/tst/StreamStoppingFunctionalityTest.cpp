@@ -54,7 +54,7 @@ TEST_P(StreamStoppingFunctionalityTest, CreateSyncStreamWithTwoUploadHandlesStop
             //GetStreamedData and SubmitAck
             STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
             if (retStatus == STATUS_END_OF_STREAM) {
                 tokenRotateCount++;
             }
@@ -112,7 +112,7 @@ TEST_P(StreamStoppingFunctionalityTest, CreateSyncStreamHighDensityStopSyncTimeo
             mockConsumer = mStreamingSession.getConsumer(uploadHandle);
             STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
         }
     } while (currentTime < testTerminationTime);
 
@@ -152,7 +152,7 @@ TEST_P(StreamStoppingFunctionalityTest, CreateSyncStreamHighDensityStopSyncStrea
             mockConsumer = mStreamingSession.getConsumer(uploadHandle);
             STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
         }
     } while (currentTime < streamStopTime);
 
@@ -187,7 +187,7 @@ TEST_P(StreamStoppingFunctionalityTest, CreateSyncStreamStopSyncFree)
             mockConsumer = mStreamingSession.getConsumer(uploadHandle);
             STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
         }
     } while (currentTime < streamStopTime);
 
@@ -227,19 +227,19 @@ TEST_P(StreamStoppingFunctionalityTest, CreateSyncStreamStopSyncErrorAckWhileStr
             mockConsumer = mStreamingSession.getConsumer(uploadHandle);
             STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
-            if (!submittedErrorAck) {
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
+            if (mockConsumer != NULL && !submittedErrorAck) {
                 EXPECT_EQ(STATUS_SUCCESS, mockConsumer->submitErrorAck(SERVICE_CALL_RESULT_ACK_INTERNAL_ERROR, &submittedErrorAck));
             }
         }
-    } while(!submittedErrorAck);
+    } while (!submittedErrorAck);
 
     // remaining buffer should be streamed out successfully and stream closed callback called.
     consumeStream((STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS) * HUNDREDS_OF_NANOS_IN_A_SECOND);
     EXPECT_TRUE(mStreamingSession.mConsumerList.empty());
-    EXPECT_EQ(TRUE, mStreamClosed);
+    EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mStreamClosed));
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoStream(&mStreamHandle));
-    EXPECT_EQ(0, mDroppedFrameReportFuncCount);
+    EXPECT_EQ(0, ATOMIC_LOAD(&mDroppedFrameReportFuncCount));
 }
 
 INSTANTIATE_TEST_CASE_P(PermutatedStreamInfo, StreamStoppingFunctionalityTest,

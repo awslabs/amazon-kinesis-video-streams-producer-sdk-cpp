@@ -1,25 +1,24 @@
 #ifndef __UTILS_ATOMICS_GNU_OLD__
 #define __UTILS_ATOMICS_GNU_OLD__
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "Include_i.h"
 
 #if defined(__GNUC__)
-#    if (__GNUC__ < 4)
-#        error GCC versions before 4.1.2 are not supported
-#    elif (defined(__arm__) || defined(__ia64__)) && (__GNUC__ == 4 && __GNUC_MINOR__ < 4)
+#if (__GNUC__ < 4)
+#error GCC versions before 4.1.2 are not supported
+#elif (defined(__arm__) || defined(__ia64__)) && (__GNUC__ == 4 && __GNUC_MINOR__ < 4)
 /* See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=36793 Itanium codegen */
 /* https://bugs.launchpad.net/ubuntu/+source/gcc-4.4/+bug/491872 ARM codegen*/
 /* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=42263 ARM codegen */
-#        error GCC versions before 4.4.0 are not supported on ARM or Itanium
-#    elif (defined(__x86_64__) || defined(__i386__)) &&                                                                \
-        (__GNUC__ == 4 && (__GNUC_MINOR__ < 1 || (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ < 2)))
+#error GCC versions before 4.4.0 are not supported on ARM or Itanium
+#elif (defined(__x86_64__) || defined(__i386__)) && (__GNUC__ == 4 && (__GNUC_MINOR__ < 1 || (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ < 2)))
 /* 4.1.2 is the first gcc version with 100% working atomic intrinsics on Intel */
-#        error GCC versions before 4.1.2 are not supported on x86/x64
-#    endif
+#error GCC versions before 4.1.2 are not supported on x86/x64
+#endif
 #endif
 
 static inline VOID atomicFullBarrier()
@@ -109,7 +108,7 @@ static inline SIZE_T defaultAtomicXor(volatile SIZE_T* pAtomic, SIZE_T var)
     return __sync_fetch_and_xor(pAtomic, var);
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __UTILS_ATOMICS_GNU_OLD__ */
+#endif /* __UTILS_ATOMICS_GNU_OLD__ */

@@ -50,7 +50,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS timerQueueAddTimer(TIMER_QUEUE_HANDLE handle, UINT64 start, UINT64 period, TimerCallbackFunc timerCallbackFn, UINT64 customData, PUINT32 pIndex)
+STATUS timerQueueAddTimer(TIMER_QUEUE_HANDLE handle, UINT64 start, UINT64 period, TimerCallbackFunc timerCallbackFn, UINT64 customData,
+                          PUINT32 pIndex)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -61,6 +62,7 @@ STATUS timerQueueAddTimer(TIMER_QUEUE_HANDLE handle, UINT64 start, UINT64 period
 
     CHK(pTimerQueue != NULL && timerCallbackFn != NULL && pIndex != NULL, STATUS_NULL_ARG);
     CHK(period == TIMER_QUEUE_SINGLE_INVOCATION_PERIOD || period >= MIN_TIMER_QUEUE_PERIOD_DURATION, STATUS_INVALID_TIMER_PERIOD_VALUE);
+    CHK(!ATOMIC_LOAD_BOOL(&pTimerQueue->shutdown), STATUS_TIMER_QUEUE_SHUTDOWN);
 
     MUTEX_LOCK(pTimerQueue->executorLock);
     locked = TRUE;
@@ -118,7 +120,8 @@ STATUS timerQueueCancelTimer(TIMER_QUEUE_HANDLE handle, UINT32 timerId, UINT64 c
 
     // Check if anything needs to be done
     CHK(pTimerQueue->activeTimerCount != 0 && pTimerQueue->pTimers[timerId].timerCallbackFn != NULL &&
-        customData == pTimerQueue->pTimers[timerId].customData, retStatus);
+            customData == pTimerQueue->pTimers[timerId].customData,
+        retStatus);
 
     // Setting the callback to NULL to indicate empty timer
     pTimerQueue->pTimers[timerId].timerCallbackFn = NULL;
@@ -287,7 +290,8 @@ STATUS timerQueueUpdateTimerPeriod(TIMER_QUEUE_HANDLE handle, UINT64 customData,
     CHK(timerId < pTimerQueue->maxTimerCount, STATUS_INVALID_ARG);
     // Check if anything needs to be done
     CHK(pTimerQueue->activeTimerCount != 0 && pTimerQueue->pTimers[timerId].timerCallbackFn != NULL &&
-        customData == pTimerQueue->pTimers[timerId].customData, retStatus);
+            customData == pTimerQueue->pTimers[timerId].customData,
+        retStatus);
     CHK(period == TIMER_QUEUE_SINGLE_INVOCATION_PERIOD || period >= MIN_TIMER_QUEUE_PERIOD_DURATION, STATUS_INVALID_TIMER_PERIOD_VALUE);
 
     MUTEX_LOCK(pTimerQueue->executorLock);
@@ -314,11 +318,42 @@ PUBLIC_API STATUS timerQueueShutdown(TIMER_QUEUE_HANDLE handle)
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PTimerQueue pTimerQueue = FROM_TIMER_QUEUE_HANDLE(handle);
+    BOOL iterate = TRUE, killThread = FALSE, shutdown;
 
     CHK(pTimerQueue != NULL, STATUS_NULL_ARG);
 
-    ATOMIC_STORE_BOOL(&pTimerQueue->shutdown, TRUE);
+    // Terminate the executor thread
+    shutdown = ATOMIC_EXCHANGE_BOOL(&pTimerQueue->shutdown, TRUE);
+    CHK(!shutdown, retStatus);
+
+    // Signal the executor to wake up and quit
+    MUTEX_LOCK(pTimerQueue->executorLock);
     CVAR_SIGNAL(pTimerQueue->executorCvar);
+    MUTEX_UNLOCK(pTimerQueue->executorLock);
+
+    MUTEX_LOCK(pTimerQueue->exitLock);
+    while (iterate && !ATOMIC_LOAD_BOOL(&pTimerQueue->terminated)) {
+        retStatus = CVAR_WAIT(pTimerQueue->exitCvar, pTimerQueue->exitLock, TIMER_QUEUE_SHUTDOWN_TIMEOUT);
+
+        if (STATUS_FAILED(retStatus)) {
+            DLOGW("Awaiting for the executor to quit failed with 0x%08x", retStatus);
+
+            // Terminate the loop and kill the thread
+            iterate = FALSE;
+            killThread = TRUE;
+        }
+
+        // Reset the return
+        retStatus = STATUS_SUCCESS;
+    }
+
+    // Kill the thread if still available
+    if (killThread) {
+        DLOGW("Executor thread TID: 0x%" PRIx64 " didn't shutdown gracefully. Terminating...", pTimerQueue->executorTid);
+        THREAD_CANCEL(pTimerQueue->executorTid);
+    }
+
+    MUTEX_UNLOCK(pTimerQueue->exitLock);
 
 CleanUp:
 
@@ -347,7 +382,7 @@ STATUS timerQueueCreateInternal(UINT32 maxTimers, PTimerQueue* ppTimerQueue)
     pTimerQueue->maxTimerCount = maxTimers;
     pTimerQueue->executorTid = INVALID_TID_VALUE;
     ATOMIC_STORE_BOOL(&pTimerQueue->terminated, FALSE);
-    ATOMIC_STORE_BOOL(&pTimerQueue->started , FALSE);
+    ATOMIC_STORE_BOOL(&pTimerQueue->started, FALSE);
     ATOMIC_STORE_BOOL(&pTimerQueue->shutdown, FALSE);
     pTimerQueue->invokeTime = MAX_UINT64;
 
@@ -368,7 +403,7 @@ STATUS timerQueueCreateInternal(UINT32 maxTimers, PTimerQueue* ppTimerQueue)
     CHK(IS_VALID_CVAR_VALUE(pTimerQueue->executorCvar), STATUS_INVALID_OPERATION);
 
     // Set the timer entry array past the end of the main allocation
-    pTimerQueue->pTimers = (PTimerEntry) (pTimerQueue + 1);
+    pTimerQueue->pTimers = (PTimerEntry)(pTimerQueue + 1);
 
     // Block threads start
     MUTEX_LOCK(pTimerQueue->startLock);
@@ -409,7 +444,6 @@ STATUS timerQueueFreeInternal(PTimerQueue* ppTimerQueue)
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PTimerQueue pTimerQueue;
-    BOOL iterate = TRUE, killThread = FALSE;
 
     CHK(ppTimerQueue != NULL, STATUS_NULL_ARG);
 
@@ -417,45 +451,10 @@ STATUS timerQueueFreeInternal(PTimerQueue* ppTimerQueue)
     CHK(pTimerQueue != NULL, retStatus);
 
     // Attempt to terminate the executor loop if we have fully constructed mutexes and cvars
-    if (IS_VALID_CVAR_VALUE(pTimerQueue->executorCvar)
-        && IS_VALID_CVAR_VALUE(pTimerQueue->exitCvar)
-        && IS_VALID_CVAR_VALUE(pTimerQueue->startCvar)
-        && IS_VALID_MUTEX_VALUE(pTimerQueue->exitLock)
-        && IS_VALID_MUTEX_VALUE(pTimerQueue->startLock)
-        && IS_VALID_MUTEX_VALUE(pTimerQueue->executorLock)) {
-
-        // Terminate the executor thread
-        ATOMIC_STORE_BOOL(&pTimerQueue->shutdown, TRUE);
-
-        // Signal the executor to wake up and quit
-        MUTEX_LOCK(pTimerQueue->executorLock);
-        CVAR_SIGNAL(pTimerQueue->executorCvar);
-        MUTEX_UNLOCK(pTimerQueue->executorLock);
-
-        MUTEX_LOCK(pTimerQueue->exitLock);
-        while (iterate && !ATOMIC_LOAD_BOOL(&pTimerQueue->terminated)) {
-            retStatus = CVAR_WAIT(pTimerQueue->exitCvar, pTimerQueue->exitLock, TIMER_QUEUE_SHUTDOWN_TIMEOUT);
-
-            if (STATUS_FAILED(retStatus)) {
-                DLOGW("Awaiting for the executor to quit failed with 0x%08x", retStatus);
-
-                // Terminate the loop and kill the thread
-                iterate = FALSE;
-                killThread = TRUE;
-            }
-
-            // Reset the return
-            retStatus = STATUS_SUCCESS;
-        }
-
-        // Kill the thread if still available
-        if (killThread) {
-            DLOGW("Executor thread TID: 0x%" PRIx64 " didn't shutdown gracefully. Terminating...",
-                  pTimerQueue->executorTid);
-            THREAD_CANCEL(pTimerQueue->executorTid);
-        }
-
-        MUTEX_UNLOCK(pTimerQueue->exitLock);
+    if (IS_VALID_CVAR_VALUE(pTimerQueue->executorCvar) && IS_VALID_CVAR_VALUE(pTimerQueue->exitCvar) && IS_VALID_CVAR_VALUE(pTimerQueue->startCvar) &&
+        IS_VALID_MUTEX_VALUE(pTimerQueue->exitLock) && IS_VALID_MUTEX_VALUE(pTimerQueue->startLock) &&
+        IS_VALID_MUTEX_VALUE(pTimerQueue->executorLock)) {
+        timerQueueShutdown(TO_TIMER_QUEUE_HANDLE(pTimerQueue));
     }
 
     if (IS_VALID_MUTEX_VALUE(pTimerQueue->executorLock)) {
@@ -558,8 +557,7 @@ PVOID timerQueueExecutor(PVOID args)
 
                     if (curTime >= pTimerQueue->pTimers[i].invokeTime) {
                         // Call the callback while locked. The executor lock is locked at this time upon cvar awakening
-                        retStatus = pTimerQueue->pTimers[i].timerCallbackFn(i, curTime,
-                                                                            pTimerQueue->pTimers[i].customData);
+                        retStatus = pTimerQueue->pTimers[i].timerCallbackFn(i, curTime, pTimerQueue->pTimers[i].customData);
 
                         // Check for the terminal condition and for single invoke timers
                         if (retStatus == STATUS_TIMER_QUEUE_STOP_SCHEDULING ||
@@ -612,5 +610,5 @@ CleanUp:
     }
 
     LEAVES();
-    return (PVOID) (ULONG_PTR) retStatus;
+    return (PVOID)(ULONG_PTR) retStatus;
 }

@@ -4,8 +4,7 @@
 #define LOG_CLASS "ConnectionStaleStateMachine"
 #include "Include_i.h"
 
-STATUS setConnectionStaleStateMachine(PCallbackStateMachine pCallbackStateMachine,
-                                      STREAM_CALLBACK_HANDLING_STATE currState, UINT64 currTime,
+STATUS setConnectionStaleStateMachine(PCallbackStateMachine pCallbackStateMachine, STREAM_CALLBACK_HANDLING_STATE currState, UINT64 currTime,
                                       UINT64 quietTime, UINT64 backToNormalTime)
 {
     ENTERS();
@@ -25,8 +24,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS connectionStaleStateMachineSetResetConnectionState(STREAM_HANDLE streamHandle,
-                                                          PConnectionStaleStateMachine pConnectionStaleStateMachine)
+STATUS connectionStaleStateMachineSetResetConnectionState(STREAM_HANDLE streamHandle, PConnectionStaleStateMachine pConnectionStaleStateMachine)
 {
     STATUS retStatus = STATUS_SUCCESS;
 
@@ -45,8 +43,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS connectionStaleStateMachineHandleConnectionStale(STREAM_HANDLE streamHandle,
-                                                        PConnectionStaleStateMachine pStaleStateMachine)
+STATUS connectionStaleStateMachineHandleConnectionStale(STREAM_HANDLE streamHandle, PConnectionStaleStateMachine pStaleStateMachine)
 {
     STATUS retStatus = STATUS_SUCCESS;
     PCallbacksProvider pCallbacksProvider;
@@ -55,10 +52,10 @@ STATUS connectionStaleStateMachineHandleConnectionStale(STREAM_HANDLE streamHand
 
     pCallbacksProvider = pStaleStateMachine->pCallbackStateMachine->pContinuousRetryStreamCallbacks->pCallbacksProvider;
     pStaleStateMachine->currTime = pCallbacksProvider->clientCallbacks.getCurrentTimeFn(pCallbacksProvider->clientCallbacks.customData);
-    DLOGS("currTime: %" PRIu64 ", quietTime: %" PRIu64 ", backToNormalTime: %" PRIu64 "",
-          pStaleStateMachine->currTime, pStaleStateMachine->quietTime, pStaleStateMachine->backToNormalTime);
-    if (pStaleStateMachine->quietTime < pStaleStateMachine->currTime){
-        switch(pStaleStateMachine->currentState) {
+    DLOGS("currTime: %" PRIu64 ", quietTime: %" PRIu64 ", backToNormalTime: %" PRIu64 "", pStaleStateMachine->currTime, pStaleStateMachine->quietTime,
+          pStaleStateMachine->backToNormalTime);
+    if (pStaleStateMachine->quietTime < pStaleStateMachine->currTime) {
+        switch (pStaleStateMachine->currentState) {
             case STREAM_CALLBACK_HANDLING_STATE_NORMAL_STATE:
                 DLOGD("Connection Stale State Machine starting from NORMAL_STATE");
                 CHK_STATUS(connectionStaleStateMachineSetResetConnectionState(streamHandle, pStaleStateMachine));

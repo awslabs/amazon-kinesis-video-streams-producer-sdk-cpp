@@ -32,10 +32,8 @@ STATUS createDeviceResult(PKinesisVideoClient pKinesisVideoClient, SERVICE_CALL_
 
     // Basic checks
     retStatus = serviceCallResultCheck(callResult);
-    CHK(retStatus == STATUS_SUCCESS ||
-                retStatus == STATUS_SERVICE_CALL_RESOURCE_NOT_FOUND_ERROR ||
-                retStatus == STATUS_SERVICE_CALL_TIMEOUT_ERROR ||
-                retStatus == STATUS_SERVICE_CALL_UNKOWN_ERROR,
+    CHK(retStatus == STATUS_SUCCESS || retStatus == STATUS_SERVICE_CALL_RESOURCE_NOT_FOUND_ERROR || retStatus == STATUS_SERVICE_CALL_TIMEOUT_ERROR ||
+            retStatus == STATUS_SERVICE_CALL_UNKOWN_ERROR,
         retStatus);
 
     // Reset the status
@@ -93,9 +91,7 @@ STATUS tagClientResult(PKinesisVideoClient pKinesisVideoClient, SERVICE_CALL_RES
 
     // Basic checks
     retStatus = serviceCallResultCheck(callResult);
-    CHK(retStatus == STATUS_SUCCESS ||
-                retStatus == STATUS_SERVICE_CALL_TIMEOUT_ERROR ||
-                retStatus == STATUS_SERVICE_CALL_UNKOWN_ERROR, retStatus);
+    CHK(retStatus == STATUS_SUCCESS || retStatus == STATUS_SERVICE_CALL_TIMEOUT_ERROR || retStatus == STATUS_SERVICE_CALL_UNKOWN_ERROR, retStatus);
 
     // Reset the status
     retStatus = STATUS_SUCCESS;
@@ -117,7 +113,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS deviceCertToTokenResult(PKinesisVideoClient pKinesisVideoClient, SERVICE_CALL_RESULT callResult, PBYTE pToken, UINT32 tokenSize, UINT64 expiration)
+STATUS deviceCertToTokenResult(PKinesisVideoClient pKinesisVideoClient, SERVICE_CALL_RESULT callResult, PBYTE pToken, UINT32 tokenSize,
+                               UINT64 expiration)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -138,9 +135,7 @@ STATUS deviceCertToTokenResult(PKinesisVideoClient pKinesisVideoClient, SERVICE_
 
     // Basic checks
     retStatus = serviceCallResultCheck(callResult);
-    CHK(retStatus == STATUS_SUCCESS ||
-                retStatus == STATUS_SERVICE_CALL_TIMEOUT_ERROR ||
-                retStatus == STATUS_SERVICE_CALL_UNKOWN_ERROR, retStatus);
+    CHK(retStatus == STATUS_SUCCESS || retStatus == STATUS_SERVICE_CALL_TIMEOUT_ERROR || retStatus == STATUS_SERVICE_CALL_UNKOWN_ERROR, retStatus);
 
     // Reset the status
     retStatus = STATUS_SUCCESS;

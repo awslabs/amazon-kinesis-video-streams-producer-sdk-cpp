@@ -6,63 +6,59 @@ CURL API callbacks internal include file
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
-
 // Dummy value returned as a device arn
-#define DUMMY_DEVICE_ARN        "arn:aws:kinesisvideo:us-west-2:11111111111:mediastream/device"
+#define DUMMY_DEVICE_ARN "arn:aws:kinesisvideo:us-west-2:11111111111:mediastream/device"
 
 // API postfix definitions
-#define CREATE_API_POSTFIX                      "/createStream"
-#define DESCRIBE_API_POSTFIX                    "/describeStream"
-#define GET_DATA_ENDPOINT_API_POSTFIX           "/getDataEndpoint"
-#define TAG_RESOURCE_API_POSTFIX                "/tagStream"
-#define PUT_MEDIA_API_POSTFIX                   "/putMedia"
+#define CREATE_API_POSTFIX            "/createStream"
+#define DESCRIBE_API_POSTFIX          "/describeStream"
+#define GET_DATA_ENDPOINT_API_POSTFIX "/getDataEndpoint"
+#define TAG_RESOURCE_API_POSTFIX      "/tagStream"
+#define PUT_MEDIA_API_POSTFIX         "/putMedia"
 
 // NOTE: THe longest string would be the tag resource where we get the maximal tag count and sizes plus some extra.
-#define MAX_TAGS_JSON_PARAMETER_STRING_LEN      (MAX_JSON_PARAMETER_STRING_LEN + (MAX_TAG_COUNT * (MAX_TAG_NAME_LEN + MAX_TAG_VALUE_LEN)))
+#define MAX_TAGS_JSON_PARAMETER_STRING_LEN (MAX_JSON_PARAMETER_STRING_LEN + (MAX_TAG_COUNT * (MAX_TAG_NAME_LEN + MAX_TAG_VALUE_LEN)))
 
 // Max stream status string length in describe API call in chars
-#define MAX_DESCRIBE_STREAM_STATUS_LEN          32
+#define MAX_DESCRIBE_STREAM_STATUS_LEN 32
 
 // Default curl API callbacks shutdown timeout
-#define CURL_API_CALLBACKS_SHUTDOWN_TIMEOUT     (50 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define CURL_API_CALLBACKS_SHUTDOWN_TIMEOUT (50 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 // Default connection timeout
-#define CURL_API_DEFAULT_CONNECTION_TIMEOUT     (5000 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define CURL_API_DEFAULT_CONNECTION_TIMEOUT (5000 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 // Default shutdown polling interval
-#define CURL_API_DEFAULT_SHUTDOWN_POLLING_INTERVAL     (200 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define CURL_API_DEFAULT_SHUTDOWN_POLLING_INTERVAL (200 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 // Max parameter JSON string for KMS key len
-#define MAX_JSON_KMS_KEY_ID_STRING_LEN      (MAX_ARN_LEN + 100)
-
-#define SHUTDOWN_SIGNAL_PROPAGATION_TIME        (500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
-
-#define ONGOING_OPERATION_EXIT_TIMEOUT          (120 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define MAX_JSON_KMS_KEY_ID_STRING_LEN (MAX_ARN_LEN + 100)
 
 // Parameterized string for CreateStream API
-#define CREATE_STREAM_PARAM_JSON_TEMPLATE           "{\n\t\"DeviceName\": \"%s\",\n\t" \
-    "\"StreamName\": \"%s\",\n\t\"MediaType\": \"%s\",\n\t" \
-    "%s" \
+#define CREATE_STREAM_PARAM_JSON_TEMPLATE                                                                                                            \
+    "{\n\t\"DeviceName\": \"%s\",\n\t"                                                                                                               \
+    "\"StreamName\": \"%s\",\n\t\"MediaType\": \"%s\",\n\t"                                                                                          \
+    "%s"                                                                                                                                             \
     "\"DataRetentionInHours\": %" PRIu64 "\n}"
 
 // Parameterized string for optional KMS key id
-#define KMS_KEY_PARAM_JSON_TEMPLATE   "\"KmsKeyId\": \"%s\",\n\t"
+#define KMS_KEY_PARAM_JSON_TEMPLATE "\"KmsKeyId\": \"%s\",\n\t"
 
 // Parameterized string for DescribeStream API
-#define DESCRIBE_STREAM_PARAM_JSON_TEMPLATE         "{\n\t\"StreamName\": \"%s\"\n}"
+#define DESCRIBE_STREAM_PARAM_JSON_TEMPLATE "{\n\t\"StreamName\": \"%s\"\n}"
 
 // Parameterized string for GetDataEndpoint API
-#define GET_DATA_ENDPOINT_PARAM_JSON_TEMPLATE       "{\n\t\"StreamName\": \"%s\",\n\t" \
+#define GET_DATA_ENDPOINT_PARAM_JSON_TEMPLATE                                                                                                        \
+    "{\n\t\"StreamName\": \"%s\",\n\t"                                                                                                               \
     "\"APIName\": \"%s\"\n}"
 
 // Parameterized string for TagStream API - we should have at least one tag
-#define TAG_RESOURCE_PARAM_JSON_TEMPLATE            "{\n\t\"StreamARN\": \"%s\",\n\t" \
+#define TAG_RESOURCE_PARAM_JSON_TEMPLATE                                                                                                             \
+    "{\n\t\"StreamARN\": \"%s\",\n\t"                                                                                                                \
     "\"Tags\": {%s\n\t}\n}"
 
 /**
@@ -134,8 +130,6 @@ struct __CurlApiCallbacks {
     // Ongoing requests: STREAM_HANDLE -> Request
     PHashTable pActiveRequests;
 
-    UINT32 curlApiCallbacksActiveRequestsTableShutdownCallbackPassCount;
-
     // Lock guarding the active requests
     MUTEX activeRequestsLock;
 
@@ -150,6 +144,9 @@ struct __CurlApiCallbacks {
 
     // Cached endpoint update period
     UINT64 cacheUpdatePeriod;
+
+    // Caching mode
+    API_CALL_CACHE_TYPE cacheType;
 
     // Cached endpoints: STREAM_HANDLE -> EndpointTracker
     PHashTable pStreamsShuttingDown;
@@ -179,8 +176,7 @@ typedef struct __CurlApiCallbacks* PCurlApiCallbacks;
 //////////////////////////////////////////////////////////////////////
 // Curl API Callbacks main functionality
 //////////////////////////////////////////////////////////////////////
-STATUS createCurlApiCallbacks(struct __CallbacksProvider*, PCHAR, BOOL, UINT64, PCHAR, PCHAR, PCHAR, PCHAR,
-PCurlApiCallbacks*);
+STATUS createCurlApiCallbacks(struct __CallbacksProvider*, PCHAR, API_CALL_CACHE_TYPE, UINT64, PCHAR, PCHAR, PCHAR, PCHAR, PCurlApiCallbacks*);
 STATUS freeCurlApiCallbacks(PCurlApiCallbacks*);
 STATUS curlApiCallbacksShutdownActiveRequests(PCurlApiCallbacks, STREAM_HANDLE, UINT64, BOOL, BOOL);
 STATUS curlApiCallbacksShutdownCachedEndpoints(PCurlApiCallbacks, STREAM_HANDLE, BOOL);
@@ -197,6 +193,7 @@ STREAM_STATUS getStreamStatusFromString(PCHAR, UINT32);
 STATUS curlApiCallbacksMarkStreamShuttingdownCallback(UINT64, PHashEntry);
 STATUS curlApiCallbacksCachedEndpointsTableShutdownCallback(UINT64, PHashEntry);
 STATUS curlApiCallbacksFreeRequest(PCurlRequest);
+STATUS checkApiCallEmulation(PCurlApiCallbacks, STREAM_HANDLE, PBOOL);
 
 ////////////////////////////////////////////////////////////////////////
 // API Callback function implementations
@@ -234,9 +231,7 @@ PVOID getStreamingEndpointCurlHandler(PVOID);
 PVOID tagResourceCurlHandler(PVOID);
 PVOID putStreamCurlHandler(PVOID);
 
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __KINESIS_VIDEO_CURL_API_CALLBACKS_INCLUDE_I__ */
+#endif /* __KINESIS_VIDEO_CURL_API_CALLBACKS_INCLUDE_I__ */

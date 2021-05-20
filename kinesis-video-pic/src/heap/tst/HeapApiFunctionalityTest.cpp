@@ -3,6 +3,13 @@
 class HeapApiFunctionalityTest : public HeapTestBase {
 };
 
+VOID zeroHandleArray(PALLOCATION_HANDLE handles, UINT32 count)
+{
+    for (UINT32 i = 0; i < count; i++) {
+        handles[i] = INVALID_ALLOCATION_HANDLE_VALUE;
+    }
+}
+
 VOID singleLargeAlloc(PHeap pHeap)
 {
     ALLOCATION_HANDLE handle = INVALID_ALLOCATION_HANDLE_VALUE;
@@ -51,29 +58,40 @@ VOID multipleLargeAlloc(PHeap pHeap)
 {
     ALLOCATION_HANDLE handle = INVALID_ALLOCATION_HANDLE_VALUE;
     UINT64 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
+    ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i;
 
+    // Set to default
+    zeroHandleArray(handles, NUM_ITERATIONS);
+
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
-        EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, size, &handle)));
-        EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
+        EXPECT_EQ(STATUS_SUCCESS, heapAlloc(pHeap, size, &handle));
+        EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle)) << "Iteration " << i;
+        handles[i] = handle;
     }
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, size, &handle)));
+    EXPECT_EQ(STATUS_SUCCESS,heapAlloc(pHeap, size, &handle));
     EXPECT_FALSE(IS_VALID_ALLOCATION_HANDLE(handle));
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
+
+    // Free the allocations as in system heap mode we will leak
+    for (i = 0; i < NUM_ITERATIONS - 1; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, heapFree(pHeap, handles[i]));
+    }
+
+    EXPECT_EQ(STATUS_SUCCESS,heapRelease(pHeap));
 }
 
 VOID minBlockFitAlloc(PHeap pHeap)
 {
     ALLOCATION_HANDLE handle = INVALID_ALLOCATION_HANDLE_VALUE;
-    UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
+    UINT32 size = HEAP_PACKED_SIZE(MIN_HEAP_SIZE / NUM_ITERATIONS);
     ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i;
     UINT64 retSize;
     PVOID pAlloc;
 
     // Set to default
-    MEMSET(handles, INVALID_ALLOCATION_HANDLE_VALUE, NUM_ITERATIONS);
+    zeroHandleArray(handles, NUM_ITERATIONS);
 
     // Iterate until we can't allocate a large block
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
@@ -136,7 +154,7 @@ VOID minBlockFitAllocResize(PHeap pHeap)
     UINT64 retSize, setSize;
 
     // Set to default
-    MEMSET(handles, INVALID_ALLOCATION_HANDLE_VALUE, NUM_ITERATIONS);
+    zeroHandleArray(handles, NUM_ITERATIONS);
 
     // Iterate until we can't allocate a large block
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
@@ -183,12 +201,12 @@ VOID minBlockFitAllocResize(PHeap pHeap)
 VOID blockCoalesceAlloc(PHeap pHeap)
 {
     ALLOCATION_HANDLE handle = INVALID_ALLOCATION_HANDLE_VALUE;
-    UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
+    UINT32 size = HEAP_PACKED_SIZE(MIN_HEAP_SIZE / NUM_ITERATIONS);
     ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i;
 
     // Set to default
-    MEMSET(handles, INVALID_ALLOCATION_HANDLE_VALUE, NUM_ITERATIONS);
+    zeroHandleArray(handles, NUM_ITERATIONS);
 
     // Iterate until we can't allocate a large block
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
@@ -220,17 +238,18 @@ VOID blockCoalesceAlloc(PHeap pHeap)
 VOID defragmentationAlloc(PHeap pHeap)
 {
     ALLOCATION_HANDLE handle = INVALID_ALLOCATION_HANDLE_VALUE;
-    UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
+    UINT32 size = ROUND_DOWN(MIN_HEAP_SIZE / NUM_ITERATIONS, 8);
+    UINT32 smallSize = size - 8;
     ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i, blocks;
 
     // Set to default
-    MEMSET(handles, INVALID_ALLOCATION_HANDLE_VALUE, NUM_ITERATIONS);
+    zeroHandleArray(handles, NUM_ITERATIONS);
 
     // Iterate until we can't allocate a large block
     for (blocks = 0; blocks < NUM_ITERATIONS; blocks++) {
         // Allocate a larger and then a smaller block
-        EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, blocks % 2 == 0 ? size : size - 1, &handle)));
+        EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, blocks % 2 == 0 ? size : smallSize, &handle)));
         if (!IS_VALID_ALLOCATION_HANDLE(handle)) {
             break;
         }
@@ -251,52 +270,11 @@ VOID defragmentationAlloc(PHeap pHeap)
     EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, size, &handle)));
     EXPECT_FALSE(IS_VALID_ALLOCATION_HANDLE(handle));
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, size - 1, &handle)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, smallSize, &handle)));
     EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
     heapDebugCheckAllocator(pHeap, TRUE);
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
-}
-
-#define HEAP_PERF_TEST_VIEW_ITEM_COUNT              1500
-#define HEAP_PERF_TEST_MULTI_VIEW_ITEM_COUNT        1500 * 1000
-#define HEAP_PERF_TEST_MIN_ALLOCATION               2000
-#define HEAP_PERF_TEST_MULTI_VIEW_MIN_ALLOCATION    64
-#define HEAP_PERF_TEST_ALLOCATION_DELTA             50
-#define HEAP_PERF_TEST_ITERATION_COUNT              1000000
-#define HEAP_PERF_TEST_MULTI_VIEW_ITERATION_COUNT   10000000
-#define HEAP_PERF_TEST_SIZE                         256 * 1024 * 1024
-
-VOID randomAllocFree(PHeap pHeap, UINT32 itemCount, UINT32 iterationCount, UINT32 allocSize)
-{
-    PALLOCATION_HANDLE handles = (PALLOCATION_HANDLE) MEMALLOC(itemCount * SIZEOF(ALLOCATION_HANDLE));
-    ASSERT_TRUE(handles != NULL);
-
-    UINT32 i, size;
-
-    for (i = 0; i < iterationCount; i++) {
-        // Allocate min allocation size + some random delta, thus simulating real-live stream
-        size = allocSize + RAND() % HEAP_PERF_TEST_ALLOCATION_DELTA;
-        EXPECT_EQ(STATUS_SUCCESS, heapAlloc(pHeap, size, &handles[i % itemCount]));
-        EXPECT_NE(INVALID_ALLOCATION_HANDLE_VALUE, handles[i % itemCount]) << "Failed on iteration " << i << " item count " << itemCount;
-
-        if (i >= itemCount) {
-            // Free the allocation
-            EXPECT_EQ(STATUS_SUCCESS, heapFree(pHeap, handles[(i - itemCount) % itemCount]));
-        }
-    }
-
-}
-
-VOID singleAllocFree(PHeap pHeap)
-{
-    ALLOCATION_HANDLE handle;
-
-    for (UINT32 i = 0; i < HEAP_PERF_TEST_ITERATION_COUNT; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, heapAlloc(pHeap, 10000, &handle));
-        EXPECT_EQ(STATUS_SUCCESS, heapFree(pHeap, handle));
-    }
-
 }
 
 TEST_F(HeapApiFunctionalityTest, GetHeapSizeAndGetAllocSize)
@@ -304,9 +282,10 @@ TEST_F(HeapApiFunctionalityTest, GetHeapSizeAndGetAllocSize)
     PHeap pHeap;
     UINT64 i, size, heapSize;
     ALLOCATION_HANDLE handle;
+    ALLOCATION_HANDLE handles[10];
 
     // AIV heap
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     for (i = 0; i < 10; i++) {
         // Allocate a block block
         EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
@@ -320,21 +299,26 @@ TEST_F(HeapApiFunctionalityTest, GetHeapSizeAndGetAllocSize)
     EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
 
     // System heap
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, NULL, &pHeap)));
     for (i = 0; i < 10; i++) {
         // Allocate a block block
         EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
         EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
         EXPECT_TRUE(STATUS_SUCCEEDED(heapGetAllocSize(pHeap, handle, &size)));
         EXPECT_EQ(1000, size);
+        handles[i] = handle;
     }
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapGetSize(pHeap, &heapSize)));
     EXPECT_EQ(10 * (1000 + sysGetAllocationHeaderSize() + sysGetAllocationFooterSize()), heapSize);
+
+    for (i = 0; i < 10; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, heapFree(pHeap, handles[i]));
+    }
     EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
 
     // AIV hybrid heap
-    EXPECT_EQ(STATUS_SUCCESS, heapInitialize(MIN_HEAP_SIZE * 2 + 100000, 50, FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP, &pHeap));
+    EXPECT_EQ(STATUS_SUCCESS, heapInitialize(MIN_HEAP_SIZE * 2 + 100000, 50, FLAGS_USE_AIV_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP, NULL, &pHeap));
     for (i = 0; i < 10; i++) {
         // Allocate a block block
         EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
@@ -346,13 +330,19 @@ TEST_F(HeapApiFunctionalityTest, GetHeapSizeAndGetAllocSize)
     EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
 
     // System hybrid heap
-    EXPECT_EQ(STATUS_SUCCESS, heapInitialize(MIN_HEAP_SIZE * 2 + 100000, 50, FLAGS_USE_SYSTEM_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP, &pHeap));
+    EXPECT_EQ(STATUS_SUCCESS, heapInitialize(MIN_HEAP_SIZE * 2 + 100000, 50, FLAGS_USE_SYSTEM_HEAP | FLAGS_USE_HYBRID_VRAM_HEAP, NULL, &pHeap));
     for (i = 0; i < 10; i++) {
         // Allocate a block block
         EXPECT_TRUE(STATUS_SUCCEEDED(heapAlloc(pHeap, 1000, &handle)));
         EXPECT_TRUE(IS_VALID_ALLOCATION_HANDLE(handle));
         EXPECT_TRUE(STATUS_SUCCEEDED(heapGetAllocSize(pHeap, handle, &size)));
         EXPECT_EQ(1000, size);
+
+        handles[i] = handle;
+    }
+
+    for (i = 0; i < 10; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, heapFree(pHeap, handles[i]));
     }
 
     EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
@@ -362,10 +352,10 @@ TEST_F(HeapApiFunctionalityTest, SingleLargeAlloc)
 {
     PHeap pHeap;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     singleLargeAlloc(pHeap);
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, NULL, &pHeap)));
     singleLargeAlloc(pHeap);
 }
 
@@ -373,10 +363,10 @@ TEST_F(HeapApiFunctionalityTest, MultipleLargeAlloc)
 {
     PHeap pHeap;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     multipleLargeAlloc(pHeap);
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, NULL, &pHeap)));
     multipleLargeAlloc(pHeap);
 }
 
@@ -384,7 +374,7 @@ TEST_F(HeapApiFunctionalityTest, DefragmentationAlloc)
 {
     PHeap pHeap;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     defragmentationAlloc(pHeap);
 }
 
@@ -392,7 +382,7 @@ TEST_F(HeapApiFunctionalityTest, SingleByteAlloc)
 {
     PHeap pHeap;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     singleByteAlloc(pHeap);
 }
 
@@ -400,7 +390,7 @@ TEST_F(HeapApiFunctionalityTest, AivHeapMinBlockFitAlloc)
 {
     PHeap pHeap;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     minBlockFitAlloc(pHeap);
 }
 
@@ -408,7 +398,7 @@ TEST_F(HeapApiFunctionalityTest, AivHeapBlockCoallesceAlloc)
 {
     PHeap pHeap;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     blockCoalesceAlloc(pHeap);
 }
 
@@ -416,24 +406,38 @@ TEST_F(HeapApiFunctionalityTest, AivHeapMinBlockFitResize)
 {
     PHeap pHeap;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     minBlockFitAllocResize(pHeap);
+}
+
+TEST_F(HeapApiFunctionalityTest, AivHeapUnalignedHeapLimit)
+{
+    PHeap pHeap;
+
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE + 1, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
+#ifdef ALIGNED_MEMORY_MODEL
+    EXPECT_EQ(MIN_HEAP_SIZE + 8, pHeap->heapLimit);
+#else
+    EXPECT_EQ(MIN_HEAP_SIZE + 1, pHeap->heapLimit);
+#endif
+
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapRelease(pHeap)));
 }
 
 TEST_F(HeapApiFunctionalityTest, AivHeapResizeEdgeCases)
 {
     PHeap pHeap;
     ALLOCATION_HANDLE handle = INVALID_ALLOCATION_HANDLE_VALUE;
-    UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
+    UINT32 size = HEAP_PACKED_SIZE(MIN_HEAP_SIZE / NUM_ITERATIONS);
     ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i;
     UINT64 setSize, iter;
     PVOID pAlloc;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
 
     // Set to default
-    MEMSET(handles, INVALID_ALLOCATION_HANDLE_VALUE, NUM_ITERATIONS);
+    zeroHandleArray(handles, NUM_ITERATIONS);
 
     // Iterate until we can't allocate a large block
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
@@ -538,16 +542,16 @@ TEST_F(HeapApiFunctionalityTest, AivHeapResizeUpDownBottomUp)
 {
     PHeap pHeap;
     ALLOCATION_HANDLE handle = INVALID_ALLOCATION_HANDLE_VALUE;
-    UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
+    UINT32 size = HEAP_PACKED_SIZE(MIN_HEAP_SIZE / NUM_ITERATIONS);
     ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i, j;
     UINT64 setSize;
     PVOID pAlloc;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
 
     // Set to default
-    MEMSET(handles, INVALID_ALLOCATION_HANDLE_VALUE, NUM_ITERATIONS);
+    zeroHandleArray(handles, NUM_ITERATIONS);
 
     // Iterate until we can't allocate a large block
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
@@ -584,7 +588,7 @@ TEST_F(HeapApiFunctionalityTest, AivHeapResizeUpDownBottomUp)
     heapDebugCheckAllocator(pHeap, TRUE);
 
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, heapSetAllocSize(pHeap, &handles[i], size));
+        EXPECT_EQ(STATUS_SUCCESS, heapSetAllocSize(pHeap, &handles[i], size)) << "Iteration " << i;
         EXPECT_EQ(STATUS_SUCCESS, heapGetAllocSize(pHeap, handles[i], &setSize));
         EXPECT_EQ(size, setSize);
     }
@@ -608,16 +612,16 @@ TEST_F(HeapApiFunctionalityTest, AivHeapResizeUpDownTopDown)
 {
     PHeap pHeap;
     ALLOCATION_HANDLE handle = INVALID_ALLOCATION_HANDLE_VALUE;
-    UINT32 size = MIN_HEAP_SIZE / NUM_ITERATIONS;
+    UINT32 size = HEAP_PACKED_SIZE(MIN_HEAP_SIZE / NUM_ITERATIONS);
     ALLOCATION_HANDLE handles[NUM_ITERATIONS];
     UINT32 i, j;
     UINT64 setSize;
     PVOID pAlloc;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
 
     // Set to default
-    MEMSET(handles, INVALID_ALLOCATION_HANDLE_VALUE, NUM_ITERATIONS);
+    zeroHandleArray(handles, NUM_ITERATIONS);
 
     // Iterate until we can't allocate a large block
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
@@ -654,7 +658,7 @@ TEST_F(HeapApiFunctionalityTest, AivHeapResizeUpDownTopDown)
     heapDebugCheckAllocator(pHeap, TRUE);
 
     for (i = 0; i < NUM_ITERATIONS - 1; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, heapSetAllocSize(pHeap, &handles[NUM_ITERATIONS - 2 - i], size));
+        EXPECT_EQ(STATUS_SUCCESS, heapSetAllocSize(pHeap, &handles[NUM_ITERATIONS - 2 - i], size)) << "Iteration " << i;
         EXPECT_EQ(STATUS_SUCCESS, heapGetAllocSize(pHeap, handles[NUM_ITERATIONS - 2 - i], &setSize));
         EXPECT_EQ(size, setSize);
     }
@@ -678,146 +682,9 @@ TEST_F(HeapApiFunctionalityTest, MultipleMapUnmapByteAlloc)
 {
     PHeap pHeap;
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_AIV_HEAP, NULL, &pHeap)));
     multipleMapUnmapByteAlloc(pHeap);
 
-    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap)));
+    EXPECT_TRUE(STATUS_SUCCEEDED(heapInitialize(MIN_HEAP_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, NULL, &pHeap)));
     multipleMapUnmapByteAlloc(pHeap);
 }
-
-///////////////////////////////////////////////////////////////
-// Below are the heap perf tests which are not being
-// executed on small footprint devices due to limited
-// memory and tighter overallocation protection.
-///////////////////////////////////////////////////////////////
-#ifndef CONSTRAINED_DEVICE
-
-TEST_F(HeapApiFunctionalityTest, randomAllocFreeWindowedPerf)
-{
-    PHeap pHeap;
-    UINT64 time, endTime, duration, durationSystem;
-    DOUBLE iterationDuration, iterationDurationSystem;
-    UINT32 totalIteration = 10, sleepBetweenIteration = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND, successCount = 0, i = 0;
-
-    for (; i < totalIteration; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap));
-        time = GETTIME();
-        randomAllocFree(pHeap, HEAP_PERF_TEST_VIEW_ITEM_COUNT, HEAP_PERF_TEST_ITERATION_COUNT, HEAP_PERF_TEST_MIN_ALLOCATION);
-        endTime = GETTIME();
-        EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
-
-        durationSystem = endTime - time;
-        iterationDurationSystem = (DOUBLE) durationSystem / HEAP_PERF_TEST_ITERATION_COUNT;
-        DLOGI("System Allocator perf time: %lf seconds, time per iteration: %lf nanos", (DOUBLE) durationSystem / HUNDREDS_OF_NANOS_IN_A_SECOND, iterationDurationSystem * DEFAULT_TIME_UNIT_IN_NANOS);
-
-        EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap));
-        time = GETTIME();
-        randomAllocFree(pHeap, HEAP_PERF_TEST_VIEW_ITEM_COUNT, HEAP_PERF_TEST_ITERATION_COUNT, HEAP_PERF_TEST_MIN_ALLOCATION);
-        endTime = GETTIME();
-        EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
-
-        duration = endTime - time;
-        iterationDuration = (DOUBLE) duration / HEAP_PERF_TEST_ITERATION_COUNT;
-        DLOGI("Allocator perf time: %lf seconds, time per iteration: %lf nanos", (DOUBLE) duration / HUNDREDS_OF_NANOS_IN_A_SECOND, iterationDuration * DEFAULT_TIME_UNIT_IN_NANOS);
-
-        // check if we are within 20% of the system heap speed
-        if ((DOUBLE) duration <= (DOUBLE) durationSystem * 1.2 && iterationDuration <= iterationDurationSystem * 1.2) {
-            successCount++;
-        }
-
-        EXPECT_TRUE((DOUBLE) duration <= (DOUBLE) durationSystem * 2.0);
-        EXPECT_TRUE(iterationDuration <= iterationDurationSystem * 2.0);
-
-        THREAD_SLEEP(sleepBetweenIteration);
-    }
-
-    // we should be  within 20% of the system heap speed at least 50% of the time
-    EXPECT_TRUE(successCount >= (totalIteration / 2));
-}
-
-TEST_F(HeapApiFunctionalityTest, randomAllocFreeMultiStreamWindowedPerf)
-{
-    PHeap pHeap;
-    UINT64 time, endTime, duration, durationSystem;
-    DOUBLE iterationDuration, iterationDurationSystem;
-    UINT32 totalIteration = 10, sleepBetweenIteration = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND, successCount = 0, i = 0;
-
-    for (; i < totalIteration; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap));
-        time = GETTIME();
-        randomAllocFree(pHeap, HEAP_PERF_TEST_MULTI_VIEW_ITEM_COUNT, HEAP_PERF_TEST_MULTI_VIEW_ITERATION_COUNT, HEAP_PERF_TEST_MULTI_VIEW_MIN_ALLOCATION);
-        endTime = GETTIME();
-        EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
-
-        durationSystem = endTime - time;
-        iterationDurationSystem = (DOUBLE) durationSystem / HEAP_PERF_TEST_MULTI_VIEW_ITERATION_COUNT;
-        DLOGI("System Allocator perf time: %lf seconds, time per iteration: %lf nanos", (DOUBLE) durationSystem / HUNDREDS_OF_NANOS_IN_A_SECOND, iterationDurationSystem * DEFAULT_TIME_UNIT_IN_NANOS);
-
-        EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap));
-        time = GETTIME();
-        randomAllocFree(pHeap, HEAP_PERF_TEST_MULTI_VIEW_ITEM_COUNT, HEAP_PERF_TEST_MULTI_VIEW_ITERATION_COUNT, HEAP_PERF_TEST_MULTI_VIEW_MIN_ALLOCATION);
-        endTime = GETTIME();
-        EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
-
-        duration = endTime - time;
-        iterationDuration = (DOUBLE) duration / HEAP_PERF_TEST_MULTI_VIEW_ITERATION_COUNT;
-        DLOGI("Allocator perf time: %lf seconds, time per iteration: %lf nanos", (DOUBLE) duration / HUNDREDS_OF_NANOS_IN_A_SECOND, iterationDuration * DEFAULT_TIME_UNIT_IN_NANOS);
-
-        // check if we are within 20% of the system heap speed
-        if ((DOUBLE) duration <= (DOUBLE) durationSystem * 1.2 && iterationDuration <= iterationDurationSystem * 1.2) {
-            successCount++;
-        }
-
-        EXPECT_TRUE((DOUBLE) duration <= (DOUBLE) durationSystem * 2.0);
-        EXPECT_TRUE(iterationDuration <= iterationDurationSystem * 2.0);
-
-        THREAD_SLEEP(sleepBetweenIteration);
-    }
-
-    // we should be within 20% of the system heap speed at least 50% of the time
-    EXPECT_TRUE(successCount >= (totalIteration / 2));
-}
-
-TEST_F(HeapApiFunctionalityTest, singleAllocFreePerf)
-{
-    PHeap pHeap;
-    UINT64 time, endTime, duration, durationSystem;
-    DOUBLE iterationDuration, iterationDurationSystem;
-    UINT32 totalIteration = 10, sleepBetweenIteration = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND, successCount = 0, i = 0;
-
-    for (; i < totalIteration; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_SYSTEM_HEAP, &pHeap));
-        time = GETTIME();
-        singleAllocFree(pHeap);
-        endTime = GETTIME();
-        EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
-
-        durationSystem = endTime - time;
-        iterationDurationSystem = (DOUBLE) durationSystem / HEAP_PERF_TEST_ITERATION_COUNT;
-        DLOGI("System Allocator perf time: %lf seconds, time per iteration: %lf nanos", (DOUBLE) durationSystem / HUNDREDS_OF_NANOS_IN_A_SECOND, iterationDurationSystem * DEFAULT_TIME_UNIT_IN_NANOS);
-
-        EXPECT_EQ(STATUS_SUCCESS, heapInitialize(HEAP_PERF_TEST_SIZE, 20, FLAGS_USE_AIV_HEAP, &pHeap));
-        time = GETTIME();
-        singleAllocFree(pHeap);
-        endTime = GETTIME();
-        EXPECT_EQ(STATUS_SUCCESS, heapRelease(pHeap));
-
-        duration = endTime - time;
-        iterationDuration = (DOUBLE) duration / HEAP_PERF_TEST_ITERATION_COUNT;
-        DLOGI("Allocator perf time: %lf seconds, time per iteration: %lf nanos", (DOUBLE) duration / HUNDREDS_OF_NANOS_IN_A_SECOND, iterationDuration * DEFAULT_TIME_UNIT_IN_NANOS);
-
-        // check if we are within 20% of the system heap speed
-        if ((DOUBLE) duration <= (DOUBLE) durationSystem * 1.2 && iterationDuration <= iterationDurationSystem * 1.2) {
-            successCount++;
-        }
-
-        EXPECT_TRUE((DOUBLE) duration <= (DOUBLE) durationSystem * 2.0);
-        EXPECT_TRUE(iterationDuration <= iterationDurationSystem * 2.0);
-
-        THREAD_SLEEP(sleepBetweenIteration);
-    }
-
-    // we should be within 20% of the system heap speed at least 50% of the time
-    EXPECT_TRUE(successCount >= (totalIteration / 2));
-}
-#endif

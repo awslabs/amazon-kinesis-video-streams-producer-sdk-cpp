@@ -8,7 +8,8 @@
 //////////////////////////////////////////////////////////////////////
 // Public functions
 //////////////////////////////////////////////////////////////////////
-STATUS profilerInitialize(UINT32 bufferSize, TRACE_LEVEL traceLevel, TRACE_PROFILER_BEHAVIOR_FLAGS behaviorFlags, PTRACE_PROFILER_HANDLE pTraceProfilerHandle)
+STATUS profilerInitialize(UINT32 bufferSize, TRACE_LEVEL traceLevel, TRACE_PROFILER_BEHAVIOR_FLAGS behaviorFlags,
+                          PTRACE_PROFILER_HANDLE pTraceProfilerHandle)
 {
     // No locking is required
     ENTERS();
@@ -35,7 +36,7 @@ STATUS profilerInitialize(UINT32 bufferSize, TRACE_LEVEL traceLevel, TRACE_PROFI
     pTraceProfiler->behaviorFlags = behaviorFlags;
 
     // Set the end pointer
-    pTraceProfiler->traceBufferEnd = (PBYTE)pTraceProfiler + bufferSize;
+    pTraceProfiler->traceBufferEnd = (PBYTE) pTraceProfiler + bufferSize;
 
     // Trace count reset
     pTraceProfiler->traceCount = 0;
@@ -74,7 +75,7 @@ STATUS profilerRelease(TRACE_PROFILER_HANDLE traceProfilerHandle)
     // The call is idempotent
     CHK(IS_VALID_TRACE_PROFILER_HANDLE(traceProfilerHandle), STATUS_SUCCESS);
     pTraceProfiler = TRACE_PROFILER_HANDLE_TO_POINTER(traceProfilerHandle);
-        
+
     DLOGS("Releasing trace profiler");
 
     // Free the lock
@@ -117,7 +118,7 @@ STATUS setProfilerLevel(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_LEVEL t
     MUTEX_UNLOCK(pTraceProfiler->traceLock);
 
 CleanUp:
-    
+
     LEAVES();
     return retStatus;
 }
@@ -164,8 +165,7 @@ STATUS getFormattedTraceBuffer(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR*
     // IMPORTANT!!! The overall buffer size is format specific!!
     // IMPORTANT!!! We will default to AIV format if none had been specified
     format = pTraceProfiler->behaviorFlags & PROFILER_FORMAT_MASK;
-    switch (format)
-    {
+    switch (format) {
         case PROFILER_FLAGS_NONE:
             // Deliberate fall-through to the AIV format
         case FLAGS_USE_AIV_TRACE_PROFILER_FORMAT:
@@ -178,12 +178,12 @@ STATUS getFormattedTraceBuffer(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR*
     }
 
 CleanUp:
-    
+
     if (locked) {
         // If locked then trace profiler object is not NULL so no need to validate
         MUTEX_UNLOCK(pTraceProfiler->traceLock);
     }
-    
+
     LEAVES();
     return retStatus;
 }
@@ -270,7 +270,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS traceStartInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR traceName, TRACE_LEVEL traceLevel, PTRACE_HANDLE pTraceHandle, TID threadId, PCHAR threadName, UINT64 currentTime)
+STATUS traceStartInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR traceName, TRACE_LEVEL traceLevel, PTRACE_HANDLE pTraceHandle,
+                                TID threadId, PCHAR threadName, UINT64 currentTime)
 {
     // Locking is handled by the caller
     STATUS retStatus = STATUS_SUCCESS;
@@ -345,7 +346,7 @@ STATUS traceStopInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_
     // Validate the profiler
     CHK(IS_VALID_TRACE_PROFILER_HANDLE(traceProfilerHandle), STATUS_INVALID_ARG);
     pTraceProfiler = TRACE_PROFILER_HANDLE_TO_POINTER(traceProfilerHandle);
-    
+
     MUTEX_LOCK(pTraceProfiler->traceLock);
     locked = TRUE;
 
@@ -360,7 +361,7 @@ STATUS traceStopInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_
     pTrace->duration = currentTime - pTrace->start;
 
 CleanUp:
-    
+
     if (locked) {
         MUTEX_UNLOCK(pTraceProfiler->traceLock);
     }
@@ -416,20 +417,19 @@ STATUS getAivFormattedTraceBuffer(PTraceProfiler pTraceProfiler, PCHAR* ppBuffer
     CHK(traceCount != 0, STATUS_SUCCESS);
 
     // Allocate the buffer taking into account the number of semicolons and new lines
-    allocationSize = 6 * SIZEOF(CHAR) + // trace type and comma = "trace,"
-            MAX_TRACE_NAME * SIZEOF(CHAR) + // Trace name
-            MAX_THREAD_NAME * SIZEOF(CHAR) + // Thread name
-            MAX_DECIMAL_UINT64_CHARS * SIZEOF(CHAR) + // Thread id
-            MAX_DECIMAL_UINT64_CHARS * SIZEOF(CHAR) + // Start time
-            MAX_DECIMAL_UINT64_CHARS * SIZEOF(CHAR) + // Duration
-            SIZEOF(CHAR); // New line
+    allocationSize = 6 * SIZEOF(CHAR) +           // trace type and comma = "trace,"
+        MAX_TRACE_NAME * SIZEOF(CHAR) +           // Trace name
+        MAX_THREAD_NAME * SIZEOF(CHAR) +          // Thread name
+        MAX_DECIMAL_UINT64_CHARS * SIZEOF(CHAR) + // Thread id
+        MAX_DECIMAL_UINT64_CHARS * SIZEOF(CHAR) + // Start time
+        MAX_DECIMAL_UINT64_CHARS * SIZEOF(CHAR) + // Duration
+        SIZEOF(CHAR);                             // New line
 
-    pBuffer = (PCHAR)MEMCALLOC(traceCount, allocationSize);
+    pBuffer = (PCHAR) MEMCALLOC(traceCount, allocationSize);
     CHK(pBuffer != NULL, STATUS_NOT_ENOUGH_MEMORY);
 
     pCurChar = pBuffer;
     for (i = 0; i < traceCount; i++) {
-
         // Handle the wrapping
         if ((PBYTE) pCurTrace + SIZEOF(Trace) > (PBYTE) pTraceProfiler->traceBufferEnd) {
             pCurTrace = pTraceProfiler->traceBuffer;
@@ -492,7 +492,7 @@ STATUS getAivFormattedTraceBuffer(PTraceProfiler pTraceProfiler, PCHAR* ppBuffer
 
     // Set the actual buffer size
     if (pBufferSize != NULL) {
-        *pBufferSize = (UINT32) (pCurChar - pBuffer);
+        *pBufferSize = (UINT32)(pCurChar - pBuffer);
     }
 
 CleanUp:

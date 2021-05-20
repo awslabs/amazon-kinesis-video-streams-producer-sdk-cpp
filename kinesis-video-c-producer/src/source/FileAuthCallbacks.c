@@ -7,9 +7,7 @@
 /**
  * Creates File Auth callbacks
  */
-STATUS createFileAuthCallbacks(PClientCallbacks pCallbacksProvider,
-                               PCHAR pCredentialsFilepath,
-                               PAuthCallbacks *ppFileAuthCallbacks)
+STATUS createFileAuthCallbacks(PClientCallbacks pCallbacksProvider, PCHAR pCredentialsFilepath, PAuthCallbacks* ppFileAuthCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -35,8 +33,7 @@ STATUS createFileAuthCallbacks(PClientCallbacks pCallbacksProvider,
     pFileAuthCallbacks->authCallbacks.deviceCertToTokenFn = NULL;
     pFileAuthCallbacks->authCallbacks.getDeviceFingerprintFn = NULL;
 
-    CHK_STATUS(createFileCredentialProviderWithTime(pCredentialsFilepath,
-                                                    pFileAuthCallbacks->pCallbacksProvider->clientCallbacks.getCurrentTimeFn,
+    CHK_STATUS(createFileCredentialProviderWithTime(pCredentialsFilepath, pFileAuthCallbacks->pCallbacksProvider->clientCallbacks.getCurrentTimeFn,
                                                     pFileAuthCallbacks->pCallbacksProvider->clientCallbacks.customData,
                                                     (PAwsCredentialProvider*) &pFileAuthCallbacks->pCredentialProvider));
 
@@ -46,7 +43,7 @@ STATUS createFileAuthCallbacks(PClientCallbacks pCallbacksProvider,
 CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
-        freeFileAuthCallbacks((PAuthCallbacks *) &pFileAuthCallbacks);
+        freeFileAuthCallbacks((PAuthCallbacks*) &pFileAuthCallbacks);
         pFileAuthCallbacks = NULL;
     }
 
@@ -64,7 +61,7 @@ CleanUp:
  *
  * NOTE: The caller should have passed a pointer which was previously created by the corresponding function
  */
-STATUS freeFileAuthCallbacks(PAuthCallbacks *ppAuthCallbacks)
+STATUS freeFileAuthCallbacks(PAuthCallbacks* ppAuthCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -108,8 +105,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS getStreamingTokenFileFunc(UINT64 customData, PCHAR streamName, STREAM_ACCESS_MODE accessMode,
-                                 PServiceCallContext pServiceCallContext)
+STATUS getStreamingTokenFileFunc(UINT64 customData, PCHAR streamName, STREAM_ACCESS_MODE accessMode, PServiceCallContext pServiceCallContext)
 {
     UNUSED_PARAM(streamName);
     UNUSED_PARAM(accessMode);
@@ -121,27 +117,20 @@ STATUS getStreamingTokenFileFunc(UINT64 customData, PCHAR streamName, STREAM_ACC
     PCallbacksProvider pCallbacksProvider = NULL;
     PFileAuthCallbacks pFileAuthCallbacks = (PFileAuthCallbacks) customData;
 
-    CHK(pFileAuthCallbacks != NULL, STATUS_NULL_ARG);
+    CHK(pFileAuthCallbacks != NULL && pServiceCallContext != NULL, STATUS_NULL_ARG);
 
     pCallbacksProvider = pFileAuthCallbacks->pCallbacksProvider;
     pCredentialProvider = (PAwsCredentialProvider) pFileAuthCallbacks->pCredentialProvider;
     CHK_STATUS(pCredentialProvider->getCredentialsFn(pCredentialProvider, &pAwsCredentials));
 
-    CHK_STATUS(getStreamingTokenResultEvent(pServiceCallContext->customData,
-                                            SERVICE_CALL_RESULT_OK,
-                                            (PBYTE) pAwsCredentials,
-                                            pAwsCredentials->size,
+    CHK_STATUS(getStreamingTokenResultEvent(pServiceCallContext->customData, SERVICE_CALL_RESULT_OK, (PBYTE) pAwsCredentials, pAwsCredentials->size,
                                             pAwsCredentials->expiration));
 
 CleanUp:
 
-    if (STATUS_FAILED(retStatus)) {
+    if (STATUS_FAILED(retStatus) && pServiceCallContext != NULL) {
         // Notify PIC on error
-        getStreamingTokenResultEvent(pServiceCallContext->customData,
-                                     SERVICE_CALL_UNKNOWN,
-                                     NULL,
-                                     0,
-                                     0);
+        getStreamingTokenResultEvent(pServiceCallContext->customData, SERVICE_CALL_UNKNOWN, NULL, 0, 0);
 
         // Notify clients
         notifyCallResult(pCallbacksProvider, retStatus, pServiceCallContext->customData);
@@ -149,22 +138,17 @@ CleanUp:
 
     LEAVES();
     return retStatus;
-
 }
 
-STATUS getSecurityTokenFileFunc(UINT64 customData, PBYTE *ppBuffer, PUINT32 pSize, PUINT64 pExpiration)
+STATUS getSecurityTokenFileFunc(UINT64 customData, PBYTE* ppBuffer, PUINT32 pSize, PUINT64 pExpiration)
 {
-
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PAwsCredentials pAwsCredentials;
     PAwsCredentialProvider pCredentialProvider;
 
     PFileAuthCallbacks pFileAuthCallbacks = (PFileAuthCallbacks) customData;
-    CHK(pFileAuthCallbacks != NULL &&
-        ppBuffer != NULL &&
-        pSize != NULL &&
-        pExpiration != NULL, STATUS_NULL_ARG);
+    CHK(pFileAuthCallbacks != NULL && ppBuffer != NULL && pSize != NULL && pExpiration != NULL, STATUS_NULL_ARG);
 
     pCredentialProvider = (PAwsCredentialProvider) pFileAuthCallbacks->pCredentialProvider;
     CHK_STATUS(pCredentialProvider->getCredentialsFn(pCredentialProvider, &pAwsCredentials));

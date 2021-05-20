@@ -1,59 +1,55 @@
 #include "Duration.h"
 
-#define HUNDRED_NANOS_IN_SECOND                  (UINT64)10000000ULL
+#define HUNDRED_NANOS_IN_SECOND (UINT64) 10000000ULL
 
 // Per spec, we can have ',' or '.' as the fraction sign
-#define FRACTION_SIGN_DOT               '.'
-#define FRACTION_SIGN_COMMA             ','
+#define FRACTION_SIGN_DOT   '.'
+#define FRACTION_SIGN_COMMA ','
 
 /**
  * Parser const declarations
  */
-#define PARSER_SECOND_DESIGNATOR                'S'
-#define PARSER_SECOND_MULTIPLIER                (HUNDRED_NANOS_IN_SECOND * 1ULL)
+#define PARSER_SECOND_DESIGNATOR 'S'
+#define PARSER_SECOND_MULTIPLIER (HUNDRED_NANOS_IN_SECOND * 1ULL)
 
-#define PARSER_MINUTE_DESIGNATOR                'M'
-#define PARSER_MINUTE_MULTIPLIER                (PARSER_SECOND_MULTIPLIER * 60ULL)
+#define PARSER_MINUTE_DESIGNATOR 'M'
+#define PARSER_MINUTE_MULTIPLIER (PARSER_SECOND_MULTIPLIER * 60ULL)
 
-#define PARSER_HOUR_DESIGNATOR                  'H'
-#define PARSER_HOUR_MULTIPLIER                  (PARSER_MINUTE_MULTIPLIER * 60ULL)
+#define PARSER_HOUR_DESIGNATOR 'H'
+#define PARSER_HOUR_MULTIPLIER (PARSER_MINUTE_MULTIPLIER * 60ULL)
 
-#define PARSER_DAY_DESIGNATOR                   'D'
-#define PARSER_DAY_MULTIPLIER                   (PARSER_HOUR_MULTIPLIER * 24ULL)
+#define PARSER_DAY_DESIGNATOR 'D'
+#define PARSER_DAY_MULTIPLIER (PARSER_HOUR_MULTIPLIER * 24ULL)
 
-#define PARSER_WEEK_DESIGNATOR                  'W'
-#define PARSER_WEEK_MULTIPLIER                  (PARSER_DAY_MULTIPLIER * 7ULL)
+#define PARSER_WEEK_DESIGNATOR 'W'
+#define PARSER_WEEK_MULTIPLIER (PARSER_DAY_MULTIPLIER * 7ULL)
 
-#define PARSER_MONTH_DESIGNATOR                 'M'
+#define PARSER_MONTH_DESIGNATOR 'M'
 /**
  * We are assuming 31 days per month
  */
-#define PARSER_MONTH_MULTIPLIER                 (PARSER_DAY_MULTIPLIER * 31ULL)
+#define PARSER_MONTH_MULTIPLIER (PARSER_DAY_MULTIPLIER * 31ULL)
 
-#define PARSER_YEAR_DESIGNATOR                  'Y'
+#define PARSER_YEAR_DESIGNATOR 'Y'
 /**
  * We are assuming 365 days per year
  */
-#define PARSER_YEAR_MULTIPLIER                  (PARSER_DAY_MULTIPLIER * 365ULL)
+#define PARSER_YEAR_MULTIPLIER (PARSER_DAY_MULTIPLIER * 365ULL)
 
-#define PARSER_DURATION_DESIGNATOR              'P'
-#define PARSER_TIME_DESIGNATOR                  'T'
+#define PARSER_DURATION_DESIGNATOR 'P'
+#define PARSER_TIME_DESIGNATOR     'T'
 
-typedef struct
-{
+typedef struct {
     CHAR designator;
     UINT64 multiplier;
 } DurationState;
 
 // Parser duration states - IMPORTANT! Order is important
 const DurationState DURATION_STATES[] = {
-        {PARSER_YEAR_DESIGNATOR, PARSER_YEAR_MULTIPLIER},
-        {PARSER_MONTH_DESIGNATOR, PARSER_MONTH_MULTIPLIER},
-        {PARSER_WEEK_DESIGNATOR, PARSER_WEEK_MULTIPLIER},
-        {PARSER_DAY_DESIGNATOR, PARSER_DAY_MULTIPLIER},
-        {PARSER_HOUR_DESIGNATOR, PARSER_HOUR_MULTIPLIER},
-        {PARSER_MINUTE_DESIGNATOR, PARSER_MINUTE_MULTIPLIER},
-        {PARSER_SECOND_DESIGNATOR, PARSER_SECOND_MULTIPLIER},
+    {PARSER_YEAR_DESIGNATOR, PARSER_YEAR_MULTIPLIER},     {PARSER_MONTH_DESIGNATOR, PARSER_MONTH_MULTIPLIER},
+    {PARSER_WEEK_DESIGNATOR, PARSER_WEEK_MULTIPLIER},     {PARSER_DAY_DESIGNATOR, PARSER_DAY_MULTIPLIER},
+    {PARSER_HOUR_DESIGNATOR, PARSER_HOUR_MULTIPLIER},     {PARSER_MINUTE_DESIGNATOR, PARSER_MINUTE_MULTIPLIER},
+    {PARSER_SECOND_DESIGNATOR, PARSER_SECOND_MULTIPLIER},
 };
 
 #define DURATION_STATES_COUNT (sizeof(DURATION_STATES) / sizeof *(DURATION_STATES))
@@ -62,8 +58,7 @@ const DurationState DURATION_STATES[] = {
 #define HOUR_DESIGNATOR_ORDER 4
 
 // Parser internal tracking
-typedef struct
-{
+typedef struct {
     PCHAR pCurPnt;
     PCHAR pStrEnd;
     UINT64 value;
@@ -155,12 +150,11 @@ BOOL parseDurationStart(PParserState pState)
     return TRUE;
 }
 
-BOOL  checkForTimeDesignator(PParserState pState)
+BOOL checkForTimeDesignator(PParserState pState)
 {
     // Peek to see what's next
     // If it's time designator then we skip to time
-    if (HAS_MORE_INPUT_DATA(pState) &&
-            (*(pState->pCurPnt) == PARSER_TIME_DESIGNATOR)) {
+    if (HAS_MORE_INPUT_DATA(pState) && (*(pState->pCurPnt) == PARSER_TIME_DESIGNATOR)) {
         if (pState->seenTime) {
             // Already seen the time designator - error
             return FALSE;
@@ -190,7 +184,7 @@ BOOL acceptState(PParserState pState)
     pState->pCurPnt++;
 
     // Need to check from the given position in the ordered array
-    for (i = pState->durationState; i< DURATION_STATES_COUNT; i++) {
+    for (i = pState->durationState; i < DURATION_STATES_COUNT; i++) {
         if (designator == DURATION_STATES[i].designator) {
             pState->durationState = i;
 
@@ -203,8 +197,7 @@ BOOL acceptState(PParserState pState)
             UINT64 storedValue = pState->value;
             pState->value += (UINT64)(tempResult);
 
-            if((pState->value < storedValue) ||
-                    (tempResult != 0.0 && ((UINT64) tempResult == 0))) {
+            if ((pState->value < storedValue) || (tempResult != 0.0 && ((UINT64) tempResult == 0))) {
                 // Overflow detected in addition or casting
                 return FALSE;
             }
@@ -291,5 +284,5 @@ BOOL isDigit(CHAR ch)
 UINT32 getDigit(CHAR ch)
 {
     // Process ASCII only
-    return ((UINT32)ch - '0');
+    return ((UINT32) ch - '0');
 }

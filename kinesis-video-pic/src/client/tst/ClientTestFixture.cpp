@@ -10,14 +10,12 @@ UINT64 ClientTestBase::getCurrentTimeFunc(UINT64 customData)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetCurrentTimeFuncCount++;
-    pClient->mTime = GETTIME();
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mGetCurrentTimeFuncCount);
+    pClient->setTestTimeVal(GETTIME());
 
-    return pClient->mTime;
+    return pClient->getTestTimeVal();
 }
 
 // Global variable which is used as a preset time
@@ -28,17 +26,17 @@ UINT64 ClientTestBase::getCurrentPresetTimeFunc(UINT64 customData)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetCurrentTimeFuncCount++;
-    pClient->mTime = gPresetCurrentTime;
+    ATOMIC_INCREMENT(&pClient->mGetCurrentTimeFuncCount);
+    pClient->setTestTimeVal(gPresetCurrentTime);
 
-    // Increment the preset time
+    // Increment the preset time - wrap in the atomicizing locks
+    MUTEX_LOCK(pClient->mAtomicLock);
     gPresetCurrentTime++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    MUTEX_UNLOCK(pClient->mAtomicLock);
 
-    return pClient->mTime;
+    return pClient->getTestTimeVal();
 }
 
 UINT64 ClientTestBase::getCurrentIncrementalTimeFunc(UINT64 customData)
@@ -48,13 +46,11 @@ UINT64 ClientTestBase::getCurrentIncrementalTimeFunc(UINT64 customData)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    UINT64 time = pClient->mTime;
-    pClient->mTime += TEST_TIME_INCREMENT;
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    UINT64 time = pClient->getTestTimeVal();
+    pClient->incrementTestTimeVal(TEST_TIME_INCREMENT);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetCurrentTimeFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mGetCurrentTimeFuncCount);
 
     return time;
 }
@@ -65,11 +61,9 @@ UINT32 ClientTestBase::getRandomNumberFunc(UINT64 customData)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetRandomNumberFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mGetRandomNumberFuncCount);
 
     return RAND();
 }
@@ -83,21 +77,19 @@ UINT32 ClientTestBase::getRandomNumberConstFunc(UINT64 customData)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetRandomNumberFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mGetRandomNumberFuncCount);
 
     return gConstReturnFromRandomFunction;
 }
 
 VOID ClientTestBase::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt, ...)
 {
-    if (level >= LOG_LEVEL_DEBUG) {
+    if (level >= loggerGetLogLevel()) {
         // Temp scratch buffer = 10KB
         CHAR tempBuf[10 * 1024];
-        snprintf(tempBuf, SIZEOF(tempBuf), "\n[0x%016llx] [level %u] %s %s", GETTID(), level, tag, fmt);
+        SNPRINTF(tempBuf, SIZEOF(tempBuf), "\n[0x%016" PRIx64 "] [level %u] %s %s", GETTID(), level, tag, fmt);
         va_list valist;
         va_start(valist, fmt);
         vprintf(tempBuf, valist);
@@ -112,9 +104,9 @@ STATUS ClientTestBase::getDeviceCertificateFunc(UINT64 customData, PBYTE* ppCert
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetDeviceCertificateFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mGetDeviceCertificateFuncCount);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     *ppCert = (PBYTE) TEST_CERTIFICATE_BITS;
@@ -131,9 +123,9 @@ STATUS ClientTestBase::getSecurityTokenFunc(UINT64 customData, PBYTE* ppToken, P
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetSecurityTokenFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mGetSecurityTokenFuncCount);
 
     *ppToken = pClient->mToken = (PBYTE) TEST_TOKEN_BITS;
     *pSize = pClient->mTokenSize = SIZEOF(TEST_TOKEN_BITS);
@@ -150,9 +142,9 @@ STATUS ClientTestBase::getDeviceFingerprintFunc(UINT64 customData, PCHAR* ppFing
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetDeviceFingerprintFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mGetDeviceFingerprintFuncCount);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     *ppFingerprint = (PCHAR) TEST_DEVICE_FINGERPRINT;
@@ -167,9 +159,9 @@ STATUS ClientTestBase::getEmptyDeviceCertificateFunc(UINT64 customData, PBYTE* p
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetDeviceCertificateFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mGetDeviceCertificateFuncCount);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     *ppCert = NULL;
@@ -186,9 +178,9 @@ STATUS ClientTestBase::getEmptySecurityTokenFunc(UINT64 customData, PBYTE* ppTok
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetSecurityTokenFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mGetSecurityTokenFuncCount);
 
     *ppToken = pClient->mToken = NULL;
     *pSize = pClient->mTokenSize = 0;
@@ -205,9 +197,9 @@ STATUS ClientTestBase::getEmptyDeviceFingerprintFunc(UINT64 customData, PCHAR* p
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetDeviceFingerprintFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mGetDeviceFingerprintFuncCount);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     *ppFingerprint = NULL;
@@ -222,9 +214,9 @@ STATUS ClientTestBase::streamUnderflowReportFunc(UINT64 customData, STREAM_HANDL
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStreamUnderflowReportFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStreamUnderflowReportFuncCount);
 
     pClient->mStreamHandle = streamHandle;
     MUTEX_UNLOCK(pClient->mTestClientMutex);
@@ -239,9 +231,9 @@ STATUS ClientTestBase::storageOverflowPressureFunc(UINT64 customData, UINT64 rem
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStorageOverflowPressureFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStorageOverflowPressureFuncCount);
 
     pClient->mRemainingSize = remainingSize;
     MUTEX_UNLOCK(pClient->mTestClientMutex);
@@ -256,9 +248,9 @@ STATUS ClientTestBase::streamLatencyPressureFunc(UINT64 customData, STREAM_HANDL
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStreamLatencyPressureFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStreamLatencyPressureFuncCount);
 
     pClient->mStreamHandle = streamHandle;
     pClient->mDuration = duration;
@@ -274,9 +266,9 @@ STATUS ClientTestBase::droppedFrameReportFunc(UINT64 customData, STREAM_HANDLE s
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mDroppedFrameReportFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mDroppedFrameReportFuncCount);
 
     pClient->mStreamHandle = streamHandle;
     pClient->mFrameTime = frameTimecode;
@@ -291,9 +283,9 @@ STATUS ClientTestBase::bufferDurationOverflowPressureFunc(UINT64 customData, STR
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mBufferDurationOverflowPrssureFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mBufferDurationOverflowPrssureFuncCount);
 
     pClient->mRemainingDuration = remainingDuration;
     MUTEX_UNLOCK(pClient->mTestClientMutex);
@@ -308,9 +300,9 @@ STATUS ClientTestBase::droppedFragmentReportFunc(UINT64 customData, STREAM_HANDL
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mDroppedFragmentReportFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mDroppedFragmentReportFuncCount);
 
     pClient->mStreamHandle = streamHandle;
     pClient->mFragmentTime = fragmentTimecode;
@@ -326,12 +318,12 @@ STATUS ClientTestBase::streamReadyFunc(UINT64 customData, STREAM_HANDLE streamHa
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStreamReadyFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStreamReadyFuncCount);
 
     pClient->mStreamHandle = streamHandle;
-    pClient->mStreamReady = TRUE;
+    ATOMIC_STORE_BOOL(&pClient->mStreamReady, TRUE);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     return STATUS_SUCCESS;
@@ -344,12 +336,12 @@ STATUS ClientTestBase::streamClosedFunc(UINT64 customData, STREAM_HANDLE streamH
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStreamClosedFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStreamClosedFuncCount);
 
     pClient->mStreamHandle = streamHandle;
-    pClient->mStreamClosed = TRUE;
+    ATOMIC_STORE_BOOL(&pClient->mStreamClosed, TRUE);
     pClient->mStreamUploadHandle = streamUploadHandle;
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
@@ -368,9 +360,9 @@ STATUS ClientTestBase::streamDataAvailableFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStreamDataAvailableFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStreamDataAvailableFuncCount);
 
     pClient->mStreamHandle = streamHandle;
     pClient->mDataReadyDuration = duration;
@@ -395,9 +387,9 @@ STATUS ClientTestBase::streamErrorReportFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStreamErrorReportFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStreamErrorReportFuncCount);
 
     pClient->mStreamHandle = streamHandle;
     pClient->mFragmentTime = timecode;
@@ -416,9 +408,9 @@ STATUS ClientTestBase::streamConnectionStaleFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStreamConnectionStaleFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStreamConnectionStaleFuncCount);
 
     pClient->mStreamHandle = streamHandle;
     pClient->mDuration = duration;
@@ -437,9 +429,9 @@ STATUS ClientTestBase::fragmentAckReceivedFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mFragmentAckReceivedFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mFragmentAckReceivedFuncCount);
 
     pClient->mStreamHandle = streamHandle;
     pClient->mFragmentAck = *pFragmentAck;
@@ -455,12 +447,12 @@ STATUS ClientTestBase::clientReadyFunc(UINT64 customData, CLIENT_HANDLE clientHa
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mClientReadyFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mClientReadyFuncCount);
 
     pClient->mReturnedClientHandle = clientHandle;
-    pClient->mClientReady = TRUE;
+    ATOMIC_STORE_BOOL(&pClient->mClientReady, TRUE);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     return STATUS_SUCCESS;
@@ -473,12 +465,12 @@ STATUS ClientTestBase::clientShutdownFunc(UINT64 customData, CLIENT_HANDLE clien
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mClientShutdownFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mClientShutdownFuncCount);
 
     pClient->mReturnedClientHandle = clientHandle;
-    pClient->mClientShutdown = TRUE;
+    ATOMIC_STORE_BOOL(&pClient->mClientShutdown, TRUE);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     return STATUS_SUCCESS;
@@ -491,13 +483,13 @@ STATUS ClientTestBase::streamShutdownFunc(UINT64 customData, STREAM_HANDLE strea
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mStreamShutdownFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mStreamShutdownFuncCount);
 
     pClient->mStreamHandle = streamHandle;
-    pClient->mStreamShutdown = TRUE;
-    pClient->mResetStream = resetStream;
+    ATOMIC_STORE_BOOL(&pClient->mStreamShutdown, TRUE);
+    ATOMIC_STORE_BOOL(&pClient->mResetStream, resetStream);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     return STATUS_SUCCESS;
@@ -509,11 +501,9 @@ MUTEX ClientTestBase::createMutexFunc(UINT64 customData, BOOL reentant)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mCreateMutexFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mCreateMutexFuncCount);
 
     return MUTEX_CREATE(reentant);
 }
@@ -524,11 +514,9 @@ VOID ClientTestBase::lockMutexFunc(UINT64 customData, MUTEX mutex)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mLockMutexFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mLockMutexFuncCount);
 
     return MUTEX_LOCK(mutex);
 }
@@ -539,11 +527,9 @@ VOID ClientTestBase::unlockMutexFunc(UINT64 customData, MUTEX mutex)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mUnlockMutexFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mUnlockMutexFuncCount);
 
     return MUTEX_UNLOCK(mutex);
 }
@@ -554,11 +540,9 @@ BOOL ClientTestBase::tryLockMutexFunc(UINT64 customData, MUTEX mutex)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mTryLockMutexFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mTryLockMutexFuncCount);
 
     return MUTEX_TRYLOCK(mutex);
 }
@@ -569,11 +553,9 @@ VOID ClientTestBase::freeMutexFunc(UINT64 customData, MUTEX mutex)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mFreeMutexFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mFreeMutexFuncCount);
 
     return MUTEX_FREE(mutex);
 }
@@ -584,11 +566,9 @@ CVAR ClientTestBase::createConditionVariableFunc(UINT64 customData)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mCreateConditionVariableFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mCreateConditionVariableFuncCount);
 
     return CVAR_CREATE();
 }
@@ -599,11 +579,9 @@ STATUS ClientTestBase::signalConditionVariableFunc(UINT64 customData, CVAR cvar)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mSignalConditionVariableFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mSignalConditionVariableFuncCount);
 
     return CVAR_SIGNAL(cvar);
 }
@@ -614,11 +592,9 @@ STATUS ClientTestBase::broadcastConditionVariableFunc(UINT64 customData, CVAR cv
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mBroadcastConditionVariableFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mBroadcastConditionVariableFuncCount);
 
     return CVAR_BROADCAST(cvar);
 }
@@ -632,11 +608,9 @@ STATUS ClientTestBase::waitConditionVariableFunc(UINT64 customData,
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mWaitConditionVariableFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mWaitConditionVariableFuncCount);
 
     return CVAR_WAIT(cvar, mutex, timeout);
 }
@@ -647,11 +621,9 @@ VOID ClientTestBase::freeConditionVariableFunc(UINT64 customData, CVAR cvar)
 
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
-    MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mFreeConditionVariableFuncCount++;
-    MUTEX_UNLOCK(pClient->mTestClientMutex);
+    ATOMIC_INCREMENT(&pClient->mFreeConditionVariableFuncCount);
 
     return CVAR_FREE(cvar);
 }
@@ -669,9 +641,9 @@ STATUS ClientTestBase::createStreamFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mCreateStreamFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mCreateStreamFuncCount);
 
     STRCPY(pClient->mDeviceName, deviceName);
     STRCPY(pClient->mStreamName, streamName);
@@ -706,9 +678,9 @@ STATUS ClientTestBase::describeStreamFunc(UINT64 customData,
     STATUS retStatus = STATUS_SUCCESS;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mDescribeStreamFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mDescribeStreamFuncCount);
 
     STRCPY(pClient->mStreamName, streamName);
 
@@ -729,9 +701,34 @@ STATUS ClientTestBase::describeStreamFunc(UINT64 customData,
         pClient->setupStreamDescription();
 
         // Execute a couple of times
-        pClient->mStreamDescription.streamStatus = pClient->mDescribeStreamFuncCount < 3 ? STREAM_STATUS_CREATING : STREAM_STATUS_ACTIVE;
+        pClient->mStreamDescription.streamStatus = ATOMIC_LOAD(&pClient->mDescribeStreamFuncCount) < 3 ? STREAM_STATUS_CREATING : STREAM_STATUS_ACTIVE;
         retStatus = describeStreamResultEvent(pCallbackContext->customData, SERVICE_CALL_RESULT_OK, &pClient->mStreamDescription);
     }
+    ATOMIC_INCREMENT(&pClient->mDescribeStreamDoneFuncCount);
+    MUTEX_UNLOCK(pClient->mTestClientMutex);
+
+    return retStatus;
+}
+
+STATUS ClientTestBase::describeStreamMultiStreamFunc(UINT64 customData,
+                                          PCHAR streamName,
+                                          PServiceCallContext pCallbackContext)
+{
+    DLOGV("TID 0x%016llx describeStreamMultiStreamFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    STATUS retStatus = STATUS_SUCCESS;
+
+    MUTEX_LOCK(pClient->mTestClientMutex);
+    // Move to ready state
+    pClient->setupStreamDescription();
+
+    STRCPY(pClient->mStreamDescription.streamName, streamName);
+
+    // Execute a couple of times
+    pClient->mStreamDescription.streamStatus = STREAM_STATUS_ACTIVE;
+    retStatus = describeStreamResultEvent(pCallbackContext->customData, SERVICE_CALL_RESULT_OK, &pClient->mStreamDescription);
+
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     return retStatus;
@@ -748,9 +745,9 @@ STATUS ClientTestBase::getStreamingEndpointFunc(UINT64 customData,
     STATUS retStatus = STATUS_SUCCESS;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetStreamingEndpointFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mGetStreamingEndpointFuncCount);
 
     STRCPY(pClient->mStreamName, streamName);
     STRCPY(pClient->mApiName, apiName);
@@ -775,6 +772,28 @@ STATUS ClientTestBase::getStreamingEndpointFunc(UINT64 customData,
     return retStatus;
 }
 
+STATUS ClientTestBase::getStreamingEndpointMultiStreamFunc(UINT64 customData,
+                                                PCHAR streamName,
+                                                PCHAR apiName,
+                                                PServiceCallContext pCallbackContext)
+{
+    DLOGV("TID 0x%016llx getStreamingEndpointMultiStreamFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    STATUS retStatus = STATUS_SUCCESS;
+
+    MUTEX_LOCK(pClient->mTestClientMutex);
+
+    STRCPY(pClient->mStreamName, streamName);
+    STRCPY(pClient->mApiName, apiName);
+
+    retStatus = getStreamingEndpointResultEvent(pCallbackContext->customData, SERVICE_CALL_RESULT_OK, TEST_STREAMING_ENDPOINT);
+
+    MUTEX_UNLOCK(pClient->mTestClientMutex);
+
+    return retStatus;
+}
+
 STATUS ClientTestBase::getStreamingTokenFunc(UINT64 customData,
                                              PCHAR streamName,
                                              STREAM_ACCESS_MODE accessMode,
@@ -786,9 +805,9 @@ STATUS ClientTestBase::getStreamingTokenFunc(UINT64 customData,
     STATUS retStatus = STATUS_SUCCESS;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mGetStreamingTokenFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mGetStreamingTokenFuncCount);
 
     STRCPY(pClient->mStreamName, streamName);
     pClient->mAccessMode = accessMode;
@@ -831,6 +850,31 @@ STATUS ClientTestBase::getStreamingTokenFunc(UINT64 customData,
     return retStatus;
 }
 
+STATUS ClientTestBase::getStreamingTokenMultiStreamFunc(UINT64 customData,
+                                             PCHAR streamName,
+                                             STREAM_ACCESS_MODE accessMode,
+                                             PServiceCallContext pCallbackContext)
+{
+    DLOGV("TID 0x%016llx getStreamingTokenMultiStreamFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+    STATUS retStatus = STATUS_SUCCESS;
+
+    MUTEX_LOCK(pClient->mTestClientMutex);
+
+    STRCPY(pClient->mStreamName, streamName);
+
+
+    retStatus = getStreamingTokenResultEvent(pCallbackContext->customData,
+                                                 SERVICE_CALL_RESULT_OK,
+                                                 (PBYTE) TEST_STREAMING_TOKEN,
+                                                 SIZEOF(TEST_STREAMING_TOKEN),
+                                                 MAX_UINT64);
+    MUTEX_UNLOCK(pClient->mTestClientMutex);
+
+    return retStatus;
+}
+
 STATUS ClientTestBase::putStreamFunc(UINT64 customData,
                                      PCHAR streamName,
                                      PCHAR containerType,
@@ -845,15 +889,15 @@ STATUS ClientTestBase::putStreamFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
     EXPECT_TRUE(0 == STRCMP(containerType, MKV_CONTAINER_TYPE_STRING));
 
-    pClient->mPutStreamFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mPutStreamFuncCount);
 
     STRCPY(pClient->mStreamName, streamName);
     STRCPY(pClient->mStreamingEndpoint, streamingEndpoint);
     pClient->mStreamStartTime = streamStartTime;
-    pClient->mAckRequired = ackRequired;
+    ATOMIC_STORE_BOOL(&pClient->mAckRequired, ackRequired);
 
     // Store the custom data
     pClient->mCallContext = *pCallbackContext;
@@ -878,6 +922,32 @@ STATUS ClientTestBase::putStreamFunc(UINT64 customData,
     return STATUS_SUCCESS;
 }
 
+STATUS ClientTestBase::putStreamMultiStreamFunc(UINT64 customData,
+                                     PCHAR streamName,
+                                     PCHAR containerType,
+                                     UINT64 streamStartTime,
+                                     BOOL absoluteFragmentTimestamp,
+                                     BOOL ackRequired,
+                                     PCHAR streamingEndpoint,
+                                     PServiceCallContext pCallbackContext)
+{
+    DLOGV("TID 0x%016llx putStreamMultiStreamFunc called.", GETTID());
+
+    ClientTestBase *pClient = (ClientTestBase*) customData;
+
+    MUTEX_LOCK(pClient->mTestClientMutex);
+
+    STRCPY(pClient->mStreamName, streamName);
+    STRCPY(pClient->mStreamingEndpoint, streamingEndpoint);
+    pClient->mStreamStartTime = streamStartTime;
+    pClient->mAckRequired = ackRequired;
+    EXPECT_EQ(STATUS_SUCCESS,
+                  putStreamResultEvent((STREAM_HANDLE) pCallbackContext->customData, SERVICE_CALL_RESULT_OK, (UPLOAD_HANDLE) 0));
+    MUTEX_UNLOCK(pClient->mTestClientMutex);
+
+    return STATUS_SUCCESS;
+}
+
 STATUS ClientTestBase::tagResourceFunc(UINT64 customData,
                                      PCHAR resourceArn,
                                      UINT32 tagCount,
@@ -889,9 +959,9 @@ STATUS ClientTestBase::tagResourceFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mTagResourceFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mTagResourceFuncCount);
 
     STRCPY(pClient->mResourceArn, resourceArn);
     pClient->mTagCount = tagCount;
@@ -921,9 +991,9 @@ STATUS ClientTestBase::createDeviceFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mCreateDeviceFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mCreateDeviceFuncCount);
 
     STRCPY(pClient->mDeviceName, deviceName);
 
@@ -943,6 +1013,7 @@ STATUS ClientTestBase::createDeviceFunc(UINT64 customData,
         EXPECT_EQ(STATUS_SUCCESS,
                   createDeviceResultEvent(pCallbackContext->customData, SERVICE_CALL_RESULT_OK, TEST_DEVICE_ARN));
     }
+    ATOMIC_INCREMENT(&pClient->mCreateDeviceDoneFuncCount);
     MUTEX_UNLOCK(pClient->mTestClientMutex);
 
     return STATUS_SUCCESS;
@@ -957,9 +1028,9 @@ STATUS ClientTestBase::deviceCertToTokenFunc(UINT64 customData,
     ClientTestBase *pClient = (ClientTestBase*) customData;
 
     MUTEX_LOCK(pClient->mTestClientMutex);
-    EXPECT_TRUE(pClient != NULL && pClient->mMagic == TEST_CLIENT_MAGIC_NUMBER);
+    EXPECT_TRUE(pClient != NULL && ATOMIC_LOAD(&pClient->mMagic) == TEST_CLIENT_MAGIC_NUMBER);
 
-    pClient->mDeviceCertToTokenFuncCount++;
+    ATOMIC_INCREMENT(&pClient->mDeviceCertToTokenFuncCount);
 
     STRCPY(pClient->mDeviceName, deviceName);
 

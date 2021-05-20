@@ -32,6 +32,11 @@ UINT8 HeapTestBase::mScratchBuf[];
 
 VOID HeapTestBase::SetUpInternal()
 {
+    globalDlOpen = HeapTestBase::mockDlOpen;
+    globalDlClose = HeapTestBase::mockDlClose;
+    globalDlSym = HeapTestBase::mockDlSym;
+    globalDlError = HeapTestBase::mockDlError;
+
     mVramGetMax = MIN_HEAP_SIZE * 2;
     mVramInit = 0;
     mVramFree = 0;
@@ -57,16 +62,15 @@ VOID HeapTestBase::SetUpInternal()
     mDlCloseCount = 0;
 }
 
-VOID HeapTestBase::SetUpTestCase()
-{
-    globalDlOpen = HeapTestBase::mockDlOpen;
-    globalDlClose = HeapTestBase::mockDlClose;
-    globalDlSym = HeapTestBase::mockDlSym;
-    globalDlError = HeapTestBase::mockDlError;
-}
-
 VOID HeapTestBase::SetUp()
 {
+    UINT32 logLevel = 0;
+    auto logLevelStr = GETENV("AWS_KVS_LOG_LEVEL");
+    if (logLevelStr != NULL) {
+        assert(STRTOUI32(logLevelStr, NULL, 10, &logLevel) == STATUS_SUCCESS);
+        SET_LOGGER_LOG_LEVEL(logLevel);
+    }
+
     SetUpInternal();
 }
 

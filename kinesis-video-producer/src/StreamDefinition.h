@@ -14,9 +14,6 @@
 
 #define DEFAULT_TRACK_ID 1
 
-using namespace std;
-using namespace std::chrono;
-
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /**
@@ -25,8 +22,8 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
  */
 typedef struct StreamTrackInfo__ {
     const uint64_t track_id;
-    const string track_name;
-    const string codec_id;
+    const std::string track_name;
+    const std::string codec_id;
     const uint8_t* cpd;
     uint32_t cpd_size;
     MKV_TRACK_INFO_TYPE track_type;
@@ -45,15 +42,15 @@ public:
      * @param tags The Kinesis Video PIC stream tags which should be set for this stream.
      */
     StreamDefinition(
-            string stream_name,
-            duration<uint64_t, ratio<3600>> retention_period,
-            const map<string, string>* tags = nullptr,
-            string kms_key_id = "",
+            std::string stream_name,
+            std::chrono::duration<uint64_t, std::ratio<3600>> retention_period,
+            const std::map<std::string, std::string>* tags = nullptr,
+            std::string kms_key_id = "",
             STREAMING_TYPE streaming_type = STREAMING_TYPE_REALTIME,
-            string content_type = "video/h264",
-            duration<uint64_t, milli> max_latency = milliseconds::zero(),
-            duration<uint64_t, milli> fragment_duration = milliseconds(2000),
-            duration<uint64_t, milli> timecode_scale = milliseconds(1),
+            std::string content_type = "video/h264",
+            std::chrono::duration<uint64_t, std::milli> max_latency = std::chrono::milliseconds::zero(),
+            std::chrono::duration<uint64_t, std::milli> fragment_duration = std::chrono::milliseconds(2000),
+            std::chrono::duration<uint64_t, std::milli> timecode_scale = std::chrono::milliseconds(1),
             bool key_frame_fragmentation = true,
             bool frame_timecodes = true,
             bool absolute_fragment_times = true,
@@ -63,21 +60,23 @@ public:
             uint32_t nal_adaptation_flags = NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
             uint32_t frame_rate = 25,
             uint32_t avg_bandwidth_bps = 4 * 1024 * 1024,
-            duration<uint64_t> buffer_duration = seconds(120),
-            duration<uint64_t> replay_duration = seconds(40),
-            duration<uint64_t> connection_staleness = seconds(30),
-            string codec_id = "V_MPEG4/ISO/AVC",
-            string track_name = "kinesis_video",
+            std::chrono::duration<uint64_t> buffer_duration = std::chrono::seconds(120),
+            std::chrono::duration<uint64_t> replay_duration = std::chrono::seconds(40),
+            std::chrono::duration<uint64_t> connection_staleness = std::chrono::seconds(30),
+            std::string codec_id = "V_MPEG4/ISO/AVC",
+            std::string track_name = "kinesis_video",
             const uint8_t* codecPrivateData = nullptr,
             uint32_t codecPrivateDataSize = 0,
             MKV_TRACK_INFO_TYPE track_type = MKV_TRACK_INFO_TYPE_VIDEO,
-            const vector<uint8_t> segment_uuid = vector<uint8_t>(),
-            const uint64_t default_track_id = DEFAULT_TRACK_ID
+            const std::vector<uint8_t> segment_uuid = std::vector<uint8_t>(),
+            const uint64_t default_track_id = DEFAULT_TRACK_ID,
+            CONTENT_STORE_PRESSURE_POLICY contentStorePressurePolicy = CONTENT_STORE_PRESSURE_POLICY_DROP_TAIL_ITEM,
+            CONTENT_VIEW_OVERFLOW_POLICY contentViewOverflowPolicy = CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START
     );
 
     void addTrack(const uint64_t track_id,
-                  const string &track_name,
-                  const string &codec_id,
+                  const std::string &track_name,
+                  const std::string &codec_id,
                   MKV_TRACK_INFO_TYPE track_type,
                   const uint8_t* codecPrivateData = nullptr,
                   uint32_t codecPrivateDataSize = 0);
@@ -89,7 +88,7 @@ public:
     /**
      * @return A reference to the human readable stream name.
      */
-    const string& getStreamName() const;
+    const std::string& getStreamName() const;
 
     /**
      * @return A the number of tracks
@@ -105,7 +104,7 @@ private:
     /**
      * Human readable name of the stream. Usually: <sensor ID>.camera_<stream_tag>
      */
-    string stream_name_;
+    std::string stream_name_;
 
     /**
      * Map of key/value pairs to be added as tags on the Kinesis Video stream
@@ -115,7 +114,7 @@ private:
     /**
      * Vector of StreamTrackInfo that contain track metadata
      */
-    vector<StreamTrackInfo> track_info_;
+    std::vector<StreamTrackInfo> track_info_;
 
     /**
      * The underlying object

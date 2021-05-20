@@ -4,8 +4,7 @@
 #define LOG_CLASS "StreamLatencyStateMachine"
 #include "Include_i.h"
 
-STATUS setStreamLatencyStateMachine(PCallbackStateMachine pCallbackStateMachine,
-                                    STREAM_CALLBACK_HANDLING_STATE currState, UINT64 currTime,
+STATUS setStreamLatencyStateMachine(PCallbackStateMachine pCallbackStateMachine, STREAM_CALLBACK_HANDLING_STATE currState, UINT64 currTime,
                                     UINT64 quietTime, UINT64 backToNormalTime)
 {
     ENTERS();
@@ -25,8 +24,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS streamLatencyStateMachineToResetConnectionState(STREAM_HANDLE streamHandle,
-                                                       PStreamLatencyStateMachine pStreamLatencyStateMachine)
+STATUS streamLatencyStateMachineToResetConnectionState(STREAM_HANDLE streamHandle, PStreamLatencyStateMachine pStreamLatencyStateMachine)
 {
     STATUS retStatus = STATUS_SUCCESS;
     CHK(pStreamLatencyStateMachine != NULL, STATUS_NULL_ARG);
@@ -61,8 +59,7 @@ VOID streamLatencyStateMachineSetInfiniteRetryState(PStreamLatencyStateMachine p
     pStreamLatencyStateMachine->currentState = STREAM_CALLBACK_HANDLING_STATE_INFINITE_RETRY_STATE;
 }
 
-STATUS streamLatencyStateMachineDoInfiniteRetry(STREAM_HANDLE streamHandle,
-                                                PStreamLatencyStateMachine pStreamLatencyStateMachine)
+STATUS streamLatencyStateMachineDoInfiniteRetry(STREAM_HANDLE streamHandle, PStreamLatencyStateMachine pStreamLatencyStateMachine)
 {
     STATUS retStatus = STATUS_SUCCESS;
 
@@ -77,8 +74,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS streamLatencyStateMachineHandleStreamLatency(STREAM_HANDLE streamHandle,
-                                                    PStreamLatencyStateMachine pStreamLatencyStateMachine)
+STATUS streamLatencyStateMachineHandleStreamLatency(STREAM_HANDLE streamHandle, PStreamLatencyStateMachine pStreamLatencyStateMachine)
 {
     STATUS retStatus = STATUS_SUCCESS;
     PCallbacksProvider pCallbacksProvider;
@@ -87,14 +83,14 @@ STATUS streamLatencyStateMachineHandleStreamLatency(STREAM_HANDLE streamHandle,
 
     pCallbacksProvider = pStreamLatencyStateMachine->pCallbackStateMachine->pContinuousRetryStreamCallbacks->pCallbacksProvider;
     pStreamLatencyStateMachine->currTime = pCallbacksProvider->clientCallbacks.getCurrentTimeFn(pCallbacksProvider->clientCallbacks.customData);
-    DLOGS("currTime: %" PRIu64 ", quietTime: %" PRIu64 ", backToNormalTime: %" PRIu64 "",
-          pStreamLatencyStateMachine->currTime, pStreamLatencyStateMachine->quietTime, pStreamLatencyStateMachine->backToNormalTime);
+    DLOGS("currTime: %" PRIu64 ", quietTime: %" PRIu64 ", backToNormalTime: %" PRIu64 "", pStreamLatencyStateMachine->currTime,
+          pStreamLatencyStateMachine->quietTime, pStreamLatencyStateMachine->backToNormalTime);
     if (pStreamLatencyStateMachine->currTime > pStreamLatencyStateMachine->backToNormalTime) {
         pStreamLatencyStateMachine->currentState = STREAM_CALLBACK_HANDLING_STATE_NORMAL_STATE;
     }
 
-    if (pStreamLatencyStateMachine->currTime > pStreamLatencyStateMachine->quietTime){
-        switch(pStreamLatencyStateMachine->currentState) {
+    if (pStreamLatencyStateMachine->currTime > pStreamLatencyStateMachine->quietTime) {
+        switch (pStreamLatencyStateMachine->currentState) {
             case STREAM_CALLBACK_HANDLING_STATE_NORMAL_STATE:
                 DLOGD("Stream Latency State Machine starting from NORMAL_STATE");
                 CHK_STATUS(streamLatencyStateMachineToResetConnectionState(streamHandle, pStreamLatencyStateMachine));
@@ -119,4 +115,3 @@ STATUS streamLatencyStateMachineHandleStreamLatency(STREAM_HANDLE streamHandle,
 CleanUp:
     return retStatus;
 }
-

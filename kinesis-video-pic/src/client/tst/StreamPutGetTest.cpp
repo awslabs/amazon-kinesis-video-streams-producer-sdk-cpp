@@ -41,10 +41,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundary)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -136,10 +136,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleaved)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -231,10 +231,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetFrameBoundaryInterleavedUnderrun)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -340,10 +340,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetInterleavedUnderrun)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -439,10 +439,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBuffer)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -533,10 +533,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetHalfBufferInterleaved) {
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -653,10 +653,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetDoubleBuffer)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -750,10 +750,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonBoundaryBuffer)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -863,10 +863,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -882,9 +882,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
 
     // Consume frames on the boundary and validate
 
-    for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+    // The first cluster frames will be skipped due to no-key-frame start
+    for (i = 10, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         // The first frame will have the cluster and MKV overhead
-        if (i == 0) {
+        if (i == 10) {
             offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
             // Cluster start will have cluster overhead
@@ -897,20 +898,28 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrame)
         // Set the buffer size to be the offset + frame bits size
         bufferSize = SIZEOF(tempBuffer) + offset;
 
-        EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
-        EXPECT_EQ(bufferSize, filledSize);
+        if (timestamp < TEST_BUFFER_DURATION - 10 * TEST_LONG_FRAME_DURATION) {
+            EXPECT_EQ(STATUS_SUCCESS,
+                      getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
+                                                &filledSize));
+            EXPECT_EQ(bufferSize, filledSize);
 
-        // Validate the fill pattern
-        validPattern = TRUE;
-        for (j = 0; j < SIZEOF(tempBuffer); j++) {
-            if (getDataBuffer[offset + j] != i) {
-                validPattern = FALSE;
-                break;
+            // Validate the fill pattern
+            validPattern = TRUE;
+            for (j = 0; j < SIZEOF(tempBuffer); j++) {
+                if (getDataBuffer[offset + j] != i) {
+                    validPattern = FALSE;
+                    break;
+                }
             }
-        }
 
-        EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+            EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+        } else {
+            // We should get STATUS_NO_MORE_DATA_AVAILABLE
+            EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
+                      getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
+                                                &filledSize));
+        }
     }
 }
 
@@ -952,10 +961,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -971,9 +980,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
 
     // Consume frames on the boundary and validate
 
-    for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+    // The first cluster frames will be dropped as the frame is not marked as a key-frame at start
+    for (i = 10, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         // The first frame will have the cluster and MKV overhead
-        if (i == 0) {
+        if (i == 10) {
             // CPD + CPD elem size + CPD encoded len
             offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
@@ -987,20 +997,28 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd1Byte)
         // Set the buffer size to be the offset + frame bits size
         bufferSize = SIZEOF(tempBuffer) + offset;
 
-        EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
-        EXPECT_EQ(bufferSize, filledSize);
+        if (timestamp < TEST_BUFFER_DURATION - 10 * TEST_LONG_FRAME_DURATION) {
+            EXPECT_EQ(STATUS_SUCCESS,
+                      getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
+                                                &filledSize));
+            EXPECT_EQ(bufferSize, filledSize);
 
-        // Validate the fill pattern
-        validPattern = TRUE;
-        for (j = 0; j < SIZEOF(tempBuffer); j++) {
-            if (getDataBuffer[offset + j] != i) {
-                validPattern = FALSE;
-                break;
+            // Validate the fill pattern
+            validPattern = TRUE;
+            for (j = 0; j < SIZEOF(tempBuffer); j++) {
+                if (getDataBuffer[offset + j] != i) {
+                    validPattern = FALSE;
+                    break;
+                }
             }
-        }
 
-        EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+            EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+        } else {
+            // Should be getting no more data
+            EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
+                      getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
+                                                &filledSize));
+        }
     }
 }
 
@@ -1042,10 +1060,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -1061,9 +1079,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
 
     // Consume frames on the boundary and validate
 
-    for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+    // The first cluster frames will be skipped due to non-key-frame start.
+    for (i = 10, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         // The first frame will have the cluster and MKV overhead
-        if (i == 0) {
+        if (i == 10) {
             // CPD + CPD elem size + CPD encoded len
             offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
@@ -1077,20 +1096,28 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd2Byte)
         // Set the buffer size to be the offset + frame bits size
         bufferSize = SIZEOF(tempBuffer) + offset;
 
-        EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
-        EXPECT_EQ(bufferSize, filledSize);
+        if (timestamp < TEST_BUFFER_DURATION - 10 * TEST_LONG_FRAME_DURATION) {
+            EXPECT_EQ(STATUS_SUCCESS,
+                      getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
+                                                &filledSize));
+            EXPECT_EQ(bufferSize, filledSize);
 
-        // Validate the fill pattern
-        validPattern = TRUE;
-        for (j = 0; j < SIZEOF(tempBuffer); j++) {
-            if (getDataBuffer[offset + j] != i) {
-                validPattern = FALSE;
-                break;
+            // Validate the fill pattern
+            validPattern = TRUE;
+            for (j = 0; j < SIZEOF(tempBuffer); j++) {
+                if (getDataBuffer[offset + j] != i) {
+                    validPattern = FALSE;
+                    break;
+                }
             }
-        }
 
-        EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+            EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+        } else {
+            // Should be getting no more data status due to skipped frames at the start
+            EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
+                      getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
+                                                &filledSize));
+        }
     }
 }
 
@@ -1134,10 +1161,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
         EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(mStreamHandle, &frame));
 
         // Ensure put stream is called
-        EXPECT_EQ(1, mPutStreamFuncCount);
+        EXPECT_EQ(1, ATOMIC_LOAD(&mPutStreamFuncCount));
         EXPECT_EQ(0, STRCMP(TEST_STREAM_NAME, mStreamName));
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_ENDPOINT, mStreamingEndpoint));
-        EXPECT_EQ(TRUE, mAckRequired);
+        EXPECT_EQ(TRUE, ATOMIC_LOAD_BOOL(&mAckRequired));
         // Need to ensure we have a streaming token in the auth
         EXPECT_EQ(SIZEOF(TEST_STREAMING_TOKEN), mCallContext.pAuthInfo->size);
         EXPECT_EQ(0, STRCMP(TEST_STREAMING_TOKEN, (PCHAR) mCallContext.pAuthInfo->data));
@@ -1153,9 +1180,10 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
 
     // Consume frames on the boundary and validate
 
-    for (i = 0, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
+    // The first cluster frames will be skipped due to a non-key-frame start
+    for (i = 10, timestamp = 0; timestamp < TEST_BUFFER_DURATION; timestamp += TEST_LONG_FRAME_DURATION, i++) {
         // The first frame will have the cluster and MKV overhead
-        if (i == 0) {
+        if (i == 10) {
             // CPD + CPD elem size + CPD encoded len
             offset = mkvgenGetMkvHeaderOverhead((PStreamMkvGenerator) FROM_STREAM_HANDLE(mStreamHandle)->pMkvGenerator);
         } else if (i % 10 == 0) {
@@ -1169,20 +1197,28 @@ TEST_F(StreamPutGetTest, putFrame_PutGetNonKeyFrameFirstFrameCpd3Byte)
         // Set the buffer size to be the offset + frame bits size
         bufferSize = SIZEOF(tempBuffer) + offset;
 
-        EXPECT_EQ(STATUS_SUCCESS,
-                  getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize, &filledSize));
-        EXPECT_EQ(bufferSize, filledSize);
+        if (timestamp < TEST_BUFFER_DURATION - 10 * TEST_LONG_FRAME_DURATION) {
+            EXPECT_EQ(STATUS_SUCCESS,
+                      getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
+                                                &filledSize));
+            EXPECT_EQ(bufferSize, filledSize);
 
-        // Validate the fill pattern
-        validPattern = TRUE;
-        for (j = 0; j < SIZEOF(tempBuffer); j++) {
-            if (getDataBuffer[offset + j] != i) {
-                validPattern = FALSE;
-                break;
+            // Validate the fill pattern
+            validPattern = TRUE;
+            for (j = 0; j < SIZEOF(tempBuffer); j++) {
+                if (getDataBuffer[offset + j] != i) {
+                    validPattern = FALSE;
+                    break;
+                }
             }
-        }
 
-        EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+            EXPECT_TRUE(validPattern) << "Failed at offset: " << j << " from the beginning of frame: " << i;
+        } else {
+            // We should be getting no more data status as we skipped the first frames
+            EXPECT_EQ(STATUS_NO_MORE_DATA_AVAILABLE,
+                      getKinesisVideoStreamData(mStreamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, bufferSize,
+                                                &filledSize));
+        }
     }
     MEMFREE(cpd);
     MEMFREE(getDataBuffer);
@@ -1452,7 +1488,7 @@ TEST_F(StreamPutGetTest, putFrame_PutGetPreTagsStoreData)
     MEMFREE(getDataBuffer);
 }
 
-TEST_F(StreamPutGetTest, DISABLED_putFrame_PutGetTagsBeforeStoreData)
+TEST_F(StreamPutGetTest, putFrame_PutGetTagsBeforeStoreData)
 {
     UINT32 i, filledSize;
     BYTE tempBuffer[100];
@@ -1518,7 +1554,7 @@ TEST_F(StreamPutGetTest, DISABLED_putFrame_PutGetTagsBeforeStoreData)
     ASSERT_TRUE(retStatus == STATUS_SUCCESS || retStatus == STATUS_NO_MORE_DATA_AVAILABLE);
 
     // Manually pre-validated data file size
-    EXPECT_EQ(6700, filledSize);
+    EXPECT_EQ(6703, filledSize);
 
     // Store the data in a file
     EXPECT_EQ(STATUS_SUCCESS, writeFile((PCHAR) "test_insert_pre_tags.mkv", TRUE, FALSE, getDataBuffer, filledSize));

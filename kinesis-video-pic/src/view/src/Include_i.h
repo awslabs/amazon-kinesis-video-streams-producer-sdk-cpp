@@ -6,7 +6,7 @@ Main internal include file
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -14,9 +14,6 @@ extern "C" {
 // Project include files
 ////////////////////////////////////////////////////
 #include "com/amazonaws/kinesis/video/view/Include.h"
-
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
 
 ////////////////////////////////////////////////////
 // General defines and data structures
@@ -29,9 +26,13 @@ extern "C" {
 
 /**
  * ContentView internal structure
+ *
+ * IMPORTANT! This structure is tightly packed without the compiler directives.
  */
 typedef struct {
     // The original public structure
+    // IMPORTANT! The contentView is 32 bit and together with the allocationSize field following
+    // it will be 64 bit packed together with the rest of the structure
     ContentView contentView;
 
     // Overall allocation size
@@ -53,12 +54,17 @@ typedef struct {
     // Buffer duration to keep
     UINT64 bufferDuration;
 
+    // Controls how content view drop frames when it's overflown
+    CONTENT_VIEW_OVERFLOW_POLICY bufferOverflowStrategy;
+
+    // Ensure the struct is 64 bit packed. If a UINT32 field need to be added in the future this variable can be used.
+    UINT32 reserved;
+
     // The size of the buffer
     UINT64 itemBufferCount;
 
     // The actual buffer which follows immediately after the structure
     PViewItem itemBuffer;
-
 } RollingContentView, *PRollingContentView;
 
 ////////////////////////////////////////////////////
@@ -66,9 +72,7 @@ typedef struct {
 ////////////////////////////////////////////////////
 PViewItem findViewItemWithTimestamp(PRollingContentView, PViewItem, PViewItem, UINT64, BOOL);
 
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __CONTENT_VIEW_INCLUDE_I__ */
+#endif /* __CONTENT_VIEW_INCLUDE_I__ */

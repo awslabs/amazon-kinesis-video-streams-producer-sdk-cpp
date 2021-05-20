@@ -6,7 +6,7 @@
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -22,9 +22,6 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/view/Include.h>
 #include <com/amazonaws/kinesis/video/heap/Include.h>
 #include <com/amazonaws/kinesis/video/state/Include.h>
-
-// For tight packing
-#pragma pack(push, include, 1) // for byte alignment
 
 /**
  * Device/Client state transitions
@@ -67,140 +64,144 @@ extern "C" {
 ////////////////////////////////////////////////////
 // Status return codes
 ////////////////////////////////////////////////////
-#define STATUS_CLIENT_BASE                                                          0x52000000
-#define STATUS_MAX_STREAM_COUNT                                                     STATUS_CLIENT_BASE + 0x00000001
-#define STATUS_MIN_STREAM_COUNT                                                     STATUS_CLIENT_BASE + 0x00000002
-#define STATUS_INVALID_DEVICE_NAME_LENGTH                                           STATUS_CLIENT_BASE + 0x00000003
-#define STATUS_INVALID_DEVICE_INFO_VERSION                                          STATUS_CLIENT_BASE + 0x00000004
-#define STATUS_MAX_TAG_COUNT                                                        STATUS_CLIENT_BASE + 0x00000005
-#define STATUS_DEVICE_FINGERPRINT_LENGTH                                            STATUS_CLIENT_BASE + 0x00000006
-#define STATUS_INVALID_CALLBACKS_VERSION                                            STATUS_CLIENT_BASE + 0x00000007
-#define STATUS_INVALID_STREAM_INFO_VERSION                                          STATUS_CLIENT_BASE + 0x00000008
-#define STATUS_INVALID_STREAM_NAME_LENGTH                                           STATUS_CLIENT_BASE + 0x00000009
-#define STATUS_INVALID_STORAGE_SIZE                                                 STATUS_CLIENT_BASE + 0x0000000a
-#define STATUS_INVALID_ROOT_DIRECTORY_LENGTH                                        STATUS_CLIENT_BASE + 0x0000000b
-#define STATUS_INVALID_SPILL_RATIO                                                  STATUS_CLIENT_BASE + 0x0000000c
-#define STATUS_INVALID_STORAGE_INFO_VERSION                                         STATUS_CLIENT_BASE + 0x0000000d
-#define STATUS_SERVICE_CALL_CALLBACKS_MISSING                                       STATUS_CLIENT_BASE + 0x0000000f
-#define STATUS_SERVICE_CALL_NOT_AUTHORIZED_ERROR                                    STATUS_CLIENT_BASE + 0x00000010
-#define STATUS_DESCRIBE_STREAM_CALL_FAILED                                          STATUS_CLIENT_BASE + 0x00000011
-#define STATUS_INVALID_DESCRIBE_STREAM_RESPONSE                                     STATUS_CLIENT_BASE + 0x00000012
-#define STATUS_STREAM_IS_BEING_DELETED_ERROR                                        STATUS_CLIENT_BASE + 0x00000013
-#define STATUS_SERVICE_CALL_INVALID_ARG_ERROR                                       STATUS_CLIENT_BASE + 0x00000014
-#define STATUS_SERVICE_CALL_DEVICE_NOT_FOND_ERROR                                   STATUS_CLIENT_BASE + 0x00000015
-#define STATUS_SERVICE_CALL_DEVICE_NOT_PROVISIONED_ERROR                            STATUS_CLIENT_BASE + 0x00000016
-#define STATUS_SERVICE_CALL_RESOURCE_NOT_FOUND_ERROR                                STATUS_CLIENT_BASE + 0x00000017
-#define STATUS_INVALID_AUTH_LEN                                                     STATUS_CLIENT_BASE + 0x00000018
-#define STATUS_CREATE_STREAM_CALL_FAILED                                            STATUS_CLIENT_BASE + 0x00000019
-#define STATUS_GET_STREAMING_TOKEN_CALL_FAILED                                      STATUS_CLIENT_BASE + 0x0000002a
-#define STATUS_GET_STREAMING_ENDPOINT_CALL_FAILED                                   STATUS_CLIENT_BASE + 0x0000002b
-#define STATUS_INVALID_URI_LEN                                                      STATUS_CLIENT_BASE + 0x0000002c
-#define STATUS_PUT_STREAM_CALL_FAILED                                               STATUS_CLIENT_BASE + 0x0000002d
-#define STATUS_STORE_OUT_OF_MEMORY                                                  STATUS_CLIENT_BASE + 0x0000002e
-#define STATUS_NO_MORE_DATA_AVAILABLE                                               STATUS_CLIENT_BASE + 0x0000002f
-#define STATUS_INVALID_TAG_VERSION                                                  STATUS_CLIENT_BASE + 0x00000030
-#define STATUS_SERVICE_CALL_UNKOWN_ERROR                                            STATUS_CLIENT_BASE + 0x00000031
-#define STATUS_SERVICE_CALL_RESOURCE_IN_USE_ERROR                                   STATUS_CLIENT_BASE + 0x00000032
-#define STATUS_SERVICE_CALL_CLIENT_LIMIT_ERROR                                      STATUS_CLIENT_BASE + 0x00000033
-#define STATUS_SERVICE_CALL_DEVICE_LIMIT_ERROR                                      STATUS_CLIENT_BASE + 0x00000034
-#define STATUS_SERVICE_CALL_STREAM_LIMIT_ERROR                                      STATUS_CLIENT_BASE + 0x00000035
-#define STATUS_SERVICE_CALL_RESOURCE_DELETED_ERROR                                  STATUS_CLIENT_BASE + 0x00000036
-#define STATUS_SERVICE_CALL_TIMEOUT_ERROR                                           STATUS_CLIENT_BASE + 0x00000037
-#define STATUS_STREAM_READY_CALLBACK_FAILED                                         STATUS_CLIENT_BASE + 0x00000038
-#define STATUS_DEVICE_TAGS_COUNT_NON_ZERO_TAGS_NULL                                 STATUS_CLIENT_BASE + 0x00000039
-#define STATUS_INVALID_STREAM_DESCRIPTION_VERSION                                   STATUS_CLIENT_BASE + 0x0000003a
-#define STATUS_INVALID_TAG_NAME_LEN                                                 STATUS_CLIENT_BASE + 0x0000003b
-#define STATUS_INVALID_TAG_VALUE_LEN                                                STATUS_CLIENT_BASE + 0x0000003c
-#define STATUS_TAG_STREAM_CALL_FAILED                                               STATUS_CLIENT_BASE + 0x0000003d
-#define STATUS_INVALID_CUSTOM_DATA                                                  STATUS_CLIENT_BASE + 0x0000003e
-#define STATUS_INVALID_CREATE_STREAM_RESPONSE                                       STATUS_CLIENT_BASE + 0x0000003f
-#define STATUS_CLIENT_AUTH_CALL_FAILED                                              STATUS_CLIENT_BASE + 0x00000040
-#define STATUS_GET_CLIENT_TOKEN_CALL_FAILED                                         STATUS_CLIENT_BASE + 0x00000041
-#define STATUS_CLIENT_PROVISION_CALL_FAILED                                         STATUS_CLIENT_BASE + 0x00000042
-#define STATUS_CREATE_CLIENT_CALL_FAILED                                            STATUS_CLIENT_BASE + 0x00000043
-#define STATUS_CLIENT_READY_CALLBACK_FAILED                                         STATUS_CLIENT_BASE + 0x00000044
-#define STATUS_TAG_CLIENT_CALL_FAILED                                               STATUS_CLIENT_BASE + 0x00000045
-#define STATUS_INVALID_CREATE_DEVICE_RESPONSE                                       STATUS_CLIENT_BASE + 0x00000046
-#define STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW                                     STATUS_CLIENT_BASE + 0x00000047
-#define STATUS_INVALID_FRAGMENT_ACK_VERSION                                         STATUS_CLIENT_BASE + 0x00000048
-#define STATUS_INVALID_TOKEN_EXPIRATION                                             STATUS_CLIENT_BASE + 0x00000049
-#define STATUS_END_OF_STREAM                                                        STATUS_CLIENT_BASE + 0x0000004a
-#define STATUS_DUPLICATE_STREAM_NAME                                                STATUS_CLIENT_BASE + 0x0000004b
-#define STATUS_INVALID_RETENTION_PERIOD                                             STATUS_CLIENT_BASE + 0x0000004c
-#define STATUS_INVALID_ACK_KEY_START                                                STATUS_CLIENT_BASE + 0x0000004d
-#define STATUS_INVALID_ACK_DUPLICATE_KEY_NAME                                       STATUS_CLIENT_BASE + 0x0000004e
-#define STATUS_INVALID_ACK_INVALID_VALUE_START                                      STATUS_CLIENT_BASE + 0x0000004f
-#define STATUS_INVALID_ACK_INVALID_VALUE_END                                        STATUS_CLIENT_BASE + 0x00000050
-#define STATUS_INVALID_PARSED_ACK_TYPE                                              STATUS_CLIENT_BASE + 0x00000051
-#define STATUS_STREAM_HAS_BEEN_STOPPED                                              STATUS_CLIENT_BASE + 0x00000052
-#define STATUS_INVALID_STREAM_METRICS_VERSION                                       STATUS_CLIENT_BASE + 0x00000053
-#define STATUS_INVALID_CLIENT_METRICS_VERSION                                       STATUS_CLIENT_BASE + 0x00000054
-#define STATUS_INVALID_CLIENT_READY_STATE                                           STATUS_CLIENT_BASE + 0x00000055
-#define STATUS_INVALID_FRAGMENT_ACK_TYPE                                            STATUS_CLIENT_BASE + 0x00000057
-#define STATUS_INVALID_STREAM_READY_STATE                                           STATUS_CLIENT_BASE + 0x00000058
-#define STATUS_CLIENT_FREED_BEFORE_STREAM                                           STATUS_CLIENT_BASE + 0x00000059
-#define STATUS_ALLOCATION_SIZE_SMALLER_THAN_REQUESTED                               STATUS_CLIENT_BASE + 0x0000005a
-#define STATUS_VIEW_ITEM_SIZE_GREATER_THAN_ALLOCATION                               STATUS_CLIENT_BASE + 0x0000005b
-#define STATUS_ACK_ERR_STREAM_READ_ERROR                                            STATUS_CLIENT_BASE + 0x0000005c
-#define STATUS_ACK_ERR_FRAGMENT_SIZE_REACHED                                        STATUS_CLIENT_BASE + 0x0000005d
-#define STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED                                    STATUS_CLIENT_BASE + 0x0000005e
-#define STATUS_ACK_ERR_CONNECTION_DURATION_REACHED                                  STATUS_CLIENT_BASE + 0x0000005f
-#define STATUS_ACK_ERR_FRAGMENT_TIMECODE_NOT_MONOTONIC                              STATUS_CLIENT_BASE + 0x00000060
-#define STATUS_ACK_ERR_MULTI_TRACK_MKV                                              STATUS_CLIENT_BASE + 0x00000061
-#define STATUS_ACK_ERR_INVALID_MKV_DATA                                             STATUS_CLIENT_BASE + 0x00000062
-#define STATUS_ACK_ERR_INVALID_PRODUCER_TIMESTAMP                                   STATUS_CLIENT_BASE + 0x00000063
-#define STATUS_ACK_ERR_STREAM_NOT_ACTIVE                                            STATUS_CLIENT_BASE + 0x00000064
-#define STATUS_ACK_ERR_KMS_KEY_ACCESS_DENIED                                        STATUS_CLIENT_BASE + 0x00000065
-#define STATUS_ACK_ERR_KMS_KEY_DISABLED                                             STATUS_CLIENT_BASE + 0x00000066
-#define STATUS_ACK_ERR_KMS_KEY_VALIDATION_ERROR                                     STATUS_CLIENT_BASE + 0x00000067
-#define STATUS_ACK_ERR_KMS_KEY_UNAVAILABLE                                          STATUS_CLIENT_BASE + 0x00000068
-#define STATUS_ACK_ERR_KMS_KEY_INVALID_USAGE                                        STATUS_CLIENT_BASE + 0x00000069
-#define STATUS_ACK_ERR_KMS_KEY_INVALID_STATE                                        STATUS_CLIENT_BASE + 0x0000006a
-#define STATUS_ACK_ERR_KMS_KEY_NOT_FOUND                                            STATUS_CLIENT_BASE + 0x0000006b
-#define STATUS_ACK_ERR_STREAM_DELETED                                               STATUS_CLIENT_BASE + 0x0000006c
-#define STATUS_ACK_ERR_ACK_INTERNAL_ERROR                                           STATUS_CLIENT_BASE + 0x0000006d
-#define STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR                                      STATUS_CLIENT_BASE + 0x0000006e
-#define STATUS_ACK_ERR_UNKNOWN_ACK_ERROR                                            STATUS_CLIENT_BASE + 0x0000006f
-#define STATUS_MISSING_ERR_ACK_ID                                                   STATUS_CLIENT_BASE + 0x00000070
-#define STATUS_INVALID_ACK_SEGMENT_LEN                                              STATUS_CLIENT_BASE + 0x00000071
-#define STATUS_AWAITING_PERSISTED_ACK                                               STATUS_CLIENT_BASE + 0x00000072
-#define STATUS_PERSISTED_ACK_TIMEOUT                                                STATUS_CLIENT_BASE + 0x00000073
-#define STATUS_MAX_FRAGMENT_METADATA_COUNT                                          STATUS_CLIENT_BASE + 0x00000074
-#define STATUS_ACK_ERR_FRAGMENT_METADATA_LIMIT_REACHED                              STATUS_CLIENT_BASE + 0x00000075
-#define STATUS_BLOCKING_PUT_INTERRUPTED_STREAM_TERMINATED                           STATUS_CLIENT_BASE + 0x00000076
-#define STATUS_INVALID_METADATA_NAME                                                STATUS_CLIENT_BASE + 0x00000077
-#define STATUS_END_OF_FRAGMENT_FRAME_INVALID_STATE                                  STATUS_CLIENT_BASE + 0x00000078
-#define STATUS_TRACK_INFO_MISSING                                                   STATUS_CLIENT_BASE + 0x00000079
-#define STATUS_MAX_TRACK_COUNT_EXCEEDED                                             STATUS_CLIENT_BASE + 0x0000007a
-#define STATUS_OFFLINE_MODE_WITH_ZERO_RETENTION                                     STATUS_CLIENT_BASE + 0x0000007b
-#define STATUS_ACK_ERR_TRACK_NUMBER_MISMATCH                                        STATUS_CLIENT_BASE + 0x0000007c
-#define STATUS_ACK_ERR_FRAMES_MISSING_FOR_TRACK                                     STATUS_CLIENT_BASE + 0x0000007d
-#define STATUS_ACK_ERR_MORE_THAN_ALLOWED_TRACKS_FOUND                               STATUS_CLIENT_BASE + 0x0000007e
-#define STATUS_UPLOAD_HANDLE_ABORTED                                                STATUS_CLIENT_BASE + 0x0000007f
-#define STATUS_INVALID_CERT_PATH_LENGTH                                             STATUS_CLIENT_BASE + 0x00000080
-#define STATUS_DUPLICATE_TRACK_ID_FOUND                                             STATUS_CLIENT_BASE + 0x00000081
-#define STATUS_INVALID_CLIENT_INFO_VERSION                                          STATUS_CLIENT_BASE + 0x00000082
-#define STATUS_INVALID_CLIENT_ID_STRING_LENGTH                                      STATUS_CLIENT_BASE + 0x00000083
-#define STATUS_SETTING_KEY_FRAME_FLAG_WHILE_USING_EOFR                              STATUS_CLIENT_BASE + 0x00000084
-#define STATUS_MAX_FRAME_TIMESTAMP_DELTA_BETWEEN_TRACKS_EXCEEDED                    STATUS_CLIENT_BASE + 0x00000085
-#define STATUS_STREAM_SHUTTING_DOWN                                                 STATUS_CLIENT_BASE + 0x00000086
-#define STATUS_CLIENT_SHUTTING_DOWN                                                 STATUS_CLIENT_BASE + 0x00000087
+#define STATUS_CLIENT_BASE                                       0x52000000
+#define STATUS_MAX_STREAM_COUNT                                  STATUS_CLIENT_BASE + 0x00000001
+#define STATUS_MIN_STREAM_COUNT                                  STATUS_CLIENT_BASE + 0x00000002
+#define STATUS_INVALID_DEVICE_NAME_LENGTH                        STATUS_CLIENT_BASE + 0x00000003
+#define STATUS_INVALID_DEVICE_INFO_VERSION                       STATUS_CLIENT_BASE + 0x00000004
+#define STATUS_MAX_TAG_COUNT                                     STATUS_CLIENT_BASE + 0x00000005
+#define STATUS_DEVICE_FINGERPRINT_LENGTH                         STATUS_CLIENT_BASE + 0x00000006
+#define STATUS_INVALID_CALLBACKS_VERSION                         STATUS_CLIENT_BASE + 0x00000007
+#define STATUS_INVALID_STREAM_INFO_VERSION                       STATUS_CLIENT_BASE + 0x00000008
+#define STATUS_INVALID_STREAM_NAME_LENGTH                        STATUS_CLIENT_BASE + 0x00000009
+#define STATUS_INVALID_STORAGE_SIZE                              STATUS_CLIENT_BASE + 0x0000000a
+#define STATUS_INVALID_ROOT_DIRECTORY_LENGTH                     STATUS_CLIENT_BASE + 0x0000000b
+#define STATUS_INVALID_SPILL_RATIO                               STATUS_CLIENT_BASE + 0x0000000c
+#define STATUS_INVALID_STORAGE_INFO_VERSION                      STATUS_CLIENT_BASE + 0x0000000d
+#define STATUS_SERVICE_CALL_CALLBACKS_MISSING                    STATUS_CLIENT_BASE + 0x0000000f
+#define STATUS_SERVICE_CALL_NOT_AUTHORIZED_ERROR                 STATUS_CLIENT_BASE + 0x00000010
+#define STATUS_DESCRIBE_STREAM_CALL_FAILED                       STATUS_CLIENT_BASE + 0x00000011
+#define STATUS_INVALID_DESCRIBE_STREAM_RESPONSE                  STATUS_CLIENT_BASE + 0x00000012
+#define STATUS_STREAM_IS_BEING_DELETED_ERROR                     STATUS_CLIENT_BASE + 0x00000013
+#define STATUS_SERVICE_CALL_INVALID_ARG_ERROR                    STATUS_CLIENT_BASE + 0x00000014
+#define STATUS_SERVICE_CALL_DEVICE_NOT_FOND_ERROR                STATUS_CLIENT_BASE + 0x00000015
+#define STATUS_SERVICE_CALL_DEVICE_NOT_PROVISIONED_ERROR         STATUS_CLIENT_BASE + 0x00000016
+#define STATUS_SERVICE_CALL_RESOURCE_NOT_FOUND_ERROR             STATUS_CLIENT_BASE + 0x00000017
+#define STATUS_INVALID_AUTH_LEN                                  STATUS_CLIENT_BASE + 0x00000018
+#define STATUS_CREATE_STREAM_CALL_FAILED                         STATUS_CLIENT_BASE + 0x00000019
+#define STATUS_GET_STREAMING_TOKEN_CALL_FAILED                   STATUS_CLIENT_BASE + 0x0000002a
+#define STATUS_GET_STREAMING_ENDPOINT_CALL_FAILED                STATUS_CLIENT_BASE + 0x0000002b
+#define STATUS_INVALID_URI_LEN                                   STATUS_CLIENT_BASE + 0x0000002c
+#define STATUS_PUT_STREAM_CALL_FAILED                            STATUS_CLIENT_BASE + 0x0000002d
+#define STATUS_STORE_OUT_OF_MEMORY                               STATUS_CLIENT_BASE + 0x0000002e
+#define STATUS_NO_MORE_DATA_AVAILABLE                            STATUS_CLIENT_BASE + 0x0000002f
+#define STATUS_INVALID_TAG_VERSION                               STATUS_CLIENT_BASE + 0x00000030
+#define STATUS_SERVICE_CALL_UNKOWN_ERROR                         STATUS_CLIENT_BASE + 0x00000031
+#define STATUS_SERVICE_CALL_RESOURCE_IN_USE_ERROR                STATUS_CLIENT_BASE + 0x00000032
+#define STATUS_SERVICE_CALL_CLIENT_LIMIT_ERROR                   STATUS_CLIENT_BASE + 0x00000033
+#define STATUS_SERVICE_CALL_DEVICE_LIMIT_ERROR                   STATUS_CLIENT_BASE + 0x00000034
+#define STATUS_SERVICE_CALL_STREAM_LIMIT_ERROR                   STATUS_CLIENT_BASE + 0x00000035
+#define STATUS_SERVICE_CALL_RESOURCE_DELETED_ERROR               STATUS_CLIENT_BASE + 0x00000036
+#define STATUS_SERVICE_CALL_TIMEOUT_ERROR                        STATUS_CLIENT_BASE + 0x00000037
+#define STATUS_STREAM_READY_CALLBACK_FAILED                      STATUS_CLIENT_BASE + 0x00000038
+#define STATUS_DEVICE_TAGS_COUNT_NON_ZERO_TAGS_NULL              STATUS_CLIENT_BASE + 0x00000039
+#define STATUS_INVALID_STREAM_DESCRIPTION_VERSION                STATUS_CLIENT_BASE + 0x0000003a
+#define STATUS_INVALID_TAG_NAME_LEN                              STATUS_CLIENT_BASE + 0x0000003b
+#define STATUS_INVALID_TAG_VALUE_LEN                             STATUS_CLIENT_BASE + 0x0000003c
+#define STATUS_TAG_STREAM_CALL_FAILED                            STATUS_CLIENT_BASE + 0x0000003d
+#define STATUS_INVALID_CUSTOM_DATA                               STATUS_CLIENT_BASE + 0x0000003e
+#define STATUS_INVALID_CREATE_STREAM_RESPONSE                    STATUS_CLIENT_BASE + 0x0000003f
+#define STATUS_CLIENT_AUTH_CALL_FAILED                           STATUS_CLIENT_BASE + 0x00000040
+#define STATUS_GET_CLIENT_TOKEN_CALL_FAILED                      STATUS_CLIENT_BASE + 0x00000041
+#define STATUS_CLIENT_PROVISION_CALL_FAILED                      STATUS_CLIENT_BASE + 0x00000042
+#define STATUS_CREATE_CLIENT_CALL_FAILED                         STATUS_CLIENT_BASE + 0x00000043
+#define STATUS_CLIENT_READY_CALLBACK_FAILED                      STATUS_CLIENT_BASE + 0x00000044
+#define STATUS_TAG_CLIENT_CALL_FAILED                            STATUS_CLIENT_BASE + 0x00000045
+#define STATUS_INVALID_CREATE_DEVICE_RESPONSE                    STATUS_CLIENT_BASE + 0x00000046
+#define STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW                  STATUS_CLIENT_BASE + 0x00000047
+#define STATUS_INVALID_FRAGMENT_ACK_VERSION                      STATUS_CLIENT_BASE + 0x00000048
+#define STATUS_INVALID_TOKEN_EXPIRATION                          STATUS_CLIENT_BASE + 0x00000049
+#define STATUS_END_OF_STREAM                                     STATUS_CLIENT_BASE + 0x0000004a
+#define STATUS_DUPLICATE_STREAM_NAME                             STATUS_CLIENT_BASE + 0x0000004b
+#define STATUS_INVALID_RETENTION_PERIOD                          STATUS_CLIENT_BASE + 0x0000004c
+#define STATUS_INVALID_ACK_KEY_START                             STATUS_CLIENT_BASE + 0x0000004d
+#define STATUS_INVALID_ACK_DUPLICATE_KEY_NAME                    STATUS_CLIENT_BASE + 0x0000004e
+#define STATUS_INVALID_ACK_INVALID_VALUE_START                   STATUS_CLIENT_BASE + 0x0000004f
+#define STATUS_INVALID_ACK_INVALID_VALUE_END                     STATUS_CLIENT_BASE + 0x00000050
+#define STATUS_INVALID_PARSED_ACK_TYPE                           STATUS_CLIENT_BASE + 0x00000051
+#define STATUS_STREAM_HAS_BEEN_STOPPED                           STATUS_CLIENT_BASE + 0x00000052
+#define STATUS_INVALID_STREAM_METRICS_VERSION                    STATUS_CLIENT_BASE + 0x00000053
+#define STATUS_INVALID_CLIENT_METRICS_VERSION                    STATUS_CLIENT_BASE + 0x00000054
+#define STATUS_INVALID_CLIENT_READY_STATE                        STATUS_CLIENT_BASE + 0x00000055
+#define STATUS_INVALID_FRAGMENT_ACK_TYPE                         STATUS_CLIENT_BASE + 0x00000057
+#define STATUS_INVALID_STREAM_READY_STATE                        STATUS_CLIENT_BASE + 0x00000058
+#define STATUS_CLIENT_FREED_BEFORE_STREAM                        STATUS_CLIENT_BASE + 0x00000059
+#define STATUS_ALLOCATION_SIZE_SMALLER_THAN_REQUESTED            STATUS_CLIENT_BASE + 0x0000005a
+#define STATUS_VIEW_ITEM_SIZE_GREATER_THAN_ALLOCATION            STATUS_CLIENT_BASE + 0x0000005b
+#define STATUS_ACK_ERR_STREAM_READ_ERROR                         STATUS_CLIENT_BASE + 0x0000005c
+#define STATUS_ACK_ERR_FRAGMENT_SIZE_REACHED                     STATUS_CLIENT_BASE + 0x0000005d
+#define STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED                 STATUS_CLIENT_BASE + 0x0000005e
+#define STATUS_ACK_ERR_CONNECTION_DURATION_REACHED               STATUS_CLIENT_BASE + 0x0000005f
+#define STATUS_ACK_ERR_FRAGMENT_TIMECODE_NOT_MONOTONIC           STATUS_CLIENT_BASE + 0x00000060
+#define STATUS_ACK_ERR_MULTI_TRACK_MKV                           STATUS_CLIENT_BASE + 0x00000061
+#define STATUS_ACK_ERR_INVALID_MKV_DATA                          STATUS_CLIENT_BASE + 0x00000062
+#define STATUS_ACK_ERR_INVALID_PRODUCER_TIMESTAMP                STATUS_CLIENT_BASE + 0x00000063
+#define STATUS_ACK_ERR_STREAM_NOT_ACTIVE                         STATUS_CLIENT_BASE + 0x00000064
+#define STATUS_ACK_ERR_KMS_KEY_ACCESS_DENIED                     STATUS_CLIENT_BASE + 0x00000065
+#define STATUS_ACK_ERR_KMS_KEY_DISABLED                          STATUS_CLIENT_BASE + 0x00000066
+#define STATUS_ACK_ERR_KMS_KEY_VALIDATION_ERROR                  STATUS_CLIENT_BASE + 0x00000067
+#define STATUS_ACK_ERR_KMS_KEY_UNAVAILABLE                       STATUS_CLIENT_BASE + 0x00000068
+#define STATUS_ACK_ERR_KMS_KEY_INVALID_USAGE                     STATUS_CLIENT_BASE + 0x00000069
+#define STATUS_ACK_ERR_KMS_KEY_INVALID_STATE                     STATUS_CLIENT_BASE + 0x0000006a
+#define STATUS_ACK_ERR_KMS_KEY_NOT_FOUND                         STATUS_CLIENT_BASE + 0x0000006b
+#define STATUS_ACK_ERR_STREAM_DELETED                            STATUS_CLIENT_BASE + 0x0000006c
+#define STATUS_ACK_ERR_ACK_INTERNAL_ERROR                        STATUS_CLIENT_BASE + 0x0000006d
+#define STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR                   STATUS_CLIENT_BASE + 0x0000006e
+#define STATUS_ACK_ERR_UNKNOWN_ACK_ERROR                         STATUS_CLIENT_BASE + 0x0000006f
+#define STATUS_MISSING_ERR_ACK_ID                                STATUS_CLIENT_BASE + 0x00000070
+#define STATUS_INVALID_ACK_SEGMENT_LEN                           STATUS_CLIENT_BASE + 0x00000071
+#define STATUS_AWAITING_PERSISTED_ACK                            STATUS_CLIENT_BASE + 0x00000072
+#define STATUS_PERSISTED_ACK_TIMEOUT                             STATUS_CLIENT_BASE + 0x00000073
+#define STATUS_MAX_FRAGMENT_METADATA_COUNT                       STATUS_CLIENT_BASE + 0x00000074
+#define STATUS_ACK_ERR_FRAGMENT_METADATA_LIMIT_REACHED           STATUS_CLIENT_BASE + 0x00000075
+#define STATUS_BLOCKING_PUT_INTERRUPTED_STREAM_TERMINATED        STATUS_CLIENT_BASE + 0x00000076
+#define STATUS_INVALID_METADATA_NAME                             STATUS_CLIENT_BASE + 0x00000077
+#define STATUS_END_OF_FRAGMENT_FRAME_INVALID_STATE               STATUS_CLIENT_BASE + 0x00000078
+#define STATUS_TRACK_INFO_MISSING                                STATUS_CLIENT_BASE + 0x00000079
+#define STATUS_MAX_TRACK_COUNT_EXCEEDED                          STATUS_CLIENT_BASE + 0x0000007a
+#define STATUS_OFFLINE_MODE_WITH_ZERO_RETENTION                  STATUS_CLIENT_BASE + 0x0000007b
+#define STATUS_ACK_ERR_TRACK_NUMBER_MISMATCH                     STATUS_CLIENT_BASE + 0x0000007c
+#define STATUS_ACK_ERR_FRAMES_MISSING_FOR_TRACK                  STATUS_CLIENT_BASE + 0x0000007d
+#define STATUS_ACK_ERR_MORE_THAN_ALLOWED_TRACKS_FOUND            STATUS_CLIENT_BASE + 0x0000007e
+#define STATUS_UPLOAD_HANDLE_ABORTED                             STATUS_CLIENT_BASE + 0x0000007f
+#define STATUS_INVALID_CERT_PATH_LENGTH                          STATUS_CLIENT_BASE + 0x00000080
+#define STATUS_DUPLICATE_TRACK_ID_FOUND                          STATUS_CLIENT_BASE + 0x00000081
+#define STATUS_INVALID_CLIENT_INFO_VERSION                       STATUS_CLIENT_BASE + 0x00000082
+#define STATUS_INVALID_CLIENT_ID_STRING_LENGTH                   STATUS_CLIENT_BASE + 0x00000083
+#define STATUS_SETTING_KEY_FRAME_FLAG_WHILE_USING_EOFR           STATUS_CLIENT_BASE + 0x00000084
+#define STATUS_MAX_FRAME_TIMESTAMP_DELTA_BETWEEN_TRACKS_EXCEEDED STATUS_CLIENT_BASE + 0x00000085
+#define STATUS_STREAM_SHUTTING_DOWN                              STATUS_CLIENT_BASE + 0x00000086
+#define STATUS_CLIENT_SHUTTING_DOWN                              STATUS_CLIENT_BASE + 0x00000087
+#define STATUS_PUTMEDIA_LAST_PERSIST_ACK_NOT_RECEIVED            STATUS_CLIENT_BASE + 0x00000088
+#define STATUS_NON_ALIGNED_HEAP_WITH_IN_CONTENT_STORE_ALLOCATORS STATUS_CLIENT_BASE + 0x00000089
+#define STATUS_MULTIPLE_CONSECUTIVE_EOFR                         STATUS_CLIENT_BASE + 0x0000008a
 
-#define IS_RECOVERABLE_ERROR(error)     ((error) == STATUS_ACK_ERR_INVALID_MKV_DATA ||          \
-                                        (error) == STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR ||    \
-                                        (error) == STATUS_INVALID_ACK_KEY_START ||              \
-                                        (error) == STATUS_INVALID_ACK_DUPLICATE_KEY_NAME ||     \
-                                        (error) == STATUS_INVALID_ACK_INVALID_VALUE_START ||    \
-                                        (error) == STATUS_INVALID_ACK_INVALID_VALUE_END ||      \
-                                        (error) == STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW ||   \
-                                        (error) == STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED)    \
+#define IS_RECOVERABLE_ERROR(error)                                                                                                                  \
+    ((error) == STATUS_SERVICE_CALL_RESOURCE_NOT_FOUND_ERROR || (error) == STATUS_SERVICE_CALL_RESOURCE_IN_USE_ERROR ||                              \
+     (error) == STATUS_SERVICE_CALL_TIMEOUT_ERROR || (error) == STATUS_ACK_ERR_STREAM_READ_ERROR ||                                                  \
+     (error) == STATUS_ACK_ERR_CONNECTION_DURATION_REACHED || (error) == STATUS_ACK_ERR_ACK_INTERNAL_ERROR ||                                        \
+     (error) == STATUS_ACK_ERR_FRAGMENT_ARCHIVAL_ERROR || (error) == STATUS_ACK_ERR_UNKNOWN_ACK_ERROR ||                                             \
+     (error) == STATUS_SERVICE_CALL_UNKOWN_ERROR || (error) == STATUS_INVALID_ACK_KEY_START || (error) == STATUS_INVALID_ACK_DUPLICATE_KEY_NAME ||   \
+     (error) == STATUS_INVALID_ACK_INVALID_VALUE_START || (error) == STATUS_INVALID_ACK_INVALID_VALUE_END ||                                         \
+     (error) == STATUS_ACK_TIMESTAMP_NOT_IN_VIEW_WINDOW || (error) == STATUS_PUTMEDIA_LAST_PERSIST_ACK_NOT_RECEIVED ||                               \
+     (error) == STATUS_ACK_ERR_INVALID_MKV_DATA || (error) == STATUS_ACK_ERR_FRAGMENT_TIMECODE_NOT_MONOTONIC ||                                      \
+     (error) == STATUS_ACK_ERR_FRAGMENT_DURATION_REACHED || (error) == STATUS_ACK_ERR_FRAGMENT_METADATA_LIMIT_REACHED ||                             \
+     (error) == STATUS_ACK_ERR_FRAGMENT_SIZE_REACHED || (error) == STATUS_ACK_ERR_FRAMES_MISSING_FOR_TRACK)
 
-#define IS_RETRIABLE_ERROR(error)       ((error) == STATUS_DESCRIBE_STREAM_CALL_FAILED ||       \
-                                        (error) == STATUS_CREATE_STREAM_CALL_FAILED ||          \
-                                        (error) == STATUS_GET_STREAMING_TOKEN_CALL_FAILED ||    \
-                                        (error) == STATUS_PUT_STREAM_CALL_FAILED ||             \
-                                        (error) == STATUS_GET_STREAMING_ENDPOINT_CALL_FAILED || \
-                                        (error) == STATUS_INVALID_TOKEN_EXPIRATION)             \
+#define IS_RETRIABLE_ERROR(error)                                                                                                                    \
+    ((error) == STATUS_DESCRIBE_STREAM_CALL_FAILED || (error) == STATUS_CREATE_STREAM_CALL_FAILED ||                                                 \
+     (error) == STATUS_GET_STREAMING_TOKEN_CALL_FAILED || (error) == STATUS_PUT_STREAM_CALL_FAILED ||                                                \
+     (error) == STATUS_GET_STREAMING_ENDPOINT_CALL_FAILED || (error) == STATUS_INVALID_TOKEN_EXPIRATION)
 
 ////////////////////////////////////////////////////
 // Main defines
@@ -208,237 +209,246 @@ extern "C" {
 /**
  * Max device name length in chars
  */
-#define MAX_DEVICE_NAME_LEN                      128
+#define MAX_DEVICE_NAME_LEN 128
 
 /**
  * Max stream count for sanity validation - 1M
  */
-#define MAX_STREAM_COUNT                         1000000
+#define MAX_STREAM_COUNT 1000000
 
 /**
  * Max stream name length chars
  */
-#define MAX_STREAM_NAME_LEN                      256
+#define MAX_STREAM_NAME_LEN 256
 
 /**
  * Max update version length in chars
+ * https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_DeleteSignalingChannel.html#KinesisVideo-DeleteSignalingChannel-request-CurrentVersion
  */
-#define MAX_UPDATE_VERSION_LEN                   128
+#define MAX_UPDATE_VERSION_LEN 64
 
 /**
  * Max ARN len in chars
+ * https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_DescribeSignalingChannel.html#API_DescribeSignalingChannel_RequestSyntax
+ * https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_CreateStream.html#KinesisVideo-CreateStream-request-KmsKeyId
  */
-#define MAX_ARN_LEN                              2048
+#define MAX_ARN_LEN 2048
 
 /**
  * Max len of the auth data (STS or Cert) in bytes
  */
-#define MAX_AUTH_LEN                             10000
+#define MAX_AUTH_LEN 10000
 
 /**
  * Max len of the fully qualified URI
  */
-#define MAX_URI_CHAR_LEN                         10000
+#define MAX_URI_CHAR_LEN 10000
 
 /**
  * Minimal storage allocation size = MIN heap size
  */
-#define MIN_STORAGE_ALLOCATION_SIZE              MIN_HEAP_SIZE
+#define MIN_STORAGE_ALLOCATION_SIZE MIN_HEAP_SIZE
 
 /**
  * Max storage allocation size = 10GB
  */
-#define MAX_STORAGE_ALLOCATION_SIZE              (10LLU * 1024 * 1024 * 1024)
+#define MAX_STORAGE_ALLOCATION_SIZE (10LLU * 1024 * 1024 * 1024)
 
 /**
  * Max number of fragment metadatas in the segment
  */
-#define MAX_SEGMENT_METADATA_COUNT               1024
+#define MAX_SEGMENT_METADATA_COUNT 1024
 
 /**
  * Minimal valid retention period
  */
-#define MIN_RETENTION_PERIOD                     (1 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
+#define MIN_RETENTION_PERIOD (1 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
 
 /**
  * Maximal size of the metadata queue for a fragment
  */
-#define MAX_FRAGMENT_METADATA_COUNT              10
+#define MAX_FRAGMENT_METADATA_COUNT 10
 
 /**
  * Max length of the fragment sequence number
  */
-#define MAX_FRAGMENT_SEQUENCE_NUMBER             128
+#define MAX_FRAGMENT_SEQUENCE_NUMBER 128
 
 /**
  * Max length of an entire ACK fragment which is longer than MAX_FRAGMENT_SEQUENCE_NUMBER
  */
-#define MAX_ACK_FRAGMENT_LEN                     1024
+#define MAX_ACK_FRAGMENT_LEN 1024
 
 /**
  * Min streaming token expiration duration. Currently defined as 30 seconds.
  */
-#define MIN_STREAMING_TOKEN_EXPIRATION_DURATION  (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define MIN_STREAMING_TOKEN_EXPIRATION_DURATION (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 /**
  * The max streaming token expiration duration after which the ingestion host will force terminate the connection.
  */
-#define MAX_ENFORCED_TOKEN_EXPIRATION_DURATION      (40 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
+#define MAX_ENFORCED_TOKEN_EXPIRATION_DURATION (40 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
 
 /**
  * Grace period for the streaming token expiration - 3 seconds
  */
-#define STREAMING_TOKEN_EXPIRATION_GRACE_PERIOD     (3 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define STREAMING_TOKEN_EXPIRATION_GRACE_PERIOD (3 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 /**
  * Default frame rate - NTSC standard
  */
-#define DEFAULT_FRAME_RATE                       24
+#define DEFAULT_FRAME_RATE 24
 
 /**
  * Buffer duration in seconds for streaming
  */
-#define MIN_BUFFER_DURATION_IN_SECONDS           20
+#define MIN_BUFFER_DURATION_IN_SECONDS 20
 
 /**
  * Minimal temporal buffer to keep in the view for the streaming
  */
-#define MIN_VIEW_BUFFER_DURATION     (MAX(MIN_BUFFER_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, MIN_CONTENT_VIEW_BUFFER_DURATION))
+#define MIN_VIEW_BUFFER_DURATION (MAX(MIN_BUFFER_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND, MIN_CONTENT_VIEW_BUFFER_DURATION))
 
 /**
  * Service call default timeout - 5 seconds
  */
-#define SERVICE_CALL_DEFAULT_TIMEOUT            (5 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define SERVICE_CALL_DEFAULT_TIMEOUT (5 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 /**
  * Service call infinite timeout for streaming
  */
-#define SERVICE_CALL_INFINITE_TIMEOUT           MAX_UINT64
+#define SERVICE_CALL_INFINITE_TIMEOUT MAX_UINT64
 
 /**
  * Default service call retry count
  */
-#define SERVICE_CALL_MAX_RETRY_COUNT           5
+#define SERVICE_CALL_MAX_RETRY_COUNT 5
 
 /**
  * MKV packaging type string
  */
-#define MKV_CONTAINER_TYPE_STRING               "video/x-matroska"
+#define MKV_CONTAINER_TYPE_STRING "video/x-matroska"
 
 /**
  * Remaining storage pressure notification threshold in percents.
  * The client application will be notified if the storage availability
  * falls below this percentage.
  */
-#define STORAGE_PRESSURE_NOTIFICATION_THRESHOLD     5
+#define STORAGE_PRESSURE_NOTIFICATION_THRESHOLD 5
 
 /**
  * Remaining buffer duration pressure notification threshold in percents.
  * The client application will be notified if the buffer duration availability
  * falls below this percentage.
  */
-#define BUFFER_DURATION_PRESSURE_NOTIFICATION_THRESHOLD     5
+#define BUFFER_DURATION_PRESSURE_NOTIFICATION_THRESHOLD 5
 
 /**
  * Default device name string length
  */
-#define DEFAULT_DEVICE_NAME_LEN                     16
+#define DEFAULT_DEVICE_NAME_LEN 16
 
 /**
  * Default stream name string length
  */
-#define DEFAULT_STREAM_NAME_LEN                     16
+#define DEFAULT_STREAM_NAME_LEN 16
 
 /**
  * Max device fingerprint length
  */
-#define MAX_DEVICE_FINGERPRINT_LENGTH               32
+#define MAX_DEVICE_FINGERPRINT_LENGTH 32
 
 /**
  * Max client id string length
  */
-#define MAX_CLIENT_ID_STRING_LENGTH                 64
+#define MAX_CLIENT_ID_STRING_LENGTH 64
 
 /**
  * Default timecode scale sentinel value
  * The actual value of the timecode scale might be
  * different for different packaging types
  */
-#define DEFAULT_TIMECODE_SCALE_SENTINEL             0
+#define DEFAULT_TIMECODE_SCALE_SENTINEL 0
 
 /**
  * Stream latency pressure check sentinel value.
  * If this value is specified for the stream caps
  * max latency then the check will be skipped.
  */
-#define STREAM_LATENCY_PRESSURE_CHECK_SENTINEL      0
+#define STREAM_LATENCY_PRESSURE_CHECK_SENTINEL 0
 
 /**
  * Fragment duration sentinel value in case of I-frame fragmentation.
  */
-#define FRAGMENT_KEY_FRAME_DURATION_SENTINEL                0
+#define FRAGMENT_KEY_FRAME_DURATION_SENTINEL 0
 
 /**
  * Sentinel value for the duration when checking the connection
  * staleness is not required.
  */
-#define CONNECTION_STALENESS_DETECTION_SENTINEL             0
+#define CONNECTION_STALENESS_DETECTION_SENTINEL 0
 
 /**
  * Retention period sentinel value indicating no retention is needed
  */
-#define RETENTION_PERIOD_SENTINEL                           0
+#define RETENTION_PERIOD_SENTINEL 0
+
+/**
+ * If this value is set that that means it's "unset" and we
+ * will set it to default during input validation
+ */
+#define INTERMITTENT_PRODUCER_PERIOD_SENTINEL_VALUE 0
 
 /**
  * Max number of tracks allowed per stream
  */
-#define MAX_SUPPORTED_TRACK_COUNT_PER_STREAM                3
+#define MAX_SUPPORTED_TRACK_COUNT_PER_STREAM 3
 
 /**
  * Client ready timeout duration.
  **/
-#define CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS            15
+#define CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS 15
 
 /**
  * Stream ready timeout duration.
  **/
-#define STREAM_READY_TIMEOUT_DURATION_IN_SECONDS            30
+#define STREAM_READY_TIMEOUT_DURATION_IN_SECONDS 30
 
 /**
  * Stream closed timeout duration.
  */
-#define STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS           120
+#define STREAM_CLOSED_TIMEOUT_DURATION_IN_SECONDS 120
 
 /**
  * Default logger log level
  */
-#define DEFAULT_LOGGER_LOG_LEVEL                            LOG_LEVEL_WARN
+#define DEFAULT_LOGGER_LOG_LEVEL LOG_LEVEL_WARN
 
 /**
  * Client clean shutdown timeout
  */
-#define CLIENT_SHUTDOWN_SEMAPHORE_TIMEOUT                   (3 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define CLIENT_SHUTDOWN_SEMAPHORE_TIMEOUT (3 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 /**
  * Stream clean shutdown timeout
  */
-#define STREAM_SHUTDOWN_SEMAPHORE_TIMEOUT                   (1 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define STREAM_SHUTDOWN_SEMAPHORE_TIMEOUT (1 * HUNDREDS_OF_NANOS_IN_A_SECOND)
 
 /**
  * Current versions for the public structs
  */
-#define DEVICE_INFO_CURRENT_VERSION                         1
-#define CALLBACKS_CURRENT_VERSION                           0
-#define STREAM_INFO_CURRENT_VERSION                         1
-#define SEGMENT_INFO_CURRENT_VERSION                        0
-#define STORAGE_INFO_CURRENT_VERSION                        0
-#define AUTH_INFO_CURRENT_VERSION                           0
-#define SERVICE_CALL_CONTEXT_CURRENT_VERSION                0
-#define STREAM_DESCRIPTION_CURRENT_VERSION                  1
-#define FRAGMENT_ACK_CURRENT_VERSION                        0
-#define STREAM_METRICS_CURRENT_VERSION                      0
-#define CLIENT_METRICS_CURRENT_VERSION                      0
-#define CLIENT_INFO_CURRENT_VERSION                         0
+#define DEVICE_INFO_CURRENT_VERSION          1
+#define CALLBACKS_CURRENT_VERSION            0
+#define STREAM_INFO_CURRENT_VERSION          2
+#define SEGMENT_INFO_CURRENT_VERSION         0
+#define STORAGE_INFO_CURRENT_VERSION         0
+#define AUTH_INFO_CURRENT_VERSION            0
+#define SERVICE_CALL_CONTEXT_CURRENT_VERSION 0
+#define STREAM_DESCRIPTION_CURRENT_VERSION   1
+#define FRAGMENT_ACK_CURRENT_VERSION         0
+#define STREAM_METRICS_CURRENT_VERSION       1
+#define CLIENT_METRICS_CURRENT_VERSION       0
+#define CLIENT_INFO_CURRENT_VERSION          2
 
 /**
  * Definition of the client handle
@@ -532,10 +542,14 @@ typedef enum {
     STREAMING_TYPE_OFFLINE,
 } STREAMING_TYPE;
 
+#define GET_STREAMING_TYPE_STR(st)                                                                                                                   \
+    ((st) == STREAMING_TYPE_REALTIME ? (PCHAR) "STREAMING_TYPE_REALTIME"                                                                             \
+                                     : (st) == STREAMING_TYPE_NEAR_REALTIME ? (PCHAR) "STREAMING_TYPE_NEAR_REALTIME" : "STREAMING_TYPE_OFFLINE")
+
 /**
  * Whether the streaming mode is offline
  */
-#define IS_OFFLINE_STREAMING_MODE(mode)     ((mode) == STREAMING_TYPE_OFFLINE)
+#define IS_OFFLINE_STREAMING_MODE(mode) ((mode) == STREAMING_TYPE_OFFLINE)
 
 /**
  * Device storage types
@@ -580,8 +594,8 @@ typedef enum {
 } STREAM_ACCESS_MODE;
 
 /**
-* Service call result
-*/
+ * Service call result
+ */
 typedef enum {
     // Not defined
     SERVICE_CALL_RESULT_NOT_SET = 0,
@@ -798,6 +812,28 @@ struct __FragmentAck {
 typedef struct __FragmentAck* PFragmentAck;
 
 /**
+ *  In some streaming scenarios video is not constantly being produced,
+ *  in this case special handling must take place to handle various streaming
+ *  scenarios
+ */
+typedef enum {
+    /**
+     * With this option we'll create a timer (burns a thread) and periodically check
+     * if there are any streams which haven't had any PutFrame calls
+     * over fixed period of time, in which case we'll close out the fragment
+     * to prevent back-end from timing out and closing the session
+     */
+    AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER = 0,
+
+    /**
+     * This option indicates a desire to do continuous recording with no gaps
+     * this doesn't mean we can't have dropped packets, this mode should NOT
+     * be used if for example only motion or event based video is to be recorded
+     */
+    AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS = (1 << 8),
+} AUTOMATIC_STREAMING_FLAGS;
+
+/**
  * NAL adaptation types enum. The bit flags correspond to the ones defined in the
  * mkvgen public header enumeration for simple copy forward.
  */
@@ -805,48 +841,72 @@ typedef enum {
     /**
      * No flags are set - no adaptation
      */
-    NAL_ADAPTATION_FLAG_NONE                    = 0,
+    NAL_ADAPTATION_FLAG_NONE = 0,
 
     /**
      * Whether to adapt Annex-B NALUs to Avcc NALUs
      */
-    NAL_ADAPTATION_ANNEXB_NALS                  = (1 << 3),
+    NAL_ADAPTATION_ANNEXB_NALS = (1 << 3),
 
     /**
      * Whether to adapt Avcc NALUs to Annex-B NALUs
      */
-    NAL_ADAPTATION_AVCC_NALS                    = (1 << 4),
+    NAL_ADAPTATION_AVCC_NALS = (1 << 4),
 
     /**
      * Whether to adapt Annex-B NALUs for the codec private data to Avcc format NALUs
      */
-    NAL_ADAPTATION_ANNEXB_CPD_NALS              = (1 << 5),
+    NAL_ADAPTATION_ANNEXB_CPD_NALS = (1 << 5),
 } NAL_ADAPTATION_FLAGS;
 
 typedef enum {
     /**
      * When in FRAME_ORDER_MODE_PASS_THROUGH, when putKinesisVideoFrame is called, the frame is submitted immediately
      */
-    FRAME_ORDER_MODE_PASS_THROUGH                           = 0,
+    FRAME_ORDER_MODE_PASS_THROUGH = 0,
+
     /**
      * When in FRAME_ORDERING_MODE_MULTI_TRACK_AV, frames are submitted in the order of their dts. In case of two frames
      * having the same mkv timestamp, and one of them being key frame, the key frame flag is moved to the earliest frame
      * to make sure we dont have cluster end timestamp being equal to the next cluster beginning timestamp.
      */
-    FRAME_ORDERING_MODE_MULTI_TRACK_AV                      = 1,
+    FRAME_ORDERING_MODE_MULTI_TRACK_AV = 1,
 
     /**
      * If frames from different tracks have dts difference less than mkv timecode scale, then add 1 unit of mkv timecode
      * scale to the latter frame to avoid backend reporting fragment overlap. This will be deprecated once backend is
      * fixed.
      */
-    FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_DTS_ONE_MS_COMPENSATE    = 2,
+    FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_DTS_ONE_MS_COMPENSATE = 2,
 
     /**
      * same as the dts counter part, but compares pts instead.
      */
-    FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE    = 3,
+    FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE = 3,
+
+    /**
+     * Same as FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_DTS_ONE_MS_COMPENSATE but geared towards the usage for clip/
+     * intermittent producer scenario. Key-frame fragmentation is driving the fragmentation and EoFR is allowed.
+     */
+    FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_DTS_ONE_MS_COMPENSATE_EOFR = 4,
+
+    /**
+     * same as the dts counter part, but compares pts instead.
+     */
+    FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE_EOFR = 5,
 } FRAME_ORDER_MODE;
+
+typedef enum {
+    /**
+     * Return an error STATUS_STORE_OUT_OF_MEMORY when we have no available storage when putting frame. The value of 0 is the default.
+     */
+    CONTENT_STORE_PRESSURE_POLICY_OOM = 0,
+
+    /**
+     * Evict the earliest frames to make space for the new frame being put. Might result in dropped frame callbacks fired.
+     */
+    CONTENT_STORE_PRESSURE_POLICY_DROP_TAIL_ITEM = 1,
+} CONTENT_STORE_PRESSURE_POLICY;
 
 /**
  * Stream capabilities declaration
@@ -933,6 +993,14 @@ struct __StreamCaps {
 
     // How incoming frames are reordered
     FRAME_ORDER_MODE frameOrderingMode;
+
+    // ------------------------------- V1 compat ----------------------
+
+    // Content store pressure handling policy
+    CONTENT_STORE_PRESSURE_POLICY storePressurePolicy;
+
+    // Content view overflow handling policy
+    CONTENT_VIEW_OVERFLOW_POLICY viewOverflowPolicy;
 };
 
 typedef struct __StreamCaps* PStreamCaps;
@@ -1016,6 +1084,20 @@ typedef struct __ClientInfo {
 
     // whether to log metric or not
     BOOL logMetric;
+
+    // ------------------------------- V0 compat ----------------------
+
+    // Time that allowed to be elapsed between the metric loggings if enabled
+    UINT64 metricLoggingPeriod;
+
+    // ------------------------------ V1 compat --------------------------
+
+    // flag for automatic handling of intermittent producer
+    AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags;
+
+    // period (in hundreds of nanos) at which callback will be fired to check stream
+    // clients should set this value to 0.
+    UINT64 reservedCallbackPeriod;
 } ClientInfo, *PClientInfo;
 
 /**
@@ -1087,6 +1169,8 @@ struct __StreamMetrics {
     // Version of the struct
     UINT32 version;
 
+    // V0 metrics following
+
     // Duration from the current to the head in 100ns
     UINT64 currentViewDuration;
 
@@ -1104,6 +1188,66 @@ struct __StreamMetrics {
 
     // Last measured transfer rate in bytes per second
     UINT64 currentTransferRate;
+
+    // V1 metrics following
+
+    // Total stream duration - stream uptime
+    UINT64 uptime;
+
+    // Total transferred bytes
+    UINT64 transferredBytes;
+
+    // Total number of streaming sessions including new/errored/active
+    UINT64 totalSessions;
+
+    // Total number of active streaming sessions - only the ones that actually have streamed some data
+    UINT64 totalActiveSessions;
+
+    // Average session duration
+    UINT64 avgSessionDuration;
+
+    // Total number of buffered ACKs
+    UINT64 bufferedAcks;
+
+    // Total number of received ACKs
+    UINT64 receivedAcks;
+
+    // Total number of persisted ACKs
+    UINT64 persistedAcks;
+
+    // Total number of error ACKs
+    UINT64 errorAcks;
+
+    // Total number of dropped frames
+    UINT64 droppedFrames;
+
+    // Total number of dropped fragments
+    // TODO: Near-realtime streaming mode is not used currently supported and this value will be 0
+    UINT64 droppedFragments;
+
+    // Total number of skipped frames
+    UINT64 skippedFrames;
+
+    // Total number of storage pressure events
+    UINT64 storagePressures;
+
+    // Total number of latency pressure events
+    UINT64 latencyPressures;
+
+    // Total number of Buffer pressure events
+    UINT64 bufferPressures;
+
+    // Total number of stream stale events
+    UINT64 staleEvents;
+
+    // Total number of put frame call errors
+    UINT64 putFrameErrors;
+
+    // Backend Control Plane API call latency which includes success and failure
+    UINT64 cplApiCallLatency;
+
+    // Backend Data Plane API call latency which includes success and failure
+    UINT64 dataApiCallLatency;
 };
 
 typedef struct __StreamMetrics* PStreamMetrics;
@@ -1253,10 +1397,7 @@ typedef struct __ServiceCallContext* PServiceCallContext;
  *
  * @return Status of the callback
  */
-typedef STATUS (*GetDeviceCertificateFunc)(UINT64,
-                                           PBYTE*,
-                                           PUINT32,
-                                           PUINT64);
+typedef STATUS (*GetDeviceCertificateFunc)(UINT64, PBYTE*, PUINT32, PUINT64);
 
 /**
  * Gets the device security token.
@@ -1268,10 +1409,7 @@ typedef STATUS (*GetDeviceCertificateFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*GetSecurityTokenFunc)(UINT64,
-                                       PBYTE*,
-                                       PUINT32,
-                                       PUINT64);
+typedef STATUS (*GetSecurityTokenFunc)(UINT64, PBYTE*, PUINT32, PUINT64);
 
 /**
  * Gets the device fingerprint.
@@ -1281,8 +1419,7 @@ typedef STATUS (*GetSecurityTokenFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*GetDeviceFingerprintFunc)(UINT64,
-                                           PCHAR*);
+typedef STATUS (*GetDeviceFingerprintFunc)(UINT64, PCHAR*);
 
 /**
  * Reports an underflow for the stream.
@@ -1292,8 +1429,7 @@ typedef STATUS (*GetDeviceFingerprintFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*StreamUnderflowReportFunc)(UINT64,
-                                            STREAM_HANDLE);
+typedef STATUS (*StreamUnderflowReportFunc)(UINT64, STREAM_HANDLE);
 
 /**
  * Reports storage pressure.
@@ -1303,8 +1439,7 @@ typedef STATUS (*StreamUnderflowReportFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*StorageOverflowPressureFunc)(UINT64,
-                                              UINT64);
+typedef STATUS (*StorageOverflowPressureFunc)(UINT64, UINT64);
 
 /**
  * Reports temporal buffer pressure.
@@ -1315,9 +1450,7 @@ typedef STATUS (*StorageOverflowPressureFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*BufferDurationOverflowPressureFunc)(UINT64,
-                                                     STREAM_HANDLE,
-                                                     UINT64);
+typedef STATUS (*BufferDurationOverflowPressureFunc)(UINT64, STREAM_HANDLE, UINT64);
 
 /**
  * Reports stream latency excess.
@@ -1328,9 +1461,7 @@ typedef STATUS (*BufferDurationOverflowPressureFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*StreamLatencyPressureFunc)(UINT64,
-                                            STREAM_HANDLE,
-                                            UINT64);
+typedef STATUS (*StreamLatencyPressureFunc)(UINT64, STREAM_HANDLE, UINT64);
 
 /**
  * Reports stream staleness as the last buffering ack is greater than
@@ -1342,9 +1473,7 @@ typedef STATUS (*StreamLatencyPressureFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*StreamConnectionStaleFunc)(UINT64,
-                                            STREAM_HANDLE,
-                                            UINT64);
+typedef STATUS (*StreamConnectionStaleFunc)(UINT64, STREAM_HANDLE, UINT64);
 
 /**
  * Reports a dropped frame for the stream.
@@ -1355,9 +1484,7 @@ typedef STATUS (*StreamConnectionStaleFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*DroppedFrameReportFunc)(UINT64,
-                                         STREAM_HANDLE,
-                                         UINT64);
+typedef STATUS (*DroppedFrameReportFunc)(UINT64, STREAM_HANDLE, UINT64);
 
 /**
  * Reports a dropped fragment for the stream.
@@ -1368,9 +1495,7 @@ typedef STATUS (*DroppedFrameReportFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*DroppedFragmentReportFunc)(UINT64,
-                                            STREAM_HANDLE,
-                                            UINT64);
+typedef STATUS (*DroppedFragmentReportFunc)(UINT64, STREAM_HANDLE, UINT64);
 
 /**
  * Reports a stream error due to an error ACK. The PIC will initiate the termination
@@ -1384,11 +1509,7 @@ typedef STATUS (*DroppedFragmentReportFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*StreamErrorReportFunc)(UINT64,
-                                        STREAM_HANDLE,
-                                        UPLOAD_HANDLE,
-                                        UINT64,
-                                        STATUS);
+typedef STATUS (*StreamErrorReportFunc)(UINT64, STREAM_HANDLE, UPLOAD_HANDLE, UINT64, STATUS);
 
 /**
  * Reports a received fragment ack for the stream.
@@ -1400,10 +1521,7 @@ typedef STATUS (*StreamErrorReportFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*FragmentAckReceivedFunc)(UINT64,
-                                          STREAM_HANDLE,
-                                          UPLOAD_HANDLE,
-                                          PFragmentAck);
+typedef STATUS (*FragmentAckReceivedFunc)(UINT64, STREAM_HANDLE, UPLOAD_HANDLE, PFragmentAck);
 
 ///////////////////////////////////////////////////////////////
 // State transition callbacks
@@ -1416,8 +1534,7 @@ typedef STATUS (*FragmentAckReceivedFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*ClientReadyFunc)(UINT64,
-                                  CLIENT_HANDLE);
+typedef STATUS (*ClientReadyFunc)(UINT64, CLIENT_HANDLE);
 
 /**
  * Reports a ready state for the stream.
@@ -1427,8 +1544,7 @@ typedef STATUS (*ClientReadyFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*StreamReadyFunc)(UINT64,
-                                  STREAM_HANDLE);
+typedef STATUS (*StreamReadyFunc)(UINT64, STREAM_HANDLE);
 
 /**
  * Reports an EOS
@@ -1439,9 +1555,7 @@ typedef STATUS (*StreamReadyFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*StreamClosedFunc)(UINT64,
-                                   STREAM_HANDLE,
-                                   UPLOAD_HANDLE);
+typedef STATUS (*StreamClosedFunc)(UINT64, STREAM_HANDLE, UPLOAD_HANDLE);
 
 /**
  * Notifies that a given stream has data available.
@@ -1455,12 +1569,7 @@ typedef STATUS (*StreamClosedFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*StreamDataAvailableFunc)(UINT64,
-                                          STREAM_HANDLE,
-                                          PCHAR,
-                                          UPLOAD_HANDLE,
-                                          UINT64,
-                                          UINT64);
+typedef STATUS (*StreamDataAvailableFunc)(UINT64, STREAM_HANDLE, PCHAR, UPLOAD_HANDLE, UINT64, UINT64);
 
 ///////////////////////////////////////////////////////////////
 // Synchronization callbacks - Locking
@@ -1473,8 +1582,7 @@ typedef STATUS (*StreamDataAvailableFunc)(UINT64,
  *
  * @return MUTEX object to use
  */
-typedef MUTEX (*CreateMutexFunc)(UINT64,
-                                 BOOL);
+typedef MUTEX (*CreateMutexFunc)(UINT64, BOOL);
 
 /**
  * Lock the mutex
@@ -1483,8 +1591,7 @@ typedef MUTEX (*CreateMutexFunc)(UINT64,
  * @param 2 MUTEX - The mutex to lock.
  *
  */
-typedef VOID (*LockMutexFunc)(UINT64,
-                              MUTEX);
+typedef VOID (*LockMutexFunc)(UINT64, MUTEX);
 
 /**
  * Unlock the mutex
@@ -1493,8 +1600,7 @@ typedef VOID (*LockMutexFunc)(UINT64,
  * @param 2 MUTEX - The mutex to unlock.
  *
  */
-typedef VOID (*UnlockMutexFunc)(UINT64,
-                                MUTEX);
+typedef VOID (*UnlockMutexFunc)(UINT64, MUTEX);
 
 /**
  * Try to lock the mutex
@@ -1503,8 +1609,7 @@ typedef VOID (*UnlockMutexFunc)(UINT64,
  * @param 2 MUTEX - The mutex to try to lock.
  *
  */
-typedef BOOL (*TryLockMutexFunc)(UINT64,
-                                 MUTEX);
+typedef BOOL (*TryLockMutexFunc)(UINT64, MUTEX);
 
 /**
  * Free the mutex
@@ -1513,8 +1618,7 @@ typedef BOOL (*TryLockMutexFunc)(UINT64,
  * @param 2 MUTEX - The mutex to free.
  *
  */
-typedef VOID (*FreeMutexFunc)(UINT64,
-                              MUTEX);
+typedef VOID (*FreeMutexFunc)(UINT64, MUTEX);
 
 ///////////////////////////////////////////////////////////////
 // Synchronization callbacks - Conditional variables
@@ -1605,9 +1709,7 @@ typedef logPrintFunc LogPrintFunc;
  *
  * @return Status of the callback
  */
-typedef STATUS (*CreateDeviceFunc)(UINT64,
-                                   PCHAR,
-                                   PServiceCallContext);
+typedef STATUS (*CreateDeviceFunc)(UINT64, PCHAR, PServiceCallContext);
 
 /**
  * Get device token from certificate callback function.
@@ -1618,9 +1720,7 @@ typedef STATUS (*CreateDeviceFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*DeviceCertToTokenFunc)(UINT64,
-                                        PCHAR,
-                                        PServiceCallContext);
+typedef STATUS (*DeviceCertToTokenFunc)(UINT64, PCHAR, PServiceCallContext);
 
 /**
  * Create stream callback function.
@@ -1635,13 +1735,7 @@ typedef STATUS (*DeviceCertToTokenFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*CreateStreamFunc)(UINT64,
-                                   PCHAR,
-                                   PCHAR,
-                                   PCHAR,
-                                   PCHAR,
-                                   UINT64,
-                                   PServiceCallContext);
+typedef STATUS (*CreateStreamFunc)(UINT64, PCHAR, PCHAR, PCHAR, PCHAR, UINT64, PServiceCallContext);
 
 /**
  * Describe stream callback function.
@@ -1652,9 +1746,7 @@ typedef STATUS (*CreateStreamFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*DescribeStreamFunc)(UINT64,
-                                     PCHAR,
-                                     PServiceCallContext);
+typedef STATUS (*DescribeStreamFunc)(UINT64, PCHAR, PServiceCallContext);
 
 /**
  * Get streaming endpoint callback function.
@@ -1666,10 +1758,7 @@ typedef STATUS (*DescribeStreamFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*GetStreamingEndpointFunc)(UINT64,
-                                           PCHAR,
-                                           PCHAR,
-                                           PServiceCallContext);
+typedef STATUS (*GetStreamingEndpointFunc)(UINT64, PCHAR, PCHAR, PServiceCallContext);
 
 /**
  * Get streaming token callback function.
@@ -1681,10 +1770,7 @@ typedef STATUS (*GetStreamingEndpointFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*GetStreamingTokenFunc)(UINT64,
-                                        PCHAR,
-                                        STREAM_ACCESS_MODE,
-                                        PServiceCallContext);
+typedef STATUS (*GetStreamingTokenFunc)(UINT64, PCHAR, STREAM_ACCESS_MODE, PServiceCallContext);
 
 /**
  * Put stream callback function.
@@ -1700,14 +1786,7 @@ typedef STATUS (*GetStreamingTokenFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*PutStreamFunc)(UINT64,
-                                PCHAR,
-                                PCHAR,
-                                UINT64,
-                                BOOL,
-                                BOOL,
-                                PCHAR,
-                                PServiceCallContext);
+typedef STATUS (*PutStreamFunc)(UINT64, PCHAR, PCHAR, UINT64, BOOL, BOOL, PCHAR, PServiceCallContext);
 
 /**
  * Tag a resource function.
@@ -1720,11 +1799,7 @@ typedef STATUS (*PutStreamFunc)(UINT64,
  *
  * @return Status of the callback
  */
-typedef STATUS (*TagResourceFunc)(UINT64,
-                                  PCHAR,
-                                  UINT32,
-                                  PTag,
-                                  PServiceCallContext);
+typedef STATUS (*TagResourceFunc)(UINT64, PCHAR, UINT32, PTag, PServiceCallContext);
 
 /**
  * Client shutdown function.
@@ -2119,9 +2194,7 @@ PUBLIC_API STATUS kinesisVideoStreamTerminated(STREAM_HANDLE, UPLOAD_HANDLE, SER
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE,
-                                                UPLOAD_HANDLE,
-                                                PFragmentAck);
+PUBLIC_API STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE, UPLOAD_HANDLE, PFragmentAck);
 
 /**
  * Parse and consume a string representing a fragment ACK.
@@ -2137,10 +2210,7 @@ PUBLIC_API STATUS kinesisVideoStreamFragmentAck(STREAM_HANDLE,
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE,
-                                                     UPLOAD_HANDLE,
-                                                     PCHAR,
-                                                     UINT32);
+PUBLIC_API STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE, UPLOAD_HANDLE, PCHAR, UINT32);
 
 /**
  * Get the streamInfo object belonging to stream with STREAM_HANDLE
@@ -2150,8 +2220,7 @@ PUBLIC_API STATUS kinesisVideoStreamParseFragmentAck(STREAM_HANDLE,
  *
  * @return Status of the function call.
  */
-PUBLIC_API STATUS kinesisVideoStreamGetStreamInfo(STREAM_HANDLE,
-                                                  PPStreamInfo);
+PUBLIC_API STATUS kinesisVideoStreamGetStreamInfo(STREAM_HANDLE, PPStreamInfo);
 
 /**
  * Restart/Reset a stream by dropping remaining data and reset stream state machine.
@@ -2164,7 +2233,8 @@ PUBLIC_API STATUS kinesisVideoStreamGetStreamInfo(STREAM_HANDLE,
 PUBLIC_API STATUS kinesisVideoStreamResetStream(STREAM_HANDLE);
 
 /**
- * Reset connection for stream, continue sending existing data in buffer with new connection
+ * Reset connection for stream. All existing putMedia connection will be terminated first.
+ * Continue sending existing data with new connection
  *
  * @param 1 STREAM_HANDLE - The stream handle to reset
  *
@@ -2185,16 +2255,13 @@ PUBLIC_API VOID kinesisVideoStreamDefaultFreeMutex(UINT64 customData, MUTEX mute
 PUBLIC_API CVAR kinesisVideoStreamDefaultCreateConditionVariable(UINT64 customData);
 PUBLIC_API STATUS kinesisVideoStreamDefaultSignalConditionVariable(UINT64 customData, CVAR cvar);
 PUBLIC_API STATUS kinesisVideoStreamDefaultBroadcastConditionVariable(UINT64 customData, CVAR cvar);
-PUBLIC_API STATUS kinesisVideoStreamDefaultWaitConditionVariable(UINT64 customData, CVAR cvar, MUTEX mutex,
-                                                                 UINT64 timeout);
+PUBLIC_API STATUS kinesisVideoStreamDefaultWaitConditionVariable(UINT64 customData, CVAR cvar, MUTEX mutex, UINT64 timeout);
 PUBLIC_API VOID kinesisVideoStreamDefaultFreeConditionVariable(UINT64 customData, CVAR cvar);
 PUBLIC_API STATUS kinesisVideoStreamDefaultStreamReady(UINT64 customData, STREAM_HANDLE streamHandle);
-PUBLIC_API STATUS kinesisVideoStreamDefaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle,
-                                                       UPLOAD_HANDLE streamUploadHandle);
+PUBLIC_API STATUS kinesisVideoStreamDefaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle, UPLOAD_HANDLE streamUploadHandle);
 PUBLIC_API STATUS kinesisVideoStreamDefaultClientReady(UINT64 customData, CLIENT_HANDLE clientHandle);
-PUBLIC_API STATUS kinesisVideoStreamDefaultStreamDataAvailable(UINT64 customData, STREAM_HANDLE streamHandle,
-                                                               PCHAR streamName, UINT64 uploadHandle, UINT64 duration,
-                                                               UINT64 size);
+PUBLIC_API STATUS kinesisVideoStreamDefaultStreamDataAvailable(UINT64 customData, STREAM_HANDLE streamHandle, PCHAR streamName, UINT64 uploadHandle,
+                                                               UINT64 duration, UINT64 size);
 PUBLIC_API STATUS kinesisVideoStreamDefaultClientShutdown(UINT64 customData, CLIENT_HANDLE clientHandle);
 PUBLIC_API STATUS kinesisVideoStreamDefaultStreamShutdown(UINT64 customData, STREAM_HANDLE streamHandle, BOOL resetStream);
 
@@ -2211,9 +2278,7 @@ PUBLIC_API STATUS kinesisVideoStreamDefaultStreamShutdown(UINT64 customData, STR
  */
 PUBLIC_API STATUS serviceCallResultCheck(SERVICE_CALL_RESULT);
 
-#pragma pack(pop, include)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __KINESIS_VIDEO_CLIENT_INCLUDE__ */
+#endif /* __KINESIS_VIDEO_CLIENT_INCLUDE__ */

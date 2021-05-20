@@ -17,8 +17,7 @@ STATUS defaultGetPlatformName(PCHAR pResult, UINT32 len)
     ZeroMemory(&sysInfo, SIZEOF(SYSTEM_INFO));
     GetSystemInfo(&sysInfo);
 
-    switch (sysInfo.wProcessorArchitecture)
-    {
+    switch (sysInfo.wProcessorArchitecture) {
         case 0x09:
             platform = (PCHAR) "AMD64";
             break;
@@ -48,7 +47,7 @@ STATUS defaultGetOsVersion(PCHAR pResult, UINT32 len)
     STATUS retStatus = STATUS_SUCCESS;
     INT32 requiredLen;
     OSVERSIONINFO versionInfo;
-    
+
     CHK(pResult != NULL, STATUS_NULL_ARG);
 
     // With the release of Windows 8.1, the behavior of the GetVersionEx API has changed in the value it will
@@ -60,13 +59,14 @@ STATUS defaultGetOsVersion(PCHAR pResult, UINT32 len)
 
     ZeroMemory(&versionInfo, SIZEOF(OSVERSIONINFO));
     versionInfo.dwOSVersionInfoSize = SIZEOF(OSVERSIONINFO);
-    
+
     if (!GetVersionEx(&versionInfo)) {
         requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s", (PCHAR) "Windows/UnknownVersion");
     } else {
-        requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s%u.%u.%u", (PCHAR) "Windows/", versionInfo.dwMajorVersion, versionInfo.dwMinorVersion, versionInfo.dwBuildNumber);
+        requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s%u.%u.%u", (PCHAR) "Windows/", versionInfo.dwMajorVersion, versionInfo.dwMinorVersion,
+                               versionInfo.dwBuildNumber);
     }
-    
+
     CHK(requiredLen > 0 && (UINT32) requiredLen < len, STATUS_NOT_ENOUGH_MEMORY);
 
 CleanUp:
@@ -126,13 +126,15 @@ STATUS defaultGetCompilerInfo(PCHAR pResult, UINT32 len)
     CHK(pResult != NULL, STATUS_NULL_ARG);
 
 #define __xstr__(s) __str__(s)
-#define __str__(s) #s
+#define __str__(s)  #s
 #if defined(_MSC_VER)
     requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s/%s", (PCHAR) "MSVC", (PCHAR) __xstr__(_MSC_VER));
 #elif defined(__clang__)
-    requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s/%s.%s.%s", (PCHAR) "Clang", (PCHAR) __xstr__(__clang_major__), (PCHAR) __xstr__(__clang_minor__), (PCHAR) __xstr__(__clang_patchlevel__));
+    requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s/%s.%s.%s", (PCHAR) "Clang", (PCHAR) __xstr__(__clang_major__), (PCHAR) __xstr__(__clang_minor__),
+                           (PCHAR) __xstr__(__clang_patchlevel__));
 #elif defined(__GNUC__)
-    requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s/%s.%s.%s", (PCHAR) "GCC", (PCHAR) __xstr__(__GNUC__), (PCHAR) __xstr__(__GNUC_MINOR__), (PCHAR) __xstr__(__GNUC_PATCHLEVEL__));
+    requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s/%s.%s.%s", (PCHAR) "GCC", (PCHAR) __xstr__(__GNUC__), (PCHAR) __xstr__(__GNUC_MINOR__),
+                           (PCHAR) __xstr__(__GNUC_PATCHLEVEL__));
 #else
     requiredLen = SNPRINTF(pResult, len, (PCHAR) "%s", (PCHAR) "UnknownCompiler");
 #endif

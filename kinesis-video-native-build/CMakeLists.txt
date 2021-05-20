@@ -235,7 +235,7 @@ file(
 )
 
 set(GST_DEMO_APP
-    ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_app.cpp)
+    ${KINESIS_VIDEO_GST_DEMO_SRC}/kvs_gstreamer_sample.cpp)
 
 file(GLOB_RECURSE GST_PLUGIN_SOURCE_FILES
      "${KINESIS_VIDEO_GST_PLUGIN_SRC}/src/*.cpp")
@@ -351,7 +351,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND NOT "${CMAKE_CXX_COMPILER_ID}"
   set(MSVS_CRT_TYPE "static")
   force_msvs_crt_type()
 
-  add_definitions(-DCURL_STATICLIB -DWIN32_LEAN_AND_MEAN -DVC_EXTRALEAN
+  add_definitions(-DCURL_STATICLIB -DWIN32_LEAN_AND_MEAN -DVC_EXTRALEAN -DKVS_USE_OPENSSL
                   -DKVS_BUILD_WITH_CURL -D_HAS_ITERATOR_DEBUGGING=0)
 
   link_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local/lib)
@@ -498,7 +498,7 @@ else()
     target_link_libraries(kvspic rt)
   endif()
 
-  add_definitions(-DKVS_BUILD_WITH_CURL)
+  add_definitions(-DKVS_BUILD_WITH_CURL -DKVS_USE_OPENSSL)
   if(BUILD_PRODUCER)
     add_library(
       cproducer SHARED
@@ -533,38 +533,26 @@ else()
   endif()
 
   if(BUILD_GST_ARTIFACT)
-    add_executable(kinesis_video_gstreamer_sample_app ${GST_DEMO_APP})
-    target_link_libraries(kinesis_video_gstreamer_sample_app producer
+    add_executable(kvs_gstreamer_sample ${GST_DEMO_APP})
+    target_link_libraries(kvs_gstreamer_sample producer
                           ${GST_DEMO_LIBRARIES} ${Intl})
 
     add_executable(
-      kinesis_video_gstreamer_sample_multistream_app
-      ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_sample_multistream_app.cpp
+      kvs_gstreamer_multistream_sample
+      ${KINESIS_VIDEO_GST_DEMO_SRC}/kvs_gstreamer_multistream_sample.cpp
     )
-    target_link_libraries(kinesis_video_gstreamer_sample_multistream_app
+    target_link_libraries(kvs_gstreamer_multistream_sample
                           producer ${GST_DEMO_LIBRARIES} ${Intl})
 
     add_executable(
-      kinesis_video_gstreamer_audio_video_sample_app
-      ${KINESIS_VIDEO_GST_DEMO_SRC}/kinesis_video_gstreamer_audio_video_sample_app.cpp
+      kvs_gstreamer_audio_video_sample
+      ${KINESIS_VIDEO_GST_DEMO_SRC}/kvs_gstreamer_audio_video_sample.cpp
     )
-    target_link_libraries(kinesis_video_gstreamer_audio_video_sample_app
+    target_link_libraries(kvs_gstreamer_audio_video_sample
                           producer ${GST_DEMO_LIBRARIES} ${Intl})
 
     add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
     target_link_libraries(gstkvssink ${KVSSINK_LIBRARIES} producer ${Intl})
-
-    add_executable(
-      kvs_producer_plugin_demo
-      ${KINESIS_VIDEO_GST_PLUGIN_SRC}/demo/kvs_producer_plugin_demo.cpp)
-    target_link_libraries(kvs_producer_plugin_demo ${KVSSINK_DEMO_LIBRARIES}
-                          producer ${Intl})
-
-    add_executable(
-      kvs_producer_plugin_rtsp_demo
-      ${KINESIS_VIDEO_GST_PLUGIN_SRC}/demo/kvs_producer_plugin_rtsp_demo.cpp)
-    target_link_libraries(kvs_producer_plugin_rtsp_demo
-                          ${KVSSINK_DEMO_LIBRARIES} ${Intl})
 
     add_executable(gstkvsplugintest EXCLUDE_FROM_ALL
                    ${KINESIS_VIDEO_GST_PLUGIN_SRC}/tst/gstkvstest.cpp)

@@ -33,14 +33,16 @@ CleanUp:
  *      @heapLimit - The overall size of the heap
  *      @spillRatio - Spill ratio in percentage of direct allocation RAM vs. vRAM in the hybrid heap scenario
  *      @behaviorFlags - Flags controlling the behavior/type of the heap
+ *      @pRootDirectoru - Optional path to the root directory in case of the file-based heap
  *      @ppHeap - The returned pointer to the Heap object
  */
-STATUS heapInitialize(UINT64 heapLimit, UINT32 spillRatio, UINT32 behaviorFlags, PHeap* ppHeap)
+STATUS heapInitialize(UINT64 heapLimit, UINT32 spillRatio, UINT32 behaviorFlags, PCHAR pRootDirectory, PHeap* ppHeap)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PHeap pHeap = NULL;
     PHybridHeap pHybridHeap = NULL;
+    PHybridFileHeap pFileHeap = NULL;
     UINT32 heapTypeFlags = (behaviorFlags & (FLAGS_USE_AIV_HEAP | FLAGS_USE_SYSTEM_HEAP));
 
     CHK(ppHeap != NULL, STATUS_NULL_ARG);
@@ -48,9 +50,7 @@ STATUS heapInitialize(UINT64 heapLimit, UINT32 spillRatio, UINT32 behaviorFlags,
     CHK(spillRatio <= 100, STATUS_INVALID_ARG);
 
     // Flags should have either system or AIV heap specified but not both at the same time
-    CHK(heapTypeFlags != HEAP_FLAGS_NONE &&
-                heapTypeFlags != (FLAGS_USE_AIV_HEAP | FLAGS_USE_SYSTEM_HEAP),
-        STATUS_HEAP_FLAGS_ERROR);
+    CHK(heapTypeFlags != HEAP_FLAGS_NONE && heapTypeFlags != (FLAGS_USE_AIV_HEAP | FLAGS_USE_SYSTEM_HEAP), STATUS_HEAP_FLAGS_ERROR);
 
     DLOGI("Initializing native heap with limit size %" PRIu64 ", spill ratio %u%% and flags 0x%08x", heapLimit, spillRatio, behaviorFlags);
 
@@ -74,13 +74,19 @@ STATUS heapInitialize(UINT64 heapLimit, UINT32 spillRatio, UINT32 behaviorFlags,
 
         // Store the hybrid heap as the returned heap object
         pHeap = (PHeap) pHybridHeap;
+    } else if ((behaviorFlags & FLAGS_USE_HYBRID_FILE_HEAP) != HEAP_FLAGS_NONE) {
+        DLOGI("Creating hybrid file heap with flags: 0x%08x", behaviorFlags);
+        CHK_STATUS(hybridFileCreateHeap(pHeap, spillRatio, pRootDirectory, &pFileHeap));
+
+        // Store the file hybrid heap as the returned heap object
+        pHeap = (PHeap) pFileHeap;
     }
 
     // Just in case - validate the final heap object
     CHK(pHeap != NULL, STATUS_INTERNAL_ERROR);
 
     // Initialize the heap
-    CHK_STATUS(((PBaseHeap)pHeap)->heapInitializeFn(pHeap, heapLimit));
+    CHK_STATUS(((PBaseHeap) pHeap)->heapInitializeFn(pHeap, heapLimit));
 
     DLOGI("Heap is initialized OK");
 
@@ -92,7 +98,7 @@ CleanUp:
     // Clean up if we failed
     if (STATUS_FAILED(retStatus)) {
         DLOGE("Failed to initialize native heap.");
-        // The call is indempotent anyway
+        // The call is idempotent anyway
         heapRelease(pHeap);
     }
 

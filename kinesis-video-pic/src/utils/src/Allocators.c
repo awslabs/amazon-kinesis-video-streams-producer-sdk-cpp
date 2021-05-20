@@ -10,7 +10,7 @@ PVOID defaultMemAlloc(SIZE_T size)
 
 PVOID defaultMemAlignAlloc(SIZE_T size, SIZE_T alignment)
 {
-#if defined (__MACH__)
+#if defined(__MACH__)
     // On Mac allocations are 16 byte aligned. There is hardly an equivalent anyway
     UNUSED_PARAM(alignment);
     return malloc(size);
@@ -52,7 +52,7 @@ VOID dumpMemoryHex(PVOID pMem, UINT32 size)
     CHAR buf[256];
     PCHAR pCur = buf;
     PBYTE pByte = (PBYTE) pMem;
-    for(UINT32 i = 0; i < size; i++) {
+    for (UINT32 i = 0; i < size; i++) {
         SPRINTF(pCur, "%02x ", *pByte++);
         pCur += 3;
         if ((i + 1) % 16 == 0) {
@@ -65,6 +65,9 @@ VOID dumpMemoryHex(PVOID pMem, UINT32 size)
     DLOGS("++++++++++++++++++++++++++++++++++++++++++++");
     DLOGS("Dumping memory done!");
     DLOGS("============================================");
+#else
+    UNUSED_PARAM(pMem);
+    UNUSED_PARAM(size);
 #endif
 }
 

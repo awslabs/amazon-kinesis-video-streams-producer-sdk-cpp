@@ -1,22 +1,22 @@
 #ifndef __UTILS_ATOMICS__
 #define __UTILS_ATOMICS__
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "Include_i.h"
 
 #if defined(__GNUC__) || defined(__clang__)
-#    if defined(__ATOMIC_RELAXED)
-#        include "AtomicsGnu.h"
-#    else
-#        include "AtomicsGnuOld.h"
-#    endif /* __ATOMIC_RELAXED */
-#elif defined(_MSC_VER)
-#    include "AtomicsMsvc.h"
+#if defined(__ATOMIC_RELAXED)
+#include "AtomicsGnu.h"
 #else
-#    error No atomics implementation for your compiler is available
+#include "AtomicsGnuOld.h"
+#endif /* __ATOMIC_RELAXED */
+#elif defined(_MSC_VER)
+#include "AtomicsMsvc.h"
+#else
+#error No atomics implementation for your compiler is available
 #endif
 
 PUBLIC_API atomicLoad globalAtomicLoad = defaultAtomicLoad;
@@ -31,7 +31,7 @@ PUBLIC_API atomicAnd globalAtomicAnd = defaultAtomicAnd;
 PUBLIC_API atomicOr globalAtomicOr = defaultAtomicOr;
 PUBLIC_API atomicXor globalAtomicXor = defaultAtomicXor;
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __UTILS_ATOMICS__ */
+#endif /* __UTILS_ATOMICS__ */

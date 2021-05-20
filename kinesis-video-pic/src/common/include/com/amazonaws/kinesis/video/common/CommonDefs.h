@@ -7,7 +7,7 @@
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -15,183 +15,183 @@ extern "C" {
 // Project defines
 ////////////////////////////////////////////////////
 #if defined _WIN32 || defined __CYGWIN__
-    #if defined __GNUC__ || defined __GNUG__
-        #define INLINE              inline
-        #define LIB_EXPORT          __attribute__((dllexport))
-        #define LIB_IMPORT          __attribute__((dllimport))
-        #define LIB_INTERNAL
-        #define ALIGN_4             __attribute__((aligned(4)))
-        #define ALIGN_8             __attribute__((aligned(8)))
-        #define PACKED              __attribute__((__packed__))
-        #define DISCARDABLE
-    #else
-        #define INLINE              _inline
-        #define LIB_EXPORT          __declspec(dllexport)
-        #define LIB_IMPORT          __declspec(dllimport)
-        #define LIB_INTERNAL
-        #define ALIGN_4             __declspec(align(4))
-        #define ALIGN_8             __declspec(align(8))
-        #define PACKED
-        #define DISCARDABLE         __declspec(selectany)
-    #endif
+#if defined __GNUC__ || defined __GNUG__
+#define INLINE     inline
+#define LIB_EXPORT __attribute__((dllexport))
+#define LIB_IMPORT __attribute__((dllimport))
+#define LIB_INTERNAL
+#define ALIGN_4 __attribute__((aligned(4)))
+#define ALIGN_8 __attribute__((aligned(8)))
+#define PACKED  __attribute__((__packed__))
+#define DISCARDABLE
 #else
-    #if __GNUC__ >= 4
-        #define INLINE              inline
-        #define LIB_EXPORT          __attribute__ ((visibility ("default")))
-        #define LIB_IMPORT          __attribute__ ((visibility ("default")))
-        #define LIB_INTERNAL        __attribute__ ((visibility ("hidden")))
-        #define ALIGN_4             __attribute__((aligned(4)))
-        #define ALIGN_8             __attribute__((aligned(8)))
-        #define PACKED              __attribute__((__packed__))
-        #define DISCARDABLE
-    #else
-        #define LIB_EXPORT
-        #define LIB_IMPORT
-        #define LIB_INTERNAL
-        #define ALIGN_4
-        #define ALIGN_8
-        #define DISCARDABLE
-        #define PACKED
-    #endif
+#define INLINE     _inline
+#define LIB_EXPORT __declspec(dllexport)
+#define LIB_IMPORT __declspec(dllimport)
+#define LIB_INTERNAL
+#define ALIGN_4 __declspec(align(4))
+#define ALIGN_8 __declspec(align(8))
+#define PACKED
+#define DISCARDABLE __declspec(selectany)
+#endif
+#else
+#if __GNUC__ >= 4
+#define INLINE       inline
+#define LIB_EXPORT   __attribute__((visibility("default")))
+#define LIB_IMPORT   __attribute__((visibility("default")))
+#define LIB_INTERNAL __attribute__((visibility("hidden")))
+#define ALIGN_4      __attribute__((aligned(4)))
+#define ALIGN_8      __attribute__((aligned(8)))
+#define PACKED       __attribute__((__packed__))
+#define DISCARDABLE
+#else
+#define LIB_EXPORT
+#define LIB_IMPORT
+#define LIB_INTERNAL
+#define ALIGN_4
+#define ALIGN_8
+#define DISCARDABLE
+#define PACKED
+#endif
 #endif
 
-#define PUBLIC_API          LIB_EXPORT
-#define PRIVATE_API         LIB_INTERNAL
+#define PUBLIC_API  LIB_EXPORT
+#define PRIVATE_API LIB_INTERNAL
 
 //
 // 64/32 bit check on Windows platforms
 //
 #if defined _WIN32 || defined _WIN64
-    #if defined _WIN64
-        #define SIZE_64
-	    #define __LLP64__ // win64 uses LLP64 data model
-    #else
-        #define SIZE_32
-    #endif
+#if defined _WIN64
+#define SIZE_64
+#define __LLP64__ // win64 uses LLP64 data model
+#else
+#define SIZE_32
+#endif
 #endif
 
 //
 // 64/32 bit check on GCC
 //
 #if defined __GNUC__ || defined __GNUG__
-    #if defined __x86_64__ || defined __ppc64__
-        #define SIZE_64
-        #define __LLP64__ // win64 uses LLP64 data model
-    #else
-        #define SIZE_32
-    #endif
+#if defined __x86_64__ || defined __ppc64__
+#define SIZE_64
+#define __LLP64__ // win64 uses LLP64 data model
+#else
+#define SIZE_32
+#endif
 #endif
 
 #if defined _WIN32
-    #if defined _MSC_VER
-        #include <Windows.h>
-        #include <direct.h>
-    #elif defined (__MINGW64__) || defined (__MINGW32__)
-        #define WINVER 0x0A00
-        #define _WIN32_WINNT 0x0A00
-        #include <windows.h>
-    #else
-        #error "Unknown Windows platform!"
-    #endif
-    #define __WINDOWS_BUILD__
-    #ifndef _WINNT_
-    typedef char                    CHAR;
-    typedef short                   WCHAR;
-    typedef unsigned __int8         UINT8;
-    typedef __int8                  INT8;
-    typedef unsigned __int16        UINT16;
-    typedef __int16                 INT16;
-    typedef unsigned __int32        UINT32;
-    typedef __int32                 INT32;
-    typedef unsigned __int64        UINT64;
-    typedef __int64                 INT64;
-    typedef double                  DOUBLE;
-    typedef long double             LDOUBLE;
-    typedef float                   FLOAT;
-    #endif
+#if defined _MSC_VER
+#include <Windows.h>
+#include <direct.h>
+#elif defined(__MINGW64__) || defined(__MINGW32__)
+#define WINVER       0x0A00
+#define _WIN32_WINNT 0x0A00
+#include <windows.h>
+#else
+#error "Unknown Windows platform!"
+#endif
+#define __WINDOWS_BUILD__
+#ifndef _WINNT_
+typedef char CHAR;
+typedef short WCHAR;
+typedef unsigned __int8 UINT8;
+typedef __int8 INT8;
+typedef unsigned __int16 UINT16;
+typedef __int16 INT16;
+typedef unsigned __int32 UINT32;
+typedef __int32 INT32;
+typedef unsigned __int64 UINT64;
+typedef __int64 INT64;
+typedef double DOUBLE;
+typedef long double LDOUBLE;
+typedef float FLOAT;
+#endif
 
-    typedef double                  DOUBLE;
-    typedef long double             LDOUBLE;
+typedef double DOUBLE;
+typedef long double LDOUBLE;
 
-#elif defined (__GNUC__)
+#elif defined(__GNUC__)
 
-    #include <stdint.h>
+#include <stdint.h>
 
-    typedef char                    CHAR;
-    typedef short                   WCHAR;
-    typedef uint8_t                 UINT8;
-    typedef int8_t                  INT8;
-    typedef uint16_t                UINT16;
-    typedef int16_t                 INT16;
-    typedef uint32_t                UINT32;
-    typedef int32_t                 INT32;
-    typedef uint64_t                UINT64;
-    typedef int64_t                 INT64;
-    typedef double                  DOUBLE;
-    typedef long double             LDOUBLE;
-    typedef float                   FLOAT;
+typedef char CHAR;
+typedef short WCHAR;
+typedef uint8_t UINT8;
+typedef int8_t INT8;
+typedef uint16_t UINT16;
+typedef int16_t INT16;
+typedef uint32_t UINT32;
+typedef int32_t INT32;
+typedef uint64_t UINT64;
+typedef int64_t INT64;
+typedef double DOUBLE;
+typedef long double LDOUBLE;
+typedef float FLOAT;
 
 #else
 
-typedef char                    CHAR;
-typedef short                   WCHAR;
-typedef unsigned char           UINT8;
-typedef char                    INT8;
-typedef unsigned short          UINT16;
-typedef short                   INT16;
-typedef unsigned long           UINT32;
-typedef long                    INT32;
-typedef unsigned long long      UINT64;
-typedef long long               INT64;
-typedef double                  DOUBLE;
-typedef long double             LDOUBLE;
-typedef float                   FLOAT;
+typedef char CHAR;
+typedef short WCHAR;
+typedef unsigned char UINT8;
+typedef char INT8;
+typedef unsigned short UINT16;
+typedef short INT16;
+typedef unsigned long UINT32;
+typedef long INT32;
+typedef unsigned long long UINT64;
+typedef long long INT64;
+typedef double DOUBLE;
+typedef long double LDOUBLE;
+typedef float FLOAT;
 
 #endif
 
 #ifndef VOID
-#define VOID    void
+#define VOID void
 #endif
 
 #ifdef __APPLE__
-    #ifndef OBJC_BOOL_DEFINED
-        #include "TargetConditionals.h"
-        #if TARGET_IPHONE_SIMULATOR
-            // iOS Simulator
-            typedef bool                BOOL;
-        #elif TARGET_OS_IPHONE
-            // iOS device
-            typedef signed char         BOOL;
-        #elif TARGET_OS_MAC
-            // Other kinds of Mac OS
-            typedef INT32                BOOL;
-        #else
-            #   error "Unknown Apple platform"
-        #endif
-    #endif
+#ifndef OBJC_BOOL_DEFINED
+#include "TargetConditionals.h"
+#if TARGET_IPHONE_SIMULATOR
+// iOS Simulator
+typedef bool BOOL;
+#elif TARGET_OS_IPHONE
+// iOS device
+typedef signed char BOOL;
+#elif TARGET_OS_MAC
+// Other kinds of Mac OS
+typedef INT32 BOOL;
 #else
-    typedef INT32                BOOL;
+#error "Unknown Apple platform"
+#endif
+#endif
+#else
+typedef INT32 BOOL;
 #endif
 
-typedef UINT8                BYTE;
-typedef VOID*                PVOID;
-typedef BYTE*                PBYTE;
-typedef BOOL*                PBOOL;
-typedef CHAR*                PCHAR;
-typedef WCHAR*               PWCHAR;
-typedef INT8*                PINT8;
-typedef UINT8*               PUINT8;
-typedef INT16*               PINT16;
-typedef UINT16*              PUINT16;
-typedef INT32*               PINT32;
-typedef UINT32*              PUINT32;
-typedef INT64*               PINT64;
-typedef UINT64*              PUINT64;
-typedef long                 LONG, *PLONG;
-typedef unsigned long        ULONG, *PULONG;
-typedef DOUBLE*              PDOUBLE;
-typedef LDOUBLE*             PLDOUBLE;
-typedef FLOAT*               PFLOAT;
+typedef UINT8 BYTE;
+typedef VOID* PVOID;
+typedef BYTE* PBYTE;
+typedef BOOL* PBOOL;
+typedef CHAR* PCHAR;
+typedef WCHAR* PWCHAR;
+typedef INT8* PINT8;
+typedef UINT8* PUINT8;
+typedef INT16* PINT16;
+typedef UINT16* PUINT16;
+typedef INT32* PINT32;
+typedef UINT32* PUINT32;
+typedef INT64* PINT64;
+typedef UINT64* PUINT64;
+typedef long LONG, *PLONG;
+typedef unsigned long ULONG, *PULONG;
+typedef DOUBLE* PDOUBLE;
+typedef LDOUBLE* PLDOUBLE;
+typedef FLOAT* PFLOAT;
 
 #ifndef FALSE
 #define FALSE 0
@@ -202,8 +202,8 @@ typedef FLOAT*               PFLOAT;
 #endif
 
 // Thread Id
-typedef UINT64              TID;
-typedef TID*                PTID;
+typedef UINT64 TID;
+typedef TID* PTID;
 
 #ifndef INVALID_TID_VALUE
 #define INVALID_TID_VALUE ((UINT64) NULL)
@@ -214,7 +214,7 @@ typedef TID*                PTID;
 #endif
 
 // Mutex typedef
-typedef UINT64              MUTEX;
+typedef UINT64 MUTEX;
 
 #ifndef INVALID_MUTEX_VALUE
 #define INVALID_MUTEX_VALUE ((UINT64) NULL)
@@ -252,132 +252,132 @@ typedef pthread_cond_t* CVAR;
 #endif
 
 // Content ID - 64 bit uint
-typedef UINT64              CID;
-typedef CID*                PCID;
+typedef UINT64 CID;
+typedef CID* PCID;
 
 //
 // int and long ptr definitions
 //
 #if defined SIZE_64
-    typedef INT64                INT_PTR, *PINT_PTR;
-    typedef UINT64               UINT_PTR, *PUINT_PTR;
+typedef INT64 INT_PTR, *PINT_PTR;
+typedef UINT64 UINT_PTR, *PUINT_PTR;
 
-    typedef INT64                LONG_PTR, *PLONG_PTR;
-    typedef UINT64               ULONG_PTR, *PULONG_PTR;
+typedef INT64 LONG_PTR, *PLONG_PTR;
+typedef UINT64 ULONG_PTR, *PULONG_PTR;
 
-    #ifndef PRIu64
-        #ifdef __LLP64__
-            #define PRIu64 "llu"
-        #else // __LP64__
-            #define PRIu64 "lu"
-        #endif
-    #endif
+#ifndef PRIu64
+#ifdef __LLP64__
+#define PRIu64 "llu"
+#else // __LP64__
+#define PRIu64 "lu"
+#endif
+#endif
 
-    #ifndef PRIx64
-        #ifdef __LLP64__
-            #define PRIx64 "llx"
-        #else // __LP64__
-            #define PRIx64 "lx"
-        #endif
-    #endif
+#ifndef PRIx64
+#ifdef __LLP64__
+#define PRIx64 "llx"
+#else // __LP64__
+#define PRIx64 "lx"
+#endif
+#endif
 
-    #ifndef PRId64
-        #ifdef __LLP64__
-            #define PRId64 "lld"
-        #else // __LP64__
-            #define PRId64 "ld"
-        #endif
-    #endif
+#ifndef PRId64
+#ifdef __LLP64__
+#define PRId64 "lld"
+#else // __LP64__
+#define PRId64 "ld"
+#endif
+#endif
 
 #elif defined SIZE_32
-    typedef INT32                INT_PTR, *PINT_PTR;
-    typedef UINT32               UINT_PTR, *PUINT_PTR;
+typedef INT32 INT_PTR, *PINT_PTR;
+typedef UINT32 UINT_PTR, *PUINT_PTR;
 
-    #ifndef __int3264 // defined in Windows 'basetsd.h'
-        typedef INT64                LONG_PTR, *PLONG_PTR;
-        typedef UINT64               ULONG_PTR, *PULONG_PTR;
-    #endif
+#ifndef __int3264 // defined in Windows 'basetsd.h'
+typedef INT64 LONG_PTR, *PLONG_PTR;
+typedef UINT64 ULONG_PTR, *PULONG_PTR;
+#endif
 
-    #ifndef PRIu64
-        #define PRIu64 "llu"
-    #endif
+#ifndef PRIu64
+#define PRIu64 "llu"
+#endif
 
-    #ifndef PRIx64
-        #define PRIx64 "llx"
-    #endif
+#ifndef PRIx64
+#define PRIx64 "llx"
+#endif
 
-    #ifndef PRId64
-        #define PRId64 "lld"
-    #endif
+#ifndef PRId64
+#define PRId64 "lld"
+#endif
 
 #else
-    #error "Environment not 32 or 64-bit."
+#error "Environment not 32 or 64-bit."
 #endif
 
 //
 // Define pointer width size types
 //
 #ifndef _SIZE_T_DEFINED_IN_COMMON
-    #if defined (__MINGW32__)
-        typedef ULONG_PTR SIZE_T, *PSIZE_T;
-        typedef LONG_PTR SSIZE_T, *PSSIZE_T;
-    #elif !(defined _WIN32 || defined _WIN64)
-        typedef UINT_PTR SIZE_T, *PSIZE_T;
-        typedef INT_PTR SSIZE_T, *PSSIZE_T;
-    #endif
-    #define _SIZE_T_DEFINED_IN_COMMON
+#if defined(__MINGW32__)
+typedef ULONG_PTR SIZE_T, *PSIZE_T;
+typedef LONG_PTR SSIZE_T, *PSSIZE_T;
+#elif !(defined _WIN32 || defined _WIN64)
+typedef UINT_PTR SIZE_T, *PSIZE_T;
+typedef INT_PTR SSIZE_T, *PSSIZE_T;
+#endif
+#define _SIZE_T_DEFINED_IN_COMMON
 #endif
 
 //
 // Stringification macro
 //
 #define STR_(s) #s
-#define STR(s) STR_(s)
+#define STR(s)  STR_(s)
 
 //
 // NULL definition
 //
 #ifndef NULL
-    #ifdef __cplusplus
-        #define NULL    0
-    #else  /* __cplusplus */
-        #define NULL    ((void *)0)
-    #endif  /* __cplusplus */
-#endif  /* NULL */
+#ifdef __cplusplus
+#define NULL 0
+#else /* __cplusplus */
+#define NULL ((void*) 0)
+#endif /* __cplusplus */
+#endif /* NULL */
 
 //
 // Max and Min definitions
 //
-#define MAX_UINT8           ((UINT8) 0xff)
-#define MAX_INT8            ((INT8) 0x7f)
-#define MIN_INT8            ((INT8) 0x80)
+#define MAX_UINT8 ((UINT8) 0xff)
+#define MAX_INT8  ((INT8) 0x7f)
+#define MIN_INT8  ((INT8) 0x80)
 
-#define MAX_UINT16          ((UINT16) 0xffff)
-#define MAX_INT16           ((INT16) 0x7fff)
-#define MIN_INT16           ((INT16) 0x8000)
+#define MAX_UINT16 ((UINT16) 0xffff)
+#define MAX_INT16  ((INT16) 0x7fff)
+#define MIN_INT16  ((INT16) 0x8000)
 
-#define MAX_UINT32          ((UINT32) 0xffffffff)
-#define MAX_INT32           ((INT32) 0x7fffffff)
-#define MIN_INT32           ((INT32) 0x80000000)
+#define MAX_UINT32 ((UINT32) 0xffffffff)
+#define MAX_INT32  ((INT32) 0x7fffffff)
+#define MIN_INT32  ((INT32) 0x80000000)
 
-#define MAX_UINT64          ((UINT64) 0xffffffffffffffff)
-#define MAX_INT64           ((INT64) 0x7fffffffffffffff)
-#define MIN_INT64           ((INT64) 0x8000000000000000)
+#define MAX_UINT64 ((UINT64) 0xffffffffffffffff)
+#define MAX_INT64  ((INT64) 0x7fffffffffffffff)
+#define MIN_INT64  ((INT64) 0x8000000000000000)
 
 //
 // NOTE: Timer precision is in 100ns intervals. This is used in heuristics and in time functionality
 //
-#define DEFAULT_TIME_UNIT_IN_NANOS                          100
-#define HUNDREDS_OF_NANOS_IN_A_MICROSECOND                  10LL
-#define HUNDREDS_OF_NANOS_IN_A_MILLISECOND                  (HUNDREDS_OF_NANOS_IN_A_MICROSECOND * 1000LL)
-#define HUNDREDS_OF_NANOS_IN_A_SECOND                       (HUNDREDS_OF_NANOS_IN_A_MILLISECOND * 1000LL)
-#define HUNDREDS_OF_NANOS_IN_A_MINUTE                       (HUNDREDS_OF_NANOS_IN_A_SECOND * 60LL)
-#define HUNDREDS_OF_NANOS_IN_AN_HOUR                        (HUNDREDS_OF_NANOS_IN_A_MINUTE * 60LL)
+#define DEFAULT_TIME_UNIT_IN_NANOS         100
+#define HUNDREDS_OF_NANOS_IN_A_MICROSECOND 10LL
+#define HUNDREDS_OF_NANOS_IN_A_MILLISECOND (HUNDREDS_OF_NANOS_IN_A_MICROSECOND * 1000LL)
+#define HUNDREDS_OF_NANOS_IN_A_SECOND      (HUNDREDS_OF_NANOS_IN_A_MILLISECOND * 1000LL)
+#define HUNDREDS_OF_NANOS_IN_A_MINUTE      (HUNDREDS_OF_NANOS_IN_A_SECOND * 60LL)
+#define HUNDREDS_OF_NANOS_IN_AN_HOUR       (HUNDREDS_OF_NANOS_IN_A_MINUTE * 60LL)
 
 //
 // Infinite time
 //
-#define INFINITE_TIME_VALUE                                 MAX_UINT64
+#define INFINITE_TIME_VALUE MAX_UINT64
 
 //
 // Some standard definitions/macros
@@ -390,35 +390,56 @@ typedef CID*                PCID;
 // Check for 32/64 bit
 //
 #ifndef CHECK_64_BIT
-    #define CHECK_64_BIT    (SIZEOF(SIZE_T) == 8)
+#define CHECK_64_BIT (SIZEOF(SIZE_T) == 8)
 #endif
 
 #ifndef UNUSED_PARAM
-    #define UNUSED_PARAM(expr) do { (void)(expr); } while (0)
+#define UNUSED_PARAM(expr)                                                                                                                           \
+    do {                                                                                                                                             \
+        (void) (expr);                                                                                                                               \
+    } while (0)
 #endif
 
 #ifndef ARRAY_SIZE
-    #define ARRAY_SIZE(array) (sizeof(array) / sizeof *(array))
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof *(array))
 #endif
 
 #ifndef SAFE_MEMFREE
-    #define SAFE_MEMFREE(p) do {if (p) {MEMFREE(p); (p)=NULL;}} while (0)
+#define SAFE_MEMFREE(p)                                                                                                                              \
+    do {                                                                                                                                             \
+        if (p) {                                                                                                                                     \
+            MEMFREE(p);                                                                                                                              \
+            (p) = NULL;                                                                                                                              \
+        }                                                                                                                                            \
+    } while (0)
 #endif
 
 #ifndef SAFE_DELETE
-    #define SAFE_DELETE(p) do {if (p) {delete (p); (p)=NULL;}} while (0)
+#define SAFE_DELETE(p)                                                                                                                               \
+    do {                                                                                                                                             \
+        if (p) {                                                                                                                                     \
+            delete (p);                                                                                                                              \
+            (p) = NULL;                                                                                                                              \
+        }                                                                                                                                            \
+    } while (0)
 #endif
 
 #ifndef SAFE_DELETE_ARRAY
-    #define SAFE_DELETE_ARRAY(p) do {if (p) {delete[] (p); (p)=NULL;}} while (0)
+#define SAFE_DELETE_ARRAY(p)                                                                                                                         \
+    do {                                                                                                                                             \
+        if (p) {                                                                                                                                     \
+            delete[](p);                                                                                                                             \
+            (p) = NULL;                                                                                                                              \
+        }                                                                                                                                            \
+    } while (0)
 #endif
 
 #ifndef MIN
-    #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 #ifndef MAX
-    #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
 #ifndef ABS
@@ -426,7 +447,7 @@ typedef CID*                PCID;
 #endif
 
 #ifndef IS_ALIGNED_TO
-    #define IS_ALIGNED_TO(m, n) ((m) % (n) == 0)
+#define IS_ALIGNED_TO(m, n) ((m) % (n) == 0)
 #endif
 
 ////////////////////////////////////////////////////
@@ -434,41 +455,42 @@ typedef CID*                PCID;
 ////////////////////////////////////////////////////
 #define STATUS UINT32
 
-#define STATUS_SUCCESS    ((STATUS) 0x00000000)
+#define STATUS_SUCCESS ((STATUS) 0x00000000)
 
-#define STATUS_FAILED(x) (((STATUS)(x)) != STATUS_SUCCESS)
+#define STATUS_FAILED(x)    (((STATUS)(x)) != STATUS_SUCCESS)
 #define STATUS_SUCCEEDED(x) (!STATUS_FAILED(x))
 
-#define STATUS_BASE                                 0x00000000
-#define STATUS_NULL_ARG                             STATUS_BASE + 0x00000001
-#define STATUS_INVALID_ARG                          STATUS_BASE + 0x00000002
-#define STATUS_INVALID_ARG_LEN                      STATUS_BASE + 0x00000003
-#define STATUS_NOT_ENOUGH_MEMORY                    STATUS_BASE + 0x00000004
-#define STATUS_BUFFER_TOO_SMALL                     STATUS_BASE + 0x00000005
-#define STATUS_UNEXPECTED_EOF                       STATUS_BASE + 0x00000006
-#define STATUS_FORMAT_ERROR                         STATUS_BASE + 0x00000007
-#define STATUS_INVALID_HANDLE_ERROR                 STATUS_BASE + 0x00000008
-#define STATUS_OPEN_FILE_FAILED                     STATUS_BASE + 0x00000009
-#define STATUS_READ_FILE_FAILED                     STATUS_BASE + 0x0000000a
-#define STATUS_WRITE_TO_FILE_FAILED                 STATUS_BASE + 0x0000000b
-#define STATUS_INTERNAL_ERROR                       STATUS_BASE + 0x0000000c
-#define STATUS_INVALID_OPERATION                    STATUS_BASE + 0x0000000d
-#define STATUS_NOT_IMPLEMENTED                      STATUS_BASE + 0x0000000e
-#define STATUS_OPERATION_TIMED_OUT                  STATUS_BASE + 0x0000000f
-#define STATUS_NOT_FOUND                            STATUS_BASE + 0x00000010
-#define STATUS_CREATE_THREAD_FAILED                 STATUS_BASE + 0x00000011
-#define STATUS_THREAD_NOT_ENOUGH_RESOURCES          STATUS_BASE + 0x00000012
-#define STATUS_THREAD_INVALID_ARG                   STATUS_BASE + 0x00000013
-#define STATUS_THREAD_PERMISSIONS                   STATUS_BASE + 0x00000014
-#define STATUS_THREAD_DEADLOCKED                    STATUS_BASE + 0x00000015
-#define STATUS_THREAD_DOES_NOT_EXIST                STATUS_BASE + 0x00000016
-#define STATUS_JOIN_THREAD_FAILED                   STATUS_BASE + 0x00000017
-#define STATUS_WAIT_FAILED                          STATUS_BASE + 0x00000018
-#define STATUS_CANCEL_THREAD_FAILED                 STATUS_BASE + 0x00000019
-#define STATUS_THREAD_IS_NOT_JOINABLE               STATUS_BASE + 0x0000001a
-#define STATUS_DETACH_THREAD_FAILED                 STATUS_BASE + 0x0000001b
-#define STATUS_THREAD_ATTR_INIT_FAILED              STATUS_BASE + 0x0000001c
-#define STATUS_THREAD_ATTR_SET_STACK_SIZE_FAILED    STATUS_BASE + 0x0000001d
+#define STATUS_BASE                              0x00000000
+#define STATUS_NULL_ARG                          STATUS_BASE + 0x00000001
+#define STATUS_INVALID_ARG                       STATUS_BASE + 0x00000002
+#define STATUS_INVALID_ARG_LEN                   STATUS_BASE + 0x00000003
+#define STATUS_NOT_ENOUGH_MEMORY                 STATUS_BASE + 0x00000004
+#define STATUS_BUFFER_TOO_SMALL                  STATUS_BASE + 0x00000005
+#define STATUS_UNEXPECTED_EOF                    STATUS_BASE + 0x00000006
+#define STATUS_FORMAT_ERROR                      STATUS_BASE + 0x00000007
+#define STATUS_INVALID_HANDLE_ERROR              STATUS_BASE + 0x00000008
+#define STATUS_OPEN_FILE_FAILED                  STATUS_BASE + 0x00000009
+#define STATUS_READ_FILE_FAILED                  STATUS_BASE + 0x0000000a
+#define STATUS_WRITE_TO_FILE_FAILED              STATUS_BASE + 0x0000000b
+#define STATUS_INTERNAL_ERROR                    STATUS_BASE + 0x0000000c
+#define STATUS_INVALID_OPERATION                 STATUS_BASE + 0x0000000d
+#define STATUS_NOT_IMPLEMENTED                   STATUS_BASE + 0x0000000e
+#define STATUS_OPERATION_TIMED_OUT               STATUS_BASE + 0x0000000f
+#define STATUS_NOT_FOUND                         STATUS_BASE + 0x00000010
+#define STATUS_CREATE_THREAD_FAILED              STATUS_BASE + 0x00000011
+#define STATUS_THREAD_NOT_ENOUGH_RESOURCES       STATUS_BASE + 0x00000012
+#define STATUS_THREAD_INVALID_ARG                STATUS_BASE + 0x00000013
+#define STATUS_THREAD_PERMISSIONS                STATUS_BASE + 0x00000014
+#define STATUS_THREAD_DEADLOCKED                 STATUS_BASE + 0x00000015
+#define STATUS_THREAD_DOES_NOT_EXIST             STATUS_BASE + 0x00000016
+#define STATUS_JOIN_THREAD_FAILED                STATUS_BASE + 0x00000017
+#define STATUS_WAIT_FAILED                       STATUS_BASE + 0x00000018
+#define STATUS_CANCEL_THREAD_FAILED              STATUS_BASE + 0x00000019
+#define STATUS_THREAD_IS_NOT_JOINABLE            STATUS_BASE + 0x0000001a
+#define STATUS_DETACH_THREAD_FAILED              STATUS_BASE + 0x0000001b
+#define STATUS_THREAD_ATTR_INIT_FAILED           STATUS_BASE + 0x0000001c
+#define STATUS_THREAD_ATTR_SET_STACK_SIZE_FAILED STATUS_BASE + 0x0000001d
+#define STATUS_MEMORY_NOT_FREED                  STATUS_BASE + 0x0000001e
 
 #include <stdlib.h>
 #include <string.h>
@@ -481,22 +503,21 @@ typedef CID*                PCID;
 
 #if !(defined _WIN32 || defined _WIN64)
 #include <unistd.h>
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragma-pack"
-#pragma pack(push, current_common_packing)
 #include <dirent.h>
-#pragma pack(pop, current_common_packing)
-#pragma GCC diagnostic pop
 #include <sys/time.h>
 #include <sys/utsname.h>
 #endif
 
-#if !defined(_MSC_VER) && !defined(__MINGW64__) && !defined(__MINGW32__) && !defined (__MACH__)
+#if !defined(_MSC_VER) && !defined(__MINGW64__) && !defined(__MINGW32__) && !defined(__MACH__)
 // NOTE!!! For some reason memalign is not included for Linux builds in stdlib.h
 #include <malloc.h>
 #endif
 
-#if defined _WIN32 || defined _WIN64 || defined __CYGWIN__
+#if defined __WINDOWS_BUILD__
+
+// Include the posix IO
+#include <fcntl.h>
+#include <io.h>
 
 #include "dlfcn_win_stub.h"
 
@@ -506,45 +527,45 @@ typedef CID*                PCID;
 #endif
 
 #ifndef S_ISDIR
-#define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#define S_ISDIR(mode) (((mode) &S_IFMT) == S_IFDIR)
 #endif
 
 #ifndef S_ISREG
-#define S_ISREG(mode)  (((mode) & S_IFMT) == S_IFREG)
+#define S_ISREG(mode) (((mode) &S_IFMT) == S_IFREG)
 #endif
 
 // Definition of the mkdir for Windows with 1 param
 #define GLOBAL_MKDIR(p1, p2) _mkdir(p1)
 
 // Definition of the case insensitive string compare
-#define GLOBAL_STRCMPI _strcmpi
+#define GLOBAL_STRCMPI  _strcmpi
 #define GLOBAL_STRNCMPI _strnicmp
 
-#if defined (__MINGW64__) || defined(__MINGW32__)
-    #define GLOBAL_RMDIR rmdir
-    #define GLOBAL_STAT stat
+#if defined(__MINGW64__) || defined(__MINGW32__)
+#define GLOBAL_RMDIR rmdir
+#define GLOBAL_STAT  stat
 
-    // Typedef stat structure
-    typedef struct stat STAT_STRUCT;
+// Typedef stat structure
+typedef struct stat STAT_STRUCT;
 #else
-    // Definition of posix APIs for Windows
-    #define GLOBAL_RMDIR _rmdir
-    #define GLOBAL_STAT _stat
+// Definition of posix APIs for Windows
+#define GLOBAL_RMDIR _rmdir
+#define GLOBAL_STAT  _stat
 
-    // Typedef stat structure
-    typedef struct _stat STAT_STRUCT;
+// Typedef stat structure
+typedef struct _stat STAT_STRUCT;
 #endif
 
 // Definition of the static initializers
-#define GLOBAL_MUTEX_INIT                       MUTEX_CREATE(FALSE)
-#define GLOBAL_MUTEX_INIT_RECURSIVE             MUTEX_CREATE(TRUE)
-#define GLOBAL_CVAR_INIT                        CVAR_CREATE()
+#define GLOBAL_MUTEX_INIT           MUTEX_CREATE(FALSE)
+#define GLOBAL_MUTEX_INIT_RECURSIVE MUTEX_CREATE(TRUE)
+#define GLOBAL_CVAR_INIT            CVAR_CREATE()
 
 #else
 
 #include <dlfcn.h>
 
-#if !defined (__MACH__)
+#if !defined(__MACH__)
 #include <sys/prctl.h>
 #endif
 
@@ -552,12 +573,12 @@ typedef CID*                PCID;
 #define GLOBAL_MKDIR(p1, p2) mkdir((p1), (p2))
 
 // Definition of the case insensitive string compare
-#define GLOBAL_STRCMPI strcasecmp
-#define GLOBAL_STRNCMPI strncasecmp
+#define GLOBAL_STRCMPI       strcasecmp
+#define GLOBAL_STRNCMPI      strncasecmp
 
 // Definition of posix API for non-Windows platforms
-#define GLOBAL_RMDIR rmdir
-#define GLOBAL_STAT stat
+#define GLOBAL_RMDIR         rmdir
+#define GLOBAL_STAT          stat
 
 // Typedef stat structure
 typedef struct stat STAT_STRUCT;
@@ -566,16 +587,21 @@ typedef struct stat STAT_STRUCT;
 #ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 
 #ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-#define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP {{PTHREAD_MUTEX_RECURSIVE}}
+#define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP                                                                                                       \
+    {                                                                                                                                                \
+        {                                                                                                                                            \
+            PTHREAD_MUTEX_RECURSIVE                                                                                                                  \
+        }                                                                                                                                            \
+    }
 #endif
 
-#define GLOBAL_MUTEX_INIT_RECURSIVE             PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define GLOBAL_MUTEX_INIT_RECURSIVE PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #else
-#define GLOBAL_MUTEX_INIT_RECURSIVE             PTHREAD_RECURSIVE_MUTEX_INITIALIZER
+#define GLOBAL_MUTEX_INIT_RECURSIVE PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 #endif
 
-#define GLOBAL_MUTEX_INIT                       PTHREAD_MUTEX_INITIALIZER
-#define GLOBAL_CVAR_INIT                        PTHREAD_COND_INITIALIZER
+#define GLOBAL_MUTEX_INIT PTHREAD_MUTEX_INITIALIZER
+#define GLOBAL_CVAR_INIT  PTHREAD_COND_INITIALIZER
 
 #endif
 
@@ -654,7 +680,7 @@ typedef UINT64 (*getTime)();
 //
 // Default time library functions
 //
-#define TIME_DIFF_UNIX_WINDOWS_TIME     116444736000000000ULL
+#define TIME_DIFF_UNIX_WINDOWS_TIME 116444736000000000ULL
 
 PUBLIC_API INLINE UINT64 defaultGetTime();
 
@@ -662,6 +688,7 @@ PUBLIC_API INLINE UINT64 defaultGetTime();
 // Thread related functionality
 //
 extern getTime globalGetTime;
+extern getTime globalGetRealTime;
 
 //
 // Thread library function definitions
@@ -749,321 +776,318 @@ extern PUBLIC_API atomicOr globalAtomicOr;
 extern PUBLIC_API atomicXor globalAtomicXor;
 
 // Max string length for platform name
-#define MAX_PLATFORM_NAME_STRING_LEN            128
+#define MAX_PLATFORM_NAME_STRING_LEN 128
 
 // Max string length for the OS version
-#define MAX_OS_VERSION_STRING_LEN               128
+#define MAX_OS_VERSION_STRING_LEN 128
 
 // Max string length for the compiler info
-#define MAX_COMPILER_INFO_STRING_LEN            128
+#define MAX_COMPILER_INFO_STRING_LEN 128
 
 //
 // Version macros
 //
-#define GET_PLATFORM_NAME          globalGetPlatformName
-#define GET_OS_VERSION             globalGetOsVersion
-#define GET_COMPILER_INFO          globalGetCompilerInfo
+#define GET_PLATFORM_NAME globalGetPlatformName
+#define GET_OS_VERSION    globalGetOsVersion
+#define GET_COMPILER_INFO globalGetCompilerInfo
 
 //
 // Memory allocation and operations
 //
-#define MEMALLOC                   globalMemAlloc
-#define MEMALIGNALLOC              globalMemAlignAlloc
-#define MEMCALLOC                  globalMemCalloc
-#define MEMREALLOC                 globalMemRealloc
-#define MEMFREE                    globalMemFree
-#define MEMCMP                     memcmp
-#define MEMCPY                     memcpy
-#define MEMSET                     memset
-#define MEMMOVE                    memmove
-#define REALLOC                    realloc
+#define MEMALLOC      globalMemAlloc
+#define MEMALIGNALLOC globalMemAlignAlloc
+#define MEMCALLOC     globalMemCalloc
+#define MEMREALLOC    globalMemRealloc
+#define MEMFREE       globalMemFree
+#define MEMCMP        memcmp
+#define MEMCPY        memcpy
+#define MEMSET        memset
+#define MEMMOVE       memmove
+#define REALLOC       realloc
 
 //
 // Whether the buffer contains the same char
 //
-#define MEMCHK                     globalMemChk
+#define MEMCHK globalMemChk
 
 //
 // String operations
 //
-#define STRCAT                     strcat
-#define STRNCAT                    strncat
-#define STRCPY                     strcpy
-#define STRNCPY                    strncpy
-#define STRLEN                     strlen
-#define STRNLEN                    strnlen
-#define STRCHR                     strchr
-#define STRNCHR                    strnchr
-#define STRRCHR                    strrchr
-#define STRCMP                     strcmp
-#define STRCMPI                    GLOBAL_STRCMPI
-#define STRNCMPI                   GLOBAL_STRNCMPI
-#define STRNCMP                    strncmp
-#define PRINTF                     printf
-#define SPRINTF                    sprintf
-#define SNPRINTF                   snprintf
-#define TRIMSTRALL                 trimstrall
-#define LTRIMSTR                   ltrimstr
-#define RTRIMSTR                   rtrimstr
-#define STRSTR                     strstr
-#define STRNSTR                    strnstr
-#define TOLOWER                    tolower
-#define TOUPPER                    toupper
-#define TOLOWERSTR                 tolowerstr
-#define TOUPPERSTR                 toupperstr
+#define STRCAT     strcat
+#define STRNCAT    strncat
+#define STRCPY     strcpy
+#define STRNCPY    strncpy
+#define STRLEN     strlen
+#define STRNLEN    strnlen
+#define STRCHR     strchr
+#define STRNCHR    strnchr
+#define STRRCHR    strrchr
+#define STRCMP     strcmp
+#define STRCMPI    GLOBAL_STRCMPI
+#define STRNCMPI   GLOBAL_STRNCMPI
+#define STRNCMP    strncmp
+#define PRINTF     printf
+#define SPRINTF    sprintf
+#define SNPRINTF   snprintf
+#define SSCANF     sscanf
+#define TRIMSTRALL trimstrall
+#define LTRIMSTR   ltrimstr
+#define RTRIMSTR   rtrimstr
+#define STRSTR     strstr
+#ifdef strnstr
+#define STRNSTR strnstr
+#else
+#define STRNSTR defaultStrnstr
+#endif
+#define TOLOWER    tolower
+#define TOUPPER    toupper
+#define TOLOWERSTR tolowerstr
+#define TOUPPERSTR toupperstr
 
-#define MKTIME                     mktime
+#define MKTIME mktime
 
 //
 // Environment variables
 //
-#define GETENV                     getenv
+#define GETENV getenv
 
 //
 // Empty string definition
 //
-#define EMPTY_STRING                ((PCHAR) "")
+#define EMPTY_STRING ((PCHAR) "")
 
 //
 // Check if string is empty
 //
-#define IS_EMPTY_STRING(str)                   ((str)[0] == '\0')
+#define IS_EMPTY_STRING(str) ((str)[0] == '\0')
 
 //
 // Pseudo-random functionality
 //
 #ifndef SRAND
-#define SRAND                           srand
+#define SRAND srand
 #endif
 #ifndef RAND
-#define RAND                            rand
+#define RAND rand
 #endif
 
 //
 // CRT functionality
 //
-#define STRTOUL                    strtoul
-#define ULLTOSTR                   ulltostr
-#define ULTOSTR                    ultostr
+#define STRTOUL  strtoul
+#define ULLTOSTR ulltostr
+#define ULTOSTR  ultostr
 
 //
 // File operations
 //
 #ifndef FOPEN
-    #define FOPEN                       fopen
+#define FOPEN fopen
 #endif
 #ifndef FCLOSE
-    #define FCLOSE                      fclose
+#define FCLOSE fclose
 #endif
 #ifndef FWRITE
-    #define FWRITE                      fwrite
+#define FWRITE fwrite
 #endif
 #ifndef FPUTC
-    #define FPUTC                       fputc
+#define FPUTC fputc
 #endif
 #ifndef FREAD
-    #define FREAD                       fread
+#define FREAD fread
 #endif
 #ifndef FSEEK
-    #define FSEEK                       fseek
+#define FSEEK fseek
 #endif
 #ifndef FTELL
-    #define FTELL                       ftell
+#define FTELL ftell
 #endif
 #ifndef FREMOVE
-    #define FREMOVE                     remove
+#define FREMOVE remove
 #endif
 #ifndef FUNLINK
-    #define FUNLINK                     unlink
+#define FUNLINK unlink
 #endif
 #ifndef FREWIND
-    #define FREWIND                     rewind
+#define FREWIND rewind
 #endif
 #ifndef FRENAME
-    #define FRENAME                     rename
+#define FRENAME rename
 #endif
 #ifndef FTMPFILE
-    #define FTMPFILE                    tmpfile
+#define FTMPFILE tmpfile
 #endif
 #ifndef FTMPNAME
-    #define FTMPNAME                    tmpnam
+#define FTMPNAME tmpnam
 #endif
 #ifndef FOPENDIR
-    #define FOPENDIR                    opendir
+#define FOPENDIR opendir
 #endif
 #ifndef FCLOSEDIR
-    #define FCLOSEDIR                   closedir
+#define FCLOSEDIR closedir
 #endif
 #ifndef FREADDIR
-    #define FREADDIR                    readdir
+#define FREADDIR readdir
 #endif
 #ifndef FMKDIR
-    #define FMKDIR                      GLOBAL_MKDIR
+#define FMKDIR GLOBAL_MKDIR
 #endif
 #ifndef FRMDIR
-    #define FRMDIR                      GLOBAL_RMDIR
+#define FRMDIR GLOBAL_RMDIR
 #endif
 #ifndef FSTAT
-    #define FSTAT                       GLOBAL_STAT
+#define FSTAT GLOBAL_STAT
 #endif
 #ifndef FSCANF
-    #define FSCANF                      fscanf
+#define FSCANF fscanf
 #endif
 
 #if defined _WIN32 || defined _WIN64 || defined __CYGWIN__
-    #define FPATHSEPARATOR              '\\'
-    #define FPATHSEPARATOR_STR          "\\"
+#define FPATHSEPARATOR     '\\'
+#define FPATHSEPARATOR_STR "\\"
 #else
-    #define FPATHSEPARATOR              '/'
-    #define FPATHSEPARATOR_STR          "/"
+#define FPATHSEPARATOR     '/'
+#define FPATHSEPARATOR_STR "/"
 #endif
 //
 // String to integer conversion
 //
-#define STRTOUI32                   strtoui32
-#define STRTOI32                    strtoi32
-#define STRTOUI64                   strtoui64
-#define STRTOI64                    strtoi64
+#define STRTOUI32 strtoui32
+#define STRTOI32  strtoi32
+#define STRTOUI64 strtoui64
+#define STRTOI64  strtoi64
 
 //
 // Dynamic library loading routines
 //
-#define DLOPEN                      globalDlOpen
-#define DLCLOSE                     globalDlClose
-#define DLSYM                       globalDlSym
-#define DLERROR                     globalDlError
+#define DLOPEN  globalDlOpen
+#define DLCLOSE globalDlClose
+#define DLSYM   globalDlSym
+#define DLERROR globalDlError
 
 //
 // Thread functionality
 //
-#define GETTID                      globalGetThreadId
-#define GETTNAME                    globalGetThreadName
+#define GETTID   globalGetThreadId
+#define GETTNAME globalGetThreadName
 
 //
 // Time functionality
 //
-#define GETTIME                     globalGetTime
-#define STRFTIME                    strftime
-#define GMTIME                      gmtime
+#define GETTIME     globalGetTime
+#define GETREALTIME globalGetRealTime
+#define STRFTIME    strftime
+#define GMTIME      gmtime
 
 //
 // Mutex functionality
 //
-#define MUTEX_CREATE                globalCreateMutex
-#define MUTEX_LOCK                  globalLockMutex
-#define MUTEX_UNLOCK                globalUnlockMutex
-#define MUTEX_TRYLOCK               globalTryLockMutex
-#define MUTEX_FREE                  globalFreeMutex
+#define MUTEX_CREATE  globalCreateMutex
+#define MUTEX_LOCK    globalLockMutex
+#define MUTEX_UNLOCK  globalUnlockMutex
+#define MUTEX_TRYLOCK globalTryLockMutex
+#define MUTEX_FREE    globalFreeMutex
 
 //
 // Condition variable functionality
 //
-#define CVAR_CREATE                 globalConditionVariableCreate
-#define CVAR_SIGNAL                 globalConditionVariableSignal
-#define CVAR_BROADCAST              globalConditionVariableBroadcast
-#define CVAR_WAIT                   globalConditionVariableWait
-#define CVAR_FREE                   globalConditionVariableFree
+#define CVAR_CREATE    globalConditionVariableCreate
+#define CVAR_SIGNAL    globalConditionVariableSignal
+#define CVAR_BROADCAST globalConditionVariableBroadcast
+#define CVAR_WAIT      globalConditionVariableWait
+#define CVAR_FREE      globalConditionVariableFree
 
 //
 // Thread functionality
 //
-#define THREAD_CREATE                globalCreateThread
-#define THREAD_JOIN                  globalJoinThread
-#define THREAD_SLEEP                 globalThreadSleep
-#define THREAD_SLEEP_UNTIL           globalThreadSleepUntil
-#define THREAD_CANCEL                globalCancelThread
-#define THREAD_DETACH                globalDetachThread
+#define THREAD_CREATE      globalCreateThread
+#define THREAD_JOIN        globalJoinThread
+#define THREAD_SLEEP       globalThreadSleep
+#define THREAD_SLEEP_UNTIL globalThreadSleepUntil
+#define THREAD_CANCEL      globalCancelThread
+#define THREAD_DETACH      globalDetachThread
 
 //
 // Static initializers
 //
-#define MUTEX_INIT                  GLOBAL_MUTEX_INIT
-#define MUTEX_INIT_RECURSIVE        GLOBAL_MUTEX_INIT_RECURSIVE
-#define CVAR_INIT                   GLOBAL_CVAR_INIT
+#define MUTEX_INIT           GLOBAL_MUTEX_INIT
+#define MUTEX_INIT_RECURSIVE GLOBAL_MUTEX_INIT_RECURSIVE
+#define CVAR_INIT            GLOBAL_CVAR_INIT
 
 //
 // Basic Atomics functionality
 //
-#define ATOMIC_LOAD                 globalAtomicLoad
-#define ATOMIC_STORE                globalAtomicStore
-#define ATOMIC_EXCHANGE             globalAtomicExchange
-#define ATOMIC_COMPARE_EXCHANGE     globalAtomicCompareExchange
-#define ATOMIC_INCREMENT            globalAtomicIncrement
-#define ATOMIC_DECREMENT            globalAtomicDecrement
-#define ATOMIC_ADD                  globalAtomicAdd
-#define ATOMIC_SUBTRACT             globalAtomicSubtract
-#define ATOMIC_AND                  globalAtomicAnd
-#define ATOMIC_OR                   globalAtomicOr
-#define ATOMIC_XOR                  globalAtomicXor
+#define ATOMIC_LOAD             globalAtomicLoad
+#define ATOMIC_STORE            globalAtomicStore
+#define ATOMIC_EXCHANGE         globalAtomicExchange
+#define ATOMIC_COMPARE_EXCHANGE globalAtomicCompareExchange
+#define ATOMIC_INCREMENT        globalAtomicIncrement
+#define ATOMIC_DECREMENT        globalAtomicDecrement
+#define ATOMIC_ADD              globalAtomicAdd
+#define ATOMIC_SUBTRACT         globalAtomicSubtract
+#define ATOMIC_AND              globalAtomicAnd
+#define ATOMIC_OR               globalAtomicOr
+#define ATOMIC_XOR              globalAtomicXor
 
 //
 // Helper atomics
 //
-typedef SIZE_T                          ATOMIC_BOOL;
-#define ATOMIC_LOAD_BOOL                (BOOL) globalAtomicLoad
-#define ATOMIC_STORE_BOOL(a, b)         ATOMIC_STORE((a), (SIZE_T) (b))
-#define ATOMIC_EXCHANGE_BOOL            (BOOL) globalAtomicExchange
-#define ATOMIC_COMPARE_EXCHANGE_BOOL    (BOOL) globalAtomicCompareExchange
-#define ATOMIC_AND_BOOL                 (BOOL) globalAtomicAnd
-#define ATOMIC_OR_BOOL                  (BOOL) globalAtomicOr
-#define ATOMIC_XOR_BOOL                 (BOOL) globalAtomicXor
+typedef SIZE_T ATOMIC_BOOL;
+#define ATOMIC_LOAD_BOOL             (BOOL) globalAtomicLoad
+#define ATOMIC_STORE_BOOL(a, b)      ATOMIC_STORE((a), (SIZE_T)(b))
+#define ATOMIC_EXCHANGE_BOOL         (BOOL) globalAtomicExchange
+#define ATOMIC_COMPARE_EXCHANGE_BOOL (BOOL) globalAtomicCompareExchange
+#define ATOMIC_AND_BOOL              (BOOL) globalAtomicAnd
+#define ATOMIC_OR_BOOL               (BOOL) globalAtomicOr
+#define ATOMIC_XOR_BOOL              (BOOL) globalAtomicXor
 
 #ifndef SQRT
 #include <math.h>
-    #define SQRT sqrt
+#define SQRT sqrt
 #endif
 
 //
 // Calculate the byte offset of a field in a structure of type type.
 //
 #ifndef FIELD_OFFSET
-    #define FIELD_OFFSET(type, field)    ((LONG)(LONG_PTR)&(((type *)0)->field))
+#define FIELD_OFFSET(type, field) ((LONG)(LONG_PTR) & (((type*) 0)->field))
 #endif
 
 //
 // Aligns an integer X value up or down to alignment A
 //
-#define ROUND_DOWN(X, A)        ((X) & ~((A) - 1))
-#define ROUND_UP(X, A)          (((X) + (A) - 1) & ~((A) - 1))
+#define ROUND_DOWN(X, A) ((X) & ~((A) -1))
+#define ROUND_UP(X, A)   (((X) + (A) -1) & ~((A) -1))
 
 //
 // Macros to swap endinanness
 //
-#define LOW_BYTE(x)              ((BYTE)(x))
-#define HIGH_BYTE(x)             ((BYTE)(((INT16)(x) >> 8) & 0xFF))
-#define LOW_INT16(x)             ((INT16)(x))
-#define HIGH_INT16(x)            ((INT16)(((INT32)(x) >> 16) & 0xFFFF))
-#define LOW_INT32(x)             ((INT32)(x))
-#define HIGH_INT32(x)            ((INT32)(((INT64)(x) >> 32) & 0xFFFFFFFF))
+#define LOW_BYTE(x)   ((BYTE)(x))
+#define HIGH_BYTE(x)  ((BYTE)(((INT16)(x) >> 8) & 0xFF))
+#define LOW_INT16(x)  ((INT16)(x))
+#define HIGH_INT16(x) ((INT16)(((INT32)(x) >> 16) & 0xFFFF))
+#define LOW_INT32(x)  ((INT32)(x))
+#define HIGH_INT32(x) ((INT32)(((INT64)(x) >> 32) & 0xFFFFFFFF))
 
-#define MAKE_INT16(a, b)         ((INT16)(((UINT8)((UINT16)(a) & 0xff)) | ((UINT16)((UINT8)((UINT16)(b) & 0xff))) << 8))
-#define MAKE_INT32(a, b)         ((INT32)(((UINT16)((UINT32)(a) & 0xffff)) | ((UINT32)((UINT16)((UINT32)(b) & 0xffff))) << 16))
-#define MAKE_INT64(a, b)         ((INT64)(((UINT32)((UINT64)(a) & 0xffffffff)) | ((UINT64)((UINT32)((UINT64)(b) & 0xffffffff))) << 32))
+#define MAKE_INT16(a, b) ((INT16)(((UINT8)((UINT16)(a) &0xff)) | ((UINT16)((UINT8)((UINT16)(b) &0xff))) << 8))
+#define MAKE_INT32(a, b) ((INT32)(((UINT16)((UINT32)(a) &0xffff)) | ((UINT32)((UINT16)((UINT32)(b) &0xffff))) << 16))
+#define MAKE_INT64(a, b) ((INT64)(((UINT32)((UINT64)(a) &0xffffffff)) | ((UINT64)((UINT32)((UINT64)(b) &0xffffffff))) << 32))
 
-#define SWAP_INT16(x) MAKE_INT16( \
-    HIGH_BYTE(x), \
-    LOW_BYTE(x) \
-    )
+#define SWAP_INT16(x) MAKE_INT16(HIGH_BYTE(x), LOW_BYTE(x))
 
-#define SWAP_INT32(x) MAKE_INT32( \
-    SWAP_INT16(HIGH_INT16(x)), \
-    SWAP_INT16(LOW_INT16(x)) \
-    )
+#define SWAP_INT32(x) MAKE_INT32(SWAP_INT16(HIGH_INT16(x)), SWAP_INT16(LOW_INT16(x)))
 
-#define SWAP_INT64(x) MAKE_INT64( \
-    SWAP_INT32(HIGH_INT32(x)), \
-    SWAP_INT32(LOW_INT32(x)) \
-    )
+#define SWAP_INT64(x) MAKE_INT64(SWAP_INT32(HIGH_INT32(x)), SWAP_INT32(LOW_INT32(x)))
 
 //
 // Check if at most 1 bit is set
 //
-#define CHECK_POWER_2(x)            !((x) & ((x) - 1))
+#define CHECK_POWER_2(x) !((x) & ((x) -1))
 
 //
 // Checks if only 1 bit is set
 //
-#define CHECK_SINGLE_BIT_SET(x)    ((x) && CHECK_POWER_2(x))
+#define CHECK_SINGLE_BIT_SET(x) ((x) && CHECK_POWER_2(x))
 
 //
 // Handle definitions
@@ -1078,93 +1102,93 @@ typedef UINT64 HANDLE;
 #define IS_VALID_HANDLE(h) ((h) != INVALID_PIC_HANDLE_VALUE)
 #endif
 #ifndef POINTER_TO_HANDLE
-#define POINTER_TO_HANDLE(h) ((UINT64) (h))
+#define POINTER_TO_HANDLE(h) ((UINT64)(h))
 #endif
 #ifndef HANDLE_TO_POINTER
-#define HANDLE_TO_POINTER(h) ((PBYTE) (h))
+#define HANDLE_TO_POINTER(h) ((PBYTE)(h))
 #endif
 
 ////////////////////////////////////////////////////
 // Conditional checks
 ////////////////////////////////////////////////////
-#define CHK(condition, errRet) \
-    do { \
-        if (!(condition)) { \
-            retStatus = (errRet); \
-            goto CleanUp; \
-        } \
+#define CHK(condition, errRet)                                                                                                                       \
+    do {                                                                                                                                             \
+        if (!(condition)) {                                                                                                                          \
+            retStatus = (errRet);                                                                                                                    \
+            goto CleanUp;                                                                                                                            \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#define CHK_ERR(condition, errRet, errorMessage, ...) \
-    do { \
-        if (!(condition)) { \
-            retStatus = (errRet); \
-            DLOGE(errorMessage, ##__VA_ARGS__); \
-            goto CleanUp; \
-        } \
+#define CHK_ERR(condition, errRet, errorMessage, ...)                                                                                                \
+    do {                                                                                                                                             \
+        if (!(condition)) {                                                                                                                          \
+            retStatus = (errRet);                                                                                                                    \
+            DLOGE(errorMessage, ##__VA_ARGS__);                                                                                                      \
+            goto CleanUp;                                                                                                                            \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#define CHK_WARN(condition, errRet, errorMessage, ...) \
-    do { \
-        if (!(condition)) { \
-            retStatus = (errRet); \
-            DLOGW(errorMessage, ##__VA_ARGS__); \
-            goto CleanUp; \
-        } \
+#define CHK_WARN(condition, errRet, errorMessage, ...)                                                                                               \
+    do {                                                                                                                                             \
+        if (!(condition)) {                                                                                                                          \
+            retStatus = (errRet);                                                                                                                    \
+            DLOGW(errorMessage, ##__VA_ARGS__);                                                                                                      \
+            goto CleanUp;                                                                                                                            \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#define CHK_STATUS_ERR(condition, errRet, errorMessage, ...) \
-    do { \
-        STATUS __status = condition; \
-        if (STATUS_FAILED(__status)) { \
-            retStatus = (__status); \
-            DLOGE(errorMessage, ##__VA_ARGS__); \
-            goto CleanUp; \
-        } \
+#define CHK_STATUS_ERR(condition, errRet, errorMessage, ...)                                                                                         \
+    do {                                                                                                                                             \
+        STATUS __status = condition;                                                                                                                 \
+        if (STATUS_FAILED(__status)) {                                                                                                               \
+            retStatus = (__status);                                                                                                                  \
+            DLOGE(errorMessage, ##__VA_ARGS__);                                                                                                      \
+            goto CleanUp;                                                                                                                            \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#define CHK_STATUS(condition) \
-    do { \
-        STATUS __status = condition; \
-        if (STATUS_FAILED(__status)) { \
-            retStatus = (__status); \
-            goto CleanUp; \
-        } \
+#define CHK_STATUS(condition)                                                                                                                        \
+    do {                                                                                                                                             \
+        STATUS __status = condition;                                                                                                                 \
+        if (STATUS_FAILED(__status)) {                                                                                                               \
+            retStatus = (__status);                                                                                                                  \
+            goto CleanUp;                                                                                                                            \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#define CHK_STATUS_CONTINUE(condition) \
-    do { \
-        STATUS __status = condition; \
-        if (STATUS_FAILED(__status)) { \
-            retStatus = __status; \
-        } \
+#define CHK_STATUS_CONTINUE(condition)                                                                                                               \
+    do {                                                                                                                                             \
+        STATUS __status = condition;                                                                                                                 \
+        if (STATUS_FAILED(__status)) {                                                                                                               \
+            retStatus = __status;                                                                                                                    \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#define CHK_HANDLE(handle) \
-    do { \
-        if (IS_VALID_HANDLE(handle)) { \
-            retStatus = (STATUS_INVALID_HANDLE_ERROR); \
-            goto CleanUp; \
-        } \
+#define CHK_HANDLE(handle)                                                                                                                           \
+    do {                                                                                                                                             \
+        if (IS_VALID_HANDLE(handle)) {                                                                                                               \
+            retStatus = (STATUS_INVALID_HANDLE_ERROR);                                                                                               \
+            goto CleanUp;                                                                                                                            \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#define CHK_LOG(condition, logMessage) \
-    do { \
-        STATUS __status = condition; \
-        if (STATUS_FAILED(__status)) { \
-            DLOGS("%s Returned status code: 0x%08x", logMessage, __status); \
-        } \
+#define CHK_LOG(condition, logMessage)                                                                                                               \
+    do {                                                                                                                                             \
+        STATUS __status = condition;                                                                                                                 \
+        if (STATUS_FAILED(__status)) {                                                                                                               \
+            DLOGS("%s Returned status code: 0x%08x", logMessage, __status);                                                                          \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#define CHK_LOG_ERR(condition, ...) \
-    do { \
-        STATUS __status = condition; \
-        if (STATUS_FAILED(__status)) { \
-            DLOGE("operation returned status code: 0x%08x", __status); \
-        } \
+#define CHK_LOG_ERR(condition)                                                                                                                       \
+    do {                                                                                                                                             \
+        STATUS __status = condition;                                                                                                                 \
+        if (STATUS_FAILED(__status)) {                                                                                                               \
+            DLOGE("operation returned status code: 0x%08x", __status);                                                                               \
+        }                                                                                                                                            \
     } while (FALSE)
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __COMMON_DEFINITIONS__ */
+#endif /* __COMMON_DEFINITIONS__ */

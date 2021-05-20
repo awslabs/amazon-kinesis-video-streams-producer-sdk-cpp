@@ -35,13 +35,21 @@ TEST_P(ClientFunctionalityTest, CreateSyncAndFree)
 {
     TID thread;
     EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&thread, CreateClientRoutineSync, (PVOID) this));
-    THREAD_SLEEP(HUNDREDS_OF_NANOS_IN_A_SECOND);
-    // Satisfy the create device callback
+
+    // Satisfy the create device callback after the create device call
+    UINT64 iterateTime = GETTIME() + HUNDREDS_OF_NANOS_IN_A_SECOND;
+
+    while (ATOMIC_LOAD(&mCreateDeviceDoneFuncCount) != 2 && GETTIME() <= iterateTime) {
+        THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
+    EXPECT_NE(0, ATOMIC_LOAD(&mCreateDeviceDoneFuncCount));
+
     EXPECT_EQ(STATUS_SUCCESS, createDeviceResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, TEST_DEVICE_ARN));
     THREAD_JOIN(thread, NULL);
 
     // Ensure the client ready is called
-    EXPECT_TRUE(mClientReady);
+    EXPECT_TRUE(ATOMIC_LOAD_BOOL(&mClientReady));
     EXPECT_EQ(mClientHandle, mReturnedClientHandle);
 }
 
@@ -76,19 +84,19 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamStopStreamFreeClient)
 
     EXPECT_EQ(STATUS_SUCCESS, CreateStream());
 
-    EXPECT_EQ(0, mClientShutdownFuncCount);
-    EXPECT_FALSE(mClientShutdown);
-    EXPECT_EQ(0, mStreamShutdownFuncCount);
-    EXPECT_FALSE(mStreamShutdown);
+    EXPECT_EQ(0, ATOMIC_LOAD(&mClientShutdownFuncCount));
+    EXPECT_FALSE(ATOMIC_LOAD_BOOL(&mClientShutdown));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mStreamShutdownFuncCount));
+    EXPECT_FALSE(ATOMIC_LOAD_BOOL(&mStreamShutdown));
 
     EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStream(mStreamHandle));
 
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
     EXPECT_TRUE(!IS_VALID_CLIENT_HANDLE(mClientHandle));
-    EXPECT_EQ(1, mClientShutdownFuncCount);
-    EXPECT_TRUE(mClientShutdown);
-    EXPECT_EQ(1, mStreamShutdownFuncCount);
-    EXPECT_TRUE(mStreamShutdown);
+    EXPECT_EQ(1, ATOMIC_LOAD(&mClientShutdownFuncCount));
+    EXPECT_TRUE(ATOMIC_LOAD_BOOL(&mClientShutdown));
+    EXPECT_EQ(1, ATOMIC_LOAD(&mStreamShutdownFuncCount));
+    EXPECT_TRUE(ATOMIC_LOAD_BOOL(&mStreamShutdown));
 }
 
 TEST_P(ClientFunctionalityTest, createClientCreateStreamSyncFreeClient)
@@ -160,7 +168,7 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamPutFrameStopStreamFreeCl
     EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStream(mStreamHandle));
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
     EXPECT_TRUE(!IS_VALID_CLIENT_HANDLE(mClientHandle));
-    EXPECT_TRUE(mDroppedFrameReportFuncCount > 0); // the frame put should be dropped.
+    EXPECT_TRUE(ATOMIC_LOAD(&mDroppedFrameReportFuncCount) > 0); // the frame put should be dropped.
 }
 
 //Create Producer, Create Streams Sync, Await Ready, Put Frame, Free Producer
@@ -177,8 +185,13 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamSyncPutFrameFreeClient)
     EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&thread, CreateStreamSyncRoutine, (PVOID) this));
 
     // wait until stream has been created so that we can submit describeStreamResult
-    THREAD_SLEEP(500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-    EXPECT_TRUE(IS_VALID_STREAM_HANDLE(mStreamHandle));
+    UINT64 iterateTime = GETTIME() + HUNDREDS_OF_NANOS_IN_A_SECOND;
+
+    while (ATOMIC_LOAD(&mDescribeStreamDoneFuncCount) == 0 && GETTIME() <= iterateTime) {
+        THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
+    EXPECT_NE(0, ATOMIC_LOAD(&mDescribeStreamDoneFuncCount));
 
     // enable auto submission so that submitting describeStreamResult will trigger stream ready, and unblock
     // CreateStreamSyncRoutine
@@ -186,7 +199,7 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamSyncPutFrameFreeClient)
     setupStreamDescription();
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
     THREAD_JOIN(thread, NULL);
-    EXPECT_TRUE(mStreamReadyFuncCount > 0);
+    EXPECT_TRUE(ATOMIC_LOAD(&mStreamReadyFuncCount) > 0);
 
     // mockProducer need to be destructed before client in case of DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC
     // because freeKinesisVideoClient also frees mockProducer MEMALLOC
@@ -215,8 +228,13 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamSyncPutFrameStopStreamFr
     EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&thread, CreateStreamSyncRoutine, (PVOID) this));
 
     // wait until stream has been created so that we can submit describeStreamResult
-    THREAD_SLEEP(500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-    EXPECT_TRUE(IS_VALID_STREAM_HANDLE(mStreamHandle));
+    UINT64 iterateTime = GETTIME() + HUNDREDS_OF_NANOS_IN_A_SECOND;
+
+    while (ATOMIC_LOAD(&mDescribeStreamDoneFuncCount) == 0 && GETTIME() <= iterateTime) {
+        THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
+    EXPECT_NE(0, ATOMIC_LOAD(&mDescribeStreamDoneFuncCount));
 
     // enable auto submission so that submitting describeStreamResult will trigger stream ready, and unblock
     // CreateStreamSyncRoutine
@@ -224,7 +242,7 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamSyncPutFrameStopStreamFr
     setupStreamDescription();
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
     THREAD_JOIN(thread, NULL);
-    EXPECT_TRUE(mStreamReadyFuncCount > 0);
+    EXPECT_TRUE(ATOMIC_LOAD(&mStreamReadyFuncCount) > 0);
 
     // mockProducer need to be destructed before client in case of DEVICE_STORAGE_TYPE_IN_MEM_CONTENT_STORE_ALLOC
     // because freeKinesisVideoClient also frees mockProducer MEMALLOC
@@ -252,8 +270,13 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamSyncCreateSameStreamAndF
     EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&thread, CreateStreamSyncRoutine, (PVOID) this));
 
     // wait until stream has been created so that we can submit describeStreamResult
-    THREAD_SLEEP(500 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-    EXPECT_TRUE(IS_VALID_STREAM_HANDLE(mStreamHandle));
+    UINT64 iterateTime = GETTIME() + HUNDREDS_OF_NANOS_IN_A_SECOND;
+
+    while (ATOMIC_LOAD(&mDescribeStreamDoneFuncCount) == 0 && GETTIME() <= iterateTime) {
+        THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
+    EXPECT_NE(0, ATOMIC_LOAD(&mDescribeStreamDoneFuncCount));
 
     // this should unblock CreateStreamSyncRoutine
     mSubmitServiceCallResultMode = STOP_AT_PUT_STREAM;
@@ -261,7 +284,7 @@ TEST_P(ClientFunctionalityTest, CreateClientCreateStreamSyncCreateSameStreamAndF
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 
     THREAD_JOIN(thread, NULL);
-    EXPECT_TRUE(mStreamReadyFuncCount > 0);
+    EXPECT_TRUE(ATOMIC_LOAD(&mStreamReadyFuncCount) > 0);
 
     // creating the same stream again should fail
     EXPECT_EQ(STATUS_DUPLICATE_STREAM_NAME, createKinesisVideoStream(mClientHandle, &mStreamInfo, &mStreamHandle));
@@ -410,6 +433,138 @@ TEST_P(ClientFunctionalityTest, StreamFormatChangedPcmAudioDirectCpdPassingCorre
     EXPECT_TRUE(8000 == pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.samplingFrequency);
     EXPECT_EQ(1, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.channelConfig);
     EXPECT_EQ(16, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.bitDepth);
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
+    EXPECT_TRUE(!IS_VALID_CLIENT_HANDLE(mClientHandle));
+}
+
+TEST_P(ClientFunctionalityTest, StreamFormatChangedGeneratedPcmAlawAudioDirectCpdPassingCorrectTrackAudioConfig)
+{
+    CreateScenarioTestClient();
+    BYTE cpd[KVS_PCM_CPD_SIZE_BYTE];
+    UINT32 cpdSize = SIZEOF(cpd);
+
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGeneratePcmCpd(KVS_PCM_FORMAT_CODE_ALAW,
+            8000,
+            2,
+            cpd,
+            cpdSize));
+
+    TrackInfo trackInfo[1];
+    trackInfo[0].trackId = 1;
+    trackInfo[0].codecPrivateDataSize = 0;
+    trackInfo[0].codecPrivateData = NULL;
+    STRNCPY(trackInfo[0].codecId, TEST_AUDIO_CODEC_ID, MKV_MAX_CODEC_ID_LEN);
+    STRNCPY(trackInfo[0].trackName, TEST_AUDIO_TRACK_NAME, MKV_MAX_TRACK_NAME_LEN);
+    trackInfo[0].trackType = MKV_TRACK_INFO_TYPE_AUDIO;
+    trackInfo[0].codecPrivateData = cpd;
+    trackInfo[0].codecPrivateDataSize = cpdSize;
+
+    mStreamInfo.streamCaps.trackInfoList = trackInfo;
+    mStreamInfo.streamCaps.trackInfoCount = 1;
+
+    STRNCPY(mStreamInfo.streamCaps.contentType, "audio/alaw", MAX_CONTENT_TYPE_LEN);
+
+    PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
+
+    CreateStreamSync();
+
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
+    EXPECT_TRUE(pKinesisVideoStream != NULL);
+    PStreamMkvGenerator pStreamMkvGenerator = (PStreamMkvGenerator) pKinesisVideoStream->pMkvGenerator;
+    EXPECT_TRUE(pStreamMkvGenerator != NULL);
+
+    EXPECT_EQ(8000, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.samplingFrequency);
+    EXPECT_EQ(2, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.channelConfig);
+    EXPECT_EQ(0, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.bitDepth);
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
+    EXPECT_TRUE(!IS_VALID_CLIENT_HANDLE(mClientHandle));
+}
+
+TEST_P(ClientFunctionalityTest, StreamFormatChangedGeneratedPcmMlawAudioDirectCpdPassingCorrectTrackAudioConfig)
+{
+    CreateScenarioTestClient();
+    BYTE cpd[KVS_PCM_CPD_SIZE_BYTE];
+    UINT32 cpdSize = SIZEOF(cpd);
+
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGeneratePcmCpd(KVS_PCM_FORMAT_CODE_MULAW,
+                                                   8000,
+                                                   2,
+                                                   cpd,
+                                                   cpdSize));
+
+    TrackInfo trackInfo[1];
+    trackInfo[0].trackId = 1;
+    trackInfo[0].codecPrivateDataSize = 0;
+    trackInfo[0].codecPrivateData = NULL;
+    STRNCPY(trackInfo[0].codecId, TEST_AUDIO_CODEC_ID, MKV_MAX_CODEC_ID_LEN);
+    STRNCPY(trackInfo[0].trackName, TEST_AUDIO_TRACK_NAME, MKV_MAX_TRACK_NAME_LEN);
+    trackInfo[0].trackType = MKV_TRACK_INFO_TYPE_AUDIO;
+    trackInfo[0].codecPrivateData = cpd;
+    trackInfo[0].codecPrivateDataSize = cpdSize;
+
+    mStreamInfo.streamCaps.trackInfoList = trackInfo;
+    mStreamInfo.streamCaps.trackInfoCount = 1;
+
+    STRNCPY(mStreamInfo.streamCaps.contentType, "audio/mulaw", MAX_CONTENT_TYPE_LEN);
+
+    PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
+
+    CreateStreamSync();
+
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
+    EXPECT_TRUE(pKinesisVideoStream != NULL);
+    PStreamMkvGenerator pStreamMkvGenerator = (PStreamMkvGenerator) pKinesisVideoStream->pMkvGenerator;
+    EXPECT_TRUE(pStreamMkvGenerator != NULL);
+
+    EXPECT_EQ(8000, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.samplingFrequency);
+    EXPECT_EQ(2, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.channelConfig);
+    EXPECT_EQ(0, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.bitDepth);
+
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
+    EXPECT_TRUE(!IS_VALID_CLIENT_HANDLE(mClientHandle));
+}
+
+TEST_P(ClientFunctionalityTest, StreamFormatChangedGeneratedAacAudioDirectCpdPassingCorrectTrackAudioConfig)
+{
+    CreateScenarioTestClient();
+    BYTE cpd[KVS_AAC_CPD_SIZE_BYTE];
+    UINT32 cpdSize = SIZEOF(cpd);
+
+    EXPECT_EQ(STATUS_SUCCESS, mkvgenGenerateAacCpd(AAC_MAIN,
+                                                   16000,
+                                                   2,
+                                                   cpd,
+                                                   cpdSize));
+
+    TrackInfo trackInfo[1];
+    trackInfo[0].trackId = 1;
+    trackInfo[0].codecPrivateDataSize = 0;
+    trackInfo[0].codecPrivateData = NULL;
+    STRNCPY(trackInfo[0].codecId, TEST_AUDIO_CODEC_ID, MKV_MAX_CODEC_ID_LEN);
+    STRNCPY(trackInfo[0].trackName, TEST_AUDIO_TRACK_NAME, MKV_MAX_TRACK_NAME_LEN);
+    trackInfo[0].trackType = MKV_TRACK_INFO_TYPE_AUDIO;
+    trackInfo[0].codecPrivateData = cpd;
+    trackInfo[0].codecPrivateDataSize = cpdSize;
+
+    mStreamInfo.streamCaps.trackInfoList = trackInfo;
+    mStreamInfo.streamCaps.trackInfoCount = 1;
+
+    STRNCPY(mStreamInfo.streamCaps.contentType, "audio/aac", MAX_CONTENT_TYPE_LEN);
+
+    PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
+
+    CreateStreamSync();
+
+    PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
+    EXPECT_TRUE(pKinesisVideoStream != NULL);
+    PStreamMkvGenerator pStreamMkvGenerator = (PStreamMkvGenerator) pKinesisVideoStream->pMkvGenerator;
+    EXPECT_TRUE(pStreamMkvGenerator != NULL);
+
+    EXPECT_EQ(16000, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.samplingFrequency);
+    EXPECT_EQ(2, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.channelConfig);
+    EXPECT_EQ(0, pStreamMkvGenerator->trackInfoList[0].trackCustomData.trackAudioConfig.bitDepth);
 
     EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&mClientHandle));
     EXPECT_TRUE(!IS_VALID_CLIENT_HANDLE(mClientHandle));

@@ -11,7 +11,6 @@ extern "C" {
 #pragma once
 #include <com/amazonaws/kinesis/video/common/CommonDefs.h>
 #include <com/amazonaws/kinesis/video/common/PlatformUtils.h>
-#pragma pack(push, include, 1) // for byte alignment
 
 /**
  * Definition of the handles
@@ -47,8 +46,7 @@ typedef TRACE_HANDLE* PTRACE_HANDLE;
 /**
  * Trace profiler flags
  */
-typedef enum
-{
+typedef enum {
     /**
      * No flags specified. Used as a sentinel
      */
@@ -61,17 +59,15 @@ typedef enum
 
 } TRACE_PROFILER_BEHAVIOR_FLAGS;
 
-
 /**
  * Format flags mask - currently only AIV format is supported - Binary OR any other flags in the future
  */
-#define PROFILER_FORMAT_MASK (UINT32)FLAGS_USE_AIV_TRACE_PROFILER_FORMAT
+#define PROFILER_FORMAT_MASK (UINT32) FLAGS_USE_AIV_TRACE_PROFILER_FORMAT
 
 /**
  * Trace levels enum - matches Android profiler implementation in com.amazon.avod.perf
  */
-typedef enum
-{
+typedef enum {
     TRACE_LEVEL_REPORT_ALWAYS = 0,
     TRACE_LEVEL_CRITICAL,
     TRACE_LEVEL_INFO,
@@ -83,8 +79,8 @@ typedef enum
 /**
  * Error values
  */
-#define STATUS_TP_BASE                                          0x010100000
-#define STATUS_MIN_PROFILER_BUFFER                              STATUS_TP_BASE + 0x00000001
+#define STATUS_TP_BASE             0x010100000
+#define STATUS_MIN_PROFILER_BUFFER STATUS_TP_BASE + 0x00000001
 
 ////////////////////////////////////////////////////////////////////
 // Forward declaration of the functions
@@ -98,9 +94,9 @@ typedef STATUS (*TraceStopFunc)(TRACE_PROFILER_HANDLE, TRACE_HANDLE);
 /**
  * Definition macros making it easier for function declarations/definitions
  */
-#define DEFINE_TRACE_START(name)            STATUS name(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR traceName, TRACE_LEVEL traceLevel, PTRACE_HANDLE pTraceHandle)
-#define DEFINE_TRACE_STOP(name)             STATUS name(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_HANDLE traceHandle)
-
+#define DEFINE_TRACE_START(name)                                                                                                                     \
+    STATUS name(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR traceName, TRACE_LEVEL traceLevel, PTRACE_HANDLE pTraceHandle)
+#define DEFINE_TRACE_STOP(name) STATUS name(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_HANDLE traceHandle)
 
 //////////////////////////////////////////////////////////////////////////
 // Public functions
@@ -116,7 +112,8 @@ typedef STATUS (*TraceStopFunc)(TRACE_PROFILER_HANDLE, TRACE_HANDLE);
  *
  *      @pTraceProfilerHandle OUT_PARAM The newly created trace profiler.
  */
-PUBLIC_API STATUS profilerInitialize(UINT32 bufferSize, TRACE_LEVEL traceLevel, TRACE_PROFILER_BEHAVIOR_FLAGS behaviorFlags, PTRACE_PROFILER_HANDLE pTraceProfilerHandle);
+PUBLIC_API STATUS profilerInitialize(UINT32 bufferSize, TRACE_LEVEL traceLevel, TRACE_PROFILER_BEHAVIOR_FLAGS behaviorFlags,
+                                     PTRACE_PROFILER_HANDLE pTraceProfilerHandle);
 
 /**
  * Releases the entire trace profiler object.
@@ -193,8 +190,6 @@ PUBLIC_API DEFINE_TRACE_STOP(traceStop);
  * Including the headers
  */
 #include <com/amazonaws/kinesis/video/utils/Include.h>
-
-#pragma pack(pop, include) // pop the existing settings
 
 #ifdef __cplusplus
 }

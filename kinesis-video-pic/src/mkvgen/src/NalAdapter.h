@@ -16,9 +16,10 @@ extern "C" {
  * Avcc format CPD overhead size
  *
  * For more info on the format check out https://www.iso.org/standard/50726.html
- * 8 bit Version, profile, compat, level, 8 bit NALU len minus one, 8 bit number of SPS NALUs, 16 bit SPS size, SPS data, 8 bit PPS NALUs, 16 bit PPS size, PPS data
+ * 8 bit Version, profile, compat, level, 8 bit NALU len minus one, 8 bit number of SPS NALUs, 16 bit SPS size, SPS data, 8 bit PPS NALUs, 16 bit PPS
+ * size, PPS data
  */
-#define AVCC_CPD_OVERHEAD       11
+#define AVCC_CPD_OVERHEAD 11
 
 /**
  * Hevc format CPD overhead size
@@ -61,63 +62,81 @@ extern "C" {
  *  }
  *}
  */
-#define HEVC_CPD_HEADER_OVERHEAD       23
-#define HEVC_CPD_ENTRY_OVERHEAD        5
+#define HEVC_CPD_HEADER_OVERHEAD 23
+#define HEVC_CPD_ENTRY_OVERHEAD  5
 
 /**
  * Minimal size of the H264 Annex-B encoded CPD size should be at least two short start codes and min sps pps data
  */
-#define MIN_H264_ANNEXB_CPD_SIZE     3 + 3 + 4 + 1
+#define MIN_H264_ANNEXB_CPD_SIZE 3 + 3 + 4 + 1
 
 /**
  * Minimal size of the H265 Annex-B encoded CPD size should be at least three short start codes and min vps sps pps data
  */
-#define MIN_H_265_ANNEXB_CPD_SIZE     3 + 3 + 3 + 1 + 4 + 1
+#define MIN_H_265_ANNEXB_CPD_SIZE 3 + 3 + 3 + 1 + 4 + 1
 
 /**
  * AVCC Nalu size minus one byte - 6 significant bits set to 1 + 4 bytes per NALU - another 11 bits set
  */
-#define AVCC_NALU_LEN_MINUS_ONE     0xFF
+#define AVCC_NALU_LEN_MINUS_ONE 0xFF
 
 /**
  * AVCC Number of SPS blocks byte with 3 leading reserved bits set to 1 and 1 SPS blocks to follow
  */
-#define AVCC_NUMBER_OF_SPS_ONE      0xE1
+#define AVCC_NUMBER_OF_SPS_ONE 0xE1
 
 /**
  * AVCC version code
  */
-#define AVCC_VERSION_CODE           0x01
+#define AVCC_VERSION_CODE 0x01
 
 /**
  * HEVC configuration version code
  */
-#define HEVC_CONFIG_VERSION_CODE           0x01
+#define HEVC_CONFIG_VERSION_CODE 0x01
 
 /**
  * The H264/H265 should be at least this long
  */
-#define MIN_H264_H265_CPD_SIZE      8
+#define MIN_H264_H265_CPD_SIZE 8
 
 /**
  * Min Hevc encoded CPD size
  */
-#define HEVC_CPD_HEADER_SIZE        23
+#define HEVC_CPD_HEADER_SIZE 23
 
 /**
  * Min HEVC array entry size
  */
-#define HEVC_NALU_ARRAY_ENTRY_SIZE   3
+#define HEVC_NALU_ARRAY_ENTRY_SIZE 3
 
 /**
  * SPS bits offset in AVCC encoded CPD
  */
-#define AVCC_SPS_OFFSET             8
+#define AVCC_SPS_OFFSET 8
+
+/**
+ * HEVC VPS NALu type
+ */
+#define HEVC_VPS_NALU_TYPE 0x20
 
 /**
  * HEVC SPS NALu type
  */
-#define HEVC_SPS_NALU_TYPE          0x21
+#define HEVC_SPS_NALU_TYPE 0x21
+
+/**
+ * HEVC PPS NALu type
+ */
+#define HEVC_PPS_NALU_TYPE 0x22
+
+#ifdef FIXUP_ANNEX_B_TRAILING_NALU_ZERO
+#define HANDLING_TRAILING_NALU_ZERO TRUE
+#define MAX_ANNEX_B_ZERO_COUNT      4
+#else
+#define HANDLING_TRAILING_NALU_ZERO FALSE
+#define MAX_ANNEX_B_ZERO_COUNT      3
+#endif
 
 /**
  * NALu adaptation
@@ -126,7 +145,8 @@ typedef enum {
     MKV_NALS_ADAPT_NONE,
     MKV_NALS_ADAPT_ANNEXB,
     MKV_NALS_ADAPT_AVCC,
-} MKV_NALS_ADAPTATION, *PMKV_NALS_ADAPTATION;
+} MKV_NALS_ADAPTATION,
+    *PMKV_NALS_ADAPTATION;
 
 ////////////////////////////////////////////////////
 // Internal functionality

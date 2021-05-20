@@ -1,5 +1,4 @@
-#include "StreamingSession.h"
-#include "gtest/gtest.h"
+#include "ClientTestFixture.h"
 
 UPLOAD_HANDLE StreamingSession::addNewConsumerSession(MockConsumerConfig consumerConfig,
                                                       STREAM_HANDLE mStreamHandle,
@@ -45,7 +44,7 @@ void StreamingSession::getActiveUploadHandles(std::vector<UPLOAD_HANDLE> &active
     activeUploadHandles.clear();
     UINT64 lastTransferDataTime = INVALID_TIMESTAMP_VALUE;
     std::map<UPLOAD_HANDLE, MockConsumer*>::iterator it = mConsumerList.begin();
-    while(it != mConsumerList.end()) {
+    while (it != mConsumerList.end()) {
         std::map<UPLOAD_HANDLE, MockConsumer*>::iterator curr = it++;
         if (curr->second->isConnectionClosed()) {
             delete curr->second;

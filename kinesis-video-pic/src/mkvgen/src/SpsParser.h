@@ -14,25 +14,36 @@ extern "C" {
 ////////////////////////////////////////////////////
 
 // Check whether to generate video config element based on the width not being 0
-#define GENERATE_VIDEO_CONFIG(x)        (((PTrackInfo) (x))->trackType == MKV_TRACK_INFO_TYPE_VIDEO && ((PTrackInfo) (x))->trackCustomData.trackVideoConfig.videoWidth != 0)
-#define GENERATE_AUDIO_CONFIG(x)        (((PTrackInfo) (x))->trackType == MKV_TRACK_INFO_TYPE_AUDIO && ((PTrackInfo) (x))->trackCustomData.trackAudioConfig.samplingFrequency != 0)
+#define GENERATE_VIDEO_CONFIG(x)                                                                                                                     \
+    (((PTrackInfo)(x))->trackType == MKV_TRACK_INFO_TYPE_VIDEO && ((PTrackInfo)(x))->trackCustomData.trackVideoConfig.videoWidth != 0)
+#define GENERATE_AUDIO_CONFIG(x)                                                                                                                     \
+    (((PTrackInfo)(x))->trackType == MKV_TRACK_INFO_TYPE_AUDIO && ((PTrackInfo)(x))->trackCustomData.trackAudioConfig.samplingFrequency != 0)
 
-// SPS NALU values
-#define SPS_NALU_67     0x67
-#define SPS_NALU_27     0x27
+// SPS NALU type value
+#define SPS_NALU_TYPE 0x07
+
+// PPS NALU type value
+#define PPS_NALU_TYPE 0x08
+
+// IDR NALU type value
+#define IDR_NALU_TYPE 0x05
+
+// H265 IDR NALU type value
+#define IDR_W_RADL_NALU_TYPE 0x13
+#define IDR_N_LP_NALU_TYPE   0x14
 
 // AUD NALu value
-#define AUD_NALU_TYPE   0x09
+#define AUD_NALU_TYPE 0x09
 
 /**
  * Bitmap info header size
  */
-#define BITMAP_INFO_HEADER_SIZE     40
+#define BITMAP_INFO_HEADER_SIZE 40
 
 /**
  * Max sub-layers in H265 SPS
  */
-#define MAX_H265_SPS_SUB_LAYERS     8
+#define MAX_H265_SPS_SUB_LAYERS 8
 
 /**
  * H265 SPS info structure containing only items needed for resolution calculation
@@ -162,6 +173,32 @@ STATUS parseScalingListData(PBitReader);
  * @return - STATUS code of the execution
  */
 STATUS extractResolutionFromH265SpsInfo(PH265SpsInfo, PUINT16, PUINT16);
+
+/**
+ * Scans the AvCC NALu buffer for the first occurrence of SPS and PPS
+ *
+ * @PBYTE - IN - AvCC format NALu buffer
+ * @UINT32 - IN - Size of the buffer
+ * @PBYTE* - OUT - Pointer to the start of the SPS NALu run
+ * @PUINT32 - OUT - Size of the SPS NALu
+ * @PBYTE* - OUT - Pointer to the start of the PPS NALu run
+ * @PUINT32 - OUT - Size of the PPS NALu
+ *
+ * @return - STATUS code of the execution
+ */
+STATUS getH264SpsPpsNalusFromAvccNalus(PBYTE, UINT32, PBYTE*, PUINT32, PBYTE*, PUINT32);
+
+/**
+ * Scans the AvCC NALu buffer for the first occurrence of H265 SPS
+ *
+ * @PBYTE - IN - AvCC format NALu buffer
+ * @UINT32 - IN - Size of the buffer
+ * @PBYTE* - OUT - Pointer to the start of the SPS NALu run
+ * @PUINT32 - OUT - Size of the SPS NALu
+ *
+ * @return - STATUS code of the execution
+ */
+STATUS getH265SpsNalusFromAvccNalus(PBYTE, UINT32, PBYTE*, PUINT32);
 
 #ifdef __cplusplus
 }

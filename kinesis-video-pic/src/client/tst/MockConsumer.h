@@ -1,11 +1,6 @@
 #ifndef __MOCK_CONSUMER_H__
 #define __MOCK_CONSUMER_H__
 
-#include <com/amazonaws/kinesis/video/utils/Include.h>
-#include <com/amazonaws/kinesis/video/client/Include.h>
-#include <queue>
-#include <vector>
-
 typedef struct {
     UINT32 mDataBufferSizeByte;
     UINT64 mUploadSpeedBytesPerSecond;
@@ -23,8 +18,8 @@ typedef struct {
 } AckItem;
 
 class AckItemComparator {
-public:
-    bool operator() (const AckItem& lhs, const AckItem& rhs) const
+  public:
+    bool operator()(const AckItem& lhs, const AckItem& rhs) const
     {
         return lhs.mAckTimestamp > rhs.mAckTimestamp;
     }
@@ -32,25 +27,24 @@ public:
 
 // Mimics a putMedia session that calls getKinesisVideoStreamData and kinesisVideoStreamFragmentAck periodlically
 class MockConsumer {
-    BOOL mDataAvailable; // where getKinesisVideoStreamData should be called.
+    volatile ATOMIC_BOOL mDataAvailable; // where getKinesisVideoStreamData should be called.
     BOOL mCurrentInitialized;
     STREAM_HANDLE mStreamHandle;
     UINT64 mOldCurrent; // stores the old current before getKinesisVideoStreamData call
     UINT64 mFragmentTimestamp;
 
-    UINT64 mSendDataDelay;      // send data delay in MS
-    UINT64 mBufferingAckDelay;  // buffering ack delay in MS
-    UINT64 mReceiveAckDelay;    // received ack delay in MS
-    UINT64 mPersistAckDelay;    // persisted ack delay in MS
+    UINT64 mSendDataDelay;     // send data delay in MS
+    UINT64 mBufferingAckDelay; // buffering ack delay in MS
+    UINT64 mReceiveAckDelay;   // received ack delay in MS
+    UINT64 mPersistAckDelay;   // persisted ack delay in MS
 
     BOOL mEnableAck;
     UINT64 mRetention;
 
     UINT64 mNextGetStreamDataTime;
     // upload handle for this consumer
-    FragmentAck mFragmentAck;           // FragmentAck container
-    BOOL mConnectionClosed;             // whether error has happend, in which case connection is closed
-
+    FragmentAck mFragmentAck; // FragmentAck container
+    BOOL mConnectionClosed;   // whether error has happend, in which case connection is closed
 
     // create and add AckItem to the mAckQueue. Generate proper ackTimestamp for each FragmentAck
     void enqueueAckItem(UINT64 fragmentTimestamp, PUINT64 submitAckTime);
@@ -85,7 +79,7 @@ class MockConsumer {
 
     void purgeAckItemWithTimestamp(UINT64 ackTimestamp);
 
-public:
+  public:
     UINT64 mUploadSpeed; // bytes per second
     std::priority_queue<AckItem, std::vector<AckItem>, AckItemComparator> mAckQueue;
     UPLOAD_HANDLE mUploadHandle;
@@ -93,19 +87,19 @@ public:
     UINT32 mDataBufferSize;
     UINT64 mLastGetStreamDataTime;
 
-    MockConsumer(MockConsumerConfig config,
-                 UPLOAD_HANDLE mUploadHandle,
-                 STREAM_HANDLE mStreamHandle);
+    MockConsumer(MockConsumerConfig config, UPLOAD_HANDLE mUploadHandle, STREAM_HANDLE mStreamHandle);
 
-    ~MockConsumer() {
+    ~MockConsumer()
+    {
         MEMFREE(mDataBuffer);
     }
 
     /**
      * set mDataAvailable to TRUE, if mDataAvailable is FALSE, timedGetStreamData would do nothing.
      */
-    void dataAvailable() {
-        mDataAvailable = TRUE;
+    void dataAvailable()
+    {
+        ATOMIC_STORE_BOOL(&mDataAvailable, TRUE);
     }
 
     /**
@@ -149,8 +143,7 @@ public:
      *
      * @return STATUS code of kinesisVideoStreamFragmentAck if it happened, otherwise STATUS_SUCCESS
      */
-    STATUS submitNormalAck(SERVICE_CALL_RESULT service_call_result, FRAGMENT_ACK_TYPE ackType,
-                           UINT64 timestamp, PBOOL pSubmittedAck);
+    STATUS submitNormalAck(SERVICE_CALL_RESULT service_call_result, FRAGMENT_ACK_TYPE ackType, UINT64 timestamp, PBOOL pSubmittedAck);
 
     /**
      * Call kinesisVideoStreamTerminated immediately because connection error can happen at any time
@@ -166,12 +159,12 @@ public:
      *
      * @return BOOL whether connection has been closed
      */
-    BOOL isConnectionClosed() {
+    BOOL isConnectionClosed()
+    {
         return mConnectionClosed;
     }
 
     UINT32 submitErrorAck(SERVICE_CALL_RESULT service_call_result, UINT64 timestamp, PBOOL pSubmittedAck);
 };
-
 
 #endif //__MOCK_CONSUMER_H__

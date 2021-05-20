@@ -4,12 +4,9 @@
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
-
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
 
 typedef struct __FileAuthCallbacks FileAuthCallbacks;
 
@@ -24,7 +21,7 @@ struct __FileAuthCallbacks {
     PCallbacksProvider pCallbacksProvider;
 };
 
-typedef struct __FileAuthCallbacks *PFileAuthCallbacks;
+typedef struct __FileAuthCallbacks* PFileAuthCallbacks;
 
 ////////////////////////////////////////////////////////////////////////
 // Callback function implementations
@@ -32,12 +29,10 @@ typedef struct __FileAuthCallbacks *PFileAuthCallbacks;
 
 // The callback functions
 STATUS getStreamingTokenFileFunc(UINT64, PCHAR, STREAM_ACCESS_MODE, PServiceCallContext);
-STATUS getSecurityTokenFileFunc(UINT64, PBYTE *, PUINT32, PUINT64);
+STATUS getSecurityTokenFileFunc(UINT64, PBYTE*, PUINT32, PUINT64);
 STATUS freeFileAuthCallbacksFunc(PUINT64);
 
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif //__KINESIS_VIDEO_FILE_AUTH_CALLBACK_INCLUDE_I__

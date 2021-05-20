@@ -36,7 +36,7 @@ TEST_F(ProducerBasicUsageTest, videoOnlyUsage)
     frame.decodingTs = 0;
     frame.presentationTs = frame.decodingTs;
 
-    while(GETTIME() < streamStopTime) {
+    while (GETTIME() < streamStopTime) {
         CHK_STATUS(putKinesisVideoFrame(streamHandle, &frame));
 
         THREAD_SLEEP(frame.duration);

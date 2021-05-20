@@ -6,6 +6,7 @@ class FindStringFunctionalityTest : public UtilTestBase {
 TEST_F(FindStringFunctionalityTest, Negative_Positive_Variations)
 {
     PCHAR pRet;
+    CHAR notNullTerminatedStr[] = {'a', 'b', 'c'};
 
     EXPECT_EQ(NULL, STRNCHR(NULL, 0, 'a'));
     EXPECT_EQ(NULL, STRNCHR(NULL, 10, 'a'));
@@ -23,6 +24,7 @@ TEST_F(FindStringFunctionalityTest, Negative_Positive_Variations)
 
     EXPECT_EQ(NULL, STRNCHR((PCHAR) "abc", (UINT32) STRLEN((PCHAR) "abc"), 'd'));
     EXPECT_EQ(NULL, STRNCHR((PCHAR) "abc", 100, 'd'));
+    EXPECT_EQ(NULL, STRNCHR((PCHAR) notNullTerminatedStr, 3, 'd'));
 
     pRet = STRNCHR((PCHAR) "abc", 1, 'a');
     EXPECT_EQ('a', *pRet);

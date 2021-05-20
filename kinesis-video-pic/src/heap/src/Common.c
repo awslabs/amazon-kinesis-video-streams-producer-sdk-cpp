@@ -16,7 +16,6 @@ STATUS validateHeap(PHeap pHeap)
     UNUSED_PARAM(pHeap);
     return STATUS_SUCCESS;
 #endif
-
 }
 
 /**
@@ -104,8 +103,7 @@ DEFINE_RELEASE_HEAP(commonHeapRelease)
 #ifdef HEAP_DEBUG
     CHK_STATUS(validateHeap(pHeap));
     if (pHeap->numAlloc != 0) {
-        DLOGE("The heap is being released with %llu allocations amounting to %llu bytes - possible memory leak",
-            pHeap->numAlloc, pHeap->heapSize);
+        DLOGE("The heap is being released with %llu allocations amounting to %llu bytes - possible memory leak", pHeap->numAlloc, pHeap->heapSize);
         // We don't want to crash the app - just warn in the log
     }
 #endif
@@ -187,8 +185,8 @@ DEFINE_HEAP_SET_ALLOC_SIZE(commonHeapSetAllocSize)
     // Check if the larger size can spill over the heap limit
     if (newSize > size) {
         diff = newSize - size;
-        CHK_ERR(diff + pHeap->heapSize <= pHeap->heapLimit, STATUS_NOT_ENOUGH_MEMORY,
-                "Allocating %" PRIu64 " bytes failed due to heap limit", newSize);
+        CHK_WARN(diff + pHeap->heapSize <= pHeap->heapLimit, STATUS_NOT_ENOUGH_MEMORY, "Allocating %" PRIu64 " bytes failed due to heap limit",
+                 newSize);
         // Increment the current allocations size
         pHeap->heapSize += diff;
     } else {
@@ -231,9 +229,9 @@ DEFINE_HEAP_ALLOC(commonHeapAlloc)
     CHK_ERR(pHeap->heapLimit != 0, STATUS_HEAP_NOT_INITIALIZED, "Heap has not been initialized.");
 
     // Check if we can allocate the chunk taking into account the allocation header and footer
-    overallSize = pBaseHeap->getAllocationHeaderSizeFn() + size + pBaseHeap->getAllocationFooterSizeFn();
-    CHK_ERR(overallSize + pHeap->heapSize <= pHeap->heapLimit, STATUS_NOT_ENOUGH_MEMORY,
-            "Allocating %" PRIu64 " bytes failed due to heap limit", size);
+    overallSize = pBaseHeap->getAllocationHeaderSizeFn() + pBaseHeap->getAllocationAlignedSizeFn(size) + pBaseHeap->getAllocationFooterSizeFn();
+    CHK_WARN(overallSize + pHeap->heapSize <= pHeap->heapLimit, STATUS_NOT_ENOUGH_MEMORY, "Allocating %" PRIu64 " bytes failed due to heap limit",
+             size);
 
     // Validate the heap
     CHK_STATUS(validateHeap(pHeap));
@@ -266,10 +264,8 @@ DEFINE_HEAP_FREE(commonHeapFree)
 
     overallSize = pBaseHeap->getAllocationSizeFn(pHeap, handle);
 
-    CHK_ERR(overallSize != INVALID_ALLOCATION_VALUE && pHeap->heapSize >= overallSize,
-        STATUS_HEAP_CORRUPTED,
-        "Invalid allocation or heap corruption trying to free handle 0x%016" PRIx64,
-        handle);
+    CHK_ERR(overallSize != INVALID_ALLOCATION_VALUE && pHeap->heapSize >= overallSize, STATUS_HEAP_CORRUPTED,
+            "Invalid allocation or heap corruption trying to free handle 0x%016" PRIx64, handle);
 
     // Validate the heap
     CHK_STATUS(validateHeap(pHeap));
@@ -336,7 +332,8 @@ CleanUp:
 /**
  * Increments the heap usage
  */
-VOID incrementUsage(PHeap pHeap, UINT64 overallSize) {
+VOID incrementUsage(PHeap pHeap, UINT64 overallSize)
+{
     pHeap->heapSize += overallSize;
     pHeap->numAlloc++;
 }
@@ -344,7 +341,8 @@ VOID incrementUsage(PHeap pHeap, UINT64 overallSize) {
 /**
  * Decrements the heap usage
  */
-VOID decrementUsage(PHeap pHeap, UINT64 overallSize) {
+VOID decrementUsage(PHeap pHeap, UINT64 overallSize)
+{
     if (pHeap->heapSize <= overallSize) {
         pHeap->heapSize = 0;
     } else {

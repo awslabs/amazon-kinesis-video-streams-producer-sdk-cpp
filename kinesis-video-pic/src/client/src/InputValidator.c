@@ -22,12 +22,8 @@ STATUS validateClientCallbacks(PDeviceInfo pDeviceInfo, PClientCallbacks pClient
 
     // Most of the callbacks are optional
     // Check for presence of the Service call callbacks
-    CHK(pClientCallbacks->createStreamFn != NULL &&
-                pClientCallbacks->describeStreamFn != NULL &&
-                pClientCallbacks->getStreamingEndpointFn != NULL &&
-                pClientCallbacks->putStreamFn != NULL &&
-                pClientCallbacks->getStreamingTokenFn != NULL &&
-                pClientCallbacks->createDeviceFn != NULL,
+    CHK(pClientCallbacks->createStreamFn != NULL && pClientCallbacks->describeStreamFn != NULL && pClientCallbacks->getStreamingEndpointFn != NULL &&
+            pClientCallbacks->putStreamFn != NULL && pClientCallbacks->getStreamingTokenFn != NULL && pClientCallbacks->createDeviceFn != NULL,
         STATUS_SERVICE_CALL_CALLBACKS_MISSING);
 
     // If we have tags then the tagResource callback should be present
@@ -104,7 +100,7 @@ STATUS validateClientCallbacks(PDeviceInfo pDeviceInfo, PClientCallbacks pClient
 
     if (pClientCallbacks->getRandomNumberFn == NULL) {
         // Call to seed the number generator
-        SRAND((UINT32)pClientCallbacks->getCurrentTimeFn(pClientCallbacks->customData));
+        SRAND((UINT32) pClientCallbacks->getCurrentTimeFn(pClientCallbacks->customData));
         pClientCallbacks->getRandomNumberFn = kinesisVideoStreamDefaultGetRandomNumber;
     }
 
@@ -132,8 +128,7 @@ STATUS validateDeviceInfo(PDeviceInfo pDeviceInfo)
     CHK(pDeviceInfo->streamCount <= MAX_STREAM_COUNT, STATUS_MAX_STREAM_COUNT);
     CHK(pDeviceInfo->streamCount > 0, STATUS_MIN_STREAM_COUNT);
     CHK(pDeviceInfo->storageInfo.version <= STORAGE_INFO_CURRENT_VERSION, STATUS_INVALID_STORAGE_INFO_VERSION);
-    CHK(pDeviceInfo->storageInfo.storageSize >= MIN_STORAGE_ALLOCATION_SIZE &&
-                pDeviceInfo->storageInfo.storageSize <= MAX_STORAGE_ALLOCATION_SIZE,
+    CHK(pDeviceInfo->storageInfo.storageSize >= MIN_STORAGE_ALLOCATION_SIZE && pDeviceInfo->storageInfo.storageSize <= MAX_STORAGE_ALLOCATION_SIZE,
         STATUS_INVALID_STORAGE_SIZE);
     CHK(pDeviceInfo->storageInfo.spillRatio <= 100, STATUS_INVALID_SPILL_RATIO);
     CHK(STRNLEN(pDeviceInfo->storageInfo.rootDirectory, MAX_PATH_LEN + 1) <= MAX_PATH_LEN, STATUS_INVALID_ROOT_DIRECTORY_LENGTH);
@@ -187,7 +182,7 @@ STATUS validateClientTags(UINT32 tagCount, PTag tags)
 CleanUp:
 
     // Translate the errors
-    switch(retStatus) {
+    switch (retStatus) {
         case STATUS_UTIL_MAX_TAG_COUNT:
             retStatus = STATUS_MAX_TAG_COUNT;
             break;
@@ -228,8 +223,7 @@ STATUS validateStreamInfo(PStreamInfo pStreamInfo, PClientCallbacks pClientCallb
 
     // Validate the retention period.
     // NOTE: 0 has is a sentinel value indicating no retention
-    CHK(pStreamInfo->retention == RETENTION_PERIOD_SENTINEL ||
-        pStreamInfo->retention >= MIN_RETENTION_PERIOD, STATUS_INVALID_RETENTION_PERIOD);
+    CHK(pStreamInfo->retention == RETENTION_PERIOD_SENTINEL || pStreamInfo->retention >= MIN_RETENTION_PERIOD, STATUS_INVALID_RETENTION_PERIOD);
 
     // Validate the tags
     CHK_STATUS(validateClientTags(pStreamInfo->tagCount, pStreamInfo->tags));
@@ -245,8 +239,7 @@ STATUS validateStreamInfo(PStreamInfo pStreamInfo, PClientCallbacks pClientCallb
     // Fix-up the replay duration
     pStreamInfo->streamCaps.replayDuration = MIN(pStreamInfo->streamCaps.bufferDuration, pStreamInfo->streamCaps.replayDuration);
     // Fix-up the frame rate
-    pStreamInfo->streamCaps.frameRate = (pStreamInfo->streamCaps.frameRate == 0) ?
-                                        DEFAULT_FRAME_RATE : pStreamInfo->streamCaps.frameRate;
+    pStreamInfo->streamCaps.frameRate = (pStreamInfo->streamCaps.frameRate == 0) ? DEFAULT_FRAME_RATE : pStreamInfo->streamCaps.frameRate;
 
     CHK(pStreamInfo->streamCaps.trackInfoCount != 0 && pStreamInfo->streamCaps.trackInfoList != NULL, STATUS_TRACK_INFO_MISSING);
     CHK(pStreamInfo->streamCaps.trackInfoCount <= MAX_SUPPORTED_TRACK_COUNT_PER_STREAM, STATUS_MAX_TRACK_COUNT_EXCEEDED);
@@ -271,11 +264,71 @@ CleanUp:
     return retStatus;
 }
 
+VOID fixupDeviceInfo(PDeviceInfo pClientDeviceInfo, PDeviceInfo pDeviceInfo)
+{
+    PClientInfo pOrigClientInfo = NULL;
+    switch (pDeviceInfo->version) {
+        case 1:
+            // Copy the individual fields for V1
+            MEMCPY(pClientDeviceInfo->clientId, pDeviceInfo->clientId, MAX_CLIENT_ID_STRING_LENGTH + 1);
+            pOrigClientInfo = &pDeviceInfo->clientInfo;
+
+            // Explicit fall-through
+        case 0:
+            // Copy and fixup individual fields
+            pClientDeviceInfo->version = DEVICE_INFO_CURRENT_VERSION;
+            MEMCPY(pClientDeviceInfo->name, pDeviceInfo->name, MAX_DEVICE_NAME_LEN + 1);
+            pClientDeviceInfo->tagCount = pDeviceInfo->tagCount;
+            pClientDeviceInfo->tags = pDeviceInfo->tags;
+            pClientDeviceInfo->storageInfo = pDeviceInfo->storageInfo;
+            pClientDeviceInfo->streamCount = pDeviceInfo->streamCount;
+
+            break;
+
+        default:
+            DLOGW("Invalid DeviceInfo version");
+    }
+
+    fixupClientInfo(&pClientDeviceInfo->clientInfo, pOrigClientInfo);
+}
+
 /**
  * The structure has been sanitized prior this call. We are setting defaults if needed
  */
-VOID fixupClientInfo(PClientInfo pClientInfo)
+VOID fixupClientInfo(PClientInfo pClientInfo, PClientInfo pOrigClientInfo)
 {
+    // Assuming pClientInfo had been zeroed already
+    if (pOrigClientInfo != NULL) {
+        pClientInfo->version = pOrigClientInfo->version;
+        pClientInfo->createClientTimeout = pOrigClientInfo->createClientTimeout;
+        pClientInfo->createStreamTimeout = pOrigClientInfo->createStreamTimeout;
+        pClientInfo->stopStreamTimeout = pOrigClientInfo->stopStreamTimeout;
+        pClientInfo->offlineBufferAvailabilityTimeout = pOrigClientInfo->offlineBufferAvailabilityTimeout;
+        pClientInfo->loggerLogLevel = pOrigClientInfo->loggerLogLevel;
+        pClientInfo->logMetric = pOrigClientInfo->logMetric;
+        pClientInfo->automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER;
+        pClientInfo->reservedCallbackPeriod = INTERMITTENT_PRODUCER_PERIOD_SENTINEL_VALUE;
+
+        switch (pOrigClientInfo->version) {
+            case 2:
+                // Copy individual fields and skip to V1
+                pClientInfo->automaticStreamingFlags = pOrigClientInfo->automaticStreamingFlags;
+                pClientInfo->reservedCallbackPeriod = pOrigClientInfo->reservedCallbackPeriod;
+
+                // explicit fall-through
+            case 1:
+                // Copy individual fields and skip to V0
+                pClientInfo->metricLoggingPeriod = pOrigClientInfo->metricLoggingPeriod;
+                break;
+            default:
+                DLOGW("Invalid ClientInfo version");
+        }
+    }
+
+    if (pClientInfo->reservedCallbackPeriod == INTERMITTENT_PRODUCER_PERIOD_SENTINEL_VALUE) {
+        pClientInfo->reservedCallbackPeriod = INTERMITTENT_PRODUCER_PERIOD_DEFAULT;
+    }
+
     // Set the defaults if older version or if the sentinel values have been specified
     if (pClientInfo->createClientTimeout == 0 || !IS_VALID_TIMESTAMP(pClientInfo->createClientTimeout)) {
         pClientInfo->createClientTimeout = CLIENT_READY_TIMEOUT_DURATION_IN_SECONDS * HUNDREDS_OF_NANOS_IN_A_SECOND;
@@ -296,6 +349,8 @@ VOID fixupClientInfo(PClientInfo pClientInfo)
     if (pClientInfo->loggerLogLevel == 0 || pClientInfo->loggerLogLevel > LOG_LEVEL_SILENT) {
         pClientInfo->loggerLogLevel = LOG_LEVEL_WARN;
     }
+
+    // logMetric and metricLoggingPeriod do not need to be fixed
 }
 
 /**
@@ -355,16 +410,20 @@ VOID fixupStreamInfo(PStreamInfo pStreamInfo)
 
             if (pStreamInfo->streamCaps.trackInfoCount == 2 &&
                 ((pStreamInfo->streamCaps.trackInfoList[0].trackType == MKV_TRACK_INFO_TYPE_VIDEO &&
-                 pStreamInfo->streamCaps.trackInfoList[1].trackType == MKV_TRACK_INFO_TYPE_AUDIO) ||
+                  pStreamInfo->streamCaps.trackInfoList[1].trackType == MKV_TRACK_INFO_TYPE_AUDIO) ||
                  (pStreamInfo->streamCaps.trackInfoList[0].trackType == MKV_TRACK_INFO_TYPE_AUDIO &&
-                 pStreamInfo->streamCaps.trackInfoList[1].trackType == MKV_TRACK_INFO_TYPE_VIDEO))) {
+                  pStreamInfo->streamCaps.trackInfoList[1].trackType == MKV_TRACK_INFO_TYPE_VIDEO))) {
                 // TODO change back to FRAME_ORDERING_MODE_MULTI_TRACK_AV once backend is fixed.
                 pStreamInfo->streamCaps.frameOrderingMode = FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE;
             }
 
+            // Explicit fall-through
+        case 1:
+            pStreamInfo->streamCaps.storePressurePolicy = CONTENT_STORE_PRESSURE_POLICY_OOM;
+            pStreamInfo->streamCaps.viewOverflowPolicy = CONTENT_VIEW_OVERFLOW_POLICY_DROP_TAIL_VIEW_ITEM;
             break;
 
-        case 1:
+        case 2:
             // No-op - the latest version
             break;
     }

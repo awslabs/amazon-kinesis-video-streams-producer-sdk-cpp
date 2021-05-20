@@ -6,7 +6,7 @@ Main internal include file
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -23,16 +23,12 @@ typedef StreamLatencyStateMachine* PStreamLatencyStateMachine;
 ////////////////////////////////////////////////////
 #include <com/amazonaws/kinesis/video/cproducer/Include.h>
 #include <com/amazonaws/kinesis/video/common/Include.h>
-#include <com/amazonaws/kinesis/video/client/Include.h>
 
 #include <curl/curl.h>
 
 #if !defined __WINDOWS_BUILD__
 #include <signal.h>
 #endif
-
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
 
 /**
  * Continuous retry state machinery states
@@ -48,8 +44,8 @@ typedef enum {
 /**
  * Default stream mapping hash table bucket count/length
  */
-#define STREAM_MAPPING_HASH_TABLE_BUCKET_LENGTH        2
-#define STREAM_MAPPING_HASH_TABLE_BUCKET_COUNT         100
+#define STREAM_MAPPING_HASH_TABLE_BUCKET_LENGTH 2
+#define STREAM_MAPPING_HASH_TABLE_BUCKET_COUNT  100
 
 ////////////////////////////////////////////////////
 // Project internal includes
@@ -77,9 +73,7 @@ typedef enum {
 // Project internal functions
 ////////////////////////////////////////////////////
 
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __KINESIS_VIDEO_PRODUCER_INCLUDE_I__ */
+#endif /* __KINESIS_VIDEO_PRODUCER_INCLUDE_I__ */

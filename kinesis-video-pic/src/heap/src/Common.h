@@ -9,30 +9,48 @@
 extern "C" {
 #endif
 
-#pragma once
-#pragma pack(push, include, 1) // for byte alignment
-
 /**
  * 'Magic' - aka a sentinel which will be added as a guard band for each allocation in debug mode
  */
 #define ALLOCATION_HEADER_MAGIC "__HEADER_MAGIC_GUARD_BAND__"
 #define ALLOCATION_FOOTER_MAGIC "__FOOTER_MAGIC_GUARD_BAND__"
 
-typedef struct
-{
+// Ensure it's more than the actual header and footer size
+// IMPORTANT!!! This must be a multiple of 8 for alignment
+#define ALLOCATION_HEADER_MAGIC_SIZE 32
+#define ALLOCATION_FOOTER_MAGIC_SIZE 32
+
+/**
+ * The internal base structure representing the allocation header for
+ * all of the heap implementations.
+ *
+ * IMPORTANT!!! Ensure this structure is tightly packed without tight packing directives
+ */
+typedef struct {
+    // The aligned allocation size without the service structures - aka header and footer included
     UINT64 size;
+
+    // The type of the heap
     UINT32 type;
-    UINT32 handle;
+
+    // Union used for flags or VRAM handler
+    union {
+        UINT32 vramHandle;
+        UINT32 flags;
+        UINT32 fileHandle;
+    };
+
 #ifdef HEAP_DEBUG
-    BYTE magic[SIZEOF(ALLOCATION_HEADER_MAGIC)];
+    BYTE magic[ALLOCATION_HEADER_MAGIC_SIZE];
 #endif
 } ALLOCATION_HEADER, *PALLOCATION_HEADER;
 
-typedef struct
-{
+typedef struct {
+    // The size of the allocation without the service structure - header and footer. This is the same
+    // as the size in the header structure needed for a back reference to the beginning of the allocation.
     UINT64 size;
 #ifdef HEAP_DEBUG
-    BYTE magic[SIZEOF(ALLOCATION_FOOTER_MAGIC)];
+    BYTE magic[ALLOCATION_FOOTER_MAGIC_SIZE];
 #endif
 } ALLOCATION_FOOTER, *PALLOCATION_FOOTER;
 
@@ -105,8 +123,6 @@ STATUS commonHeapCreate(PHeap*, UINT32);
  * Validate heap
  */
 STATUS validateHeap(PHeap);
-
-#pragma pack(pop, include) // pop the existing settings
 
 #ifdef __cplusplus
 }

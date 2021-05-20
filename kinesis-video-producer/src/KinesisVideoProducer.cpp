@@ -5,6 +5,10 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
+using std::shared_ptr;
+using std::stringstream;
+using std::unique_ptr;
+
 unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
         unique_ptr<DeviceInfoProvider> device_info_provider,
         unique_ptr<ClientCallbackProvider> client_callback_provider,
@@ -20,7 +24,10 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
             region,
             control_plane_uri,
             user_agent_name,
-            device_info_provider->getCustomUserAgent()));
+            device_info_provider->getCustomUserAgent(),
+            EMPTY_STRING,
+            false,
+            DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
 
     return KinesisVideoProducer::create(move(device_info_provider), move(callback_provider));
 }

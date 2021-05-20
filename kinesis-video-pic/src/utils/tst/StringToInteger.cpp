@@ -276,7 +276,7 @@ TEST_F(StoIFunctionalityTest, EndOfStringBeforeEndPointer) {
     INT64 i64;
     UINT32 ui32;
     INT32 i32;
-    CHAR str[] = "+1000000000";
+    CHAR str[200] = "+1000000000";
     EXPECT_EQ(STATUS_SUCCESS, STRTOI64(str, str + 100, 10, &i64));
     EXPECT_EQ(STATUS_SUCCESS, STRTOUI64(str, str + 100, 10, &ui64));
     EXPECT_EQ(STATUS_SUCCESS, STRTOI32(str, str + 100, 10, &i32));
@@ -341,6 +341,25 @@ TEST_F(StoIFunctionalityTest, CheckLimits) {
     EXPECT_EQ(9223372036854775807LL, i64);
     EXPECT_EQ(STATUS_SUCCESS, STRTOI64(s6, NULL, 16, &i64));
     EXPECT_EQ(-9223372036854775807LL - 1, i64);
+}
+
+TEST_F(StoIFunctionalityTest, CheckSSCANFSupport) {
+    INT32 i32;
+    UINT32 ui32;
+    EXPECT_EQ(1, SSCANF("20", "%x", &i32));
+    EXPECT_EQ(0x20, i32);
+    EXPECT_EQ(1, SSCANF("30;", "%x", &i32));
+    EXPECT_EQ(0x30, i32);
+
+    EXPECT_EQ(1, SSCANF("20", "%d", &i32));
+    EXPECT_EQ(20, i32);
+    EXPECT_EQ(1, SSCANF("30;", "%d", &i32));
+    EXPECT_EQ(30, i32);
+
+    EXPECT_EQ(1, SSCANF("20", "%d", &ui32));
+    EXPECT_EQ(20, ui32);
+    EXPECT_EQ(1, SSCANF("30;", "%d", &ui32));
+    EXPECT_EQ(30, ui32);
 }
 
 #endif

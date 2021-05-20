@@ -1,13 +1,10 @@
-#include "MockConsumer.h"
-#include "gtest/gtest.h"
-#include "src/client/src/Include_i.h"
+#include "ClientTestFixture.h"
 
 MockConsumer::MockConsumer(MockConsumerConfig config,
                            UPLOAD_HANDLE mUploadHandle,
                            STREAM_HANDLE mStreamHandle)
         : mOldCurrent(0),
           mDataBufferSize(config.mDataBufferSizeByte),
-          mDataAvailable(FALSE),
           mUploadSpeed(config.mUploadSpeedBytesPerSecond),
           mNextGetStreamDataTime(0),
           mUploadHandle(mUploadHandle),
@@ -21,6 +18,7 @@ MockConsumer::MockConsumer(MockConsumerConfig config,
           mRetention(config.mRetention),
           mFragmentTimestamp(INVALID_TIMESTAMP_VALUE),
           mLastGetStreamDataTime(INVALID_TIMESTAMP_VALUE) {
+    ATOMIC_STORE_BOOL(&mDataAvailable, FALSE);
 
     // init FragmentAck struct
     mFragmentAck.timestamp = INVALID_TIMESTAMP_VALUE;
@@ -70,7 +68,7 @@ void MockConsumer::initOldCurrent() {
     mOldCurrent = pKinesisVideoStream->curViewItem.viewItem.index;
     pViewItem = &pKinesisVideoStream->curViewItem.viewItem;
 
-    while(!CHECK_ITEM_STREAM_START_DEBUG(pViewItem->flags) && STATUS_SUCCEEDED(retStatus)) {
+    while (!CHECK_ITEM_STREAM_START_DEBUG(pViewItem->flags) && STATUS_SUCCEEDED(retStatus)) {
         mOldCurrent--;
         retStatus = contentViewGetItemAt(pKinesisVideoStream->pView, mOldCurrent, &pViewItem);
     }
@@ -88,17 +86,18 @@ void MockConsumer::createAckEvent(BOOL isEosSent, UINT64 sendAckTime) {
     PKinesisVideoStream pKinesisVideoStream = FROM_STREAM_HANDLE(mStreamHandle);
     pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
     pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
-    PViewItem pViewItem;
+    PViewItem pViewItem = NULL;
     UINT64 endIndex = pKinesisVideoStream->curViewItem.viewItem.index;
-
-
+    STATUS status = STATUS_SUCCESS;
     if (pKinesisVideoStream->curViewItem.offset == pKinesisVideoStream->curViewItem.viewItem.length) {
         endIndex++;
     }
 
     for(UINT64 i = mOldCurrent; i < endIndex; i++) {
-        EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemAt(pKinesisVideoStream->pView, i, &pViewItem));
-        if (!CHECK_ITEM_SKIP_ITEM(pViewItem->flags)) {
+        /* not expecting contentViewGetItemAt to always succeed because it may fail in the negative scenario tests.
+         * For example view items were deliberately dropped. */
+        status = contentViewGetItemAt(pKinesisVideoStream->pView, i, &pViewItem);
+        if (STATUS_SUCCEEDED(status) && pViewItem != NULL && !CHECK_ITEM_SKIP_ITEM(pViewItem->flags)) {
             if (CHECK_ITEM_FRAGMENT_START(pViewItem->flags)) {
                 if (IS_VALID_TIMESTAMP(mFragmentTimestamp)) {
                     enqueueAckItem(mFragmentTimestamp, &sendAckTime);
@@ -140,26 +139,27 @@ void MockConsumer::purgeAckItemWithTimestamp(UINT64 ackTimestamp)
             tempAckQueue.push(ackItem);
         }
         mAckQueue.pop();
-    } while(ackPurged < 3 && !mAckQueue.empty());
+    } while (ackPurged < 3 && !mAckQueue.empty());
 
-    while(!tempAckQueue.empty()) {
+    while (!tempAckQueue.empty()) {
         mAckQueue.push(tempAckQueue.top());
         tempAckQueue.pop();
     }
 }
 
-STATUS MockConsumer::timedGetStreamData(UINT64 currentTime, PBOOL pDidGetStreamData, PUINT32 pRetrievedSize){
+STATUS MockConsumer::timedGetStreamData(UINT64 currentTime, PBOOL pDidGetStreamData, PUINT32 pRetrievedSize) {
     STATUS retStatus = STATUS_SUCCESS;
     UINT32 actualDataSize;
     *pDidGetStreamData = FALSE;
 
-    if (mDataAvailable && (currentTime >= mNextGetStreamDataTime)) {
+    if (ATOMIC_LOAD_BOOL(&mDataAvailable) && (currentTime >= mNextGetStreamDataTime)) {
         *pDidGetStreamData = TRUE;
-        retStatus = getKinesisVideoStreamData(mStreamHandle, mUploadHandle, mDataBuffer, mDataBufferSize, &actualDataSize);
+        retStatus = getKinesisVideoStreamData(mStreamHandle, mUploadHandle, mDataBuffer, mDataBufferSize,
+                                              &actualDataSize);
 
         // stop calling getKinesisVideoStreamData if there is no more data.
         if (retStatus == STATUS_NO_MORE_DATA_AVAILABLE || retStatus == STATUS_AWAITING_PERSISTED_ACK) {
-            mDataAvailable = FALSE;
+            ATOMIC_STORE_BOOL(&mDataAvailable, FALSE);
         }
 
         if (actualDataSize > 0) {
@@ -229,8 +229,6 @@ CleanUp:
     return retStatus;
 }
 
-
-
 STATUS MockConsumer::submitErrorAck(SERVICE_CALL_RESULT service_call_result, PBOOL pSubmittedAck) {
     STATUS retStatus = STATUS_SUCCESS;
     *pSubmittedAck = FALSE;
@@ -238,7 +236,7 @@ STATUS MockConsumer::submitErrorAck(SERVICE_CALL_RESULT service_call_result, PBO
     EXPECT_NE(mConnectionClosed, TRUE);
 
     // Error ack needs to have a fragment timestamp.
-    if (mAckQueue.size() > 0) {
+    if (!mAckQueue.empty()) {
         *pSubmittedAck = TRUE;
         mFragmentAck.result = service_call_result;
         mFragmentAck.ackType = FRAGMENT_ACK_TYPE_ERROR;

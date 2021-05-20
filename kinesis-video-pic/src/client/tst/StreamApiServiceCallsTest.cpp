@@ -20,33 +20,33 @@ TEST_F(StreamApiServiceCallsTest, putFrame_DescribeStreamCreating)
     mStreamDescription.creationTime = GETTIME();
     // Reset the stream name
     mStreamName[0] = '\0';
-    EXPECT_EQ(1, mDescribeStreamFuncCount);
-    EXPECT_EQ(0, mGetStreamingTokenFuncCount);
-    EXPECT_EQ(0, mGetStreamingEndpointFuncCount);
+    EXPECT_EQ(1, ATOMIC_LOAD(&mDescribeStreamFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingTokenFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingEndpointFuncCount));
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 
-    EXPECT_EQ(2, mDescribeStreamFuncCount);
-    EXPECT_EQ(0, mGetStreamingTokenFuncCount);
-    EXPECT_EQ(0, mGetStreamingEndpointFuncCount);
+    EXPECT_EQ(2, ATOMIC_LOAD(&mDescribeStreamFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingTokenFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingEndpointFuncCount));
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 
-    EXPECT_EQ(3, mDescribeStreamFuncCount);
-    EXPECT_EQ(0, mGetStreamingTokenFuncCount);
-    EXPECT_EQ(0, mGetStreamingEndpointFuncCount);
+    EXPECT_EQ(3, ATOMIC_LOAD(&mDescribeStreamFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingTokenFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingEndpointFuncCount));
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 
-    EXPECT_EQ(4, mDescribeStreamFuncCount);
-    EXPECT_EQ(0, mGetStreamingTokenFuncCount);
-    EXPECT_EQ(0, mGetStreamingEndpointFuncCount);
+    EXPECT_EQ(4, ATOMIC_LOAD(&mDescribeStreamFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingTokenFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingEndpointFuncCount));
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 
-    EXPECT_EQ(5, mDescribeStreamFuncCount);
-    EXPECT_EQ(0, mGetStreamingTokenFuncCount);
-    EXPECT_EQ(0, mGetStreamingEndpointFuncCount);
+    EXPECT_EQ(5, ATOMIC_LOAD(&mDescribeStreamFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingTokenFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingEndpointFuncCount));
     EXPECT_EQ(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 
     // Should fail after the retries
-    EXPECT_EQ(0, mGetStreamingTokenFuncCount);
-    EXPECT_EQ(0, mGetStreamingEndpointFuncCount);
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingTokenFuncCount));
+    EXPECT_EQ(0, ATOMIC_LOAD(&mGetStreamingEndpointFuncCount));
     EXPECT_NE(STATUS_SUCCESS, describeStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, &mStreamDescription));
 }

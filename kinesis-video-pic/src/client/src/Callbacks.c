@@ -125,8 +125,7 @@ STATUS kinesisVideoStreamDefaultStreamReady(UINT64 customData, STREAM_HANDLE str
 /**
  * Default end of stream callback functionality - NOOP
  */
-STATUS kinesisVideoStreamDefaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle,
-                                            UPLOAD_HANDLE streamUploadHandle)
+STATUS kinesisVideoStreamDefaultEndOfStream(UINT64 customData, STREAM_HANDLE streamHandle, UPLOAD_HANDLE streamUploadHandle)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(streamHandle);
@@ -147,12 +146,8 @@ STATUS kinesisVideoStreamDefaultClientReady(UINT64 customData, CLIENT_HANDLE cli
 /**
  * Default stream data available callback functionality - NOOP
  */
-STATUS kinesisVideoStreamDefaultStreamDataAvailable(UINT64 customData,
-                                                    STREAM_HANDLE streamHandle,
-                                                    PCHAR streamName,
-                                                    UPLOAD_HANDLE uploadHandle,
-                                                    UINT64 duration,
-                                                    UINT64 size)
+STATUS kinesisVideoStreamDefaultStreamDataAvailable(UINT64 customData, STREAM_HANDLE streamHandle, PCHAR streamName, UPLOAD_HANDLE uploadHandle,
+                                                    UINT64 duration, UINT64 size)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(streamHandle);
@@ -166,8 +161,7 @@ STATUS kinesisVideoStreamDefaultStreamDataAvailable(UINT64 customData,
 /**
  * Default client shutdown callback functionality - NOOP
  */
-STATUS kinesisVideoStreamDefaultClientShutdown(UINT64 customData,
-                                               CLIENT_HANDLE clientHandle)
+STATUS kinesisVideoStreamDefaultClientShutdown(UINT64 customData, CLIENT_HANDLE clientHandle)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(clientHandle);
@@ -177,9 +171,7 @@ STATUS kinesisVideoStreamDefaultClientShutdown(UINT64 customData,
 /**
  * Default stream shutdown callback functionality - NOOP
  */
-STATUS kinesisVideoStreamDefaultStreamShutdown(UINT64 customData,
-                                               STREAM_HANDLE streamHandle,
-                                               BOOL resetStream)
+STATUS kinesisVideoStreamDefaultStreamShutdown(UINT64 customData, STREAM_HANDLE streamHandle, BOOL resetStream)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(streamHandle);

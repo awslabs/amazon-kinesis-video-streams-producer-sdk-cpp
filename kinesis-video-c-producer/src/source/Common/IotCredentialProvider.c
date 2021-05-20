@@ -4,24 +4,17 @@
 #define LOG_CLASS "IotCredentialProvider"
 #include "Include_i.h"
 
-STATUS createIotCredentialProviderWithTime(PCHAR iotGetCredentialEndpoint,
-                                           PCHAR certPath,
-                                           PCHAR privateKeyPath,
-                                           PCHAR caCertPath,
-                                           PCHAR roleAlias,
-                                           PCHAR thingName,
-                                           GetCurrentTimeFunc getCurrentTimeFn,
-                                           UINT64 customData,
-                                           BlockingServiceCallFunc serviceCallFn,
-                                           PAwsCredentialProvider* ppCredentialProvider)
+STATUS createIotCredentialProviderWithTime(PCHAR iotGetCredentialEndpoint, PCHAR certPath, PCHAR privateKeyPath, PCHAR caCertPath, PCHAR roleAlias,
+                                           PCHAR thingName, GetCurrentTimeFunc getCurrentTimeFn, UINT64 customData,
+                                           BlockingServiceCallFunc serviceCallFn, PAwsCredentialProvider* ppCredentialProvider)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PIotCredentialProvider pIotCredentialProvider = NULL;
 
-    CHK(ppCredentialProvider != NULL && iotGetCredentialEndpoint != NULL &&
-        certPath != NULL && privateKeyPath != NULL &&
-        roleAlias != NULL && thingName != NULL && serviceCallFn != NULL, STATUS_NULL_ARG);
+    CHK(ppCredentialProvider != NULL && iotGetCredentialEndpoint != NULL && certPath != NULL && privateKeyPath != NULL && roleAlias != NULL &&
+            thingName != NULL && serviceCallFn != NULL,
+        STATUS_NULL_ARG);
 
     pIotCredentialProvider = (PIotCredentialProvider) MEMCALLOC(1, SIZEOF(IotCredentialProvider));
     CHK(pIotCredentialProvider != NULL, STATUS_NOT_ENOUGH_MEMORY);
@@ -29,7 +22,7 @@ STATUS createIotCredentialProviderWithTime(PCHAR iotGetCredentialEndpoint,
     pIotCredentialProvider->credentialProvider.getCredentialsFn = getIotCredentials;
 
     // Store the time functionality and specify default if NULL
-    pIotCredentialProvider->getCurrentTimeFn = (getCurrentTimeFn == NULL) ? kinesisVideoStreamDefaultGetCurrentTime : getCurrentTimeFn;
+    pIotCredentialProvider->getCurrentTimeFn = (getCurrentTimeFn == NULL) ? commonDefaultGetCurrentTimeFunc : getCurrentTimeFn;
     pIotCredentialProvider->customData = customData;
 
     CHK(STRNLEN(iotGetCredentialEndpoint, MAX_URI_CHAR_LEN + 1) <= MAX_URI_CHAR_LEN, MAX_URI_CHAR_LEN);
@@ -59,7 +52,7 @@ STATUS createIotCredentialProviderWithTime(PCHAR iotGetCredentialEndpoint,
 CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
-        freeIotCredentialProvider((PAwsCredentialProvider *) &pIotCredentialProvider);
+        freeIotCredentialProvider((PAwsCredentialProvider*) &pIotCredentialProvider);
         pIotCredentialProvider = NULL;
     }
 
@@ -148,22 +141,22 @@ STATUS parseIotResponse(PIotCredentialProvider pIotCredentialProvider, PCallInfo
 
     for (i = 1; i < (UINT32) tokenCount; i++) {
         if (compareJsonString(pResponseStr, &tokens[i], JSMN_STRING, (PCHAR) "accessKeyId")) {
-            accessKeyIdLen = (UINT32) (tokens[i + 1].end - tokens[i + 1].start);
+            accessKeyIdLen = (UINT32)(tokens[i + 1].end - tokens[i + 1].start);
             CHK(accessKeyIdLen <= MAX_ACCESS_KEY_LEN, STATUS_INVALID_API_CALL_RETURN_JSON);
             accessKeyId = pResponseStr + tokens[i + 1].start;
             i++;
         } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_STRING, (PCHAR) "secretAccessKey")) {
-            secretKeyLen = (UINT32) (tokens[i + 1].end - tokens[i + 1].start);
+            secretKeyLen = (UINT32)(tokens[i + 1].end - tokens[i + 1].start);
             CHK(secretKeyLen <= MAX_SECRET_KEY_LEN, STATUS_INVALID_API_CALL_RETURN_JSON);
             secretKey = pResponseStr + tokens[i + 1].start;
             i++;
         } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_STRING, (PCHAR) "sessionToken")) {
-            sessionTokenLen = (UINT32) (tokens[i + 1].end - tokens[i + 1].start);
+            sessionTokenLen = (UINT32)(tokens[i + 1].end - tokens[i + 1].start);
             CHK(sessionTokenLen <= MAX_SESSION_TOKEN_LEN, STATUS_INVALID_API_CALL_RETURN_JSON);
             sessionToken = pResponseStr + tokens[i + 1].start;
             i++;
         } else if (compareJsonString(pResponseStr, &tokens[i], JSMN_STRING, "expiration")) {
-            expirationTimestampLen = (UINT32) (tokens[i + 1].end - tokens[i + 1].start);
+            expirationTimestampLen = (UINT32)(tokens[i + 1].end - tokens[i + 1].start);
             CHK(expirationTimestampLen <= MAX_EXPIRATION_LEN, STATUS_INVALID_API_CALL_RETURN_JSON);
             expirationTimestamp = pResponseStr + tokens[i + 1].start;
             MEMCPY(expirationTimestampStr, expirationTimestamp, expirationTimestampLen);
@@ -188,13 +181,7 @@ STATUS parseIotResponse(PIotCredentialProvider pIotCredentialProvider, PCallInfo
     // rotation to be more frequent.
     expiration = MIN(expiration, currentTime + MAX_ENFORCED_TOKEN_EXPIRATION_DURATION);
 
-    CHK_STATUS(createAwsCredentials(accessKeyId,
-                                    accessKeyIdLen,
-                                    secretKey,
-                                    secretKeyLen,
-                                    sessionToken,
-                                    sessionTokenLen,
-                                    expiration,
+    CHK_STATUS(createAwsCredentials(accessKeyId, accessKeyIdLen, secretKey, secretKeyLen, sessionToken, sessionTokenLen, expiration,
                                     &pIotCredentialProvider->pAwsCredentials));
 
 CleanUp:
@@ -219,32 +206,18 @@ STATUS iotCurlHandler(PIotCredentialProvider pIotCredentialProvider)
     currentTime = pIotCredentialProvider->getCurrentTimeFn(pIotCredentialProvider->customData);
 
     CHK(pIotCredentialProvider->pAwsCredentials == NULL ||
-        currentTime + IOT_CREDENTIAL_FETCH_GRACE_PERIOD > pIotCredentialProvider->pAwsCredentials->expiration,
+            currentTime + IOT_CREDENTIAL_FETCH_GRACE_PERIOD > pIotCredentialProvider->pAwsCredentials->expiration,
         retStatus);
 
-    formatLen = SNPRINTF(serviceUrl, MAX_URI_CHAR_LEN, "%s%s%s%c%s%s", CONTROL_PLANE_URI_PREFIX,
-                         pIotCredentialProvider->iotGetCredentialEndpoint,
-                         ROLE_ALIASES_PATH,
-                         '/',
-                         pIotCredentialProvider->roleAlias,
-                         CREDENTIAL_SERVICE);
+    formatLen = SNPRINTF(serviceUrl, MAX_URI_CHAR_LEN, "%s%s%s%c%s%s", CONTROL_PLANE_URI_PREFIX, pIotCredentialProvider->iotGetCredentialEndpoint,
+                         ROLE_ALIASES_PATH, '/', pIotCredentialProvider->roleAlias, CREDENTIAL_SERVICE);
     CHK(formatLen > 0 && formatLen < MAX_URI_CHAR_LEN, STATUS_IOT_FAILED);
 
     // Form a new request info based on the params
-    CHK_STATUS(createRequestInfo(serviceUrl,
-            NULL,
-            DEFAULT_AWS_REGION,
-            pIotCredentialProvider->caCertPath,
-            pIotCredentialProvider->certPath,
-            pIotCredentialProvider->privateKeyPath,
-            SSL_CERTIFICATE_TYPE_PEM,
-            DEFAULT_USER_AGENT_NAME,
-            IOT_REQUEST_CONNECTION_TIMEOUT,
-            IOT_REQUEST_COMPLETION_TIMEOUT,
-            DEFAULT_LOW_SPEED_LIMIT,
-            DEFAULT_LOW_SPEED_TIME_LIMIT,
-            pIotCredentialProvider->pAwsCredentials,
-            &pRequestInfo));
+    CHK_STATUS(createRequestInfo(serviceUrl, NULL, DEFAULT_AWS_REGION, pIotCredentialProvider->caCertPath, pIotCredentialProvider->certPath,
+                                 pIotCredentialProvider->privateKeyPath, SSL_CERTIFICATE_TYPE_PEM, DEFAULT_USER_AGENT_NAME,
+                                 IOT_REQUEST_CONNECTION_TIMEOUT, IOT_REQUEST_COMPLETION_TIMEOUT, DEFAULT_LOW_SPEED_LIMIT,
+                                 DEFAULT_LOW_SPEED_TIME_LIMIT, pIotCredentialProvider->pAwsCredentials, &pRequestInfo));
 
     callInfo.pRequestInfo = pRequestInfo;
 

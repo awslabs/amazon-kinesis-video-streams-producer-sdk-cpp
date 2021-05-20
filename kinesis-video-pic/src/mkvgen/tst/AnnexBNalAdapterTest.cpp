@@ -16,7 +16,6 @@ TEST_F(AnnexBNalAdapterTest, nalAdapter_InvalidInput)
     EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(pFrameData, 0, TRUE, pAdaptedFrameData, &adaptedFrameDataSize));
     EXPECT_EQ(0, adaptedFrameDataSize);
     adaptedFrameDataSize = frameDataSize - 1;
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(pFrameData, frameDataSize, FALSE, pAdaptedFrameData, &adaptedFrameDataSize));
     EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(pFrameData, frameDataSize, TRUE, pAdaptedFrameData, &adaptedFrameDataSize));
     EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(pFrameData, frameDataSize, FALSE, pAdaptedFrameData, NULL));
     EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(pFrameData, frameDataSize, TRUE, pAdaptedFrameData, NULL));
@@ -179,10 +178,13 @@ TEST_F(AnnexBNalAdapterTest, nalAdapter_ValidTrailingZeros)
 
     BYTE frameData5[] = {0, 0, 0, 0, 1};
     UINT32 frameData5Size = SIZEOF(frameData5);
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, TRUE, NULL, &adaptedFrameDataSize));
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, FALSE, NULL, &adaptedFrameDataSize));
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
-    EXPECT_NE(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, TRUE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, FALSE, adaptedFrameData, &adaptedFrameDataSize));
+    // Should set the size larger due to extra 0 removal and checking for at least the same size for EPB
+    adaptedFrameDataSize += 1;
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData5, frameData5Size, TRUE, adaptedFrameData, &adaptedFrameDataSize));
+
 
     BYTE frameData6[] = {0, 0, 0, 1, 0};
     UINT32 frameData6Size = SIZEOF(frameData6);
@@ -359,7 +361,7 @@ TEST_F(AnnexBNalAdapterTest, nalAdapter_ValidEPB)
 
     UINT16 i;
 
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < ARRAY_SIZE(frameSizes); i++) {
         adaptedFrameDataSize = 0;
         EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frames[i], frameSizes[i], TRUE, NULL, &adaptedFrameDataSize)) << "Failed on iteration " << i;
         EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frames[i], frameSizes[i], TRUE, adaptedFrameData, &adaptedFrameDataSize)) << "Failed on iteration " << i;
@@ -368,4 +370,56 @@ TEST_F(AnnexBNalAdapterTest, nalAdapter_ValidEPB)
         EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frames[i], frameSizes[i], FALSE, NULL, &adaptedFrameDataSize)) << "Failed on iteration " << i;
         EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frames[i], frameSizes[i], FALSE, adaptedFrameData, &adaptedFrameDataSize)) << "Failed on iteration " << i;
     }
+}
+
+TEST_F(AnnexBNalAdapterTest, nalAdapter_badRealLifeEncoderSampleWithFix)
+{
+    // I-frame from a real-life encoder output which is actually invalid Annex-B format (shortened after a few bytes of the actual frame)
+    BYTE frameData[] = {0x00, 0x00, 0x00, 0x01, 0x09, 0x10, 0x00, 0x00, 0x00, 0x00, 0x01, 0x67, 0x64, 0x00, 0x1E, 0xAC,
+                        0x1B, 0x1A, 0x80, 0xB0, 0x3D, 0xFF, 0xFF, 0x00, 0x28, 0x00, 0x21, 0x6E, 0x0C, 0x0C, 0x0C, 0x80,
+                        0x00, 0x01, 0xF4, 0x00, 0x00, 0x75, 0x30, 0x74, 0x30, 0x07, 0xD0, 0x00, 0x01, 0x31, 0x2D, 0x5D,
+                        0xE5, 0xC6, 0x86, 0x00, 0xFA, 0x00, 0x00, 0x26, 0x25, 0xAB, 0xBC, 0xB8, 0x50, 0x00, 0x00, 0x00,
+                        0x00, 0x01, 0x68, 0xEE, 0x38, 0x30, 0x00, 0x00, 0x00, 0x00, 0x01, 0x06, 0x00, 0x0D, 0xBC, 0xFF,
+                        0x87, 0x49, 0xB5, 0x16, 0x3C, 0xFF, 0x87, 0x49, 0xB5, 0x16, 0x40, 0x01, 0x04, 0x00, 0x78, 0x08,
+                        0x10, 0x06, 0x01, 0xC4, 0x80, 0x00, 0x00, 0x00, 0x00, 0x01, 0x65, 0xB8, 0x00, 0x02, 0x00, 0x00,
+                        0x03, 0x02, 0x7F, 0xEC, 0x0E, 0xD0, 0xE1, 0xA7, 0x9D, 0xA3, 0x7C, 0x49, 0x42, 0xC2, 0x23, 0x59,};
+
+    BYTE adaptedFrameData[1000];
+    UINT32 adaptedFrameDataSize = SIZEOF(adaptedFrameData);
+
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, SIZEOF(frameData), TRUE, NULL, &adaptedFrameDataSize));
+
+    // Need to account for the removal of zeroes and the fact that with EPB we are requiring at least the same size as frame data
+    adaptedFrameDataSize += 4;
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, SIZEOF(frameData), TRUE, adaptedFrameData, &adaptedFrameDataSize));
+
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, SIZEOF(frameData), FALSE, NULL, &adaptedFrameDataSize));
+    EXPECT_EQ(STATUS_SUCCESS, adaptFrameNalsFromAnnexBToAvcc(frameData, SIZEOF(frameData), FALSE, adaptedFrameData, &adaptedFrameDataSize));
+
+    // 4 larger than normal Annex-B start codes as with no-EPB we are returning the actual size required
+    EXPECT_EQ(SIZEOF(frameData) - 4, adaptedFrameDataSize);
+
+    // We have 5 NALUs here with run sizes of 2, 50, 4, 26, 22
+    UINT32 expectedRunSizes[] = {2, 50, 4, 26, 22};
+
+    PUINT32 pRunSize = (PUINT32) adaptedFrameData;
+    for (UINT32 i = 0; i < ARRAY_SIZE(expectedRunSizes); i++) {
+        UINT32 runSize = GET_UNALIGNED_BIG_ENDIAN(pRunSize);
+        EXPECT_EQ(expectedRunSizes[i], runSize);
+
+        // Increment the run pointer which is the current incremented by 1 (4 bytes of run) and the byte cast pointer size of the run
+        pRunSize = (PUINT32) ((PBYTE) (pRunSize + 1) + runSize);
+    }
+
+    // Extract the SPS and PPS
+    PBYTE pSps, pPps;
+    UINT32 spsSize, ppsSize;
+    EXPECT_EQ(STATUS_SUCCESS,
+              getH264SpsPpsNalusFromAvccNalus(adaptedFrameData, adaptedFrameDataSize, &pSps, &spsSize, &pPps, &ppsSize));
+
+    EXPECT_TRUE(pSps != NULL);
+    EXPECT_EQ(50, spsSize);
+
+    EXPECT_TRUE(pPps != NULL);
+    EXPECT_EQ(4, ppsSize);
 }

@@ -6,7 +6,7 @@ Main internal include file
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -15,9 +15,6 @@ extern "C" {
 ////////////////////////////////////////////////////
 #include "com/amazonaws/kinesis/video/mkvgen/Include.h"
 
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
-
 ////////////////////////////////////////////////////
 // Packager version
 //
@@ -25,14 +22,14 @@ extern "C" {
 // the packaging bits.
 //
 ////////////////////////////////////////////////////
-#define MKV_GENERATOR_CURRENT_VERSION_STRING            "1.0.0"
-#define MKV_GENERATOR_CURRENT_VERSION_STRING_SIZE       (UINT32) ((SIZEOF(MKV_GENERATOR_CURRENT_VERSION_STRING) / SIZEOF(CHAR)) - 1)
+#define MKV_GENERATOR_CURRENT_VERSION_STRING      "1.1.0"
+#define MKV_GENERATOR_CURRENT_VERSION_STRING_SIZE (UINT32)((SIZEOF(MKV_GENERATOR_CURRENT_VERSION_STRING) / SIZEOF(CHAR)) - 1)
 
 /**
  * MKV generator application name to be used in MKV header
  */
-#define MKV_GENERATOR_APPLICATION_NAME_STRING           "Kinesis Video SDK"
-#define MKV_GENERATOR_APPLICATION_NAME_STRING_SIZE      (UINT32) ((SIZEOF(MKV_GENERATOR_APPLICATION_NAME_STRING) / SIZEOF(CHAR)) - 1)
+#define MKV_GENERATOR_APPLICATION_NAME_STRING      "Kinesis Video SDK"
+#define MKV_GENERATOR_APPLICATION_NAME_STRING_SIZE (UINT32)((SIZEOF(MKV_GENERATOR_APPLICATION_NAME_STRING) / SIZEOF(CHAR)) - 1)
 
 ////////////////////////////////////////////////////
 // General defines and data structures
@@ -43,32 +40,32 @@ extern "C" {
  */
 extern BYTE gMkvHeaderBits[];
 extern UINT32 gMkvHeaderBitsSize;
-#define MKV_HEADER_BITS gMkvHeaderBits
+#define MKV_HEADER_BITS      gMkvHeaderBits
 #define MKV_HEADER_BITS_SIZE gMkvHeaderBitsSize
 
 extern BYTE gMkvSegmentHeaderBits[];
 extern UINT32 gMkvSegmentHeaderBitsSize;
-#define MKV_SEGMENT_HEADER_BITS gMkvSegmentHeaderBits
+#define MKV_SEGMENT_HEADER_BITS      gMkvSegmentHeaderBits
 #define MKV_SEGMENT_HEADER_BITS_SIZE gMkvSegmentHeaderBitsSize
 
 extern BYTE gMkvSegmentInfoBits[];
 extern UINT32 gMkvSegmentInfoBitsSize;
-#define MKV_SEGMENT_INFO_BITS gMkvSegmentInfoBits
+#define MKV_SEGMENT_INFO_BITS      gMkvSegmentInfoBits
 #define MKV_SEGMENT_INFO_BITS_SIZE gMkvSegmentInfoBitsSize
 
 extern BYTE gMkvTitleBits[];
 extern UINT32 gMkvTitleBitsSize;
-#define MKV_TITLE_BITS gMkvTitleBits
+#define MKV_TITLE_BITS      gMkvTitleBits
 #define MKV_TITLE_BITS_SIZE gMkvTitleBitsSize
 
 extern BYTE gMkvMuxingAppBits[];
 extern UINT32 gMkvMuxingAppBitsSize;
-#define MKV_MUXING_APP_BITS gMkvMuxingAppBits
+#define MKV_MUXING_APP_BITS      gMkvMuxingAppBits
 #define MKV_MUXING_APP_BITS_SIZE gMkvMuxingAppBitsSize
 
 extern BYTE gMkvWritingAppBits[];
 extern UINT32 gMkvWritingAppBitsSize;
-#define MKV_WRITING_APP_BITS gMkvWritingAppBits
+#define MKV_WRITING_APP_BITS      gMkvWritingAppBits
 #define MKV_WRITING_APP_BITS_SIZE gMkvWritingAppBitsSize
 
 // Offset into gMkvSegmentInfoBits for fixing-up the Segment Info size
@@ -89,6 +86,7 @@ extern UINT32 gMkvWritingAppBitsSize;
 extern DOUBLE gMkvAACSamplingFrequencies[];
 extern UINT32 gMkvAACSamplingFrequenciesCount;
 #define MKV_AAC_SAMPLING_FREQUNECY_IDX_MAX gMkvAACSamplingFrequenciesCount
+// documented here: https://wiki.multimedia.cx/index.php/MPEG-4_Audio
 #define MKV_AAC_CHANNEL_CONFIG_MAX 8
 
 extern BYTE gMkvTrackInfoBits[];
@@ -107,22 +105,22 @@ extern BYTE gMkvCodecIdBits[];
 extern UINT32 gMkvCodecIdBitsSize;
 extern BYTE gMkvTrackNameBits[];
 extern UINT32 gMkvTrackNameBitsSize;
-#define MKV_TRACK_INFO_BITS gMkvTrackInfoBits
-#define MKV_TRACK_INFO_BITS_SIZE gMkvTrackInfoBitsSize
-#define MKV_TRACKS_ELEM_BITS gMkvTracksElem
-#define MKV_TRACKS_ELEM_BITS_SIZE gMkvTracksElemSize
-#define MKV_TRACK_VIDEO_BITS gMkvTrackVideoBits
-#define MKV_TRACK_VIDEO_BITS_SIZE gMkvTrackVideoBitsSize
-#define MKV_CODEC_PRIVATE_DATA_ELEM gMkvCodecPrivateDataElem
-#define MKV_CODEC_PRIVATE_DATA_ELEM_SIZE gMkvCodecPrivateDataElemSize
-#define MKV_TRACK_AUDIO_BITS gMkvTrackAudioBits
-#define MKV_TRACK_AUDIO_BITS_SIZE gMkvTrackAudioBitsSize
-#define MKV_TRACK_AUDIO_BIT_DEPTH_BITS gMkvTrackAudioBitDepthBits
+#define MKV_TRACK_INFO_BITS                 gMkvTrackInfoBits
+#define MKV_TRACK_INFO_BITS_SIZE            gMkvTrackInfoBitsSize
+#define MKV_TRACKS_ELEM_BITS                gMkvTracksElem
+#define MKV_TRACKS_ELEM_BITS_SIZE           gMkvTracksElemSize
+#define MKV_TRACK_VIDEO_BITS                gMkvTrackVideoBits
+#define MKV_TRACK_VIDEO_BITS_SIZE           gMkvTrackVideoBitsSize
+#define MKV_CODEC_PRIVATE_DATA_ELEM         gMkvCodecPrivateDataElem
+#define MKV_CODEC_PRIVATE_DATA_ELEM_SIZE    gMkvCodecPrivateDataElemSize
+#define MKV_TRACK_AUDIO_BITS                gMkvTrackAudioBits
+#define MKV_TRACK_AUDIO_BITS_SIZE           gMkvTrackAudioBitsSize
+#define MKV_TRACK_AUDIO_BIT_DEPTH_BITS      gMkvTrackAudioBitDepthBits
 #define MKV_TRACK_AUDIO_BIT_DEPTH_BITS_SIZE gMkvTrackAudioBitDepthBitsSize
-#define MKV_CODEC_ID_BITS gMkvCodecIdBits
-#define MKV_CODEC_ID_BITS_SIZE gMkvCodecIdBitsSize
-#define MKV_TRACK_NAME_BITS gMkvTrackNameBits
-#define MKV_TRACK_NAME_BITS_SIZE gMkvTrackNameBitsSize
+#define MKV_CODEC_ID_BITS                   gMkvCodecIdBits
+#define MKV_CODEC_ID_BITS_SIZE              gMkvCodecIdBitsSize
+#define MKV_TRACK_NAME_BITS                 gMkvTrackNameBits
+#define MKV_TRACK_NAME_BITS_SIZE            gMkvTrackNameBitsSize
 
 // gMkvTrackInfoBits element size offset for fixing up
 #define MKV_TRACK_HEADER_SIZE_OFFSET 4
@@ -163,15 +161,12 @@ extern UINT32 gMkvTrackNameBitsSize;
 // Mkv TrackEntry element plus its data size
 #define MKV_TRACK_ENTRY_HEADER_BITS_SIZE 5
 
-// Minimum AAC codec private size
-#define MIN_AAC_CPD_SIZE 2
-
 // Minimum A_MS/ACM codec private size
 #define MIN_AMS_ACM_CPD_SIZE 16
 
 extern BYTE gMkvClusterInfoBits[];
 extern UINT32 gMkvClusterInfoBitsSize;
-#define MKV_CLUSTER_INFO_BITS gMkvClusterInfoBits
+#define MKV_CLUSTER_INFO_BITS      gMkvClusterInfoBits
 #define MKV_CLUSTER_INFO_BITS_SIZE gMkvClusterInfoBitsSize
 
 // gMkvClusterInfoBits cluster timecode offset for fixing up
@@ -179,7 +174,7 @@ extern UINT32 gMkvClusterInfoBitsSize;
 
 extern BYTE gMkvSimpleBlockBits[];
 extern UINT32 gMkvSimpleBlockBitsSize;
-#define MKV_SIMPLE_BLOCK_BITS gMkvSimpleBlockBits
+#define MKV_SIMPLE_BLOCK_BITS      gMkvSimpleBlockBits
 #define MKV_SIMPLE_BLOCK_BITS_SIZE gMkvSimpleBlockBitsSize
 
 // gMkvSimpleBlockBits payload header size - Track number, timecode (2 bytes) and flags
@@ -199,17 +194,17 @@ extern UINT32 gMkvSimpleBlockBitsSize;
 
 extern BYTE gMkvTagsBits[];
 extern UINT32 gMkvTagsBitsSize;
-#define MKV_TAGS_BITS gMkvTagsBits
+#define MKV_TAGS_BITS      gMkvTagsBits
 #define MKV_TAGS_BITS_SIZE gMkvTagsBitsSize
 
 extern BYTE gMkvTagNameBits[];
 extern UINT32 gMkvTagNameBitsSize;
-#define MKV_TAG_NAME_BITS gMkvTagNameBits
+#define MKV_TAG_NAME_BITS      gMkvTagNameBits
 #define MKV_TAG_NAME_BITS_SIZE gMkvTagNameBitsSize
 
 extern BYTE gMkvTagStringBits[];
 extern UINT32 gMkvTagStringBitsSize;
-#define MKV_TAG_STRING_BITS gMkvTagStringBits
+#define MKV_TAG_STRING_BITS      gMkvTagStringBits
 #define MKV_TAG_STRING_BITS_SIZE gMkvTagStringBitsSize
 
 // gMkvTagsBits tags element size offset for fixing up
@@ -236,47 +231,47 @@ extern UINT32 gMkvTagStringBitsSize;
 /**
  * MKV simple block flags
  */
-#define MKV_SIMPLE_BLOCK_FLAGS_NONE                 0x00
-#define MKV_SIMPLE_BLOCK_KEY_FRAME_FLAG             0x80
-#define MKV_SIMPLE_BLOCK_INVISIBLE_FLAG             0x08
-#define MKV_SIMPLE_BLOCK_DISCARDABLE_FLAG           0x01
+#define MKV_SIMPLE_BLOCK_FLAGS_NONE       0x00
+#define MKV_SIMPLE_BLOCK_KEY_FRAME_FLAG   0x80
+#define MKV_SIMPLE_BLOCK_INVISIBLE_FLAG   0x08
+#define MKV_SIMPLE_BLOCK_DISCARDABLE_FLAG 0x01
 
 /**
  * MKV wave format code
  */
-#define MKV_WAV_FORMAT_ALAW                             0x0006
-#define MKV_WAV_FORMAT_MULAW                            0x0007
+#define MKV_WAV_FORMAT_ALAW  0x0006
+#define MKV_WAV_FORMAT_MULAW 0x0007
 
 /**
  * MKV block overhead in bytes
  */
-#define MKV_SIMPLE_BLOCK_OVERHEAD    (MKV_SIMPLE_BLOCK_BITS_SIZE)
+#define MKV_SIMPLE_BLOCK_OVERHEAD (MKV_SIMPLE_BLOCK_BITS_SIZE)
 
 /**
  * MKV cluster overhead in bytes
  */
-#define MKV_CLUSTER_OVERHEAD     (MKV_CLUSTER_INFO_BITS_SIZE + MKV_SIMPLE_BLOCK_OVERHEAD)
+#define MKV_CLUSTER_OVERHEAD (MKV_CLUSTER_INFO_BITS_SIZE + MKV_SIMPLE_BLOCK_OVERHEAD)
 
 /**
  * MKV EBML and Segment header size in bytes
  */
-#define MKV_EBML_SEGMENT_SIZE               (MKV_HEADER_BITS_SIZE + MKV_SEGMENT_HEADER_BITS_SIZE)
+#define MKV_EBML_SEGMENT_SIZE (MKV_HEADER_BITS_SIZE + MKV_SEGMENT_HEADER_BITS_SIZE)
 
 /**
  * To and from MKV timestamp conversion factoring in the timecode
  */
-#define TIMESTAMP_TO_MKV_TIMECODE(ts, tcs)   ((ts) * DEFAULT_TIME_UNIT_IN_NANOS / (tcs))
-#define MKV_TIMECODE_TO_TIMESTAMP(tc, tcs)   ((tc) * ((tcs) / DEFAULT_TIME_UNIT_IN_NANOS))
+#define TIMESTAMP_TO_MKV_TIMECODE(ts, tcs) ((ts) *DEFAULT_TIME_UNIT_IN_NANOS / (tcs))
+#define MKV_TIMECODE_TO_TIMESTAMP(tc, tcs) ((tc) * ((tcs) / DEFAULT_TIME_UNIT_IN_NANOS))
 
 /**
  * Default value to set the segment uuid bytes to
  */
-#define MKV_SEGMENT_UUID_DEFAULT_VALUE      0x55
+#define MKV_SEGMENT_UUID_DEFAULT_VALUE 0x55
 
 /**
  * Version string delimiter separating the title, version and client id string
  */
-#define MKV_VERSION_STRING_DELIMITER            ' '
+#define MKV_VERSION_STRING_DELIMITER ' '
 
 /**
  * The rest of the internal include files
@@ -293,7 +288,8 @@ typedef enum {
     MKV_GENERATOR_STATE_CLUSTER_INFO,
     MKV_GENERATOR_STATE_SIMPLE_BLOCK,
     MKV_GENERATOR_STATE_TAGS,
-} MKV_GENERATOR_STATE, *PMKV_GENERATOR_STATE;
+} MKV_GENERATOR_STATE,
+    *PMKV_GENERATOR_STATE;
 
 /**
  * MKV track type used internally
@@ -309,12 +305,13 @@ typedef enum {
     MKV_CONTENT_TYPE_ALAW = (1 << 6),
     MKV_CONTENT_TYPE_MULAW = (1 << 7),
     MKV_CONTENT_TYPE_H264_H265 = (MKV_CONTENT_TYPE_H264 | MKV_CONTENT_TYPE_H265),
-} MKV_CONTENT_TYPE, *PMKV_CONTENT_TYPE;
+} MKV_CONTENT_TYPE,
+    *PMKV_CONTENT_TYPE;
 
 /**
  * Content type delimiter character
  */
-#define MKV_CONTENT_TYPE_DELIMITER          ','
+#define MKV_CONTENT_TYPE_DELIMITER ','
 
 /**
  * MkvGenerator internal structure
@@ -653,9 +650,7 @@ STATUS mkvgenAdaptCodecPrivateData(PStreamMkvGenerator, MKV_TRACK_INFO_TYPE, PCH
  */
 STATUS mkvgenExtractCpdFromAnnexBFrame(PStreamMkvGenerator, PFrame, PTrackInfo);
 
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __MKV_GEN_INCLUDE_I__ */
+#endif /* __MKV_GEN_INCLUDE_I__ */

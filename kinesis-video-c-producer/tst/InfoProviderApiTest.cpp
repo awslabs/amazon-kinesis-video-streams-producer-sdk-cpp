@@ -15,7 +15,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
         EXPECT_EQ(STATUS_INVALID_STORAGE_SIZE, setDeviceInfoStorageSize(pDeviceInfo, MAX_STORAGE_ALLOCATION_SIZE + 1));
 
-        EXPECT_TRUE(pDeviceInfo->clientInfo.loggerLogLevel == 4);
+        EXPECT_TRUE(pDeviceInfo->clientInfo.loggerLogLevel == this->loggerLogLevel);
 
         // 500 Kbps with 2 sec duration
         EXPECT_EQ(STATUS_SUCCESS,
@@ -183,7 +183,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
                                                              TEST_STREAM_BUFFER_DURATION,
                                                              &pStreamInfo));
 
-        EXPECT_EQ(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE, pStreamInfo->streamCaps.frameOrderingMode);
+        EXPECT_EQ(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE_EOFR, pStreamInfo->streamCaps.frameOrderingMode);
         EXPECT_EQ(2, pStreamInfo->streamCaps.trackInfoCount);
         EXPECT_EQ(STREAMING_TYPE_REALTIME, pStreamInfo->streamCaps.streamingType);
         EXPECT_EQ(MKV_TRACK_INFO_TYPE_VIDEO, pStreamInfo->streamCaps.trackInfoList[0].trackType);
@@ -230,6 +230,26 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
     }
 
+    TEST_F(InfoProviderApiTest, setStreamInfoBasedOnStorageSizeApiTest) {
+        PStreamInfo pStreamInfo;
+
+        EXPECT_EQ(STATUS_SUCCESS,
+                  createRealtimeVideoStreamInfoProvider(TEST_STREAM_NAME,
+                                                        TEST_RETENTION_PERIOD,
+                                                        TEST_STREAM_BUFFER_DURATION,
+                                                        &pStreamInfo));
+
+        EXPECT_EQ(STATUS_INVALID_ARG, setStreamInfoBasedOnStorageSize(0, 1000000, 1, pStreamInfo));
+        EXPECT_EQ(STATUS_INVALID_ARG, setStreamInfoBasedOnStorageSize(2 * 1024 * 1024, 0, 1, pStreamInfo));
+        EXPECT_EQ(STATUS_INVALID_ARG, setStreamInfoBasedOnStorageSize(2 * 1024 * 1024, 1000000, 0, pStreamInfo));
+        EXPECT_EQ(STATUS_NULL_ARG, setStreamInfoBasedOnStorageSize(2 * 1024 * 1024, 1000000, 1, NULL));
+
+        EXPECT_EQ(STATUS_SUCCESS, setStreamInfoBasedOnStorageSize(2 * 1024 * 1024, 1000000, 1, pStreamInfo));
+        EXPECT_TRUE(pStreamInfo->streamCaps.bufferDuration != TEST_STREAM_BUFFER_DURATION);
+
+        EXPECT_EQ(STATUS_SUCCESS, freeStreamInfoProvider(&pStreamInfo));
+    }
+
     TEST_F(InfoProviderApiTest, CreateOfflineAudioVideoStreamInfoProvider_Returns_ValidVideoStreamInfo)
     {
         PStreamInfo pStreamInfo;
@@ -240,7 +260,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
                                                             TEST_STREAM_BUFFER_DURATION,
                                                             &pStreamInfo));
 
-        EXPECT_EQ(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE, pStreamInfo->streamCaps.frameOrderingMode);
+        EXPECT_EQ(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE_EOFR, pStreamInfo->streamCaps.frameOrderingMode);
         EXPECT_EQ(2, pStreamInfo->streamCaps.trackInfoCount);
         EXPECT_EQ(STREAMING_TYPE_OFFLINE, pStreamInfo->streamCaps.streamingType);
         EXPECT_EQ(MKV_TRACK_INFO_TYPE_VIDEO, pStreamInfo->streamCaps.trackInfoList[0].trackType);

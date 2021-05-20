@@ -14,7 +14,7 @@ STATUS readFile(PCHAR filePath, BOOL binMode, PBYTE pBuffer, PUINT64 pSize)
 {
     UINT64 fileLen;
     STATUS retStatus = STATUS_SUCCESS;
-    FILE *fp = NULL;
+    FILE* fp = NULL;
 
     CHK(filePath != NULL && pSize != NULL, STATUS_NULL_ARG);
 
@@ -65,7 +65,7 @@ STATUS readFileSegment(PCHAR filePath, BOOL binMode, PBYTE pBuffer, UINT64 offse
 {
     UINT64 fileLen;
     STATUS retStatus = STATUS_SUCCESS;
-    FILE *fp = NULL;
+    FILE* fp = NULL;
     INT32 result = 0;
 
     CHK(filePath != NULL && pBuffer != NULL && readSize != 0, STATUS_NULL_ARG);
@@ -83,7 +83,7 @@ STATUS readFileSegment(PCHAR filePath, BOOL binMode, PBYTE pBuffer, UINT64 offse
 
     // Set the offset and read the file content
     result = FSEEK(fp, (UINT32) offset, SEEK_SET);
-    CHK(result && (FREAD(pBuffer, (SIZE_T) readSize, 1, fp) == 1), STATUS_READ_FILE_FAILED);
+    CHK(result == 0 && (FREAD(pBuffer, (SIZE_T) readSize, 1, fp) == 1), STATUS_READ_FILE_FAILED);
 
 CleanUp:
 
@@ -108,7 +108,7 @@ CleanUp:
 STATUS writeFile(PCHAR filePath, BOOL binMode, BOOL append, PBYTE pBuffer, UINT64 size)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    FILE *fp = NULL;
+    FILE* fp = NULL;
 
     CHK(filePath != NULL && pBuffer != NULL, STATUS_NULL_ARG);
 
@@ -118,6 +118,45 @@ STATUS writeFile(PCHAR filePath, BOOL binMode, BOOL append, PBYTE pBuffer, UINT6
 
     // Write the buffer to the file
     CHK(FWRITE(pBuffer, (SIZE_T) size, 1, fp) == 1, STATUS_WRITE_TO_FILE_FAILED);
+
+CleanUp:
+
+    if (fp != NULL) {
+        FCLOSE(fp);
+        fp = NULL;
+    }
+
+    return retStatus;
+}
+
+/**
+ * Write contents pointed to by pBuffer to the given filePath.
+ *
+ * Parameters:
+ *     filePath - file path to write to
+ *     binMode  - TRUE to read file stream as binary; FALSE to read as a normal text file
+ *     pBuffer  - memory location whose contents should be written to the file
+ *     offset   - Offset to start writing from
+ *     size     - number of bytes that should be written to the file
+ */
+STATUS updateFile(PCHAR filePath, BOOL binMode, PBYTE pBuffer, UINT64 offset, UINT64 size)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    FILE* fp = NULL;
+    UINT32 i;
+    PBYTE pCurPtr;
+
+    CHK(filePath != NULL && pBuffer != NULL, STATUS_NULL_ARG);
+
+    fp = FOPEN(filePath, binMode ? "rb+" : "r+");
+
+    CHK(fp != NULL, STATUS_OPEN_FILE_FAILED);
+
+    CHK(0 == FSEEK(fp, (UINT32) offset, SEEK_SET), STATUS_INVALID_OPERATION);
+
+    for (i = 0, pCurPtr = pBuffer + offset; i < size; i++, pCurPtr++) {
+        CHK(EOF != FPUTC(*pCurPtr, fp), STATUS_WRITE_TO_FILE_FAILED);
+    }
 
 CleanUp:
 
@@ -144,6 +183,79 @@ STATUS getFileLength(PCHAR filePath, PUINT64 pLength)
     STATUS retStatus = STATUS_SUCCESS;
 
     CHK_STATUS(readFile(filePath, TRUE, NULL, pLength));
+
+CleanUp:
+
+    return retStatus;
+}
+
+/**
+ * Sets the file length of the given filePath.
+ *
+ * Parameters:
+ *     filePath - file path whose file length should be computed
+ *     length  - Sets the size of the file in bytes
+ *
+ * Returns:
+ *     STATUS of the operation
+ */
+STATUS setFileLength(PCHAR filePath, UINT64 length)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    INT32 retVal, errCode, fileDesc;
+
+    CHK(filePath != NULL, STATUS_NULL_ARG);
+
+#if defined __WINDOWS_BUILD__
+    fileDesc = _open(filePath, _O_BINARY | _O_RANDOM | _O_RDWR, 0);
+
+    if (fileDesc != -1) {
+        retVal = _chsize_s(fileDesc, length);
+
+        if (retVal != 0) {
+            retVal = -1;
+            errCode = errno;
+        }
+
+        _close(fileDesc);
+    } else {
+        retVal = -1;
+        errCode = errno;
+    }
+
+#else
+    UNUSED_PARAM(fileDesc);
+    retVal = truncate(filePath, length);
+    errCode = errno;
+#endif
+
+    if (retVal == -1) {
+        switch (errCode) {
+            case EACCES:
+                retStatus = STATUS_DIRECTORY_ACCESS_DENIED;
+                break;
+
+            case ENOENT:
+                retStatus = STATUS_DIRECTORY_MISSING_PATH;
+                break;
+
+            case EINVAL:
+                retStatus = STATUS_INVALID_ARG_LEN;
+                break;
+
+            case EISDIR:
+            case EBADF:
+                retStatus = STATUS_INVALID_ARG;
+                break;
+
+            case ENOSPC:
+                retStatus = STATUS_NOT_ENOUGH_MEMORY;
+                break;
+
+            default:
+                retStatus = STATUS_INVALID_OPERATION;
+        }
+    }
 
 CleanUp:
 
@@ -180,7 +292,7 @@ STATUS fileExists(PCHAR filePath, PBOOL pExists)
 STATUS createFile(PCHAR filePath, UINT64 size)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    FILE *fp = NULL;
+    FILE* fp = NULL;
 
     CHK(filePath != NULL, STATUS_NULL_ARG);
 
@@ -188,7 +300,7 @@ STATUS createFile(PCHAR filePath, UINT64 size)
     CHK(fp != NULL, STATUS_OPEN_FILE_FAILED);
 
     if (size != 0) {
-        CHK(0 == FSEEK(fp, (UINT32) (size - 1), SEEK_SET), STATUS_INVALID_OPERATION);
+        CHK(0 == FSEEK(fp, (UINT32)(size - 1), SEEK_SET), STATUS_INVALID_OPERATION);
         CHK(0 == FPUTC(0, fp), STATUS_INVALID_OPERATION);
     }
 

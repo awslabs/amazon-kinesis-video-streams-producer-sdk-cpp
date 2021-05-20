@@ -11,7 +11,7 @@ extern "C" {
 #pragma once
 #include <com/amazonaws/kinesis/video/common/CommonDefs.h>
 #include <com/amazonaws/kinesis/video/common/PlatformUtils.h>
-#pragma pack(push, include, 1) // for byte alignment
+#include <com/amazonaws/kinesis/video/utils/Include.h>
 
 /**
  * We define minimal heap size as 1 MB
@@ -53,8 +53,7 @@ typedef ALLOCATION_HANDLE* PALLOCATION_HANDLE;
 #define IS_VALID_ALLOCATION_HANDLE(h) ((h) != INVALID_ALLOCATION_HANDLE_VALUE)
 #endif
 
-typedef enum
-{
+typedef enum {
     /**
      * No flags specified. Used as a sentinel
      */
@@ -90,8 +89,7 @@ typedef enum
  * WARNING! This structure is the public facing structure
  * The actual implementation might have a larger size
  */
-typedef struct
-{
+typedef struct {
     /**
      * The max size for the heap
      */
@@ -112,35 +110,36 @@ typedef struct
  * Handle definition
  */
 #ifndef HEAP_HANDLE_TO_POINTER
-#define HEAP_HANDLE_TO_POINTER(h) ((PHeap) (h))
+#define HEAP_HANDLE_TO_POINTER(h) ((PHeap)(h))
 #endif
 
 /**
  * Error values
  */
-#define STATUS_HEAP_BASE                                        0x010000000
-#define STATUS_HEAP_FLAGS_ERROR                                 STATUS_HEAP_BASE + 0x00000001
-#define STATUS_HEAP_NOT_INITIALIZED                             STATUS_HEAP_BASE + 0x00000002
-#define STATUS_HEAP_CORRUPTED                                   STATUS_HEAP_BASE + 0x00000003
-#define STATUS_HEAP_VRAM_LIB_MISSING                            STATUS_HEAP_BASE + 0x00000004
-#define STATUS_HEAP_VRAM_LIB_REOPEN                             STATUS_HEAP_BASE + 0x00000005
-#define STATUS_HEAP_VRAM_INIT_FUNC_SYMBOL                       STATUS_HEAP_BASE + 0x00000006
-#define STATUS_HEAP_VRAM_ALLOC_FUNC_SYMBOL                      STATUS_HEAP_BASE + 0x00000007
-#define STATUS_HEAP_VRAM_FREE_FUNC_SYMBOL                       STATUS_HEAP_BASE + 0x00000008
-#define STATUS_HEAP_VRAM_LOCK_FUNC_SYMBOL                       STATUS_HEAP_BASE + 0x00000009
-#define STATUS_HEAP_VRAM_UNLOCK_FUNC_SYMBOL                     STATUS_HEAP_BASE + 0x0000000a
-#define STATUS_HEAP_VRAM_UNINIT_FUNC_SYMBOL                     STATUS_HEAP_BASE + 0x0000000b
-#define STATUS_HEAP_VRAM_GETMAX_FUNC_SYMBOL                     STATUS_HEAP_BASE + 0x0000000c
-#define STATUS_HEAP_DIRECT_MEM_INIT                             STATUS_HEAP_BASE + 0x0000000d
-#define STATUS_HEAP_VRAM_INIT_FAILED                            STATUS_HEAP_BASE + 0x0000000e
-#define STATUS_HEAP_LIBRARY_FREE_FAILED                         STATUS_HEAP_BASE + 0x0000000f
-#define STATUS_HEAP_VRAM_ALLOC_FAILED                           STATUS_HEAP_BASE + 0x00000010
-#define STATUS_HEAP_VRAM_FREE_FAILED                            STATUS_HEAP_BASE + 0x00000011
-#define STATUS_HEAP_VRAM_MAP_FAILED                             STATUS_HEAP_BASE + 0x00000012
-#define STATUS_HEAP_VRAM_UNMAP_FAILED                           STATUS_HEAP_BASE + 0x00000013
-#define STATUS_HEAP_VRAM_UNINIT_FAILED                          STATUS_HEAP_BASE + 0x00000014
-#define STATUS_INVALID_ALLOCATION_SIZE                          STATUS_HEAP_BASE + 0x00000015
-#define STATUS_HEAP_REALLOC_ERROR                               STATUS_HEAP_BASE + 0x00000016
+#define STATUS_HEAP_BASE                    0x10000000
+#define STATUS_HEAP_FLAGS_ERROR             STATUS_HEAP_BASE + 0x00000001
+#define STATUS_HEAP_NOT_INITIALIZED         STATUS_HEAP_BASE + 0x00000002
+#define STATUS_HEAP_CORRUPTED               STATUS_HEAP_BASE + 0x00000003
+#define STATUS_HEAP_VRAM_LIB_MISSING        STATUS_HEAP_BASE + 0x00000004
+#define STATUS_HEAP_VRAM_LIB_REOPEN         STATUS_HEAP_BASE + 0x00000005
+#define STATUS_HEAP_VRAM_INIT_FUNC_SYMBOL   STATUS_HEAP_BASE + 0x00000006
+#define STATUS_HEAP_VRAM_ALLOC_FUNC_SYMBOL  STATUS_HEAP_BASE + 0x00000007
+#define STATUS_HEAP_VRAM_FREE_FUNC_SYMBOL   STATUS_HEAP_BASE + 0x00000008
+#define STATUS_HEAP_VRAM_LOCK_FUNC_SYMBOL   STATUS_HEAP_BASE + 0x00000009
+#define STATUS_HEAP_VRAM_UNLOCK_FUNC_SYMBOL STATUS_HEAP_BASE + 0x0000000a
+#define STATUS_HEAP_VRAM_UNINIT_FUNC_SYMBOL STATUS_HEAP_BASE + 0x0000000b
+#define STATUS_HEAP_VRAM_GETMAX_FUNC_SYMBOL STATUS_HEAP_BASE + 0x0000000c
+#define STATUS_HEAP_DIRECT_MEM_INIT         STATUS_HEAP_BASE + 0x0000000d
+#define STATUS_HEAP_VRAM_INIT_FAILED        STATUS_HEAP_BASE + 0x0000000e
+#define STATUS_HEAP_LIBRARY_FREE_FAILED     STATUS_HEAP_BASE + 0x0000000f
+#define STATUS_HEAP_VRAM_ALLOC_FAILED       STATUS_HEAP_BASE + 0x00000010
+#define STATUS_HEAP_VRAM_FREE_FAILED        STATUS_HEAP_BASE + 0x00000011
+#define STATUS_HEAP_VRAM_MAP_FAILED         STATUS_HEAP_BASE + 0x00000012
+#define STATUS_HEAP_VRAM_UNMAP_FAILED       STATUS_HEAP_BASE + 0x00000013
+#define STATUS_HEAP_VRAM_UNINIT_FAILED      STATUS_HEAP_BASE + 0x00000014
+#define STATUS_INVALID_ALLOCATION_SIZE      STATUS_HEAP_BASE + 0x00000015
+#define STATUS_HEAP_REALLOC_ERROR           STATUS_HEAP_BASE + 0x00000016
+#define STATUS_HEAP_FILE_HEAP_FILE_CORRUPT  STATUS_HEAP_BASE + 0x00000017
 
 //////////////////////////////////////////////////////////////////////////
 // Public functions
@@ -148,7 +147,7 @@ typedef struct
 /**
  * Creates and initializes the heap
  */
-PUBLIC_API STATUS heapInitialize(UINT64, UINT32, UINT32, PHeap*);
+PUBLIC_API STATUS heapInitialize(UINT64, UINT32, UINT32, PCHAR, PHeap*);
 
 /**
  * Releases the entire heap.
@@ -196,8 +195,6 @@ PUBLIC_API STATUS heapUnmap(PHeap, PVOID);
  * Debug validates/outputs information about the heap
  */
 PUBLIC_API STATUS heapDebugCheckAllocator(PHeap, BOOL);
-
-#pragma pack(pop, include) // pop the existing settings
 
 #ifdef __cplusplus
 }

@@ -5,7 +5,8 @@
 #define LOG_CLASS "AckParser"
 #include "Include_i.h"
 
-STATUS resetAckParserState(PKinesisVideoStream pKinesisVideoStream) {
+STATUS resetAckParserState(PKinesisVideoStream pKinesisVideoStream)
+{
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
 
@@ -27,7 +28,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS parseFragmentAck(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE uploadHandle, PCHAR ackSegment, UINT32 ackSegmentSize) {
+STATUS parseFragmentAck(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE uploadHandle, PCHAR ackSegment, UINT32 ackSegmentSize)
+{
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     UINT32 index = 0;
@@ -46,8 +48,7 @@ STATUS parseFragmentAck(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE u
     }
 
     pKinesisVideoClient = pKinesisVideoStream->pKinesisVideoClient;
-    pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
-                                                     pKinesisVideoStream->base.lock);
+    pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
     streamLocked = TRUE;
 
     // Set the upload handle
@@ -85,8 +86,7 @@ STATUS parseFragmentAck(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE u
                 if (curChar == ACK_PARSER_QUOTE) {
                     // End of key start - parse the key name
                     pKinesisVideoStream->fragmentAckParser.accumulator[pKinesisVideoStream->fragmentAckParser.curPos] = '\0';
-                    pKinesisVideoStream->fragmentAckParser.curKeyName = getFragmentAckKeyName(
-                            pKinesisVideoStream->fragmentAckParser.accumulator);
+                    pKinesisVideoStream->fragmentAckParser.curKeyName = getFragmentAckKeyName(pKinesisVideoStream->fragmentAckParser.accumulator);
 
                     // Move to delimiter state
                     pKinesisVideoStream->fragmentAckParser.state = FRAGMENT_ACK_PARSER_STATE_DELIMITER;
@@ -185,11 +185,8 @@ STATUS parseFragmentAck(PKinesisVideoStream pKinesisVideoStream, UPLOAD_HANDLE u
 
                     // Process the parsed ACK
                     CHK_STATUS(processParsedAck(pKinesisVideoStream));
-                } else if (curChar == ACK_PARSER_QUOTE
-                           || curChar == ACK_PARSER_OPEN_BRACE
-                           || curChar == ACK_PARSER_OPEN_BRACKET
-                           || curChar == ACK_PARSER_CLOSE_BRACKET
-                           || curChar == ACK_PARSER_DELIMITER) {
+                } else if (curChar == ACK_PARSER_QUOTE || curChar == ACK_PARSER_OPEN_BRACE || curChar == ACK_PARSER_OPEN_BRACKET ||
+                           curChar == ACK_PARSER_CLOSE_BRACKET || curChar == ACK_PARSER_DELIMITER) {
                     // Error condition
                     CHK(FALSE, STATUS_INVALID_ACK_INVALID_VALUE_END);
                 } else {
@@ -260,15 +257,15 @@ CleanUp:
     }
 
     if (streamLocked) {
-        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData,
-                                                           pKinesisVideoStream->base.lock);
+        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoStream->base.lock);
     }
 
     LEAVES();
     return retStatus;
 }
 
-STATUS processParsedAck(PKinesisVideoStream pKinesisVideoStream) {
+STATUS processParsedAck(PKinesisVideoStream pKinesisVideoStream)
+{
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
 
@@ -278,7 +275,8 @@ STATUS processParsedAck(PKinesisVideoStream pKinesisVideoStream) {
     CHK_STATUS(validateParsedAck(&pKinesisVideoStream->fragmentAckParser));
 
     // Push the ACK
-    CHK_STATUS(streamFragmentAckEvent(pKinesisVideoStream, pKinesisVideoStream->fragmentAckParser.uploadHandle, &pKinesisVideoStream->fragmentAckParser.fragmentAck));
+    CHK_STATUS(streamFragmentAckEvent(pKinesisVideoStream, pKinesisVideoStream->fragmentAckParser.uploadHandle,
+                                      &pKinesisVideoStream->fragmentAckParser.fragmentAck));
 
     // Reset the parser state
     CHK_STATUS(resetAckParserState(pKinesisVideoStream));
@@ -289,7 +287,8 @@ CleanUp:
     return retStatus;
 }
 
-FRAGMENT_ACK_TYPE getFragmentAckType(PCHAR eventType) {
+FRAGMENT_ACK_TYPE getFragmentAckType(PCHAR eventType)
+{
     if (0 == STRNCMP(ACK_EVENT_TYPE_BUFFERING, eventType, SIZEOF(ACK_EVENT_TYPE_BUFFERING) / SIZEOF(CHAR))) {
         return FRAGMENT_ACK_TYPE_BUFFERING;
     } else if (0 == STRNCMP(ACK_EVENT_TYPE_RECEIVED, eventType, SIZEOF(ACK_EVENT_TYPE_RECEIVED) / SIZEOF(CHAR))) {
@@ -305,7 +304,8 @@ FRAGMENT_ACK_TYPE getFragmentAckType(PCHAR eventType) {
     }
 }
 
-FRAGMENT_ACK_KEY_NAME getFragmentAckKeyName(PCHAR keyName) {
+FRAGMENT_ACK_KEY_NAME getFragmentAckKeyName(PCHAR keyName)
+{
     if (0 == STRNCMP(ACK_KEY_NAME_EVENT_TYPE, keyName, SIZEOF(ACK_KEY_NAME_EVENT_TYPE) / SIZEOF(CHAR))) {
         return FRAGMENT_ACK_KEY_NAME_EVENT_TYPE;
     } else if (0 == STRNCMP(ACK_KEY_NAME_FRAGMENT_NUMBER, keyName, SIZEOF(ACK_KEY_NAME_FRAGMENT_NUMBER) / SIZEOF(CHAR))) {
@@ -319,14 +319,15 @@ FRAGMENT_ACK_KEY_NAME getFragmentAckKeyName(PCHAR keyName) {
     }
 }
 
-STATUS processAckValue(PFragmentAckParser pFragmentAckParser) {
+STATUS processAckValue(PFragmentAckParser pFragmentAckParser)
+{
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     UINT64 value;
 
     CHK(pFragmentAckParser != NULL, STATUS_NULL_ARG);
 
-    switch(pFragmentAckParser->curKeyName) {
+    switch (pFragmentAckParser->curKeyName) {
         case FRAGMENT_ACK_KEY_NAME_EVENT_TYPE:
             // Check if we have seen it already
             CHK(!pFragmentAckParser->keys[pFragmentAckParser->curKeyName], STATUS_INVALID_ACK_DUPLICATE_KEY_NAME);
@@ -388,7 +389,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS validateParsedAck(PFragmentAckParser pFragmentAckParser) {
+STATUS validateParsedAck(PFragmentAckParser pFragmentAckParser)
+{
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
 
@@ -396,8 +398,8 @@ STATUS validateParsedAck(PFragmentAckParser pFragmentAckParser) {
 
     CHK(pFragmentAckParser->fragmentAck.ackType != FRAGMENT_ACK_TYPE_UNDEFINED, STATUS_INVALID_PARSED_ACK_TYPE);
 
-    CHK(pFragmentAckParser->fragmentAck.ackType != FRAGMENT_ACK_TYPE_ERROR
-        || pFragmentAckParser->fragmentAck.result != SERVICE_CALL_RESULT_OK, STATUS_MISSING_ERR_ACK_ID);
+    CHK(pFragmentAckParser->fragmentAck.ackType != FRAGMENT_ACK_TYPE_ERROR || pFragmentAckParser->fragmentAck.result != SERVICE_CALL_RESULT_OK,
+        STATUS_MISSING_ERR_ACK_ID);
 
     // The rest will be validated during the ACK processing.
 
@@ -407,8 +409,8 @@ CleanUp:
     return retStatus;
 }
 
-SERVICE_CALL_RESULT getAckErrorTypeFromErrorId(UINT64 errorId) {
-
+SERVICE_CALL_RESULT getAckErrorTypeFromErrorId(UINT64 errorId)
+{
     // Cast to the service call result first
     SERVICE_CALL_RESULT callResult = (SERVICE_CALL_RESULT) errorId;
 

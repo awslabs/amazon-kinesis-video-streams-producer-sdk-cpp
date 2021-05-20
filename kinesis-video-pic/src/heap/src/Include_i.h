@@ -8,9 +8,6 @@
 extern "C" {
 #endif
 
-#pragma once
-#pragma pack(push, include, 1) // for byte alignment
-
 /**
  * Including the headers
  */
@@ -94,6 +91,11 @@ typedef UINT64 (*GetAllocationHeaderSizeFunc)();
 typedef UINT64 (*GetAllocationFooterSizeFunc)();
 
 /**
+ * Returns the adjusted aligned alloc size
+ */
+typedef UINT64 (*GetAllocationAlignedSizeFunc)(UINT64);
+
+/**
  * Returns the allocation limits
  */
 typedef VOID (*GetHeapLimitsFunc)(PUINT64, PUINT64);
@@ -101,24 +103,24 @@ typedef VOID (*GetHeapLimitsFunc)(PUINT64, PUINT64);
 /**
  * Definition macros making it easier for function declarations/definitions
  */
-#define DEFINE_CREATE_HEAP(name)          STATUS name(PHeap* ppHeap)
-#define DEFINE_INIT_HEAP(name)            STATUS name(PHeap pHeap, UINT64 heapLimit)
-#define DEFINE_RELEASE_HEAP(name)         STATUS name(PHeap pHeap)
-#define DEFINE_GET_HEAP_SIZE(name)        STATUS name(PHeap pHeap, PUINT64 pHeapSize)
-#define DEFINE_HEAP_ALLOC(name)           STATUS name(PHeap pHeap, UINT64 size, PALLOCATION_HANDLE pHandle)
-#define DEFINE_HEAP_FREE(name)            STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle)
-#define DEFINE_HEAP_GET_ALLOC_SIZE(name)  STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT64 pAllocSize)
-#define DEFINE_HEAP_SET_ALLOC_SIZE(name)  STATUS name(PHeap pHeap, PALLOCATION_HANDLE pHandle, UINT64 size, UINT64 newSize)
-#define DEFINE_HEAP_MAP(name)             STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PVOID* ppAllocation, PUINT64 pSize)
-#define DEFINE_HEAP_UNMAP(name)           STATUS name(PHeap pHeap, PVOID pAllocation)
-#define DEFINE_HEAP_CHK(name)             STATUS name(PHeap pHeap, BOOL dump)
-#define DEFINE_ALLOC_SIZE(name)           UINT64 name(PHeap pHeap, ALLOCATION_HANDLE handle)
-#define DEFINE_HEADER_SIZE(name)          UINT64 name()
-#define DEFINE_FOOTER_SIZE(name)          UINT64 name()
-#define DEFINE_HEAP_LIMITS(name)          VOID name(PUINT64 pMinHeapSize, PUINT64 pMaxHeapSize)
+#define DEFINE_CREATE_HEAP(name)         STATUS name(PHeap* ppHeap)
+#define DEFINE_INIT_HEAP(name)           STATUS name(PHeap pHeap, UINT64 heapLimit)
+#define DEFINE_RELEASE_HEAP(name)        STATUS name(PHeap pHeap)
+#define DEFINE_GET_HEAP_SIZE(name)       STATUS name(PHeap pHeap, PUINT64 pHeapSize)
+#define DEFINE_HEAP_ALLOC(name)          STATUS name(PHeap pHeap, UINT64 size, PALLOCATION_HANDLE pHandle)
+#define DEFINE_HEAP_FREE(name)           STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle)
+#define DEFINE_HEAP_GET_ALLOC_SIZE(name) STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PUINT64 pAllocSize)
+#define DEFINE_HEAP_SET_ALLOC_SIZE(name) STATUS name(PHeap pHeap, PALLOCATION_HANDLE pHandle, UINT64 size, UINT64 newSize)
+#define DEFINE_HEAP_MAP(name)            STATUS name(PHeap pHeap, ALLOCATION_HANDLE handle, PVOID* ppAllocation, PUINT64 pSize)
+#define DEFINE_HEAP_UNMAP(name)          STATUS name(PHeap pHeap, PVOID pAllocation)
+#define DEFINE_HEAP_CHK(name)            STATUS name(PHeap pHeap, BOOL dump)
+#define DEFINE_ALLOC_SIZE(name)          UINT64 name(PHeap pHeap, ALLOCATION_HANDLE handle)
+#define DEFINE_HEADER_SIZE(name)         UINT64 name()
+#define DEFINE_FOOTER_SIZE(name)         UINT64 name()
+#define DEFINE_ALIGNED_SIZE(name)        UINT64 name(UINT64 size)
+#define DEFINE_HEAP_LIMITS(name)         VOID name(PUINT64 pMinHeapSize, PUINT64 pMaxHeapSize)
 
-typedef struct
-{
+typedef struct {
     /**
      * Public Heap struct encapsulation
      */
@@ -140,6 +142,7 @@ typedef struct
     GetAllocationSizeFunc getAllocationSizeFn;
     GetAllocationHeaderSizeFunc getAllocationHeaderSizeFn;
     GetAllocationFooterSizeFunc getAllocationFooterSizeFn;
+    GetAllocationAlignedSizeFunc getAllocationAlignedSizeFn;
     GetHeapLimitsFunc getHeapLimitsFn;
 } BaseHeap, *PBaseHeap;
 
@@ -150,8 +153,7 @@ typedef struct
 #include "SystemHeap.h"
 #include "AivHeap.h"
 #include "HybridHeap.h"
-
-#pragma pack(pop, include) // pop the existing settings
+#include "HybridFileHeap.h"
 
 #ifdef __cplusplus
 }

@@ -18,30 +18,29 @@ extern "C" {
 /**
  * Minimum number of traces we should be able to store
  */
-#define MIN_TRACE_NUM               100
+#define MIN_TRACE_NUM 100
 
 /**
  * Max trace name including the NULL terminator
  */
-#define MAX_TRACE_NAME              32
+#define MAX_TRACE_NAME 32
 
 /**
  * Max number of chars to represent decimal unsigned 64 bit 0 to 18,446,744,073,709,551,615 plus a null terminator
  */
-#define MAX_DECIMAL_UINT64_CHARS    21
+#define MAX_DECIMAL_UINT64_CHARS 21
 
 /**
  * Aiv formatting delimiter
  */
-#define AIV_FORMAT_DELIMITER ','
+#define AIV_FORMAT_DELIMITER      ','
 #define AIV_FORMAT_LINE_DELIMITER '\n'
-#define AIV_TRACE_TYPE_NAME "trace"
+#define AIV_TRACE_TYPE_NAME       "trace"
 
 /**
  * Trace object declaration
  */
-typedef struct
-{
+typedef struct {
     /**
      * Trace creator thread id. This is the thread ID of the initial trace creator and not the consequent reporter.
      */
@@ -86,8 +85,7 @@ typedef struct
  *
  * IMPORTANT!!! This is a variable length object.
  */
-typedef struct
-{
+typedef struct {
     /**
      * Current trace level
      */
@@ -126,8 +124,8 @@ typedef struct
     TraceStopFunc traceStopFn;
 
     /**
-    * Tracing function pointers
-    */
+     * Tracing function pointers
+     */
     MUTEX traceLock;
 
     /**
@@ -140,15 +138,16 @@ typedef struct
  * Conversion definitions
  */
 #ifndef TRACE_PROFILER_HANDLE_TO_POINTER
-#define TRACE_PROFILER_HANDLE_TO_POINTER(h) (IS_VALID_TRACE_PROFILER_HANDLE(h) ? (PTraceProfiler) (h) : NULL)
+#define TRACE_PROFILER_HANDLE_TO_POINTER(h) (IS_VALID_TRACE_PROFILER_HANDLE(h) ? (PTraceProfiler)(h) : NULL)
 #endif
 
 #ifndef TRACE_HANDLE_TO_POINTER
-#define TRACE_HANDLE_TO_POINTER(h) ((PTrace) (h))
+#define TRACE_HANDLE_TO_POINTER(h) ((PTrace)(h))
 #endif
 
 STATUS getAivFormattedTraceBuffer(PTraceProfiler pTraceProfiler, PCHAR* ppBuffer, PUINT32 pBufferSize, UINT32 traceCount, PTrace pCurTrace);
-STATUS traceStartInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR traceName, TRACE_LEVEL traceLevel, PTRACE_HANDLE pTraceHandle, TID threadId, PCHAR threadName, UINT64 currentTime);
+STATUS traceStartInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, PCHAR traceName, TRACE_LEVEL traceLevel, PTRACE_HANDLE pTraceHandle,
+                                TID threadId, PCHAR threadName, UINT64 currentTime);
 STATUS traceStopInternalWorker(TRACE_PROFILER_HANDLE traceProfilerHandle, TRACE_HANDLE traceHandle, UINT64 currentTime);
 /**
  * We define minimal trace profiler buffer size including auxiliary array of structures

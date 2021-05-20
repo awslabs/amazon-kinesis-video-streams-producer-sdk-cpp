@@ -141,8 +141,7 @@ STATUS semaphoreFreeInternal(PSemaphore* ppSemaphore)
     }
 
     // We will use a sort of spin-lock to await for termination
-    while (ATOMIC_LOAD(&pSemaphore->permitCount) != pSemaphore->maxPermitCount &&
-        waitTime <= SEMAPHORE_SHUTDOWN_TIMEOUT) {
+    while (ATOMIC_LOAD(&pSemaphore->permitCount) != pSemaphore->maxPermitCount && waitTime <= SEMAPHORE_SHUTDOWN_TIMEOUT) {
         THREAD_SLEEP(SEMAPHORE_SHUTDOWN_SPINLOCK_SLEEP_DURATION);
         waitTime += SEMAPHORE_SHUTDOWN_SPINLOCK_SLEEP_DURATION;
     }

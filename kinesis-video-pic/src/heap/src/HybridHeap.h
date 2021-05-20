@@ -9,9 +9,6 @@
 extern "C" {
 #endif
 
-#pragma once
-#pragma pack(push, include, 1) // for byte alignment
-
 /**
  * VRAM function definitions with their symbol names
  */
@@ -33,7 +30,7 @@ typedef UINT32 (*VramGetMax)(VOID);
 /**
  * VRAM library name
  */
-#define VRAM_LIBRARY_NAME "libNativeVramAlloc.so"
+#define VRAM_LIBRARY_NAME      "libNativeVramAlloc.so"
 #define VRAM_LIBRARY_FULL_PATH "/data/data/com.amazon.avod/lib/libNativeVramAlloc.so"
 
 #define VRAM_ALLOCATION_TYPE 3
@@ -43,16 +40,15 @@ typedef UINT32 (*VramGetMax)(VOID);
 /**
  * VRAM handle conversion macros and defines
  */
-#define ALIGNMENT_BITS (UINT64)0x03
-#define TO_VRAM_HANDLE(h) ((UINT32)((UINT64)(h) >> 32))
-#define FROM_VRAM_HANDLE(h) (ALLOCATION_HANDLE)(((UINT64)(h) << 32) | ALIGNMENT_BITS)
-#define IS_DIRECT_ALLOCATION_HANDLE(h) (((UINT64)(h) & ALIGNMENT_BITS) == (UINT64)0x00)
+#define ALIGNMENT_BITS                 (UINT64) 0x03
+#define TO_VRAM_HANDLE(h)              ((UINT32)((UINT64)(h) >> 32))
+#define FROM_VRAM_HANDLE(h)            (ALLOCATION_HANDLE)(((UINT64)(h) << 32) | ALIGNMENT_BITS)
+#define IS_DIRECT_ALLOCATION_HANDLE(h) (((UINT64)(h) &ALIGNMENT_BITS) == (UINT64) 0x00)
 
 /**
  * Hybrid heap struct
  */
-typedef struct
-{
+typedef struct {
     /**
      * Base Heap struct encapsulation
      */
@@ -145,10 +141,9 @@ DEFINE_HEAP_CHK(hybridHeapDebugCheckAllocator);
  */
 DEFINE_HEADER_SIZE(hybridGetAllocationHeaderSize);
 DEFINE_FOOTER_SIZE(hybridGetAllocationFooterSize);
+DEFINE_ALIGNED_SIZE(hybridGetAllocationAlignedSize);
 DEFINE_ALLOC_SIZE(hybridGetAllocationSize);
 DEFINE_HEAP_LIMITS(hybridGetHeapLimits);
-
-#pragma pack(pop, include) // pop the existing settings
 
 #ifdef __cplusplus
 }

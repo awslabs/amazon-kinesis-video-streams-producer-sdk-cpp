@@ -30,21 +30,11 @@ STATUS getUserAgentString(PCHAR userAgentName, PCHAR customUserAgent, UINT32 len
     if (customUserAgent == NULL) {
         requiredLen = SNPRINTF(pUserAgent,
                                len + 1, // account for null terminator
-                               (PCHAR) "%s/%s %s %s %s",
-                               pUserAgentName,
-                               AWS_SDK_KVS_PRODUCER_VERSION_STRING,
-                               compilerInfo,
-                               osVer,
-                               platformName);
+                               (PCHAR) "%s/%s %s %s %s", pUserAgentName, AWS_SDK_KVS_PRODUCER_VERSION_STRING, compilerInfo, osVer, platformName);
     } else {
         requiredLen = SNPRINTF(pUserAgent,
                                len + 1, // account for null terminator
-                               (PCHAR) "%s/%s %s %s %s %s",
-                               pUserAgentName,
-                               AWS_SDK_KVS_PRODUCER_VERSION_STRING,
-                               compilerInfo,
-                               osVer,
-                               platformName,
+                               (PCHAR) "%s/%s %s %s %s %s", pUserAgentName, AWS_SDK_KVS_PRODUCER_VERSION_STRING, compilerInfo, osVer, platformName,
                                customUserAgent);
     }
 
@@ -53,5 +43,4 @@ STATUS getUserAgentString(PCHAR userAgentName, PCHAR customUserAgent, UINT32 len
 CleanUp:
 
     return retStatus;
-
 }

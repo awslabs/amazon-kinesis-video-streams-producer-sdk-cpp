@@ -1,19 +1,15 @@
 #ifndef __CONSUMER_SESSION_MANAGER_H__
 #define __CONSUMER_SESSION_MANAGER_H__
 
-#include <com/amazonaws/kinesis/video/utils/Include.h>
-#include <com/amazonaws/kinesis/video/client/Include.h>
-#include <vector>
-#include <map>
-#include "MockConsumer.h"
-
 class StreamingSession {
-public:
+  public:
     std::map<UPLOAD_HANDLE, MockConsumer*> mConsumerList;
     std::vector<UPLOAD_HANDLE> mActiveUploadHandles;
     UPLOAD_HANDLE mUploadHandleCounter;
 
-    StreamingSession() : mUploadHandleCounter(0) {}
+    StreamingSession() : mUploadHandleCounter(0)
+    {
+    }
 
     /**
      * Initialize a MockConsumer, assign it a upload handle and store the pair in mConsumerList.
@@ -22,8 +18,7 @@ public:
      * @param uploadHandleOverride is used to override the upload handle counter
      * @return
      */
-    UPLOAD_HANDLE addNewConsumerSession(MockConsumerConfig consumerConfig,
-                                        STREAM_HANDLE mStreamHandle,
+    UPLOAD_HANDLE addNewConsumerSession(MockConsumerConfig consumerConfig, STREAM_HANDLE mStreamHandle,
                                         UPLOAD_HANDLE uploadHandleOverride = INVALID_UPLOAD_HANDLE_VALUE);
 
     /**
@@ -48,15 +43,16 @@ public:
      * Fills a vector with active upload handles. If any upload handles' connection was closed due to error,
      * they will be removed and wont be in the vector returned.
      */
-    void getActiveUploadHandles(std::vector<UPLOAD_HANDLE> &activeUploadHandles);
+    void getActiveUploadHandles(std::vector<UPLOAD_HANDLE>& activeUploadHandles);
 
     /**
      * @param uploadHandle
      * @return MockConsumer* that is mapped to uploadHandle. NULL if uploadHandle does not exist.
      */
-    MockConsumer *getConsumer(UPLOAD_HANDLE uploadHandle);
+    MockConsumer* getConsumer(UPLOAD_HANDLE uploadHandle);
 
-    ~StreamingSession() {
+    ~StreamingSession()
+    {
         clearSessions();
     }
 };

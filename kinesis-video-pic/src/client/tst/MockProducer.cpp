@@ -1,4 +1,4 @@
-#include "MockProducer.h"
+#include "ClientTestFixture.h"
 
 MockProducer::MockProducer(MockProducerConfig config,
              STREAM_HANDLE mStreamHandle)
@@ -18,10 +18,12 @@ MockProducer::MockProducer(MockProducerConfig config,
     mFrame.duration = (UINT64) 1000 / mFps * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
 }
 
-STATUS MockProducer::putFrame(BOOL eofr) {
+STATUS MockProducer::putFrame(BOOL isEofr, UINT64 trackId) {
     STATUS retStatus = STATUS_SUCCESS;
 
-    if (eofr) {
+    mFrame.trackId = trackId;
+
+    if (isEofr) {
         Frame eofr = EOFR_FRAME_INITIALIZER;
         mIndex += (mKeyFrameInterval - (mIndex % mKeyFrameInterval)); // next frame must have key frame flag after eofr.
         retStatus = putKinesisVideoFrame(mStreamHandle, &eofr);
@@ -30,6 +32,9 @@ STATUS MockProducer::putFrame(BOOL eofr) {
         mFrame.decodingTs = mTimestamp;
         mFrame.presentationTs = mTimestamp;
         mFrame.index = mIndex;
+
+        // Set the body of the frame so it's easier to track
+        MEMSET(mFrame.frameData, mFrame.index, mFrame.size);
 
         retStatus = putKinesisVideoFrame(mStreamHandle, &mFrame);
 
@@ -40,18 +45,18 @@ STATUS MockProducer::putFrame(BOOL eofr) {
     return retStatus;
 }
 
-STATUS MockProducer::timedPutFrame(UINT64 currentTime, PBOOL pDidPutFrame) {
-    STATUS retStatus = STATUS_SUCCESS;
+STATUS MockProducer::timedPutFrame(UINT64 currentTime, PBOOL pDidPutFrame, UINT64 trackId) {
+    STATUS putStatus = STATUS_SUCCESS, eofrPutStatus = STATUS_SUCCESS;
     *pDidPutFrame = FALSE;
 
     if (!mIsLive || currentTime >= mNextPutFrameTime) {
         *pDidPutFrame = TRUE;
-        retStatus = putFrame();
+        putStatus = putFrame(FALSE, trackId);
 
         // If do EOFR and next frame is key frame, then put EOFR frame
         if (mSetEOFR && (mIndex % mKeyFrameInterval == 0)) {
             Frame eofrFrame = EOFR_FRAME_INITIALIZER;
-            retStatus = putKinesisVideoFrame(mStreamHandle, &eofrFrame);
+            eofrPutStatus = putKinesisVideoFrame(mStreamHandle, &eofrFrame);
         }
 
         if (mIsLive) {
@@ -59,5 +64,15 @@ STATUS MockProducer::timedPutFrame(UINT64 currentTime, PBOOL pDidPutFrame) {
         }
     }
 
-    return retStatus;
+    if (STATUS_FAILED(putStatus)) {
+        return putStatus;
+    } else if (STATUS_FAILED(eofrPutStatus)) {
+        return eofrPutStatus;
+    } else {
+        return STATUS_SUCCESS;
+    }
+}
+
+PFrame MockProducer::getCurrentFrame() {
+    return &mFrame;
 }

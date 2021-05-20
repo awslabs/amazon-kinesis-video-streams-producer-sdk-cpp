@@ -13,9 +13,9 @@ typedef struct {
 
 MUTEX defaultCreateMutex(BOOL reentrant)
 {
-    PWinLock pLock = (PWinLock)MEMCALLOC(1, SIZEOF(WinLock));
+    PWinLock pLock = (PWinLock) MEMCALLOC(1, SIZEOF(WinLock));
     if (NULL == pLock) {
-        return (MUTEX)NULL;
+        return (MUTEX) NULL;
     }
 
     pLock->reentrant = reentrant;
@@ -23,60 +23,56 @@ MUTEX defaultCreateMutex(BOOL reentrant)
     if (reentrant) {
         // Use critical sections
         InitializeCriticalSection(&pLock->criticalSection);
-    }
-    else {
+    } else {
         // Use SRW locks
         InitializeSRWLock(&pLock->srwLock);
     }
 
-    return (MUTEX)pLock;
+    return (MUTEX) pLock;
 }
 
 VOID defaultLockMutex(MUTEX mutex)
 {
-    PWinLock pLock = (PWinLock)mutex;
+    PWinLock pLock = (PWinLock) mutex;
 
     CHECK_EXT(NULL != pLock, "Invalid lock value");
 
     if (pLock->reentrant) {
         EnterCriticalSection(&pLock->criticalSection);
-    }
-    else {
+    } else {
         AcquireSRWLockExclusive(&pLock->srwLock);
     }
 }
 
 VOID defaultUnlockMutex(MUTEX mutex)
 {
-    PWinLock pLock = (PWinLock)mutex;
+    PWinLock pLock = (PWinLock) mutex;
 
     CHECK_EXT(NULL != pLock, "Invalid lock value");
 
     if (pLock->reentrant) {
         LeaveCriticalSection(&pLock->criticalSection);
-    }
-    else {
+    } else {
         ReleaseSRWLockExclusive(&pLock->srwLock);
     }
 }
 
 BOOL defaultTryLockMutex(MUTEX mutex)
 {
-    PWinLock pLock = (PWinLock)mutex;
+    PWinLock pLock = (PWinLock) mutex;
 
     CHECK_EXT(NULL != pLock, "Invalid lock value");
 
     if (pLock->reentrant) {
         return TryEnterCriticalSection(&pLock->criticalSection);
-    }
-    else {
+    } else {
         return TryAcquireSRWLockExclusive(&pLock->srwLock);
     }
 }
 
 VOID defaultFreeMutex(MUTEX mutex)
 {
-    PWinLock pLock = (PWinLock)mutex;
+    PWinLock pLock = (PWinLock) mutex;
 
     if (NULL == pLock) {
         // Early exit - idempotent
@@ -92,9 +88,9 @@ VOID defaultFreeMutex(MUTEX mutex)
 
 CVAR defaultConditionVariableCreate()
 {
-    CVAR pVar = (CVAR)MEMCALLOC(1, SIZEOF(CONDITION_VARIABLE));
+    CVAR pVar = (CVAR) MEMCALLOC(1, SIZEOF(CONDITION_VARIABLE));
     if (NULL == pVar) {
-        return (CVAR)NULL;
+        return (CVAR) NULL;
     }
 
     InitializeConditionVariable(pVar);
@@ -139,22 +135,20 @@ CleanUp:
 STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeout)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    PWinLock pLock = (PWinLock)mutex;
+    PWinLock pLock = (PWinLock) mutex;
     DWORD dwTimeout;
 
     CHK_ERR(NULL != cvar && NULL != pLock, STATUS_INVALID_ARG, "Invalid condition variable value");
 
     if (INFINITE_TIME_VALUE == timeout) {
         dwTimeout = INFINITE;
-    }
-    else {
-        dwTimeout = (DWORD) (timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    } else {
+        dwTimeout = (DWORD)(timeout / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
     }
 
     if (pLock->reentrant) {
         CHK(SleepConditionVariableCS(cvar, &pLock->criticalSection, dwTimeout), STATUS_WAIT_FAILED);
-    }
-    else {
+    } else {
         CHK(SleepConditionVariableSRW(cvar, &pLock->srwLock, dwTimeout, 0), STATUS_WAIT_FAILED);
     }
 
@@ -182,16 +176,15 @@ MUTEX defaultCreateMutex(BOOL reentrant)
     // Allocate the mutex
     pMutex = (pthread_mutex_t*) MEMCALLOC(1, SIZEOF(pthread_mutex_t));
     if (NULL == pMutex) {
-        return (MUTEX) (reentrant ? &globalKvsReentrantMutex : &globalKvsNonReentrantMutex);
+        return (MUTEX)(reentrant ? &globalKvsReentrantMutex : &globalKvsNonReentrantMutex);
     }
 
     if (0 != pthread_mutexattr_init(&mutexAttributes) ||
         0 != pthread_mutexattr_settype(&mutexAttributes, reentrant ? PTHREAD_MUTEX_RECURSIVE : PTHREAD_MUTEX_NORMAL) ||
-        0 != pthread_mutex_init(pMutex, &mutexAttributes))
-    {
+        0 != pthread_mutex_init(pMutex, &mutexAttributes)) {
         // In case of an error return the global mutexes
         MEMFREE(pMutex);
-        return (MUTEX) (reentrant ? &globalKvsReentrantMutex : &globalKvsNonReentrantMutex);
+        return (MUTEX)(reentrant ? &globalKvsReentrantMutex : &globalKvsNonReentrantMutex);
     }
 
     return (MUTEX) pMutex;
@@ -227,7 +220,7 @@ pthread_cond_t globalKvsConditionVariable = PTHREAD_COND_INITIALIZER;
 
 CVAR defaultConditionVariableCreate()
 {
-    CVAR pVar = (CVAR)MEMCALLOC(1, SIZEOF(pthread_cond_t));
+    CVAR pVar = (CVAR) MEMCALLOC(1, SIZEOF(pthread_cond_t));
     if (NULL == pVar) {
         return &globalKvsConditionVariable;
     }
@@ -241,7 +234,7 @@ CVAR defaultConditionVariableCreate()
 
 VOID defaultConditionVariableFree(CVAR cvar)
 {
-    pthread_cond_t *pCondVar = (pthread_cond_t*) cvar;
+    pthread_cond_t* pCondVar = (pthread_cond_t*) cvar;
     if (NULL == pCondVar) {
         // Early exit - idempotent
         return;
@@ -284,7 +277,7 @@ STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeout)
     INT32 retVal = 0;
     struct timespec timeSpec;
     pthread_mutex_t* pMutex = (pthread_mutex_t*) mutex;
-    UINT64 curTime = GETTIME();
+    UINT64 curTime = GETREALTIME();
 
     // Timeout is a duration so we need to construct an absolute time
     UINT64 time = timeout + curTime;
@@ -292,8 +285,7 @@ STATUS defaultConditionVariableWait(CVAR cvar, MUTEX mutex, UINT64 timeout)
     // If we overflow or have specific infinite timeout then wait unconditionally
     if (time < timeout || INFINITE_TIME_VALUE == timeout) {
         CHK(0 == (retVal = pthread_cond_wait(cvar, pMutex)), STATUS_WAIT_FAILED);
-    }
-    else {
+    } else {
         timeSpec.tv_sec = time / HUNDREDS_OF_NANOS_IN_A_SECOND;
         timeSpec.tv_nsec = (time % HUNDREDS_OF_NANOS_IN_A_SECOND) * DEFAULT_TIME_UNIT_IN_NANOS;
         CHK(0 == (retVal = pthread_cond_timedwait(cvar, pMutex, &timeSpec)), STATUS_WAIT_FAILED);

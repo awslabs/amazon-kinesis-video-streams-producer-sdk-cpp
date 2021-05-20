@@ -26,7 +26,7 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
     STREAM_HANDLE streamHandle = mStreamHandles[streamId];
 
     // Loop until we can start
-    while(!mStartThreads) {
+    while (!ATOMIC_LOAD_BOOL(&mStartThreads)) {
         DLOGV("Producer waiting for stream %llu TID %016llx", streamId, GETTID());
 
         // Sleep a while
@@ -39,7 +39,7 @@ PVOID ClientTestBase::basicProducerRoutine(UINT64 streamId)
     frame.frameData = tempBuffer;
     frame.trackId = TEST_TRACKID;
 
-    while(!mTerminate) {
+    while (!ATOMIC_LOAD_BOOL(&mTerminate)) {
         // Produce frames
         frame.index = index++;
         frame.decodingTs = timestamp;
@@ -72,7 +72,7 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
     STREAM_HANDLE streamHandle = mStreamHandles[streamId];
 
     // Loop until we can start
-    while(!mStartThreads) {
+    while (!ATOMIC_LOAD_BOOL(&mStartThreads)) {
         DLOGV("Consumer waiting for stream %llu TID %016llx", streamId, GETTID());
 
         // Sleep a while
@@ -80,7 +80,7 @@ PVOID ClientTestBase::basicConsumerRoutine(UINT64 streamId)
     }
 
     // Loop until cancelled
-    while(!mTerminate) {
+    while (!ATOMIC_LOAD_BOOL(&mTerminate)) {
         DLOGV("Consumer for stream %llu TID %016llx", streamId, GETTID());
         // Consume frames
         retStatus = getKinesisVideoStreamData(streamHandle, TEST_UPLOAD_HANDLE, getDataBuffer, SIZEOF(getDataBuffer),
@@ -104,8 +104,8 @@ TEST_F(StreamParallelTest, putFrame_BasicParallelPutGet)
     UINT32 index;
     CHAR streamName[MAX_STREAM_NAME_LEN];
 
-    mTerminate = FALSE;
-    mStartThreads = FALSE;
+    ATOMIC_STORE_BOOL(&mTerminate, FALSE);
+    ATOMIC_STORE_BOOL(&mStartThreads, FALSE);
 
     // Set the global pointer to this
     gParallelTest = this;
@@ -174,13 +174,13 @@ TEST_F(StreamParallelTest, putFrame_BasicParallelPutGet)
 
     // Enable the threads
     DLOGV("Enabling the execution of the threads");
-    mStartThreads = TRUE;
+    ATOMIC_STORE_BOOL(&mStartThreads, TRUE);
 
     // Wait for some time
     THREAD_SLEEP(TEST_SLEEP_TIME);
 
     // Indicate the cancel for the threads
-    mTerminate = TRUE;
+    ATOMIC_STORE_BOOL(&mTerminate, TRUE);
 
     // Join the threads and wait to exit
     for (index = 0; index < MAX_TEST_STREAM_COUNT; index++) {

@@ -1,6 +1,6 @@
 /*******************************************
-* Input validator include file
-*******************************************/
+ * Input validator include file
+ *******************************************/
 #ifndef __INPUT_VALIDATOR_H__
 #define __INPUT_VALIDATOR_H__
 
@@ -9,9 +9,6 @@ extern "C" {
 #endif
 
 #pragma once
-
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
 
 ////////////////////////////////////////////////////
 // Internal functionality
@@ -68,9 +65,18 @@ STATUS validateClientTags(UINT32, PTag);
  * Sets the default values of the client info if needed
  *
  * @param 1 PClientInfo - Client info object to fixup
+ * @param 2 PClientInfo - Client info object passed in
  *
  */
-VOID fixupClientInfo(PClientInfo);
+VOID fixupClientInfo(PClientInfo, PClientInfo);
+
+/**
+ * Fixup/copy the DeviceInfo object returned from the client
+ *
+ * @param 1 - PDeviceInfo - Device info part of the client object which is on the latest version and zeroed out
+ * @param 2 - PDeviceInfo - Device info which is given by the client - might be on older version
+ */
+VOID fixupDeviceInfo(PDeviceInfo, PDeviceInfo);
 
 /**
  * Returns the size of the device info structure in bytes
@@ -121,8 +127,6 @@ VOID fixupFrame(PFrame pFrame);
  * @return The size of the object
  */
 SIZE_T sizeOfStreamDescription(PStreamDescription);
-
-#pragma pack(pop, include_i)
 
 #ifdef __cplusplus
 }

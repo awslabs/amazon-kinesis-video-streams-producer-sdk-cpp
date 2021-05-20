@@ -11,11 +11,9 @@
 /**
  * Create the default callbacks provider
  */
-STATUS createDefaultCallbacksProvider(UINT32 callbackChainCount, PCHAR accessKeyId, PCHAR secretKey,
-                                      PCHAR sessionToken, UINT64 expiration, PCHAR region, PCHAR controlPlaneUrl,
-                                      PCHAR certPath, PCHAR userAgentPostfix, PCHAR customUserAgent,
-                                      BOOL cachingEndpoint, UINT64 endpointCachingPeriod,
-                                      BOOL continuousRetry,
+STATUS createDefaultCallbacksProvider(UINT32 callbackChainCount, PCHAR accessKeyId, PCHAR secretKey, PCHAR sessionToken, UINT64 expiration,
+                                      PCHAR region, PCHAR controlPlaneUrl, PCHAR certPath, PCHAR userAgentPostfix, PCHAR customUserAgent,
+                                      API_CALL_CACHE_TYPE cacheType, UINT64 endpointCachingPeriod, BOOL continuousRetry,
                                       PClientCallbacks* ppClientCallbacks)
 {
     ENTERS();
@@ -24,21 +22,12 @@ STATUS createDefaultCallbacksProvider(UINT32 callbackChainCount, PCHAR accessKey
     PAuthCallbacks pAuthCallbacks = NULL;
     PStreamCallbacks pStreamCallbacks = NULL;
 
-    CHK_STATUS(createAbstractDefaultCallbacksProvider(callbackChainCount,
-                                                    cachingEndpoint,
-                                                    endpointCachingPeriod,
-                                                    region,
-                                                    controlPlaneUrl,
-                                                    certPath,
-                                                    userAgentPostfix,
-                                                    customUserAgent,
-                                                    ppClientCallbacks));
+    CHK_STATUS(createAbstractDefaultCallbacksProvider(callbackChainCount, cacheType, endpointCachingPeriod, region, controlPlaneUrl, certPath,
+                                                      userAgentPostfix, customUserAgent, ppClientCallbacks));
 
     pCallbacksProvider = (PCallbacksProvider) *ppClientCallbacks;
 
-    CHK_STATUS(createStaticAuthCallbacks((PClientCallbacks) pCallbacksProvider, accessKeyId,
-                                         secretKey, sessionToken, expiration,
-                                         &pAuthCallbacks));
+    CHK_STATUS(createStaticAuthCallbacks((PClientCallbacks) pCallbacksProvider, accessKeyId, secretKey, sessionToken, expiration, &pAuthCallbacks));
 
     if (continuousRetry) {
         CHK_STATUS(createContinuousRetryStreamCallbacks((PClientCallbacks) pCallbacksProvider, &pStreamCallbacks));
@@ -48,7 +37,7 @@ CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
         if (pCallbacksProvider != NULL) {
-            freeCallbacksProvider((PClientCallbacks *) &pCallbacksProvider);
+            freeCallbacksProvider((PClientCallbacks*) &pCallbacksProvider);
         }
 
         if (pAuthCallbacks != NULL) {
@@ -74,15 +63,8 @@ CleanUp:
 /**
  * Create the default callbacks provider with AWS credentials and defaults
  */
-STATUS createDefaultCallbacksProviderWithAwsCredentials(PCHAR accessKeyId,
-                                                        PCHAR secretKey,
-                                                        PCHAR sessionToken,
-                                                        UINT64 expiration,
-                                                        PCHAR region,
-                                                        PCHAR caCertPath,
-                                                        PCHAR userAgentPostfix,
-                                                        PCHAR customUserAgent,
-                                                        BOOL cachingEndpoint,
+STATUS createDefaultCallbacksProviderWithAwsCredentials(PCHAR accessKeyId, PCHAR secretKey, PCHAR sessionToken, UINT64 expiration, PCHAR region,
+                                                        PCHAR caCertPath, PCHAR userAgentPostfix, PCHAR customUserAgent,
                                                         PClientCallbacks* ppClientCallbacks)
 {
     ENTERS();
@@ -91,24 +73,12 @@ STATUS createDefaultCallbacksProviderWithAwsCredentials(PCHAR accessKeyId,
     PAuthCallbacks pAuthCallbacks = NULL;
     PStreamCallbacks pStreamCallbacks = NULL;
 
-    CHK_STATUS(createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT,
-                                                    cachingEndpoint,
-                                                    0,
-                                                    region,
-                                                    EMPTY_STRING,
-                                                    caCertPath,
-                                                    userAgentPostfix,
-                                                    customUserAgent,
-                                                    ppClientCallbacks));
+    CHK_STATUS(createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT, API_CALL_CACHE_TYPE_ALL, ENDPOINT_UPDATE_PERIOD_SENTINEL_VALUE,
+                                                      region, EMPTY_STRING, caCertPath, userAgentPostfix, customUserAgent, ppClientCallbacks));
 
     pCallbacksProvider = (PCallbacksProvider) *ppClientCallbacks;
 
-    CHK_STATUS(createStaticAuthCallbacks((PClientCallbacks) pCallbacksProvider,
-                                         accessKeyId,
-                                         secretKey,
-                                         sessionToken,
-                                         expiration,
-                                         &pAuthCallbacks));
+    CHK_STATUS(createStaticAuthCallbacks((PClientCallbacks) pCallbacksProvider, accessKeyId, secretKey, sessionToken, expiration, &pAuthCallbacks));
 
     CHK_STATUS(createContinuousRetryStreamCallbacks((PClientCallbacks) pCallbacksProvider, &pStreamCallbacks));
 
@@ -116,7 +86,7 @@ CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
         if (pCallbacksProvider != NULL) {
-            freeCallbacksProvider((PClientCallbacks *) &pCallbacksProvider);
+            freeCallbacksProvider((PClientCallbacks*) &pCallbacksProvider);
         }
 
         if (pAuthCallbacks != NULL) {
@@ -139,16 +109,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS createDefaultCallbacksProviderWithIotCertificate(PCHAR endpoint,
-                                                        PCHAR iotCertPath,
-                                                        PCHAR privateKeyPath,
-                                                        PCHAR caCertPath,
-                                                        PCHAR roleAlias,
-                                                        PCHAR streamName,
-                                                        PCHAR region,
-                                                        PCHAR userAgentPostfix,
-                                                        PCHAR customUserAgent,
-                                                        BOOL cachingEndpoint,
+STATUS createDefaultCallbacksProviderWithIotCertificate(PCHAR endpoint, PCHAR iotCertPath, PCHAR privateKeyPath, PCHAR caCertPath, PCHAR roleAlias,
+                                                        PCHAR streamName, PCHAR region, PCHAR userAgentPostfix, PCHAR customUserAgent,
                                                         PClientCallbacks* ppClientCallbacks)
 {
     ENTERS();
@@ -157,25 +119,12 @@ STATUS createDefaultCallbacksProviderWithIotCertificate(PCHAR endpoint,
     PAuthCallbacks pAuthCallbacks = NULL;
     PStreamCallbacks pStreamCallbacks = NULL;
 
-    CHK_STATUS(createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT,
-                                                    cachingEndpoint,
-                                                    0,
-                                                    region,
-                                                    EMPTY_STRING,
-                                                    caCertPath,
-                                                    userAgentPostfix,
-                                                    customUserAgent,
-                                                    ppClientCallbacks));
+    CHK_STATUS(createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT, API_CALL_CACHE_TYPE_ALL, ENDPOINT_UPDATE_PERIOD_SENTINEL_VALUE,
+                                                      region, EMPTY_STRING, caCertPath, userAgentPostfix, customUserAgent, ppClientCallbacks));
 
     pCallbacksProvider = (PCallbacksProvider) *ppClientCallbacks;
 
-    CHK_STATUS(createIotAuthCallbacks((PClientCallbacks) pCallbacksProvider,
-                                      endpoint,
-                                      iotCertPath,
-                                      privateKeyPath,
-                                      caCertPath,
-                                      roleAlias,
-                                      streamName,
+    CHK_STATUS(createIotAuthCallbacks((PClientCallbacks) pCallbacksProvider, endpoint, iotCertPath, privateKeyPath, caCertPath, roleAlias, streamName,
                                       &pAuthCallbacks));
 
     CHK_STATUS(createContinuousRetryStreamCallbacks((PClientCallbacks) pCallbacksProvider, &pStreamCallbacks));
@@ -184,7 +133,7 @@ CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
         if (pCallbacksProvider != NULL) {
-            freeCallbacksProvider((PClientCallbacks *) &pCallbacksProvider);
+            freeCallbacksProvider((PClientCallbacks*) &pCallbacksProvider);
         }
 
         if (pAuthCallbacks != NULL) {
@@ -207,13 +156,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS createDefaultCallbacksProviderWithFileAuth(PCHAR credentialsFilePath,
-                                                  PCHAR region,
-                                                  PCHAR caCertPath,
-                                                  PCHAR userAgentPostfix,
-                                                  PCHAR customUserAgent,
-                                                  BOOL cachingEndpoint,
-                                                  PClientCallbacks* ppClientCallbacks)
+STATUS createDefaultCallbacksProviderWithFileAuth(PCHAR credentialsFilePath, PCHAR region, PCHAR caCertPath, PCHAR userAgentPostfix,
+                                                  PCHAR customUserAgent, PClientCallbacks* ppClientCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -221,21 +165,12 @@ STATUS createDefaultCallbacksProviderWithFileAuth(PCHAR credentialsFilePath,
     PAuthCallbacks pAuthCallbacks = NULL;
     PStreamCallbacks pStreamCallbacks = NULL;
 
-    CHK_STATUS(createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT,
-                                                    cachingEndpoint,
-                                                    0,
-                                                    region,
-                                                    EMPTY_STRING,
-                                                    caCertPath,
-                                                    userAgentPostfix,
-                                                    customUserAgent,
-                                                    ppClientCallbacks));
+    CHK_STATUS(createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT, API_CALL_CACHE_TYPE_ALL, ENDPOINT_UPDATE_PERIOD_SENTINEL_VALUE,
+                                                      region, EMPTY_STRING, caCertPath, userAgentPostfix, customUserAgent, ppClientCallbacks));
 
     pCallbacksProvider = (PCallbacksProvider) *ppClientCallbacks;
 
-    CHK_STATUS(createFileAuthCallbacks((PClientCallbacks) pCallbacksProvider,
-                                       credentialsFilePath,
-                                       &pAuthCallbacks));
+    CHK_STATUS(createFileAuthCallbacks((PClientCallbacks) pCallbacksProvider, credentialsFilePath, &pAuthCallbacks));
 
     CHK_STATUS(createContinuousRetryStreamCallbacks((PClientCallbacks) pCallbacksProvider, &pStreamCallbacks));
 
@@ -243,7 +178,7 @@ CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
         if (pCallbacksProvider != NULL) {
-            freeCallbacksProvider((PClientCallbacks *) &pCallbacksProvider);
+            freeCallbacksProvider((PClientCallbacks*) &pCallbacksProvider);
         }
 
         if (pAuthCallbacks != NULL) {
@@ -266,42 +201,25 @@ CleanUp:
     return retStatus;
 }
 
-STATUS createDefaultCallbacksProviderWithAuthCallbacks(PAuthCallbacks pAuthCallbacks,
-                                                  PCHAR region,
-                                                  PCHAR caCertPath,
-                                                  PCHAR userAgentPostfix,
-                                                  PCHAR customUserAgent,
-                                                  BOOL cachingEndpoint,
-                                                  BOOL continuousRetry,
-                                                  UINT64 endpointCachingPeriod,
-                                                  PClientCallbacks* ppClientCallbacks)
+STATUS createDefaultCallbacksProviderWithAuthCallbacks(PAuthCallbacks pAuthCallbacks, PCHAR region, PCHAR caCertPath, PCHAR userAgentPostfix,
+                                                       PCHAR customUserAgent, PClientCallbacks* ppClientCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PCallbacksProvider pCallbacksProvider = NULL;
     PStreamCallbacks pStreamCallbacks = NULL;
 
-    CHK_STATUS(createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT,
-                                                    cachingEndpoint,
-                                                    endpointCachingPeriod,
-                                                    region,
-                                                    EMPTY_STRING,
-                                                    caCertPath,
-                                                    userAgentPostfix,
-                                                    customUserAgent,
-                                                    ppClientCallbacks));
+    CHK_STATUS(createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT, API_CALL_CACHE_TYPE_ALL, ENDPOINT_UPDATE_PERIOD_SENTINEL_VALUE,
+                                                      region, EMPTY_STRING, caCertPath, userAgentPostfix, customUserAgent, ppClientCallbacks));
     pCallbacksProvider = (PCallbacksProvider) *ppClientCallbacks;
     CHK_STATUS(addAuthCallbacks(*ppClientCallbacks, pAuthCallbacks));
-
-    if (continuousRetry) {
-        CHK_STATUS(createContinuousRetryStreamCallbacks((PClientCallbacks) pCallbacksProvider, &pStreamCallbacks));
-    }
+    CHK_STATUS(createContinuousRetryStreamCallbacks((PClientCallbacks) pCallbacksProvider, &pStreamCallbacks));
 
 CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
         if (pCallbacksProvider != NULL) {
-            freeCallbacksProvider((PClientCallbacks *) &pCallbacksProvider);
+            freeCallbacksProvider((PClientCallbacks*) &pCallbacksProvider);
         }
 
         if (pStreamCallbacks != NULL) {
@@ -320,11 +238,9 @@ CleanUp:
     return retStatus;
 }
 
-STATUS createAbstractDefaultCallbacksProvider(UINT32 callbackChainCount, BOOL cachingEndpoint,
-                                            UINT64 endpointCachingPeriod, PCHAR region,
-                                            PCHAR controlPlaneUrl, PCHAR certPath,
-                                            PCHAR userAgentName, PCHAR customUserAgent,
-                                            PClientCallbacks* ppClientCallbacks)
+STATUS createAbstractDefaultCallbacksProvider(UINT32 callbackChainCount, API_CALL_CACHE_TYPE cacheType, UINT64 endpointCachingPeriod, PCHAR region,
+                                              PCHAR controlPlaneUrl, PCHAR certPath, PCHAR userAgentName, PCHAR customUserAgent,
+                                              PClientCallbacks* ppClientCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -337,10 +253,8 @@ STATUS createAbstractDefaultCallbacksProvider(UINT32 callbackChainCount, BOOL ca
     CHK(callbackChainCount < MAX_CALLBACK_CHAIN_COUNT, STATUS_INVALID_ARG);
 
     // Calculate the size
-    size = SIZEOF(CallbacksProvider) + callbackChainCount * (SIZEOF(ProducerCallbacks) +
-                                                             SIZEOF(StreamCallbacks) +
-                                                             SIZEOF(AuthCallbacks) +
-                                                             SIZEOF(ApiCallbacks));
+    size = SIZEOF(CallbacksProvider) +
+        callbackChainCount * (SIZEOF(ProducerCallbacks) + SIZEOF(StreamCallbacks) + SIZEOF(AuthCallbacks) + SIZEOF(ApiCallbacks));
 
     // Allocate the entire structure
     pCallbacksProvider = (PCallbacksProvider) MEMCALLOC(1, size);
@@ -355,7 +269,7 @@ STATUS createAbstractDefaultCallbacksProvider(UINT32 callbackChainCount, BOOL ca
     pCallbacksProvider->clientCallbacks.customData = (UINT64) pCallbacksProvider;
 
     // Set callback chain pointers
-    pCallbacksProvider->pProducerCallbacks = (PProducerCallbacks) (pCallbacksProvider + 1);
+    pCallbacksProvider->pProducerCallbacks = (PProducerCallbacks)(pCallbacksProvider + 1);
     pCallbacksProvider->pStreamCallbacks = (PStreamCallbacks)(pCallbacksProvider->pProducerCallbacks + callbackChainCount);
     pCallbacksProvider->pAuthCallbacks = (PAuthCallbacks)(pCallbacksProvider->pStreamCallbacks + callbackChainCount);
     pCallbacksProvider->pApiCallbacks = (PApiCallbacks)(pCallbacksProvider->pAuthCallbacks + callbackChainCount);
@@ -364,19 +278,8 @@ STATUS createAbstractDefaultCallbacksProvider(UINT32 callbackChainCount, BOOL ca
     CHK_STATUS(setDefaultPlatformCallbacks(pCallbacksProvider));
 
     // Create the default Curl API callbacks
-    CHK_STATUS(createCurlApiCallbacks(pCallbacksProvider,
-                                      region,
-                                      cachingEndpoint,
-                                      endpointCachingPeriod,
-                                      controlPlaneUrl,
-                                      certPath,
-                                      userAgentName,
-                                      customUserAgent,
-                                      &pCurlApiCallbacks));
-
-    CHK_STATUS(createStreamCallbacks(&pStreamCallbacks));
-
-    CHK_STATUS(addStreamCallbacks((PClientCallbacks) pCallbacksProvider, pStreamCallbacks));
+    CHK_STATUS(createCurlApiCallbacks(pCallbacksProvider, region, cacheType, endpointCachingPeriod, controlPlaneUrl, certPath, userAgentName,
+                                      customUserAgent, &pCurlApiCallbacks));
 
 CleanUp:
 
@@ -578,10 +481,10 @@ STATUS addProducerCallbacks(PClientCallbacks pClientCallbacks, PProducerCallback
 
     // Guard against adding same callbacks multiple times (duplicate) - This prevents freeing memory twice
     for (i = 0; i < pCallbackProvider->producerCallbacksCount; i++) {
-        CHK(pProducerCallbacks->freeProducerCallbacksFn == NULL
-                || pCallbackProvider->pProducerCallbacks[i].customData != pProducerCallbacks->customData
-                || pCallbackProvider->pProducerCallbacks[i].freeProducerCallbacksFn != pProducerCallbacks->freeProducerCallbacksFn,
-                STATUS_DUPLICATE_PRODUCER_CALLBACK_FREE_FUNC);
+        CHK(pProducerCallbacks->freeProducerCallbacksFn == NULL ||
+                pCallbackProvider->pProducerCallbacks[i].customData != pProducerCallbacks->customData ||
+                pCallbackProvider->pProducerCallbacks[i].freeProducerCallbacksFn != pProducerCallbacks->freeProducerCallbacksFn,
+            STATUS_DUPLICATE_PRODUCER_CALLBACK_FREE_FUNC);
     }
 
     // Struct-copy the values and increment the current counter
@@ -623,10 +526,9 @@ STATUS addStreamCallbacks(PClientCallbacks pClientCallbacks, PStreamCallbacks pS
 
     // Guard against adding same callbacks multiple times (duplicate) - This prevents freeing memory twice
     for (i = 0; i < pCallbackProvider->streamCallbacksCount; i++) {
-        CHK(pStreamCallbacks->freeStreamCallbacksFn == NULL
-                || pCallbackProvider->pStreamCallbacks[i].customData != pStreamCallbacks->customData
-                || pCallbackProvider->pStreamCallbacks[i].freeStreamCallbacksFn != pStreamCallbacks->freeStreamCallbacksFn,
-                STATUS_DUPLICATE_STREAM_CALLBACK_FREE_FUNC);
+        CHK(pStreamCallbacks->freeStreamCallbacksFn == NULL || pCallbackProvider->pStreamCallbacks[i].customData != pStreamCallbacks->customData ||
+                pCallbackProvider->pStreamCallbacks[i].freeStreamCallbacksFn != pStreamCallbacks->freeStreamCallbacksFn,
+            STATUS_DUPLICATE_STREAM_CALLBACK_FREE_FUNC);
     }
 
     // Struct-copy the values and increment the current counter
@@ -704,10 +606,9 @@ STATUS addAuthCallbacks(PClientCallbacks pClientCallbacks, PAuthCallbacks pAuthC
 
     // Guard against adding same callbacks multiple times (duplicate) - This prevents freeing memory twice
     for (i = 0; i < pCallbackProvider->authCallbacksCount; i++) {
-        CHK(pAuthCallbacks->freeAuthCallbacksFn == NULL
-                || pCallbackProvider->pAuthCallbacks[i].customData != pAuthCallbacks->customData
-                || pCallbackProvider->pAuthCallbacks[i].freeAuthCallbacksFn != pAuthCallbacks->freeAuthCallbacksFn,
-                STATUS_DUPLICATE_AUTH_CALLBACK_FREE_FUNC);
+        CHK(pAuthCallbacks->freeAuthCallbacksFn == NULL || pCallbackProvider->pAuthCallbacks[i].customData != pAuthCallbacks->customData ||
+                pCallbackProvider->pAuthCallbacks[i].freeAuthCallbacksFn != pAuthCallbacks->freeAuthCallbacksFn,
+            STATUS_DUPLICATE_AUTH_CALLBACK_FREE_FUNC);
     }
 
     // Struct-copy the values and increment the current counter
@@ -757,10 +658,9 @@ STATUS addApiCallbacks(PClientCallbacks pClientCallbacks, PApiCallbacks pApiCall
 
     // Guard against adding same callbacks multiple times (duplicate) - This prevents freeing memory twice
     for (i = 0; i < pCallbackProvider->apiCallbacksCount; i++) {
-        CHK(pApiCallbacks->freeApiCallbacksFn == NULL
-                || pCallbackProvider->pApiCallbacks[i].customData != pApiCallbacks->customData
-                || pCallbackProvider->pApiCallbacks[i].freeApiCallbacksFn != pApiCallbacks->freeApiCallbacksFn,
-                STATUS_DUPLICATE_API_CALLBACK_FREE_FUNC);
+        CHK(pApiCallbacks->freeApiCallbacksFn == NULL || pCallbackProvider->pApiCallbacks[i].customData != pApiCallbacks->customData ||
+                pCallbackProvider->pApiCallbacks[i].freeApiCallbacksFn != pApiCallbacks->freeApiCallbacksFn,
+            STATUS_DUPLICATE_API_CALLBACK_FREE_FUNC);
     }
 
     // Struct-copy the values and increment the current counter
@@ -810,7 +710,8 @@ STATUS getDeviceCertificateAggregate(UINT64 customData, PBYTE* buffer, PUINT32 s
 
     for (i = 0; i < pCallbacksProvider->authCallbacksCount; i++) {
         if (pCallbacksProvider->pAuthCallbacks[i].getDeviceCertificateFn != NULL) {
-            retStatus = pCallbacksProvider->pAuthCallbacks[i].getDeviceCertificateFn(pCallbacksProvider->pAuthCallbacks[i].customData, buffer, size, expiration);
+            retStatus = pCallbacksProvider->pAuthCallbacks[i].getDeviceCertificateFn(pCallbacksProvider->pAuthCallbacks[i].customData, buffer, size,
+                                                                                     expiration);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -834,7 +735,8 @@ STATUS getSecurityTokenAggregate(UINT64 customData, PBYTE* buffer, PUINT32 size,
 
     for (i = 0; i < pCallbacksProvider->authCallbacksCount; i++) {
         if (pCallbacksProvider->pAuthCallbacks[i].getSecurityTokenFn != NULL) {
-            retStatus = pCallbacksProvider->pAuthCallbacks[i].getSecurityTokenFn(pCallbacksProvider->pAuthCallbacks[i].customData, buffer, size, expiration);
+            retStatus =
+                pCallbacksProvider->pAuthCallbacks[i].getSecurityTokenFn(pCallbacksProvider->pAuthCallbacks[i].customData, buffer, size, expiration);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -882,7 +784,8 @@ STATUS deviceCertToTokenAggregate(UINT64 customData, PCHAR deviceName, PServiceC
 
     for (i = 0; i < pCallbacksProvider->authCallbacksCount; i++) {
         if (pCallbacksProvider->pAuthCallbacks[i].deviceCertToTokenFn != NULL) {
-            retStatus = pCallbacksProvider->pAuthCallbacks[i].deviceCertToTokenFn(pCallbacksProvider->pAuthCallbacks[i].customData, deviceName, pServiceCallContext);
+            retStatus = pCallbacksProvider->pAuthCallbacks[i].deviceCertToTokenFn(pCallbacksProvider->pAuthCallbacks[i].customData, deviceName,
+                                                                                  pServiceCallContext);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -906,7 +809,8 @@ STATUS getStreamingTokenAggregate(UINT64 customData, PCHAR streamName, STREAM_AC
 
     for (i = 0; i < pCallbacksProvider->authCallbacksCount; i++) {
         if (pCallbacksProvider->pAuthCallbacks[i].getStreamingTokenFn != NULL) {
-            retStatus = pCallbacksProvider->pAuthCallbacks[i].getStreamingTokenFn(pCallbacksProvider->pAuthCallbacks[i].customData, streamName, accessMode, pServiceCallContext);
+            retStatus = pCallbacksProvider->pAuthCallbacks[i].getStreamingTokenFn(pCallbacksProvider->pAuthCallbacks[i].customData, streamName,
+                                                                                  accessMode, pServiceCallContext);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -933,7 +837,8 @@ STATUS storageOverflowPressureAggregate(UINT64 customData, UINT64 remainingBytes
 
     for (i = 0; i < pCallbacksProvider->producerCallbacksCount; i++) {
         if (pCallbacksProvider->pProducerCallbacks[i].storageOverflowPressureFn != NULL) {
-            retStatus = pCallbacksProvider->pProducerCallbacks[i].storageOverflowPressureFn(pCallbacksProvider->pProducerCallbacks[i].customData, remainingBytes);
+            retStatus = pCallbacksProvider->pProducerCallbacks[i].storageOverflowPressureFn(pCallbacksProvider->pProducerCallbacks[i].customData,
+                                                                                            remainingBytes);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -981,7 +886,8 @@ STATUS clientShutdownAggregate(UINT64 customData, CLIENT_HANDLE clientHandle)
 
     for (i = 0; i < pCallbacksProvider->producerCallbacksCount; i++) {
         if (pCallbacksProvider->pProducerCallbacks[i].clientShutdownFn != NULL) {
-            retStatus = pCallbacksProvider->pProducerCallbacks[i].clientShutdownFn(pCallbacksProvider->pProducerCallbacks[i].customData, clientHandle);
+            retStatus =
+                pCallbacksProvider->pProducerCallbacks[i].clientShutdownFn(pCallbacksProvider->pProducerCallbacks[i].customData, clientHandle);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -998,7 +904,8 @@ CleanUp:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 // API callback aggregates
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-STATUS createStreamAggregate(UINT64 customData, PCHAR deviceName, PCHAR streamName, PCHAR contentType, PCHAR kmsKeyId, UINT64 retentionPeriod, PServiceCallContext pServiceCallContext)
+STATUS createStreamAggregate(UINT64 customData, PCHAR deviceName, PCHAR streamName, PCHAR contentType, PCHAR kmsKeyId, UINT64 retentionPeriod,
+                             PServiceCallContext pServiceCallContext)
 {
     STATUS retStatus = STATUS_SUCCESS;
     PCallbacksProvider pCallbacksProvider = (PCallbacksProvider) customData;
@@ -1008,9 +915,8 @@ STATUS createStreamAggregate(UINT64 customData, PCHAR deviceName, PCHAR streamNa
 
     for (i = 0; i < pCallbacksProvider->apiCallbacksCount; i++) {
         if (pCallbacksProvider->pApiCallbacks[i].createStreamFn != NULL) {
-            retStatus = pCallbacksProvider->pApiCallbacks[i].createStreamFn(
-                    pCallbacksProvider->pApiCallbacks[i].customData, deviceName, streamName, contentType, kmsKeyId,
-                    retentionPeriod, pServiceCallContext);
+            retStatus = pCallbacksProvider->pApiCallbacks[i].createStreamFn(pCallbacksProvider->pApiCallbacks[i].customData, deviceName, streamName,
+                                                                            contentType, kmsKeyId, retentionPeriod, pServiceCallContext);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1033,9 +939,9 @@ STATUS describeStreamAggregate(UINT64 customData, PCHAR streamName, PServiceCall
     CHK(pCallbacksProvider != NULL, STATUS_INVALID_ARG);
 
     for (i = 0; i < pCallbacksProvider->apiCallbacksCount; i++) {
-        if (pCallbacksProvider->pApiCallbacks[i].describeStreamFn!= NULL) {
-            retStatus = pCallbacksProvider->pApiCallbacks[i].describeStreamFn(
-                    pCallbacksProvider->pApiCallbacks[i].customData, streamName, pServiceCallContext);
+        if (pCallbacksProvider->pApiCallbacks[i].describeStreamFn != NULL) {
+            retStatus = pCallbacksProvider->pApiCallbacks[i].describeStreamFn(pCallbacksProvider->pApiCallbacks[i].customData, streamName,
+                                                                              pServiceCallContext);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1059,8 +965,8 @@ STATUS getStreamingEndpointAggregate(UINT64 customData, PCHAR streamName, PCHAR 
 
     for (i = 0; i < pCallbacksProvider->apiCallbacksCount; i++) {
         if (pCallbacksProvider->pApiCallbacks[i].getStreamingEndpointFn != NULL) {
-            retStatus = pCallbacksProvider->pApiCallbacks[i].getStreamingEndpointFn(
-                    pCallbacksProvider->pApiCallbacks[i].customData, streamName, apiName, pServiceCallContext);
+            retStatus = pCallbacksProvider->pApiCallbacks[i].getStreamingEndpointFn(pCallbacksProvider->pApiCallbacks[i].customData, streamName,
+                                                                                    apiName, pServiceCallContext);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1074,7 +980,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS putStreamAggregate(UINT64 customData, PCHAR streamName, PCHAR containerType, UINT64 streamStart, BOOL isAbsolute, BOOL fragmentAcks, PCHAR streamingEndpoint, PServiceCallContext pServiceCallContext)
+STATUS putStreamAggregate(UINT64 customData, PCHAR streamName, PCHAR containerType, UINT64 streamStart, BOOL isAbsolute, BOOL fragmentAcks,
+                          PCHAR streamingEndpoint, PServiceCallContext pServiceCallContext)
 {
     STATUS retStatus = STATUS_SUCCESS;
     PCallbacksProvider pCallbacksProvider = (PCallbacksProvider) customData;
@@ -1084,10 +991,9 @@ STATUS putStreamAggregate(UINT64 customData, PCHAR streamName, PCHAR containerTy
 
     for (i = 0; i < pCallbacksProvider->apiCallbacksCount; i++) {
         if (pCallbacksProvider->pApiCallbacks[i].putStreamFn != NULL) {
-            retStatus = pCallbacksProvider->pApiCallbacks[i].putStreamFn(
-                    pCallbacksProvider->pApiCallbacks[i].customData, streamName, containerType,
-                    streamStart, isAbsolute, fragmentAcks,
-                    streamingEndpoint, pServiceCallContext);
+            retStatus =
+                pCallbacksProvider->pApiCallbacks[i].putStreamFn(pCallbacksProvider->pApiCallbacks[i].customData, streamName, containerType,
+                                                                 streamStart, isAbsolute, fragmentAcks, streamingEndpoint, pServiceCallContext);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1111,9 +1017,8 @@ STATUS tagResourceAggregate(UINT64 customData, PCHAR resourceArn, UINT32 tagCoun
 
     for (i = 0; i < pCallbacksProvider->apiCallbacksCount; i++) {
         if (pCallbacksProvider->pApiCallbacks[i].tagResourceFn != NULL) {
-            retStatus = pCallbacksProvider->pApiCallbacks[i].tagResourceFn(
-                    pCallbacksProvider->pApiCallbacks[i].customData, resourceArn, tagCount,
-                    tags, pServiceCallContext);
+            retStatus = pCallbacksProvider->pApiCallbacks[i].tagResourceFn(pCallbacksProvider->pApiCallbacks[i].customData, resourceArn, tagCount,
+                                                                           tags, pServiceCallContext);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1137,8 +1042,8 @@ STATUS createDeviceAggregate(UINT64 customData, PCHAR deviceName, PServiceCallCo
 
     for (i = 0; i < pCallbacksProvider->apiCallbacksCount; i++) {
         if (pCallbacksProvider->pApiCallbacks[i].createDeviceFn != NULL) {
-            retStatus = pCallbacksProvider->pApiCallbacks[i].createDeviceFn(
-                    pCallbacksProvider->pApiCallbacks[i].customData, deviceName, pServiceCallContext);
+            retStatus =
+                pCallbacksProvider->pApiCallbacks[i].createDeviceFn(pCallbacksProvider->pApiCallbacks[i].customData, deviceName, pServiceCallContext);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1165,8 +1070,8 @@ STATUS streamUnderflowReportAggregate(UINT64 customData, STREAM_HANDLE streamHan
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].streamUnderflowReportFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamUnderflowReportFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle);
+            retStatus =
+                pCallbacksProvider->pStreamCallbacks[i].streamUnderflowReportFn(pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1190,8 +1095,8 @@ STATUS bufferDurationOverflowPressureAggregate(UINT64 customData, STREAM_HANDLE 
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].bufferDurationOverflowPressureFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].bufferDurationOverflowPressureFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle, remainingDuration);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].bufferDurationOverflowPressureFn(pCallbacksProvider->pStreamCallbacks[i].customData,
+                                                                                                 streamHandle, remainingDuration);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1215,8 +1120,8 @@ STATUS streamLatencyPressureAggregate(UINT64 customData, STREAM_HANDLE streamHan
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].streamLatencyPressureFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamLatencyPressureFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle, bufferDuration);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamLatencyPressureFn(pCallbacksProvider->pStreamCallbacks[i].customData,
+                                                                                        streamHandle, bufferDuration);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1240,8 +1145,8 @@ STATUS streamConnectionStaleAggregate(UINT64 customData, STREAM_HANDLE streamHan
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].streamConnectionStaleFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamConnectionStaleFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle, stalenessDuration);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamConnectionStaleFn(pCallbacksProvider->pStreamCallbacks[i].customData,
+                                                                                        streamHandle, stalenessDuration);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1265,8 +1170,8 @@ STATUS droppedFrameReportAggregate(UINT64 customData, STREAM_HANDLE streamHandle
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].droppedFrameReportFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].droppedFrameReportFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle, frameTimestamp);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].droppedFrameReportFn(pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle,
+                                                                                     frameTimestamp);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1290,8 +1195,8 @@ STATUS droppedFragmentReportAggregate(UINT64 customData, STREAM_HANDLE streamHan
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].droppedFragmentReportFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].droppedFragmentReportFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle, fragmentTimestamp);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].droppedFragmentReportFn(pCallbacksProvider->pStreamCallbacks[i].customData,
+                                                                                        streamHandle, fragmentTimestamp);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1305,7 +1210,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS streamErrorReportAggregate(UINT64 customData, STREAM_HANDLE streamHandle, UPLOAD_HANDLE uploadHandle, UINT64 errorTimestamp, STATUS errorStatus)
+STATUS streamErrorReportAggregate(UINT64 customData, STREAM_HANDLE streamHandle, UPLOAD_HANDLE uploadHandle, UINT64 errorTimestamp,
+                                  STATUS errorStatus)
 {
     STATUS retStatus = STATUS_SUCCESS;
     PCallbacksProvider pCallbacksProvider = (PCallbacksProvider) customData;
@@ -1315,9 +1221,8 @@ STATUS streamErrorReportAggregate(UINT64 customData, STREAM_HANDLE streamHandle,
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].streamErrorReportFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamErrorReportFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle,
-                    uploadHandle, errorTimestamp, errorStatus);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamErrorReportFn(pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle,
+                                                                                    uploadHandle, errorTimestamp, errorStatus);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1341,9 +1246,8 @@ STATUS fragmentAckReceivedAggregate(UINT64 customData, STREAM_HANDLE streamHandl
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].fragmentAckReceivedFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].fragmentAckReceivedFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle,
-                    uploadHandle, pFragmentAck);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].fragmentAckReceivedFn(pCallbacksProvider->pStreamCallbacks[i].customData,
+                                                                                      streamHandle, uploadHandle, pFragmentAck);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1357,7 +1261,8 @@ CleanUp:
     return retStatus;
 }
 
-STATUS streamDataAvailableAggregate(UINT64 customData, STREAM_HANDLE streamHandle, PCHAR streamName, UPLOAD_HANDLE uploadHandle, UINT64 availableDuration, UINT64 availableSize)
+STATUS streamDataAvailableAggregate(UINT64 customData, STREAM_HANDLE streamHandle, PCHAR streamName, UPLOAD_HANDLE uploadHandle,
+                                    UINT64 availableDuration, UINT64 availableSize)
 {
     STATUS retStatus = STATUS_SUCCESS;
     PCallbacksProvider pCallbacksProvider = (PCallbacksProvider) customData;
@@ -1368,9 +1273,7 @@ STATUS streamDataAvailableAggregate(UINT64 customData, STREAM_HANDLE streamHandl
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].streamDataAvailableFn != NULL) {
             retStatus = pCallbacksProvider->pStreamCallbacks[i].streamDataAvailableFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle,
-                    streamName, uploadHandle,
-                    availableDuration, availableSize);
+                pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle, streamName, uploadHandle, availableDuration, availableSize);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1394,8 +1297,7 @@ STATUS streamReadyAggregate(UINT64 customData, STREAM_HANDLE streamHandle)
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].streamReadyFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamReadyFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamReadyFn(pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1419,8 +1321,8 @@ STATUS streamShutdownAggregate(UINT64 customData, STREAM_HANDLE streamHandle, BO
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].streamShutdownFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamShutdownFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle, resetStream);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamShutdownFn(pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle,
+                                                                                 resetStream);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);
@@ -1444,8 +1346,8 @@ STATUS streamClosedAggregate(UINT64 customData, STREAM_HANDLE streamHandle, UPLO
 
     for (i = 0; i < pCallbacksProvider->streamCallbacksCount; i++) {
         if (pCallbacksProvider->pStreamCallbacks[i].streamClosedFn != NULL) {
-            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamClosedFn(
-                    pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle, uploadHandle);
+            retStatus = pCallbacksProvider->pStreamCallbacks[i].streamClosedFn(pCallbacksProvider->pStreamCallbacks[i].customData, streamHandle,
+                                                                               uploadHandle);
 
             // Break on stop processing
             CHK(retStatus != STATUS_STOP_CALLBACK_CHAIN, STATUS_SUCCESS);

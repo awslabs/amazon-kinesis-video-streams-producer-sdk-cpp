@@ -626,6 +626,7 @@ STATUS doubleListAppendList(PDoubleList pDstList, PDoubleList* ppListToAppend)
     pDstList->count += pListToAppend->count;
     MEMFREE(pListToAppend);
     *ppListToAppend = NULL;
+
 CleanUp:
 
     return retStatus;

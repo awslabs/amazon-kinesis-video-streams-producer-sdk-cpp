@@ -6,20 +6,20 @@
 #include "Include_i.h"
 
 #ifdef HEAP_DEBUG
-    ALLOCATION_HEADER gSysHeader = {0, SYS_ALLOCATION_TYPE, 0, ALLOCATION_HEADER_MAGIC};
-    ALLOCATION_FOOTER gSysFooter = {1, ALLOCATION_FOOTER_MAGIC};
+ALLOCATION_HEADER gSysHeader = {0, SYS_ALLOCATION_TYPE, 0, ALLOCATION_HEADER_MAGIC};
+ALLOCATION_FOOTER gSysFooter = {1, ALLOCATION_FOOTER_MAGIC};
 
-#define SYS_ALLOCATION_FOOTER_SIZE      SIZEOF(gSysFooter)
+#define SYS_ALLOCATION_FOOTER_SIZE SIZEOF(gSysFooter)
 
 #else
-    ALLOCATION_HEADER gSysHeader = {0, SYS_ALLOCATION_TYPE, 0};
-    ALLOCATION_FOOTER gSysFooter = {0};
+ALLOCATION_HEADER gSysHeader = {0, SYS_ALLOCATION_TYPE, 0};
+ALLOCATION_FOOTER gSysFooter = {0};
 
-#define SYS_ALLOCATION_FOOTER_SIZE      0
+#define SYS_ALLOCATION_FOOTER_SIZE 0
 
 #endif
 
-#define SYS_ALLOCATION_HEADER_SIZE      SIZEOF(gSysHeader)
+#define SYS_ALLOCATION_HEADER_SIZE SIZEOF(gSysHeader)
 
 /**
  * Debug print analytics information
@@ -62,6 +62,7 @@ DEFINE_CREATE_HEAP(sysHeapCreate)
     pBaseHeap->getAllocationSizeFn = sysGetAllocationSize;
     pBaseHeap->getAllocationHeaderSizeFn = sysGetAllocationHeaderSize;
     pBaseHeap->getAllocationFooterSizeFn = sysGetAllocationFooterSize;
+    pBaseHeap->getAllocationAlignedSizeFn = sysGetAllocationAlignedSize;
     pBaseHeap->getHeapLimitsFn = sysGetHeapLimits;
 
 CleanUp:
@@ -129,7 +130,7 @@ DEFINE_HEAP_ALLOC(sysHeapAlloc)
     CHK(CHECK_64_BIT || overallSize <= MAX_UINT32, STATUS_INVALID_ALLOCATION_SIZE);
 
     // Perform the allocation
-    if (NULL == (pHeader = (PALLOCATION_HEADER)MEMALLOC((SIZE_T) overallSize))) {
+    if (NULL == (pHeader = (PALLOCATION_HEADER) MEMALLOC((SIZE_T) overallSize))) {
         DLOGV("Failed to allocate %" PRIu64 "bytes from the heap", overallSize);
 
         // Make sure we decrement the counters by calling decrement
@@ -145,13 +146,13 @@ DEFINE_HEAP_ALLOC(sysHeapAlloc)
 #endif
     // Set up the header and footer
     MEMCPY(pHeader, &gSysHeader, SYS_ALLOCATION_HEADER_SIZE);
-    MEMCPY((PBYTE)pHeader + SYS_ALLOCATION_HEADER_SIZE + size, &gSysFooter, SYS_ALLOCATION_FOOTER_SIZE);
+    MEMCPY((PBYTE) pHeader + SYS_ALLOCATION_HEADER_SIZE + size, &gSysFooter, SYS_ALLOCATION_FOOTER_SIZE);
 
     // Fix-up the allocation size
     pHeader->size = size;
 
     // Setting the return value
-    *pHandle = (ALLOCATION_HANDLE)((PBYTE)pHeader + SYS_ALLOCATION_HEADER_SIZE);
+    *pHandle = (ALLOCATION_HANDLE)((PBYTE) pHeader + SYS_ALLOCATION_HEADER_SIZE);
 
 CleanUp:
     LEAVES();
@@ -173,11 +174,11 @@ DEFINE_HEAP_FREE(sysHeapFree)
 
     // This is a direct memory allocation so the memory pointer is stored as a handle
     pAllocation = HANDLE_TO_POINTER(handle);
-    pHeader = (PALLOCATION_HEADER)pAllocation - 1;
+    pHeader = (PALLOCATION_HEADER) pAllocation - 1;
 
 #ifdef HEAP_DEBUG
     // Null the memory in debug mode
-    MEMSET(pHeader, 0x00, (SIZE_T) (SYS_ALLOCATION_HEADER_SIZE + pHeader->size + SYS_ALLOCATION_FOOTER_SIZE));
+    MEMSET(pHeader, 0x00, (SIZE_T)(SYS_ALLOCATION_HEADER_SIZE + pHeader->size + SYS_ALLOCATION_FOOTER_SIZE));
 #endif
 
     // Perform the de-allocation - will cause corruption if invalid pointer is passed in
@@ -198,12 +199,12 @@ DEFINE_HEAP_GET_ALLOC_SIZE(sysHeapGetAllocSize)
     PALLOCATION_HEADER pHeader;
 
     // This heap implementation uses a direct memory allocation so no mapping really needed - just conversion from a handle to memory pointer
-    PVOID pAllocation = (PVOID)HANDLE_TO_POINTER(handle);
+    PVOID pAllocation = (PVOID) HANDLE_TO_POINTER(handle);
 
     // Call the common heap function
     CHK_STATUS(commonHeapGetAllocSize(pHeap, handle, pAllocSize));
 
-    pHeader = (PALLOCATION_HEADER)pAllocation - 1;
+    pHeader = (PALLOCATION_HEADER) pAllocation - 1;
 
     // Set the size
     *pAllocSize = pHeader->size;
@@ -231,12 +232,12 @@ DEFINE_HEAP_SET_ALLOC_SIZE(sysHeapSetAllocSize)
     overallSize = SYS_ALLOCATION_HEADER_SIZE + size + SYS_ALLOCATION_FOOTER_SIZE;
 
     // This heap implementation uses a direct memory allocation so no mapping really needed - just conversion from a handle to memory pointer
-    pAllocation = (PVOID)HANDLE_TO_POINTER(*pHandle);
+    pAllocation = (PVOID) HANDLE_TO_POINTER(*pHandle);
 
-    pExistingHeader = (PALLOCATION_HEADER)pAllocation - 1;
+    pExistingHeader = (PALLOCATION_HEADER) pAllocation - 1;
 
     // Re-allocation might return a different pointer
-    if (NULL == (pNewHeader = (PALLOCATION_HEADER)MEMREALLOC(pExistingHeader, (SIZE_T) overallSize))) {
+    if (NULL == (pNewHeader = (PALLOCATION_HEADER) MEMREALLOC(pExistingHeader, (SIZE_T) overallSize))) {
         DLOGV("Failed to reallocate %" PRIu64 "bytes from the heap", overallSize);
 
         // Make sure we reset the overall size on failure
@@ -251,18 +252,18 @@ DEFINE_HEAP_SET_ALLOC_SIZE(sysHeapSetAllocSize)
     }
 
 #ifdef HEAP_DEBUG
-        // Null the memory in debug mode
+    // Null the memory in debug mode
     MEMSET(pNewHeader, 0x00, (SIZE_T) overallSize);
 #endif
     // Set up the header and footer
     MEMCPY(pNewHeader, &gSysHeader, SYS_ALLOCATION_HEADER_SIZE);
-    MEMCPY((PBYTE)pNewHeader + SYS_ALLOCATION_HEADER_SIZE + newSize, &gSysFooter, SYS_ALLOCATION_FOOTER_SIZE);
+    MEMCPY((PBYTE) pNewHeader + SYS_ALLOCATION_HEADER_SIZE + newSize, &gSysFooter, SYS_ALLOCATION_FOOTER_SIZE);
 
     // Fix-up the allocation size
     pNewHeader->size = newSize;
 
     // Setting the return value
-    *pHandle = (ALLOCATION_HANDLE)((PBYTE)pNewHeader + SYS_ALLOCATION_HEADER_SIZE);
+    *pHandle = (ALLOCATION_HANDLE)((PBYTE) pNewHeader + SYS_ALLOCATION_HEADER_SIZE);
 
 CleanUp:
     LEAVES();
@@ -279,13 +280,13 @@ DEFINE_HEAP_MAP(sysHeapMap)
     PALLOCATION_HEADER pHeader;
 
     // This heap implementation uses a direct memory allocation so no mapping really needed - just conversion from a handle to memory pointer
-    PVOID pAllocation = (PVOID)HANDLE_TO_POINTER(handle);
+    PVOID pAllocation = (PVOID) HANDLE_TO_POINTER(handle);
 
     // Call the common heap function
     CHK_STATUS(commonHeapMap(pHeap, handle, ppAllocation, pSize));
 
     *ppAllocation = pAllocation;
-    pHeader = (PALLOCATION_HEADER)pAllocation - 1;
+    pHeader = (PALLOCATION_HEADER) pAllocation - 1;
 
     // Set the size
     *pSize = pHeader->size;
@@ -321,11 +322,16 @@ DEFINE_FOOTER_SIZE(sysGetAllocationFooterSize)
     return SYS_ALLOCATION_FOOTER_SIZE;
 }
 
+DEFINE_ALIGNED_SIZE(sysGetAllocationAlignedSize)
+{
+    return size;
+}
+
 DEFINE_ALLOC_SIZE(sysGetAllocationSize)
 {
     // This is a direct allocation
-    PVOID pAllocation = (PVOID)HANDLE_TO_POINTER(handle);
-    PALLOCATION_HEADER pHeader = (PALLOCATION_HEADER)pAllocation - 1;
+    PVOID pAllocation = (PVOID) HANDLE_TO_POINTER(handle);
+    PALLOCATION_HEADER pHeader = (PALLOCATION_HEADER) pAllocation - 1;
 
 #ifdef HEAP_DEBUG
     // Check the allocation 'guard band' in debug mode

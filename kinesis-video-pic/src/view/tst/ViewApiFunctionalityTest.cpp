@@ -3,12 +3,6 @@
 class ViewApiFunctionalityTest : public ViewTestBase {
 };
 
-PContentView gContentView = NULL;
-UINT64 gCustomData = 0;
-ViewItem gViewItem;
-BOOL gCurrent = FALSE;
-UINT32 gCallCount = 0;
-
 #define MAX_VIEW_ITERATION_COUNT 50
 #define VIEW_ITEM_DURATION 10
 #define VIEW_ITEM_DURATION_LARGE 20
@@ -18,7 +12,7 @@ UINT32 gCallCount = 0;
 TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
 {
     UINT64 index, curIndex;
-    BOOL itemExists, currentAvailability, windowAvailability;
+    BOOL itemExists, windowAvailability;
     PViewItem pViewItem;
     UINT64 timestamp = 0, currentDuration = 0, windowDuration = 0;
     UINT64 currentSize = 0, windowSize = 0;
@@ -28,9 +22,8 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
 
     // Add/check
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITERATION_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
-        currentAvailability = windowAvailability = FALSE;
-        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-        EXPECT_TRUE(currentAvailability);
+        windowAvailability = FALSE;
+        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
         EXPECT_TRUE(windowAvailability);
         EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, VIEW_ITEM_ALLOCAITON_SIZE, ITEM_FLAG_FRAGMENT_START));
 
@@ -71,9 +64,8 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetItemWithTimestamp(mContentView, pViewItem->timestamp + pViewItem->duration - 1, !CHECK_AGAINST_ACKTIMESTAMP, &pViewItem));
     }
 
-    currentAvailability = windowAvailability = FALSE;
-    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-    EXPECT_TRUE(currentAvailability);
+    windowAvailability = FALSE;
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
     EXPECT_TRUE(windowAvailability);
 
     // Get next/iterate
@@ -101,9 +93,8 @@ TEST_F(ViewApiFunctionalityTest, SimpleAddGet)
         EXPECT_EQ(index, pViewItem->index);
     }
 
-    currentAvailability = windowAvailability = FALSE;
-    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-    EXPECT_TRUE(currentAvailability);
+    windowAvailability = FALSE;
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
     EXPECT_TRUE(windowAvailability);
 
     // Get the current and window durations
@@ -295,6 +286,222 @@ TEST_F(ViewApiFunctionalityTest, AddGetSetCurrentRemoveAll)
     EXPECT_EQ(MAX_VIEW_ITERATION_COUNT, gCallCount);
 }
 
+TEST_F(ViewApiFunctionalityTest, overflowBufferDurationWithDropUntilFragmentStart)
+{
+    const UINT64 KEY_FRAME_INTERVAL = 25;
+    const UINT64 FPS = 25;
+    const UINT64 TEST_VIEW_ITEM_DURATION = HUNDREDS_OF_NANOS_IN_A_SECOND / FPS;
+    const UINT64 TEST_MAX_BUFFER_DURATION = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    UINT64 timestamp = 0;
+    UINT32 i;
+
+    // buffer duration will run out first
+    CreateContentView(CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START, 10000, TEST_MAX_BUFFER_DURATION);
+
+    for(i = 0; i < 2 * FPS; ++i) {
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                     timestamp,
+                                                     timestamp,
+                                                     TEST_VIEW_ITEM_DURATION,
+                                                     INVALID_ALLOCATION_HANDLE_VALUE,
+                                                     0,
+                                                     VIEW_ITEM_ALLOCAITON_SIZE,
+                                                     i % KEY_FRAME_INTERVAL == 0 ? ITEM_FLAG_FRAGMENT_START : ITEM_FLAG_NONE));
+
+        timestamp += TEST_VIEW_ITEM_DURATION;
+    }
+
+    // content view should be full now, can no frame should be dropped yet.
+    EXPECT_EQ(0, gCallCount);
+
+    // should trigger a fragment getting dropped
+    EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                 timestamp,
+                                                 timestamp,
+                                                 TEST_VIEW_ITEM_DURATION,
+                                                 INVALID_ALLOCATION_HANDLE_VALUE,
+                                                 0,
+                                                 VIEW_ITEM_ALLOCAITON_SIZE,
+                                                 i % KEY_FRAME_INTERVAL == 0 ? ITEM_FLAG_FRAGMENT_START : ITEM_FLAG_NONE));
+    // entire fragment should get dropped
+    EXPECT_EQ(gCallCount, KEY_FRAME_INTERVAL);
+}
+
+TEST_F(ViewApiFunctionalityTest, overflowItemCountWithDropUntilFragmentStart)
+{
+    const UINT64 KEY_FRAME_INTERVAL = 25;
+    const UINT64 FPS = 25;
+    const UINT64 TEST_VIEW_ITEM_DURATION = HUNDREDS_OF_NANOS_IN_A_SECOND / FPS;
+    const UINT64 TEST_MAX_BUFFER_DURATION = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    UINT64 timestamp = 0;
+    UINT32 i;
+
+    // max view item count will run out first
+    CreateContentView(CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START, 2 * FPS, 100 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
+    for(i = 0; i < 2 * FPS; ++i) {
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                     timestamp,
+                                                     timestamp,
+                                                     TEST_VIEW_ITEM_DURATION,
+                                                     INVALID_ALLOCATION_HANDLE_VALUE,
+                                                     0,
+                                                     VIEW_ITEM_ALLOCAITON_SIZE,
+                                                     i % KEY_FRAME_INTERVAL == 0 ? ITEM_FLAG_FRAGMENT_START : ITEM_FLAG_NONE));
+
+        timestamp += TEST_VIEW_ITEM_DURATION;
+    }
+
+    // content view should be full now, can no frame should be dropped yet.
+    EXPECT_EQ(0, gCallCount);
+
+    // should trigger a fragment getting dropped
+    EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                 timestamp,
+                                                 timestamp,
+                                                 TEST_VIEW_ITEM_DURATION,
+                                                 INVALID_ALLOCATION_HANDLE_VALUE,
+                                                 0,
+                                                 VIEW_ITEM_ALLOCAITON_SIZE,
+                                                 i % KEY_FRAME_INTERVAL == 0 ? ITEM_FLAG_FRAGMENT_START : ITEM_FLAG_NONE));
+    // entire fragment should get dropped
+    EXPECT_EQ(gCallCount, KEY_FRAME_INTERVAL);
+}
+
+TEST_F(ViewApiFunctionalityTest, dropUntilFragmentStartDropsEntireContentView)
+{
+    const UINT64 KEY_FRAME_INTERVAL = 25;
+    const UINT64 FPS = 25;
+    const UINT64 TEST_VIEW_ITEM_DURATION = HUNDREDS_OF_NANOS_IN_A_SECOND / FPS;
+    const UINT64 TEST_MAX_BUFFER_DURATION = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    UINT64 timestamp = 0;
+    UINT32 i;
+
+    // In DropUntilFragmentStart mode, entire content view would get dropped if content view can only fit one fragment
+    // Only fit one fragment as limited by FPS
+    CreateContentView(CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START, FPS, 100 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+
+    for(i = 0; i < FPS; ++i) {
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                     timestamp,
+                                                     timestamp,
+                                                     TEST_VIEW_ITEM_DURATION,
+                                                     INVALID_ALLOCATION_HANDLE_VALUE,
+                                                     0,
+                                                     VIEW_ITEM_ALLOCAITON_SIZE,
+                                                     i % KEY_FRAME_INTERVAL == 0 ? ITEM_FLAG_FRAGMENT_START : ITEM_FLAG_NONE));
+
+        timestamp += TEST_VIEW_ITEM_DURATION;
+    }
+
+    // content view should be full now, can no frame should be dropped yet.
+    EXPECT_EQ(0, gCallCount);
+
+    // should trigger a fragment getting dropped
+    EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                 timestamp,
+                                                 timestamp,
+                                                 TEST_VIEW_ITEM_DURATION,
+                                                 INVALID_ALLOCATION_HANDLE_VALUE,
+                                                 0,
+                                                 VIEW_ITEM_ALLOCAITON_SIZE,
+                                                 i % KEY_FRAME_INTERVAL == 0 ? ITEM_FLAG_FRAGMENT_START : ITEM_FLAG_NONE));
+    // entire view get dropped
+    EXPECT_EQ(gCallCount, KEY_FRAME_INTERVAL);
+}
+
+TEST_F(ViewApiFunctionalityTest, dropUntilFragmentStartDropsUntilStreamStart)
+{
+    const UINT64 KEY_FRAME_INTERVAL = 25;
+    const UINT64 FPS = 25;
+    const UINT64 TEST_VIEW_ITEM_DURATION = HUNDREDS_OF_NANOS_IN_A_SECOND / FPS;
+    const UINT64 TEST_MAX_BUFFER_DURATION = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    UINT64 timestamp = 0;
+    UINT32 i;
+
+    // limited by buffer duration
+    CreateContentView(CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START, INT16_MAX, TEST_MAX_BUFFER_DURATION);
+
+    for(i = 0; i < 2 * FPS; ++i) {
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                     timestamp,
+                                                     timestamp,
+                                                     TEST_VIEW_ITEM_DURATION,
+                                                     INVALID_ALLOCATION_HANDLE_VALUE,
+                                                     0,
+                                                     VIEW_ITEM_ALLOCAITON_SIZE,
+                                                     i % KEY_FRAME_INTERVAL == 0 ?
+                                                     ITEM_FLAG_FRAGMENT_START | ITEM_FLAG_STREAM_START : // stream starts are also fragment start
+                                                     ITEM_FLAG_NONE));
+
+        timestamp += TEST_VIEW_ITEM_DURATION;
+    }
+
+    // content view should be full now, can no frame should be dropped yet.
+    EXPECT_EQ(0, gCallCount);
+
+    // should trigger a fragment getting dropped
+    EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                 timestamp,
+                                                 timestamp,
+                                                 TEST_VIEW_ITEM_DURATION,
+                                                 INVALID_ALLOCATION_HANDLE_VALUE,
+                                                 0,
+                                                 VIEW_ITEM_ALLOCAITON_SIZE,
+                                                 ITEM_FLAG_FRAGMENT_START | ITEM_FLAG_STREAM_START));
+    // only one fragment get dropped
+    EXPECT_EQ(gCallCount, FPS);
+}
+
+TEST_F(ViewApiFunctionalityTest, dropUntilFragmentStartDropsItemWithEndOfFragmentFlag)
+{
+    const UINT64 KEY_FRAME_INTERVAL = 25;
+    const UINT64 FPS = 25;
+    const UINT64 TEST_VIEW_ITEM_DURATION = HUNDREDS_OF_NANOS_IN_A_SECOND / FPS;
+    const UINT64 TEST_MAX_BUFFER_DURATION = 2 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    UINT64 timestamp = 0;
+    UINT32 i, viewItemFlag;
+
+    // limited by buffer duration
+    CreateContentView(CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START, INT16_MAX, TEST_MAX_BUFFER_DURATION);
+
+    for(i = 0; i < 2 * FPS; ++i) {
+        if (i % KEY_FRAME_INTERVAL == 0) {
+            viewItemFlag = ITEM_FLAG_FRAGMENT_START;
+        } else if ((i + 1) % KEY_FRAME_INTERVAL == 0) {
+            // add ITEM_FLAG_FRAGMENT_END flag to last frame of each fragment
+            viewItemFlag = ITEM_FLAG_FRAGMENT_END;
+        } else {
+            viewItemFlag = ITEM_FLAG_NONE;
+        }
+        EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                     timestamp,
+                                                     timestamp,
+                                                     TEST_VIEW_ITEM_DURATION,
+                                                     INVALID_ALLOCATION_HANDLE_VALUE,
+                                                     0,
+                                                     VIEW_ITEM_ALLOCAITON_SIZE,
+                                                     viewItemFlag));
+
+        timestamp += TEST_VIEW_ITEM_DURATION;
+    }
+
+    // content view should be full now, can no frame should be dropped yet.
+    EXPECT_EQ(0, gCallCount);
+
+    // should trigger a fragment getting dropped
+    EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView,
+                                                 timestamp,
+                                                 timestamp,
+                                                 TEST_VIEW_ITEM_DURATION,
+                                                 INVALID_ALLOCATION_HANDLE_VALUE,
+                                                 0,
+                                                 VIEW_ITEM_ALLOCAITON_SIZE,
+                                                 ITEM_FLAG_FRAGMENT_START));
+    // only one fragment get dropped, including the view item with ITEM_FLAG_FRAGMENT_END flag
+    EXPECT_EQ(gCallCount, FPS);
+}
+
 TEST_F(ViewApiFunctionalityTest, OverflowCheck)
 {
     UINT64 index, curIndex;
@@ -377,45 +584,41 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeCurrent)
 {
     UINT32 index;
     UINT64 timestamp;
-    BOOL currentAvailability, windowAvailability;
+    BOOL windowAvailability;
 
     CreateContentView();
 
     // Add/check overflow on size
     for (timestamp = 0, index = 0; index < 2 * MAX_VIEW_ITEM_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
         // Check availability before
-        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-        EXPECT_EQ(index < MAX_VIEW_ITEM_COUNT ? TRUE : FALSE, currentAvailability) << "Failed on index: " << index;
+        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
         EXPECT_EQ(index < MAX_VIEW_ITEM_COUNT ? TRUE : FALSE, windowAvailability) << "Failed on index: " << index;
 
         // Add the item
         EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
 
         if (index < MAX_VIEW_ITEM_COUNT) {
-            EXPECT_EQ(0, gCustomData);
             EXPECT_EQ(NULL, gContentView);
             EXPECT_EQ(0, gViewItem.timestamp);
             EXPECT_FALSE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
             EXPECT_EQ(0, gViewItem.duration);
             EXPECT_EQ(0, gViewItem.handle);
             EXPECT_EQ(0, gViewItem.index);
-            EXPECT_FALSE(gCurrent);
+            EXPECT_FALSE(gFrameDropped);
         } else {
-            EXPECT_EQ(VIEW_NOTIFICATION_CALLBACK_CUSTOM_DATA, gCustomData);
             EXPECT_EQ(mContentView, gContentView);
             EXPECT_EQ(index - MAX_VIEW_ITEM_COUNT, gViewItem.index);
             EXPECT_EQ(INVALID_ALLOCATION_HANDLE_VALUE, gViewItem.handle);
             EXPECT_EQ(VIEW_ITEM_DURATION, gViewItem.duration);
             EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
             EXPECT_EQ((index - MAX_VIEW_ITEM_COUNT) * VIEW_ITEM_DURATION, gViewItem.timestamp);
-            EXPECT_TRUE(gCurrent);
+            EXPECT_TRUE(gFrameDropped);
         }
     }
 
     // Set the current and check for availability
     EXPECT_EQ(STATUS_SUCCESS, contentViewSetCurrentIndex(mContentView, MAX_VIEW_ITEM_COUNT + 1));
-    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-    EXPECT_TRUE(currentAvailability);
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
     EXPECT_FALSE(windowAvailability);
 }
 
@@ -423,47 +626,42 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackAvailability)
 {
     UINT32 index;
     UINT64 timestamp;
-    BOOL currentAvailability, windowAvailability;
+    BOOL windowAvailability;
 
     CreateContentView();
 
     // Add/check overflow on size
     for (timestamp = 0, index = 0; index < MAX_VIEW_ITEM_COUNT; index++, timestamp += VIEW_ITEM_DURATION) {
         // Check availability before
-        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-        EXPECT_EQ(index < MAX_VIEW_ITEM_COUNT ? TRUE : FALSE, currentAvailability) << "Failed on index: " << index;
+        EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
         EXPECT_EQ(index < MAX_VIEW_ITEM_COUNT ? TRUE : FALSE, windowAvailability) << "Failed on index: " << index;
 
         // Add the item
         EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
 
-        EXPECT_EQ(0, gCustomData);
         EXPECT_EQ(NULL, gContentView);
         EXPECT_EQ(0, gViewItem.timestamp);
         EXPECT_FALSE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
         EXPECT_EQ(0, gViewItem.duration);
         EXPECT_EQ(0, gViewItem.handle);
         EXPECT_EQ(0, gViewItem.index);
-        EXPECT_FALSE(gCurrent);
+        EXPECT_FALSE(gFrameDropped);
     }
 
     // There should be no availability
-    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-    EXPECT_FALSE(currentAvailability);
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
     EXPECT_FALSE(windowAvailability);
     EXPECT_EQ(0, gCallCount);
 
     // Set the current and check for availability
     EXPECT_EQ(STATUS_SUCCESS, contentViewSetCurrentIndex(mContentView, MAX_VIEW_ITEM_COUNT - 1));
-    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-    EXPECT_TRUE(currentAvailability);
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
     EXPECT_FALSE(windowAvailability);
     EXPECT_EQ(0, gCallCount);
 
     // Add an item and ensure the callback is called
     EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp + VIEW_ITEM_DURATION, timestamp + VIEW_ITEM_DURATION, VIEW_ITEM_DURATION, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
-    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &currentAvailability, &windowAvailability));
-    EXPECT_TRUE(currentAvailability);
+    EXPECT_EQ(STATUS_SUCCESS, contentViewCheckAvailability(mContentView, &windowAvailability));
     EXPECT_FALSE(windowAvailability);
     EXPECT_EQ(1, gCallCount);
 }
@@ -482,23 +680,21 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackSizeTail)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetNext(mContentView, &pViewItem));
 
         if (index < MAX_VIEW_ITEM_COUNT) {
-            EXPECT_EQ(0, gCustomData);
             EXPECT_EQ(NULL, gContentView);
             EXPECT_EQ(0, gViewItem.timestamp);
             EXPECT_FALSE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
             EXPECT_EQ(0, gViewItem.duration);
             EXPECT_EQ(0, gViewItem.handle);
             EXPECT_EQ(0, gViewItem.index);
-            EXPECT_FALSE(gCurrent);
+            EXPECT_FALSE(gFrameDropped);
         } else {
-            EXPECT_EQ(VIEW_NOTIFICATION_CALLBACK_CUSTOM_DATA, gCustomData);
             EXPECT_EQ(mContentView, gContentView);
             EXPECT_EQ(index - MAX_VIEW_ITEM_COUNT, gViewItem.index);
             EXPECT_EQ(INVALID_ALLOCATION_HANDLE_VALUE, gViewItem.handle);
             EXPECT_EQ(VIEW_ITEM_DURATION, gViewItem.duration);
             EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
             EXPECT_EQ((index - MAX_VIEW_ITEM_COUNT) * VIEW_ITEM_DURATION, gViewItem.timestamp);
-            EXPECT_FALSE(gCurrent);
+            EXPECT_TRUE(gFrameDropped);
         }
     }
 }
@@ -515,23 +711,21 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationCurrent)
         EXPECT_EQ(STATUS_SUCCESS, contentViewAddItem(mContentView, timestamp, timestamp, VIEW_ITEM_DURATION_LARGE, INVALID_ALLOCATION_HANDLE_VALUE, 0, 1, ITEM_FLAG_FRAGMENT_START));
 
         if (index < MAX_VIEW_ITEM_COUNT / 2) {
-            EXPECT_EQ(0, gCustomData);
             EXPECT_EQ(NULL, gContentView);
             EXPECT_EQ(0, gViewItem.timestamp);
             EXPECT_FALSE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
             EXPECT_EQ(0, gViewItem.duration);
             EXPECT_EQ(0, gViewItem.handle);
             EXPECT_EQ(0, gViewItem.index);
-            EXPECT_FALSE(gCurrent);
+            EXPECT_FALSE(gFrameDropped);
         } else {
-            EXPECT_EQ(VIEW_NOTIFICATION_CALLBACK_CUSTOM_DATA, gCustomData);
             EXPECT_EQ(mContentView, gContentView);
             EXPECT_EQ(index - MAX_VIEW_ITEM_COUNT / 2, gViewItem.index);
             EXPECT_EQ(INVALID_ALLOCATION_HANDLE_VALUE, gViewItem.handle);
             EXPECT_EQ(VIEW_ITEM_DURATION_LARGE, gViewItem.duration);
             EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
             EXPECT_EQ((index - MAX_VIEW_ITEM_COUNT / 2) * VIEW_ITEM_DURATION_LARGE, gViewItem.timestamp);
-            EXPECT_TRUE(gCurrent);
+            EXPECT_TRUE(gFrameDropped);
         }
     }
 }
@@ -550,23 +744,21 @@ TEST_F(ViewApiFunctionalityTest, OverflowNotificationCallbackDurationTail)
         EXPECT_EQ(STATUS_SUCCESS, contentViewGetNext(mContentView, &pViewItem));
 
         if (index < MAX_VIEW_ITEM_COUNT / 2) {
-            EXPECT_EQ(0, gCustomData);
             EXPECT_EQ(NULL, gContentView);
             EXPECT_EQ(0, gViewItem.timestamp);
             EXPECT_FALSE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
             EXPECT_EQ(0, gViewItem.duration);
             EXPECT_EQ(0, gViewItem.handle);
             EXPECT_EQ(0, gViewItem.index);
-            EXPECT_FALSE(gCurrent);
+            EXPECT_FALSE(gFrameDropped);
         } else {
-            EXPECT_EQ(VIEW_NOTIFICATION_CALLBACK_CUSTOM_DATA, gCustomData);
             EXPECT_EQ(mContentView, gContentView);
             EXPECT_EQ(index - MAX_VIEW_ITEM_COUNT / 2, gViewItem.index);
             EXPECT_EQ(INVALID_ALLOCATION_HANDLE_VALUE, gViewItem.handle);
             EXPECT_EQ(VIEW_ITEM_DURATION_LARGE, gViewItem.duration);
             EXPECT_TRUE(CHECK_ITEM_FRAGMENT_START(gViewItem.flags));
             EXPECT_EQ((index - MAX_VIEW_ITEM_COUNT / 2) * VIEW_ITEM_DURATION_LARGE, gViewItem.timestamp);
-            EXPECT_FALSE(gCurrent);
+            EXPECT_TRUE(gFrameDropped);
         }
     }
 }
@@ -1172,7 +1364,7 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
     EXPECT_EQ(STATUS_SUCCESS, contentViewTrimTail(mContentView, 0));
     EXPECT_EQ(0, gViewItem.index);
     EXPECT_EQ(0, gCallCount);
-    EXPECT_FALSE(gCurrent);
+    EXPECT_FALSE(gFrameDropped);
 
     // Ensure tail hasn't been affected
     EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pTail));
@@ -1182,7 +1374,7 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
     EXPECT_EQ(STATUS_SUCCESS, contentViewTrimTail(mContentView, 1));
     EXPECT_EQ(0, gViewItem.index);
     EXPECT_EQ(1, gCallCount);
-    EXPECT_TRUE(gCurrent);
+    EXPECT_TRUE(gFrameDropped);
 
     EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pTail));
     EXPECT_EQ(1, pTail->index);
@@ -1192,7 +1384,7 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
     EXPECT_EQ(STATUS_SUCCESS, contentViewTrimTail(mContentView, 5));
     EXPECT_EQ(4, gViewItem.index);
     EXPECT_EQ(5, gCallCount);
-    EXPECT_FALSE(gCurrent);
+    EXPECT_FALSE(gFrameDropped);
 
     EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pTail));
     EXPECT_EQ(5, pTail->index);
@@ -1200,7 +1392,7 @@ TEST_F(ViewApiFunctionalityTest, contentViewTrimTail)
     // trim all the way
     EXPECT_EQ(STATUS_SUCCESS, contentViewTrimTail(mContentView, pHead->index));
     EXPECT_EQ(pHead->index - 1, gViewItem.index);
-    EXPECT_TRUE(gCurrent);
+    EXPECT_TRUE(gFrameDropped);
 
     EXPECT_EQ(STATUS_SUCCESS, contentViewGetTail(mContentView, &pTail));
     EXPECT_EQ(pHead->index, pTail->index);

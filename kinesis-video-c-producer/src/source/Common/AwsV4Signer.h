@@ -6,80 +6,81 @@ AWS V4 Signer internal include file
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
-
-#define AWS_SIG_V4_HEADER_AMZ_DATE              (PCHAR) "X-Amz-Date"
-#define AWS_SIG_V4_HEADER_AMZ_SECURITY_TOKEN    (PCHAR) "x-amz-security-token"
-#define AWS_SIG_V4_HEADER_AUTH                  (PCHAR) "Authorization"
-#define AWS_SIG_V4_HEADER_HOST                  (PCHAR) "host"
-#define AWS_SIG_V4_ALGORITHM                    (PCHAR) "AWS4-HMAC-SHA256"
-#define AWS_SIG_V4_SIGNATURE_END                (PCHAR) "aws4_request"
-#define AWS_SIG_V4_SIGNATURE_START              (PCHAR) "AWS4"
-#define AWS_SIG_V4_CONTENT_TYPE_NAME            (PCHAR) "content-type"
-#define AWS_SIG_V4_CONTENT_LENGTH_NAME          (PCHAR) "content-length"
-#define AWS_SIG_V4_CONTENT_TYPE_VALUE           (PCHAR) "application/json"
+#define AWS_SIG_V4_HEADER_AMZ_DATE           (PCHAR) "X-Amz-Date"
+#define AWS_SIG_V4_HEADER_AMZ_SECURITY_TOKEN (PCHAR) "x-amz-security-token"
+#define AWS_SIG_V4_HEADER_AUTH               (PCHAR) "Authorization"
+#define AWS_SIG_V4_HEADER_HOST               (PCHAR) "host"
+#define AWS_SIG_V4_ALGORITHM                 (PCHAR) "AWS4-HMAC-SHA256"
+#define AWS_SIG_V4_SIGNATURE_END             (PCHAR) "aws4_request"
+#define AWS_SIG_V4_SIGNATURE_START           (PCHAR) "AWS4"
+#define AWS_SIG_V4_CONTENT_TYPE_NAME         (PCHAR) "content-type"
+#define AWS_SIG_V4_CONTENT_LENGTH_NAME       (PCHAR) "content-length"
+#define AWS_SIG_V4_CONTENT_TYPE_VALUE        (PCHAR) "application/json"
 
 // Datetime string length
-#define SIGNATURE_DATE_TIME_STRING_LEN          17
+#define SIGNATURE_DATE_TIME_STRING_LEN 17
 
 // Date only string length
-#define SIGNATURE_DATE_STRING_LEN               8
+#define SIGNATURE_DATE_STRING_LEN 8
 
 // Scratch buffer extra allocation
-#define SCRATCH_BUFFER_EXTRA                    10000
+#define SCRATCH_BUFFER_EXTRA 10000
 
-#define MAX_CREDENTIAL_SCOPE_LEN                asd
+#define MAX_CREDENTIAL_SCOPE_LEN asd
 
 // Hex encoded signature len
-#define AWS_SIGV4_SIGNATURE_STRING_LEN          (EVP_MAX_MD_SIZE * 2)
+#define AWS_SIGV4_SIGNATURE_STRING_LEN (EVP_MAX_MD_SIZE * 2)
 
 // Datetime string format
-#define DATE_TIME_STRING_FORMAT                 (PCHAR) "%Y%m%dT%H%M%SZ"
+#define DATE_TIME_STRING_FORMAT (PCHAR) "%Y%m%dT%H%M%SZ"
 
 // Template for the credential scope
-#define CREDENTIAL_SCOPE_TEMPLATE               "%.*s/%s/%s/%s"
+#define CREDENTIAL_SCOPE_TEMPLATE "%.*s/%s/%s/%s"
 
 // Template for the URL encoded credentials
-#define URL_ENCODED_CREDENTIAL_TEMPLATE         "%.*s/%.*s/%s/%s/%s"
+#define URL_ENCODED_CREDENTIAL_TEMPLATE "%.*s/%.*s/%s/%s/%s"
 
 // Template for the signed string
-#define SIGNED_STRING_TEMPLATE                  "%s\n%s\n%s\n%s"
+#define SIGNED_STRING_TEMPLATE "%s\n%s\n%s\n%s"
 
 // Authentication header template
-#define AUTH_HEADER_TEMPLATE                    "%s Credential=%.*s/%s, SignedHeaders=%.*s, Signature=%s"
+#define AUTH_HEADER_TEMPLATE "%s Credential=%.*s/%s, SignedHeaders=%.*s, Signature=%s"
 
 // Authentication query template
-#define AUTH_QUERY_TEMPLATE                     "&X-Amz-Algorithm=%s&X-Amz-Credential=%s&X-Amz-Date=%s&X-Amz-Expires=%u&X-Amz-SignedHeaders=%.*s"
+#define AUTH_QUERY_TEMPLATE "&X-Amz-Algorithm=%s&X-Amz-Credential=%s&X-Amz-Date=%s&X-Amz-Expires=%u&X-Amz-SignedHeaders=%.*s"
 
 // Token query param template
-#define SECURITY_TOKEN_PARAM_TEMPLATE           "&X-Amz-Security-Token=%s"
+#define SECURITY_TOKEN_PARAM_TEMPLATE "&X-Amz-Security-Token=%s"
 
 // Authentication query template
-#define AUTH_QUERY_TEMPLATE_WITH_TOKEN          "&X-Amz-Algorithm=%s&X-Amz-Credential=%s&X-Amz-Date=%s&X-Amz-Expires=%u&X-Amz-SignedHeaders=%.*s" SECURITY_TOKEN_PARAM_TEMPLATE
+#define AUTH_QUERY_TEMPLATE_WITH_TOKEN                                                                                                               \
+    "&X-Amz-Algorithm=%s&X-Amz-Credential=%s&X-Amz-Date=%s&X-Amz-Expires=%u&X-Amz-SignedHeaders=%.*s" SECURITY_TOKEN_PARAM_TEMPLATE
 
 // Signature query param template
-#define SIGNATURE_PARAM_TEMPLATE                "&X-Amz-Signature=%s"
+#define SIGNATURE_PARAM_TEMPLATE "&X-Amz-Signature=%s"
 
 // Max string length for the request verb - no NULL terminator
-#define MAX_REQUEST_VERB_STRING_LEN             4
+#define MAX_REQUEST_VERB_STRING_LEN 4
 
 // Max and min expiration in seconds
 #define MAX_AWS_SIGV4_CREDENTIALS_EXPIRATION_IN_SECONDS 604800
 #define MIN_AWS_SIGV4_CREDENTIALS_EXPIRATION_IN_SECONDS 1
 
 // Checks whether a canonical header
-#define IS_CANONICAL_HEADER_NAME(h)             ((0 != STRCMP((h), AWS_SIG_V4_HEADER_AMZ_SECURITY_TOKEN)) && \
-                                                (0 != STRCMP((h), AWS_SIG_V4_CONTENT_TYPE_NAME)) && \
-                                                (0 != STRCMP((h), AWS_SIG_V4_CONTENT_LENGTH_NAME)) && \
-                                                (0 != STRCMP((h), AWS_SIG_V4_HEADER_AUTH)))
+#define IS_CANONICAL_HEADER_NAME(h)                                                                                                                  \
+    ((0 != STRCMP((h), AWS_SIG_V4_HEADER_AMZ_SECURITY_TOKEN)) && (0 != STRCMP((h), AWS_SIG_V4_CONTENT_TYPE_NAME)) &&                                 \
+     (0 != STRCMP((h), AWS_SIG_V4_CONTENT_LENGTH_NAME)) && (0 != STRCMP((h), AWS_SIG_V4_HEADER_AUTH)))
 
 // URI-encoded backslash value
-#define URI_ENCODED_FORWARD_SLASH               "%2F"
+#define URI_ENCODED_FORWARD_SLASH "%2F"
+
+#define SHA256_DIGEST_LENGTH 32
+
+#define KVS_MAX_HMAC_SIZE 64
 
 ////////////////////////////////////////////////////
 // Function definitions
@@ -251,9 +252,7 @@ STATUS uriDecodeString(PCHAR, UINT32, PCHAR, PUINT32);
  */
 PCHAR getRequestVerbString(HTTP_REQUEST_VERB);
 
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __KINESIS_VIDEO_AWS_V4_SIGNER_INCLUDE_I__ */
+#endif /* __KINESIS_VIDEO_AWS_V4_SIGNER_INCLUDE_I__ */

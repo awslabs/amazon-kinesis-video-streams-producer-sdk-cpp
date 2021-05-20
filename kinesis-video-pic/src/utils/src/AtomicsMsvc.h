@@ -1,20 +1,20 @@
 #ifndef __UTILS_ATOMICS_MSVC__
 #define __UTILS_ATOMICS_MSVC__
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "Include_i.h"
 
 #if !(defined(_M_IX86) || defined(_M_X64))
-#    error Atomics are not currently supported for non-x86 MSVC platforms
+#error Atomics are not currently supported for non-x86 MSVC platforms
 #endif
 
 #ifdef _M_IX86
-#    define INTERLOCKED_OP(x) _Interlocked##x
+#define INTERLOCKED_OP(x) _Interlocked##x
 #else
-#    define INTERLOCKED_OP(x) _Interlocked##x##64
+#define INTERLOCKED_OP(x) _Interlocked##x##64
 #endif
 
 static inline SIZE_T defaultAtomicLoad(volatile SIZE_T* pAtomic)
@@ -65,7 +65,7 @@ static inline SIZE_T defaultAtomicAdd(volatile SIZE_T* pAtomic, SIZE_T var)
 
 static inline SIZE_T defaultAtomicSubtract(volatile SIZE_T* pAtomic, SIZE_T var)
 {
-    return INTERLOCKED_OP(ExchangeAdd)(pAtomic, -(SSIZE_T)var);
+    return INTERLOCKED_OP(ExchangeAdd)(pAtomic, -(SSIZE_T) var);
 }
 
 static inline SIZE_T defaultAtomicAnd(volatile SIZE_T* pAtomic, SIZE_T var)
@@ -83,7 +83,7 @@ static inline SIZE_T defaultAtomicXor(volatile SIZE_T* pAtomic, SIZE_T var)
     return INTERLOCKED_OP(Xor)(pAtomic, var);
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __UTILS_ATOMICS_MSVC__ */
+#endif /* __UTILS_ATOMICS_MSVC__ */

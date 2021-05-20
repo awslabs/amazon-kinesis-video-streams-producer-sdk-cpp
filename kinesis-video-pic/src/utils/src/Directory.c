@@ -65,7 +65,7 @@ STATUS traverseDirectory(PCHAR dirPath, UINT64 userData, BOOL iterate, Directory
     HANDLE hFind = INVALID_HANDLE_VALUE;
     UINT32 error = 0;
 #else
-	UINT32 dirPathLen;
+    UINT32 dirPathLen;
     DIR* pDir = NULL;
     struct dirent* pDirEnt = NULL;
     struct stat entryStat;
@@ -87,9 +87,8 @@ STATUS traverseDirectory(PCHAR dirPath, UINT64 userData, BOOL iterate, Directory
         tempFileName[pathLen] = FPATHSEPARATOR;
         tempFileName[pathLen + 1] = '*';
         tempFileName[pathLen + 2] = '\0';
-        
     }
-    
+
     hFind = FindFirstFile(tempFileName, &findData);
 
     CHK(INVALID_HANDLE_VALUE != hFind, STATUS_DIRECTORY_OPEN_FAILED);
@@ -101,18 +100,17 @@ STATUS traverseDirectory(PCHAR dirPath, UINT64 userData, BOOL iterate, Directory
 
         // Prepare the path
         tempFileName[pathLen] = '\0';
-        
+
         // Check if it's a directory, link, file or unknown
         tempFileName[pathLen] = FPATHSEPARATOR;
         tempFileName[pathLen + 1] = '\0';
         STRNCAT(tempFileName, findData.cFileName, MAX_PATH_LEN - pathLen - 2);
-        
+
         if ((findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
             CHK_STATUS(entryFn(userData, DIR_ENTRY_TYPE_LINK, tempFileName, findData.cFileName));
         } else if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
             // Iterate into sub-directories if specified
             if (iterate) {
-                
                 DLOGE("\r\nDir Path %s, tempFile %s find %s\r\n", dirPath, tempFileName, findData.cFileName);
 
                 // Recurse into the directory
@@ -121,8 +119,7 @@ STATUS traverseDirectory(PCHAR dirPath, UINT64 userData, BOOL iterate, Directory
 
             // Call the callback
             CHK_STATUS(entryFn(userData, DIR_ENTRY_TYPE_DIRECTORY, tempFileName, findData.cFileName));
-        }
-        else {
+        } else {
             // Treat as if a normal file
             CHK_STATUS(entryFn(userData, DIR_ENTRY_TYPE_FILE, tempFileName, findData.cFileName));
         }
@@ -161,7 +158,7 @@ CleanUp:
         if ((0 == STRCMP(pDirEnt->d_name, ".")) || (0 == STRCMP(pDirEnt->d_name, ".."))) {
             continue;
         }
-       
+
         // Prepare the path
         tempFileName[pathLen] = '\0';
 

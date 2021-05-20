@@ -21,6 +21,7 @@ build_test=FALSE
 build_gst_artifact=TRUE
 build_jni_only=FALSE
 build_producer=TRUE
+use_openssl=TRUE
 env_var=""
 cmake_args=""
 on_rpi=FALSE
@@ -212,7 +213,7 @@ fi
 
 cmake_args="-DCMAKE_BUILD_TYPE=${build_type} -DUSE_SYS_LIBRARIES=TRUE \
   -DBUILD_TEST=${build_test} -DBUILD_GST_ARTIFACT=${build_gst_artifact} -DBUILD_PRODUCER=${build_producer} \
-  -DBUILD_JNI=${build_jni_only}"
+  -DBUILD_JNI=${build_jni_only} -DUSE_OPENSSL=${use_openssl} -DUSE_MBEDTLS=FALSE"
 
 if [[ $on_rpi == TRUE ]]; then
   cmake_args="${cmake_args} -DCONSTRAINED_DEVICE=TRUE"

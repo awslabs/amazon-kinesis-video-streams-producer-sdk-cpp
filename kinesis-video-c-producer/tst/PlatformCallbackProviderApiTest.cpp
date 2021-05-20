@@ -40,7 +40,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
                                                                  mCaCertPath,
                                                                  NULL,
                                                                  TEST_USER_AGENT,
-                                                                 FALSE,
+                                                                 API_CALL_CACHE_TYPE_NONE,
                                                                  TEST_CACHING_ENDPOINT_PERIOD,
                                                                  TRUE,
                                                                  &pClientCallbacks));

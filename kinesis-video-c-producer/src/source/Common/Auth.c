@@ -7,7 +7,8 @@
 /**
  * Create credentials object
  */
-STATUS createAwsCredentials(PCHAR accessKeyId, UINT32 accessKeyIdLen, PCHAR secretKey, UINT32 secretKeyLen, PCHAR sessionToken, UINT32 sessionTokenLen, UINT64 expiration, PAwsCredentials* ppAwsCredentials)
+STATUS createAwsCredentials(PCHAR accessKeyId, UINT32 accessKeyIdLen, PCHAR secretKey, UINT32 secretKeyLen, PCHAR sessionToken,
+                            UINT32 sessionTokenLen, UINT64 expiration, PAwsCredentials* ppAwsCredentials)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -58,7 +59,7 @@ STATUS createAwsCredentials(PCHAR accessKeyId, UINT32 accessKeyIdLen, PCHAR secr
     pAwsCredentials->size = size;
 
     // Set the fields to point to the bottom of the structure
-    pCurPtr = (PCHAR) (pAwsCredentials + 1);
+    pCurPtr = (PCHAR)(pAwsCredentials + 1);
 
     // Set the fields and copy the data forward excluding NULL terminator and then null terminate
     pAwsCredentials->accessKeyId = pCurPtr;
@@ -107,13 +108,14 @@ STATUS deserializeAwsCredentials(PBYTE token)
     PAwsCredentials pAwsCredentials = (PAwsCredentials) token;
 
     CHK(token != NULL, STATUS_NULL_ARG);
-    CHK(pAwsCredentials->accessKeyId != NULL && pAwsCredentials->secretKey != NULL
-        && (pAwsCredentials->sessionToken != NULL || pAwsCredentials->sessionTokenLen == 0), STATUS_INVALID_ARG);
+    CHK(pAwsCredentials->accessKeyId != NULL && pAwsCredentials->secretKey != NULL &&
+            (pAwsCredentials->sessionToken != NULL || pAwsCredentials->sessionTokenLen == 0),
+        STATUS_INVALID_ARG);
 
-    pAwsCredentials->accessKeyId = (PCHAR) (pAwsCredentials + 1);
-    pAwsCredentials->secretKey = (PCHAR) (pAwsCredentials->accessKeyId + pAwsCredentials->accessKeyIdLen + 1);
+    pAwsCredentials->accessKeyId = (PCHAR)(pAwsCredentials + 1);
+    pAwsCredentials->secretKey = (PCHAR)(pAwsCredentials->accessKeyId + pAwsCredentials->accessKeyIdLen + 1);
     if (pAwsCredentials->sessionToken != NULL) {
-        pAwsCredentials->sessionToken = (PCHAR) (pAwsCredentials->secretKey + pAwsCredentials->secretKeyLen + 1);
+        pAwsCredentials->sessionToken = (PCHAR)(pAwsCredentials->secretKey + pAwsCredentials->secretKeyLen + 1);
     }
 
 CleanUp:

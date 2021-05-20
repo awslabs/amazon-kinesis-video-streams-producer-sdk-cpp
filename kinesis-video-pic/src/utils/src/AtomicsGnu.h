@@ -1,18 +1,18 @@
 #ifndef __UTILS_ATOMICS_GNU__
 #define __UTILS_ATOMICS_GNU__
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "Include_i.h"
 
 #ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wc11-extensions"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc11-extensions"
 #else
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
 static inline SIZE_T defaultAtomicLoad(volatile SIZE_T* pAtomic)
@@ -70,7 +70,7 @@ static inline SIZE_T defaultAtomicXor(volatile SIZE_T* pAtomic, SIZE_T var)
     return __atomic_fetch_xor(pAtomic, var, __ATOMIC_SEQ_CST);
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __UTILS_ATOMICS_GNU__ */
+#endif /* __UTILS_ATOMICS_GNU__ */

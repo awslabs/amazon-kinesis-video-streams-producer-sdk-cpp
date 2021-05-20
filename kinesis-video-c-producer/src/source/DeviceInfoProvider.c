@@ -48,6 +48,17 @@ STATUS createDefaultDeviceInfo(PDeviceInfo* ppDeviceInfo)
     pDeviceInfo->clientInfo.createClientTimeout = 0;
     pDeviceInfo->clientInfo.createStreamTimeout = 0;
 
+    // v2 ClientInfo fields
+    // automaticStreamingFlags - default is to enable automatic intermittent producer
+    // which means we will properly handle the scenario where video is streamed
+    // for a while then there is a gap and then stream starts again without needing
+    // to close the session and open a new one.
+    //
+    // reservedCallbackPeriod - the value INTERMITTENT_PRODUCER_PERIOD_SENTINEL_VALUE
+    // informs PIC to set an internal default value, it is not recommended to change this value.
+    pDeviceInfo->clientInfo.automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER;
+    pDeviceInfo->clientInfo.reservedCallbackPeriod = INTERMITTENT_PRODUCER_PERIOD_SENTINEL_VALUE;
+
 CleanUp:
 
     if (!STATUS_SUCCEEDED(retStatus)) {
@@ -79,8 +90,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS setDeviceInfoStorageSizeBasedOnBitrateAndBufferDuration(PDeviceInfo pDeviceInfo,
-                                                               UINT64 averageBitsPerSecond, UINT64 bufferDuration)
+STATUS setDeviceInfoStorageSizeBasedOnBitrateAndBufferDuration(PDeviceInfo pDeviceInfo, UINT64 averageBitsPerSecond, UINT64 bufferDuration)
 {
     ENTERS();
     UINT64 estimatedStorageSize = 0;
@@ -89,9 +99,9 @@ STATUS setDeviceInfoStorageSizeBasedOnBitrateAndBufferDuration(PDeviceInfo pDevi
     CHK(pDeviceInfo != NULL, STATUS_NULL_ARG);
     CHK(averageBitsPerSecond > 0 && bufferDuration > 0, STATUS_INVALID_ARG);
 
-    estimatedStorageSize = (UINT64) (pDeviceInfo->streamCount *
-                           (((DOUBLE) averageBitsPerSecond / 8) * ((DOUBLE) bufferDuration / HUNDREDS_OF_NANOS_IN_A_SECOND)) *
-                           STORAGE_ALLOCATION_DEFRAGMENTATION_FACTOR);
+    estimatedStorageSize =
+        (UINT64)(pDeviceInfo->streamCount * (((DOUBLE) averageBitsPerSecond / 8) * ((DOUBLE) bufferDuration / HUNDREDS_OF_NANOS_IN_A_SECOND)) *
+                 STORAGE_ALLOCATION_DEFRAGMENTATION_FACTOR);
 
     CHK_STATUS(setDeviceInfoStorageSize(pDeviceInfo, estimatedStorageSize));
 

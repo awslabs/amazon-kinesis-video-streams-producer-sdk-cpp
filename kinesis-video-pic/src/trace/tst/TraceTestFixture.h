@@ -10,11 +10,8 @@
 #define TEST_TRACE_NAME ((PCHAR) "Test trace name")
 
 class TraceTestBase : public ::testing::Test {
-public:
-    TraceTestBase()
-    {
-    };
+  public:
+    TraceTestBase(){};
 
-protected:
-
+  protected:
 };

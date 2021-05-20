@@ -37,7 +37,7 @@
 #include <mutex>
 #include <atomic>
 #include <gst/base/gstcollectpads.h>
-#include <map>
+#include <unordered_set>
 
 using namespace com::amazonaws::kinesis::video;
 
@@ -60,8 +60,7 @@ G_BEGIN_DECLS
 
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
-
-typedef struct _CustomData CustomData;
+typedef struct _KvsSinkCustomData KvsSinkCustomData;
 
 /* all information needed for one track */
 typedef struct _GstKvsSinkTrackData {
@@ -102,6 +101,7 @@ struct _GstKvsSink {
     gboolean                    fragment_acks;
     gboolean                    restart_on_error;
     gboolean                    recalculate_metrics;
+    gboolean                    disable_buffer_clipping;
     guint                       framerate;
     guint                       avg_bandwidth_bps;
     guint                       buffer_duration_seconds;
@@ -120,14 +120,15 @@ struct _GstKvsSink {
     GstStructure                *stream_tags;
     guint64                     file_start_time;
     MKV_TRACK_INFO_TYPE         track_info_type;
+    gchar                       *audio_codec_id;
 
 
     guint                       num_streams;
     guint                       num_audio_streams;
     guint                       num_video_streams;
 
-    unique_ptr<Credentials> credentials_;
-    shared_ptr<CustomData> data;
+    std::unique_ptr<Credentials> credentials_;
+    std::shared_ptr<KvsSinkCustomData> data;
 };
 
 struct _GstKvsSinkClass {
@@ -138,30 +139,32 @@ GType gst_kvs_sink_get_type (void);
 
 G_END_DECLS
 
-typedef struct _CustomData {
+struct _KvsSinkCustomData {
 
-    _CustomData():
-            stream_ready(false),
+    _KvsSinkCustomData():
             stream_status(STATUS_SUCCESS),
             last_dts(0),
             pts_base(0),
             media_type(VIDEO_ONLY),
             first_video_frame(true),
-            frame_count(0)  {}
-    unique_ptr<KinesisVideoProducer> kinesis_video_producer;
-    shared_ptr<KinesisVideoStream> kinesis_video_stream;
+            frame_count(0),
+            first_pts(GST_CLOCK_TIME_NONE),
+            producer_start_time(GST_CLOCK_TIME_NONE) {}
+    std::unique_ptr<KinesisVideoProducer> kinesis_video_producer;
+    std::shared_ptr<KinesisVideoStream> kinesis_video_stream;
 
-    map<uint64_t, string> track_cpd;
+    std::unordered_set<uint64_t> track_cpd_received;
     GstKvsSink *kvsSink;
     MediaType media_type;
     bool first_video_frame;
     uint32_t frame_count;
 
-    atomic_bool stream_ready;
-    atomic_uint stream_status;
+    std::atomic_uint stream_status;
 
     uint64_t last_dts;
     uint64_t pts_base;
-} CustomData;
+    uint64_t first_pts;
+    uint64_t producer_start_time;
+};
 
 #endif /* __GST_KVS_SINK_H__ */

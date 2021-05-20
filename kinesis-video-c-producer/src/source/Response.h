@@ -6,27 +6,24 @@ Response internal include file
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
-
 // Setting this timeout to terminate CURL connection
-#define TIMEOUT_AFTER_STREAM_STOPPED                            (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define TIMEOUT_AFTER_STREAM_STOPPED (1 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 // HTTP status code not set
-#define HTTP_STATUS_CODE_NOT_SET                                0
+#define HTTP_STATUS_CODE_NOT_SET 0
 
 // Pause/unpause interval for curl
-#define CURL_PAUSE_UNPAUSE_INTERVAL                             (10 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define CURL_PAUSE_UNPAUSE_INTERVAL (10 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
 
 // CA file extension
-#define CA_CERT_FILE_SUFFIX                                     ".pem"
+#define CA_CERT_FILE_SUFFIX ".pem"
 
 // Debug dump data file environment variable
-#define KVS_DEBUG_DUMP_DATA_FILE_DIR_ENV_VAR                    "KVS_DEBUG_DUMP_DATA_FILE_DIR"
+#define KVS_DEBUG_DUMP_DATA_FILE_DIR_ENV_VAR "KVS_DEBUG_DUMP_DATA_FILE_DIR"
 
 /**
  * CURL callback function definitions
@@ -51,7 +48,7 @@ struct __CurlResponse {
     CallInfo callInfo;
 
     // Whether the call was force-terminated
-    volatile BOOL terminated;
+    volatile ATOMIC_BOOL terminated;
 
     ///////////////////////////////////////////////
     // Variables needed for putMedia session
@@ -178,9 +175,7 @@ SIZE_T postWriteCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 SIZE_T postReadCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 SIZE_T postResponseWriteCallback(PCHAR, SIZE_T, SIZE_T, PVOID);
 
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __KINESIS_VIDEO_RESPONSE_INCLUDE_I__ */
+#endif /* __KINESIS_VIDEO_RESPONSE_INCLUDE_I__ */

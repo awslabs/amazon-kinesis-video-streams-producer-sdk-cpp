@@ -6,7 +6,7 @@
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -20,34 +20,31 @@ extern "C" {
 #include <com/amazonaws/kinesis/video/utils/Include.h>
 #include <com/amazonaws/kinesis/video/heap/Include.h>
 
-// For tight packing
-#pragma pack(push, include, 1) // for byte alignment
-
 /**
  * Minimum number of items in the window
  */
-#define MIN_CONTENT_VIEW_ITEMS                                                      10
+#define MIN_CONTENT_VIEW_ITEMS 10
 
 /**
  * Minimum buffer duration value
  */
-#define MIN_CONTENT_VIEW_BUFFER_DURATION                                            0
+#define MIN_CONTENT_VIEW_BUFFER_DURATION 0
 
 /**
  * Current version of the content view object
  */
-#define CONTENT_VIEW_CURRENT_VERSION             0
+#define CONTENT_VIEW_CURRENT_VERSION 0
 
 ////////////////////////////////////////////////////
 // Status return codes
 ////////////////////////////////////////////////////
-#define STATUS_VIEW_BASE                                                            0x30000000
-#define STATUS_MIN_CONTENT_VIEW_ITEMS                                               STATUS_VIEW_BASE + 0x00000001
-#define STATUS_INVALID_CONTENT_VIEW_DURATION                                        STATUS_VIEW_BASE + 0x00000002
-#define STATUS_CONTENT_VIEW_NO_MORE_ITEMS                                           STATUS_VIEW_BASE + 0x00000003
-#define STATUS_CONTENT_VIEW_INVALID_INDEX                                           STATUS_VIEW_BASE + 0x00000004
-#define STATUS_CONTENT_VIEW_INVALID_TIMESTAMP                                       STATUS_VIEW_BASE + 0x00000005
-#define STATUS_INVALID_CONTENT_VIEW_LENGTH                                          STATUS_VIEW_BASE + 0x00000006
+#define STATUS_VIEW_BASE                      0x30000000
+#define STATUS_MIN_CONTENT_VIEW_ITEMS         STATUS_VIEW_BASE + 0x00000001
+#define STATUS_INVALID_CONTENT_VIEW_DURATION  STATUS_VIEW_BASE + 0x00000002
+#define STATUS_CONTENT_VIEW_NO_MORE_ITEMS     STATUS_VIEW_BASE + 0x00000003
+#define STATUS_CONTENT_VIEW_INVALID_INDEX     STATUS_VIEW_BASE + 0x00000004
+#define STATUS_CONTENT_VIEW_INVALID_TIMESTAMP STATUS_VIEW_BASE + 0x00000005
+#define STATUS_INVALID_CONTENT_VIEW_LENGTH    STATUS_VIEW_BASE + 0x00000006
 
 ////////////////////////////////////////////////////
 // Main structure declarations
@@ -58,48 +55,48 @@ extern "C" {
  *
  * NOTE: The high order 16 bits will be used to store the data offset
  */
-#define ITEM_FLAG_NONE                               0
-#define ITEM_FLAG_STREAM_START                       (0x1 << 0)
-#define ITEM_FLAG_FRAGMENT_START                     (0x1 << 1)
-#define ITEM_FLAG_BUFFERING_ACK                      (0x1 << 2)
-#define ITEM_FLAG_RECEIVED_ACK                       (0x1 << 3)
-#define ITEM_FLAG_FRAGMENT_END                       (0x1 << 4)
-#define ITEM_FLAG_PERSISTED_ACK                      (0x1 << 5)
-#define ITEM_FLAG_SKIP_ITEM                          (0x1 << 6)
-#define ITEM_FLAG_STREAM_START_DEBUG                 (0x1 << 15)
+#define ITEM_FLAG_NONE               0
+#define ITEM_FLAG_STREAM_START       (0x1 << 0)
+#define ITEM_FLAG_FRAGMENT_START     (0x1 << 1)
+#define ITEM_FLAG_BUFFERING_ACK      (0x1 << 2)
+#define ITEM_FLAG_RECEIVED_ACK       (0x1 << 3)
+#define ITEM_FLAG_FRAGMENT_END       (0x1 << 4)
+#define ITEM_FLAG_PERSISTED_ACK      (0x1 << 5)
+#define ITEM_FLAG_SKIP_ITEM          (0x1 << 6)
+#define ITEM_FLAG_STREAM_START_DEBUG (0x1 << 15)
 
 /**
  * Macros for checking/setting/clearing for various flags
  */
-#define CHECK_ITEM_FRAGMENT_START(f)                (((f) & ITEM_FLAG_FRAGMENT_START) != ITEM_FLAG_NONE)
-#define CHECK_ITEM_BUFFERING_ACK(f)                 (((f) & ITEM_FLAG_BUFFERING_ACK) != ITEM_FLAG_NONE)
-#define CHECK_ITEM_RECEIVED_ACK(f)                  (((f) & ITEM_FLAG_RECEIVED_ACK) != ITEM_FLAG_NONE)
-#define CHECK_ITEM_STREAM_START(f)                  (((f) & ITEM_FLAG_STREAM_START) != ITEM_FLAG_NONE)
-#define CHECK_ITEM_FRAGMENT_END(f)                  (((f) & ITEM_FLAG_FRAGMENT_END) != ITEM_FLAG_NONE)
-#define CHECK_ITEM_PERSISTED_ACK(f)                 (((f) & ITEM_FLAG_PERSISTED_ACK) != ITEM_FLAG_NONE)
-#define CHECK_ITEM_SKIP_ITEM(f)                     (((f) & ITEM_FLAG_SKIP_ITEM) != ITEM_FLAG_NONE)
-#define CHECK_ITEM_STREAM_START_DEBUG(f)            (((f) & ITEM_FLAG_STREAM_START_DEBUG) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_FRAGMENT_START(f)     (((f) &ITEM_FLAG_FRAGMENT_START) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_BUFFERING_ACK(f)      (((f) &ITEM_FLAG_BUFFERING_ACK) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_RECEIVED_ACK(f)       (((f) &ITEM_FLAG_RECEIVED_ACK) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_STREAM_START(f)       (((f) &ITEM_FLAG_STREAM_START) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_FRAGMENT_END(f)       (((f) &ITEM_FLAG_FRAGMENT_END) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_PERSISTED_ACK(f)      (((f) &ITEM_FLAG_PERSISTED_ACK) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_SKIP_ITEM(f)          (((f) &ITEM_FLAG_SKIP_ITEM) != ITEM_FLAG_NONE)
+#define CHECK_ITEM_STREAM_START_DEBUG(f) (((f) &ITEM_FLAG_STREAM_START_DEBUG) != ITEM_FLAG_NONE)
 
-#define SET_ITEM_FRAGMENT_START(f)                  ((f) |= ITEM_FLAG_FRAGMENT_START)
-#define SET_ITEM_BUFFERING_ACK(f)                   ((f) |= ITEM_FLAG_BUFFERING_ACK)
-#define SET_ITEM_RECEIVED_ACK(f)                    ((f) |= ITEM_FLAG_RECEIVED_ACK)
-#define SET_ITEM_STREAM_START(f)                    ((f) |= ITEM_FLAG_STREAM_START)
-#define SET_ITEM_FRAGMENT_END(f)                    ((f) |= ITEM_FLAG_FRAGMENT_END)
-#define SET_ITEM_PERSISTED_ACK(f)                   ((f) |= ITEM_FLAG_PERSISTED_ACK)
-#define SET_ITEM_SKIP_ITEM(f)                       ((f) |= ITEM_FLAG_SKIP_ITEM)
-#define SET_ITEM_STREAM_START_DEBUG(f)              ((f) |= ITEM_FLAG_STREAM_START_DEBUG)
+#define SET_ITEM_FRAGMENT_START(f)     ((f) |= ITEM_FLAG_FRAGMENT_START)
+#define SET_ITEM_BUFFERING_ACK(f)      ((f) |= ITEM_FLAG_BUFFERING_ACK)
+#define SET_ITEM_RECEIVED_ACK(f)       ((f) |= ITEM_FLAG_RECEIVED_ACK)
+#define SET_ITEM_STREAM_START(f)       ((f) |= ITEM_FLAG_STREAM_START)
+#define SET_ITEM_FRAGMENT_END(f)       ((f) |= ITEM_FLAG_FRAGMENT_END)
+#define SET_ITEM_PERSISTED_ACK(f)      ((f) |= ITEM_FLAG_PERSISTED_ACK)
+#define SET_ITEM_SKIP_ITEM(f)          ((f) |= ITEM_FLAG_SKIP_ITEM)
+#define SET_ITEM_STREAM_START_DEBUG(f) ((f) |= ITEM_FLAG_STREAM_START_DEBUG)
 
-#define CLEAR_ITEM_FRAGMENT_START(f)                ((f) &= ~ITEM_FLAG_FRAGMENT_START)
-#define CLEAR_ITEM_BUFFERING_ACK(f)                 ((f) &= ~ITEM_FLAG_BUFFERING_ACK)
-#define CLEAR_ITEM_RECEIVED_ACK(f)                  ((f) &= ~ITEM_FLAG_RECEIVED_ACK)
-#define CLEAR_ITEM_STREAM_START(f)                  ((f) &= ~ITEM_FLAG_STREAM_START)
-#define CLEAR_ITEM_FRAGMENT_END(f)                  ((f) &= ~ITEM_FLAG_FRAGMENT_END)
-#define CLEAR_ITEM_PERSISTED_ACK(f)                 ((f) &= ~ITEM_FLAG_PERSISTED_ACK)
-#define CLEAR_ITEM_SKIP_ITEM(f)                     ((f) &= ~ITEM_FLAG_SKIP_ITEM)
-#define CLEAR_ITEM_STREAM_START_DEBUG(f)            ((f) &= ~ITEM_FLAG_STREAM_START_DEBUG)
+#define CLEAR_ITEM_FRAGMENT_START(f)     ((f) &= ~ITEM_FLAG_FRAGMENT_START)
+#define CLEAR_ITEM_BUFFERING_ACK(f)      ((f) &= ~ITEM_FLAG_BUFFERING_ACK)
+#define CLEAR_ITEM_RECEIVED_ACK(f)       ((f) &= ~ITEM_FLAG_RECEIVED_ACK)
+#define CLEAR_ITEM_STREAM_START(f)       ((f) &= ~ITEM_FLAG_STREAM_START)
+#define CLEAR_ITEM_FRAGMENT_END(f)       ((f) &= ~ITEM_FLAG_FRAGMENT_END)
+#define CLEAR_ITEM_PERSISTED_ACK(f)      ((f) &= ~ITEM_FLAG_PERSISTED_ACK)
+#define CLEAR_ITEM_SKIP_ITEM(f)          ((f) &= ~ITEM_FLAG_SKIP_ITEM)
+#define CLEAR_ITEM_STREAM_START_DEBUG(f) ((f) &= ~ITEM_FLAG_STREAM_START_DEBUG)
 
-#define GET_ITEM_DATA_OFFSET(f)                     ((UINT16) ((f) >> 16))
-#define SET_ITEM_DATA_OFFSET(f, o)                   ((f) = ((f) & 0x0000ffff) | (((UINT16) (o)) << 16))
+#define GET_ITEM_DATA_OFFSET(f)    ((UINT16)((f) >> 16))
+#define SET_ITEM_DATA_OFFSET(f, o) ((f) = ((f) &0x0000ffff) | (((UINT16)(o)) << 16))
 
 /**
  * This is a sentinel indicating an invalid index value
@@ -109,10 +106,12 @@ extern "C" {
 /**
  * Checks for the index validity
  */
-#define IS_VALID_VIEW_INDEX(h) ((h) != INVALID_VIEW_INDEX_VALUE )
+#define IS_VALID_VIEW_INDEX(h) ((h) != INVALID_VIEW_INDEX_VALUE)
 
 /**
  * The representation of the item in the cache.
+ *
+ * IMPORTANT!!! This structure should be tightly packed without explicit compiler directives
  */
 typedef struct {
     // Id of the item
@@ -136,6 +135,17 @@ typedef struct {
     // The data allocation handle
     ALLOCATION_HANDLE handle;
 } ViewItem, *PViewItem;
+
+/*
+ * Determine how content view drop frames when overflow is detected
+ */
+typedef enum {
+    // drop single view item from the buffer
+    CONTENT_VIEW_OVERFLOW_POLICY_DROP_TAIL_VIEW_ITEM,
+
+    // drop entire fragment
+    CONTENT_VIEW_OVERFLOW_POLICY_DROP_UNTIL_FRAGMENT_START,
+} CONTENT_VIEW_OVERFLOW_POLICY;
 
 /**
  * ContentView structure
@@ -175,11 +185,13 @@ typedef VOID (*ContentViewItemRemoveNotificationCallbackFunc)(PContentView, UINT
  * @UINT64 - Duration of items to keep in the window
  * @ContentViewItemRemoveNotificationCallbackFunc - Optional - Callback function
  * @UINT64 - Custom data to pass to the callback
+ * @CONTENT_VIEW_OVERFLOW_STRATEGY - how content view will drop frame when overflow happens
  * @PContentView* - returns the newly created object
  *
  * @return - STATUS code of the execution
  **/
-PUBLIC_API STATUS createContentView(UINT32, UINT64, ContentViewItemRemoveNotificationCallbackFunc, UINT64, PContentView*);
+PUBLIC_API STATUS createContentView(UINT32, UINT64, ContentViewItemRemoveNotificationCallbackFunc, UINT64, CONTENT_VIEW_OVERFLOW_POLICY,
+                                    PContentView*);
 
 /**
  * Frees and de-allocates the memory of the ContentView and it's sub-objects
@@ -361,6 +373,14 @@ PUBLIC_API STATUS contentViewGetWindowAllocationSize(PContentView, PUINT64, PUIN
 PUBLIC_API STATUS contentViewTrimTail(PContentView, UINT64);
 
 /**
+ * Trims the tail based on CONTENT_VIEW_OVERFLOW_POLICY
+ *
+ * PContentView - Content view
+ *
+ */
+PUBLIC_API STATUS contentViewTrimTailItems(PContentView);
+
+/**
  * Removes all items in the content view. Calls the remove callback if specified.
  *
  * PContentView - Content view
@@ -372,14 +392,11 @@ PUBLIC_API STATUS contentViewRemoveAll(PContentView);
  * in the content view without evicting a tail item.
  *
  * PContentView - Content view
- * PBOOL - OUT - Whether there is available space to put an item without current being evicted.
  * PBOOL - OUT OPT - Whether there is available space to put an item without tail eviction.
  */
-PUBLIC_API STATUS contentViewCheckAvailability(PContentView, PBOOL, PBOOL);
+PUBLIC_API STATUS contentViewCheckAvailability(PContentView, PBOOL);
 
-#pragma pack(pop, include)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __CONTENT_VIEW_INCLUDE__ */
+#endif /* __CONTENT_VIEW_INCLUDE__ */

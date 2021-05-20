@@ -1,0 +1,25 @@
+# Every exception in this file should be heavily justified
+
+# Suppressing lock order reports from TSAN. Our tests and the PIC codebase is based on differnet layer of locks which are re-entrant.
+deadlock:StreamApiTest_kinesisVideoStreamCreateSync_Valid_Test::TestBody
+deadlock:StreamApiTest_kinesisVideoStreamCreateSyncStopSync_Valid_Timeout_Test
+deadlock:clientReadyFunc
+deadlock:describeStreamResult
+
+# For some reason TSAN has a false positive flagging the global logging function race condition where as we use create stream SYNC API which should have set the logger
+race:globalCustomLogPrintFn
+
+# False-positive hit on createsync and the handle. This one is really bizarre so disabling TSAN on this particular test which simulates a network stack async stop notification
+race:StreamApiTest_kinesisVideoStreamCreateSync_Valid_Test
+
+
+# Weird failure with data race in Semaphore tests with the gtest nternal contructor and the spun threads which simulate multi-thread access. SHould not have contention due to the atomics. This is a false positive,
+race:acquireThreadRoutine
+race:drainThreadRoutine
+
+# Time-sensitive tests for the semaphore teardown without awaiting which is synchronized by thread sleeps in the test. This is OK,
+race:freeWithoutReleaseAllThreadsTest
+
+# Another false positive on a single-threaded execution of a test. This seems to be an issue with TSAN as the test in question has no threads
+deadlock:ClientTestBase::lockMutexFunc
+

@@ -1,24 +1,20 @@
 #define LOG_CLASS "RequestInfo"
 #include "Include_i.h"
 
-STATUS createRequestInfo(PCHAR url, PCHAR body, PCHAR region, PCHAR certPath,
-        PCHAR sslCertPath, PCHAR sslPrivateKeyPath, SSL_CERTIFICATE_TYPE certType,
-        PCHAR userAgent, UINT64 connectionTimeout, UINT64 completionTimeout,
-        UINT64 lowSpeedLimit, UINT64 lowSpeedTimeLimit,
-        PAwsCredentials pAwsCredentials, PRequestInfo* ppRequestInfo)
+STATUS createRequestInfo(PCHAR url, PCHAR body, PCHAR region, PCHAR certPath, PCHAR sslCertPath, PCHAR sslPrivateKeyPath,
+                         SSL_CERTIFICATE_TYPE certType, PCHAR userAgent, UINT64 connectionTimeout, UINT64 completionTimeout, UINT64 lowSpeedLimit,
+                         UINT64 lowSpeedTimeLimit, PAwsCredentials pAwsCredentials, PRequestInfo* ppRequestInfo)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PRequestInfo pRequestInfo = NULL;
     UINT32 size = SIZEOF(RequestInfo), bodySize = 0;
 
-    CHK(region != NULL &&
-        url != NULL &&
-        ppRequestInfo != NULL, STATUS_NULL_ARG);
+    CHK(region != NULL && url != NULL && ppRequestInfo != NULL, STATUS_NULL_ARG);
 
     // Add body to the size excluding NULL terminator
     if (body != NULL) {
-        bodySize = (UINT32) (STRLEN(body) * SIZEOF(CHAR));
+        bodySize = (UINT32)(STRLEN(body) * SIZEOF(CHAR));
         size += bodySize;
     }
 
@@ -55,7 +51,7 @@ STATUS createRequestInfo(PCHAR url, PCHAR body, PCHAR region, PCHAR certPath,
     // If the body is specified then it will be a request/response call
     // Otherwise we are streaming
     if (body != NULL) {
-        pRequestInfo->body = (PCHAR) (pRequestInfo + 1);
+        pRequestInfo->body = (PCHAR)(pRequestInfo + 1);
         MEMCPY(pRequestInfo->body, body, bodySize);
     }
 
@@ -117,8 +113,8 @@ STATUS requestRequiresSecureConnection(PCHAR pUrl, PBOOL pSecure)
     STATUS retStatus = STATUS_SUCCESS;
 
     CHK(pUrl != NULL && pSecure != NULL, STATUS_NULL_ARG);
-    *pSecure = (0 == STRNCMPI(pUrl, HTTPS_SCHEME_NAME, SIZEOF(HTTPS_SCHEME_NAME) - 1) ||
-                0 == STRNCMPI(pUrl, WSS_SCHEME_NAME, SIZEOF(WSS_SCHEME_NAME) - 1));
+    *pSecure =
+        (0 == STRNCMPI(pUrl, HTTPS_SCHEME_NAME, SIZEOF(HTTPS_SCHEME_NAME) - 1) || 0 == STRNCMPI(pUrl, WSS_SCHEME_NAME, SIZEOF(WSS_SCHEME_NAME) - 1));
 
 CleanUp:
 
@@ -159,7 +155,7 @@ STATUS createRequestHeader(PCHAR headerName, UINT32 headerNameLen, PCHAR headerV
     pRequestHeader->valueLen = valueLen;
 
     // Pointing after the structure
-    pRequestHeader->pName = (PCHAR) (pRequestHeader + 1);
+    pRequestHeader->pName = (PCHAR)(pRequestHeader + 1);
     pRequestHeader->pValue = pRequestHeader->pName + nameLen + 1;
 
     MEMCPY(pRequestHeader->pName, headerName, nameLen * SIZEOF(CHAR));
@@ -206,8 +202,7 @@ STATUS setRequestHeader(PRequestInfo pRequestInfo, PCHAR headerName, UINT32 head
                 // Insert at the head
                 CHK_STATUS(singleListInsertItemHead(pRequestInfo->pRequestHeaders, (UINT64) pRequestHeader));
             } else {
-                CHK_STATUS(singleListInsertItemAfter(pRequestInfo->pRequestHeaders, pPrevNode,
-                                                     (UINT64) pRequestHeader));
+                CHK_STATUS(singleListInsertItemAfter(pRequestInfo->pRequestHeaders, pPrevNode, (UINT64) pRequestHeader));
             }
 
             // Early return
@@ -299,6 +294,10 @@ SERVICE_CALL_RESULT getServiceCallResultFromHttpStatus(UINT32 httpStatus)
         case SERVICE_CALL_NOT_AUTHORIZED:
         case SERVICE_CALL_NOT_IMPLEMENTED:
         case SERVICE_CALL_INTERNAL_ERROR:
+        case SERVICE_CALL_REQUEST_TIMEOUT:
+        case SERVICE_CALL_GATEWAY_TIMEOUT:
+        case SERVICE_CALL_NETWORK_READ_TIMEOUT:
+        case SERVICE_CALL_NETWORK_CONNECTION_TIMEOUT:
             return (SERVICE_CALL_RESULT) httpStatus;
         default:
             return SERVICE_CALL_UNKNOWN;

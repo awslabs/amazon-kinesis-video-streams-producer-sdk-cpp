@@ -6,7 +6,7 @@
 STATUS bitFieldCreate(UINT32 itemCount, PBitField* ppBitField)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    PBitField pBitField= NULL;
+    PBitField pBitField = NULL;
     UINT32 allocSize;
     UINT32 byteCount;
 

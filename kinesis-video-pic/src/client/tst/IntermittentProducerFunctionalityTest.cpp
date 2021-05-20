@@ -66,7 +66,7 @@ TEST_P(IntermittentProducerFunctionalityTest, CreateSyncStreamWithLargeBufferAwa
                 //GetStreamedData and SubmitAck
                 retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
                 EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-                VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+                VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
                 if (retStatus == STATUS_END_OF_STREAM) {
                     tokenRotateCount++;
                 }
@@ -92,7 +92,7 @@ TEST_P(IntermittentProducerFunctionalityTest, CreateSyncStreamStopSyncFreeRepeat
 
     CreateScenarioTestClient();
     PASS_TEST_FOR_ZERO_RETENTION_AND_OFFLINE();
-    for (int i = 0; i < (int) mRepeatTime; i++) {
+    for (int iter = 0; iter < (int) mRepeatTime; iter++) {
         CreateStreamSync();
         MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
         testTerminationTime = mClientCallbacks.getCurrentTimeFn((UINT64) this) + 5 * HUNDREDS_OF_NANOS_IN_A_SECOND;
@@ -107,9 +107,9 @@ TEST_P(IntermittentProducerFunctionalityTest, CreateSyncStreamStopSyncFreeRepeat
                 mockConsumer = mStreamingSession.getConsumer(uploadHandle);
                 STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
                 EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-                VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+                VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
             }
-        } while(currentTime < testTerminationTime);
+        } while (currentTime < testTerminationTime);
 
         VerifyStopStreamSyncAndFree();
         mStreamingSession.clearSessions();

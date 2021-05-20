@@ -1,0 +1,16 @@
+log4cplus.rootLogger=DEBUG, KvsConsoleAppender, KvsFileAppender
+
+#log4cplus.logger.MemoryCheck=TRACE, KvsConsoleAppender
+
+#KvsConsoleAppender:
+log4cplus.appender.KvsConsoleAppender=log4cplus::ConsoleAppender
+log4cplus.appender.KvsConsoleAppender.layout=log4cplus::PatternLayout
+log4cplus.appender.KvsConsoleAppender.layout.ConversionPattern=[%-5p] [%d{%d-%m-%Y %H:%M:%S:%Q %Z}] %m%n
+
+#KvsFileAppender
+log4cplus.appender.KvsFileAppender=log4cplus::DailyRollingFileAppender
+log4cplus.appender.KvsFileAppender.File=./log/kvs.log
+log4cplus.appender.KvsFileAppender.Schedule=HOURLY
+log4cplus.appender.KvsFileAppender.CreateDirs=true
+log4cplus.appender.KvsFileAppender.layout=log4cplus::PatternLayout
+log4cplus.appender.KvsFileAppender.layout.ConversionPattern=[%-5p] [%d{%d-%m-%Y %H:%M:%S:%Q %Z}] %m%n

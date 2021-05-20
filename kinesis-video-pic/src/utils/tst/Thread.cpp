@@ -77,6 +77,12 @@ TEST_F(ThreadFunctionalityTest, ThreadCreateAndCancel)
         // Long sleep
         gThreadSleepTimes[index] = 20 * HUNDREDS_OF_NANOS_IN_A_SECOND;
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&threads[index], testThreadRoutine, (PVOID)index));
+#if !(defined _WIN32 || defined _WIN64 || defined __CYGWIN__)
+        // We should detach thread for non-windows platforms only
+        // Windows implementation would cancel the handle and the
+        // consequent thread cancel would fail
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_DETACH(threads[index]));
+#endif
     }
 
     // wait 2 seconds to make sure all threads are executed

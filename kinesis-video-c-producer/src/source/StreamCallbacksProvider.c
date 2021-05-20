@@ -11,73 +11,56 @@ STATUS defaultStreamUnderflowCallback(UINT64 customData, STREAM_HANDLE streamHan
     return STATUS_SUCCESS;
 }
 
-STATUS defaultBufferDurationOverflowCallback(UINT64 customData,
-                                             STREAM_HANDLE streamHandle,
-                                             UINT64 remainDuration)
+STATUS defaultBufferDurationOverflowCallback(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 remainDuration)
 {
     UNUSED_PARAM(customData);
-    DLOGD("Reported bufferDurationOverflow callback for stream handle %" PRIu64 ". Remaining duration in 100ns: %" PRIu64,
-          streamHandle, remainDuration);
+    DLOGD("Reported bufferDurationOverflow callback for stream handle %" PRIu64 ". Remaining duration in 100ns: %" PRIu64, streamHandle,
+          remainDuration);
     return STATUS_SUCCESS;
 }
 
-STATUS defaultStreamLatencyPressureCallback(UINT64 customData,
-                                            STREAM_HANDLE streamHandle,
-                                            UINT64 currentBufferDuration)
+STATUS defaultStreamLatencyPressureCallback(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 currentBufferDuration)
 {
     UNUSED_PARAM(customData);
-    DLOGD("Reported streamLatencyPressure callback for stream handle %" PRIu64 ". Current buffer duration in 100ns: %" PRIu64,
-          streamHandle, currentBufferDuration);
+    DLOGD("Reported streamLatencyPressure callback for stream handle %" PRIu64 ". Current buffer duration in 100ns: %" PRIu64, streamHandle,
+          currentBufferDuration);
     return STATUS_SUCCESS;
 }
 
-STATUS defaultStreamConnectionStaleCallback(UINT64 customData,
-                                            STREAM_HANDLE streamHandle,
-                                            UINT64 timeSinceLastBufferingAck)
+STATUS defaultStreamConnectionStaleCallback(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 timeSinceLastBufferingAck)
 {
     UNUSED_PARAM(customData);
-    DLOGD("Reported streamConnectionStale callback for stream handle %" PRIu64 ". Time since last buffering ack in 100ns: %" PRIu64,
-          streamHandle, timeSinceLastBufferingAck);
+    DLOGD("Reported streamConnectionStale callback for stream handle %" PRIu64 ". Time since last buffering ack in 100ns: %" PRIu64, streamHandle,
+          timeSinceLastBufferingAck);
     return STATUS_SUCCESS;
 }
 
-STATUS defaultDroppedFrameReportCallback(UINT64 customData,
-                                         STREAM_HANDLE streamHandle,
-                                         UINT64 frameTimecode)
+STATUS defaultDroppedFrameReportCallback(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 frameTimecode)
 {
     UNUSED_PARAM(customData);
-    DLOGD("Reported droppedFrame callback for stream handle %" PRIu64 ". Dropped frame timecode in 100ns: %" PRIu64,
-          streamHandle, frameTimecode);
+    DLOGD("Reported droppedFrame callback for stream handle %" PRIu64 ". Dropped frame timecode in 100ns: %" PRIu64, streamHandle, frameTimecode);
     return STATUS_SUCCESS;
 }
 
-STATUS defaultDroppedFragmentReportCallback(UINT64 customData,
-                                            STREAM_HANDLE streamHandle,
-                                            UINT64 fragmentTimeCode)
+STATUS defaultDroppedFragmentReportCallback(UINT64 customData, STREAM_HANDLE streamHandle, UINT64 fragmentTimeCode)
 {
     UNUSED_PARAM(customData);
-    DLOGD("Reported droppedFragment callback for stream handle %" PRIu64 ". Dropped fragment timecode in 100ns: %" PRIu64,
-          streamHandle, fragmentTimeCode);
+    DLOGD("Reported droppedFragment callback for stream handle %" PRIu64 ". Dropped fragment timecode in 100ns: %" PRIu64, streamHandle,
+          fragmentTimeCode);
     return STATUS_SUCCESS;
 }
 
-STATUS defaultStreamErrorReportCallback(UINT64 customData,
-                                        STREAM_HANDLE streamHandle,
-                                        UPLOAD_HANDLE uploadHandle,
-                                        UINT64 fragmentTimecode,
+STATUS defaultStreamErrorReportCallback(UINT64 customData, STREAM_HANDLE streamHandle, UPLOAD_HANDLE uploadHandle, UINT64 fragmentTimecode,
                                         STATUS errorStatus)
 {
     UNUSED_PARAM(customData);
     DLOGD("Reported streamError callback for stream handle %" PRIu64 ". Upload handle %" PRIu64 ". Fragment timecode in"
-                  " 100ns: %" PRIu64 ". Error status: 0x%08x" ,
+          " 100ns: %" PRIu64 ". Error status: 0x%08x",
           streamHandle, uploadHandle, fragmentTimecode, errorStatus);
     return STATUS_SUCCESS;
 }
 
-STATUS defaultFragmentAckReceivedCallback(UINT64 customData,
-                                          STREAM_HANDLE streamHandle,
-                                          UPLOAD_HANDLE uploadHandle,
-                                          PFragmentAck pFragmentAck)
+STATUS defaultFragmentAckReceivedCallback(UINT64 customData, STREAM_HANDLE streamHandle, UPLOAD_HANDLE uploadHandle, PFragmentAck pFragmentAck)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(streamHandle);
@@ -88,51 +71,39 @@ STATUS defaultFragmentAckReceivedCallback(UINT64 customData,
     return STATUS_SUCCESS;
 }
 
-STATUS defaultStreamDataAvailableCallback(UINT64 customData,
-                                          STREAM_HANDLE streamHandle,
-                                          PCHAR streamName,
-                                          UPLOAD_HANDLE uploadHandle,
-                                          UINT64 durationAvailable,
-                                          UINT64 bytesAvailable)
+STATUS defaultStreamDataAvailableCallback(UINT64 customData, STREAM_HANDLE streamHandle, PCHAR streamName, UPLOAD_HANDLE uploadHandle,
+                                          UINT64 durationAvailable, UINT64 bytesAvailable)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(streamName);
     DLOGV("Reported streamDataAvailable callback for stream handle %" PRIu64 ". Upload handle %" PRIu64 ". Duration available in"
-                  " 100ns: %" PRIu64 ". Bytes available: %" PRIu64,
+          " 100ns: %" PRIu64 ". Bytes available: %" PRIu64,
           streamHandle, uploadHandle, durationAvailable, bytesAvailable);
 
     return STATUS_SUCCESS;
 }
 
-STATUS defaultStreamReadyCallback(UINT64 customData,
-                                  STREAM_HANDLE streamHandle)
+STATUS defaultStreamReadyCallback(UINT64 customData, STREAM_HANDLE streamHandle)
 {
     UNUSED_PARAM(customData);
-    DLOGD("Reported streamReady callback for stream handle %" PRIu64,
-          streamHandle);
+    DLOGD("Reported streamReady callback for stream handle %" PRIu64, streamHandle);
 
     return STATUS_SUCCESS;
 }
 
-STATUS defaultStreamClosedCallback(UINT64 customData,
-                                   STREAM_HANDLE streamHandle,
-                                   UPLOAD_HANDLE uploadHandle)
+STATUS defaultStreamClosedCallback(UINT64 customData, STREAM_HANDLE streamHandle, UPLOAD_HANDLE uploadHandle)
 {
     UNUSED_PARAM(customData);
-    DLOGD("Reported streamClosed callback for stream handle %" PRIu64 ". Upload handle %" PRIu64,
-          streamHandle, uploadHandle);
+    DLOGD("Reported streamClosed callback for stream handle %" PRIu64 ". Upload handle %" PRIu64, streamHandle, uploadHandle);
 
     return STATUS_SUCCESS;
 }
 
-STATUS defaultStreamShutdownCallback(UINT64 customData,
-                                     STREAM_HANDLE streamHandle,
-                                     BOOL resetStream)
+STATUS defaultStreamShutdownCallback(UINT64 customData, STREAM_HANDLE streamHandle, BOOL resetStream)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(resetStream);
-    DLOGD("Reported streamShutdown callback for stream handle %" PRIu64,
-          streamHandle);
+    DLOGD("Reported streamShutdown callback for stream handle %" PRIu64, streamHandle);
 
     return STATUS_SUCCESS;
 }
@@ -152,7 +123,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS createStreamCallbacks(PStreamCallbacks *ppStreamCallbacks)
+STATUS createStreamCallbacks(PStreamCallbacks* ppStreamCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -180,7 +151,6 @@ STATUS createStreamCallbacks(PStreamCallbacks *ppStreamCallbacks)
     pStreamCallbacks->streamShutdownFn = defaultStreamShutdownCallback;
     pStreamCallbacks->freeStreamCallbacksFn = defaultFreeStreamCallbacksFn;
 
-
 CleanUp:
 
     if (!STATUS_SUCCEEDED(retStatus)) {
@@ -196,7 +166,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS freeStreamCallbacks(PStreamCallbacks *ppStreamCallbacks)
+STATUS freeStreamCallbacks(PStreamCallbacks* ppStreamCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;

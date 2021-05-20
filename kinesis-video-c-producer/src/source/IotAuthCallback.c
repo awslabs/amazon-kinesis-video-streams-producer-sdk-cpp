@@ -7,14 +7,8 @@
 /*
  * Create IoT credentials callback
  */
-STATUS createIotAuthCallbacks(PClientCallbacks pCallbacksProvider,
-                              PCHAR iotGetCredentialEndpoint,
-                              PCHAR certPath,
-                              PCHAR privateKeyPath,
-                              PCHAR caCertPath,
-                              PCHAR roleAlias,
-                              PCHAR streamName,
-                              PAuthCallbacks *ppIotAuthCallbacks)
+STATUS createIotAuthCallbacks(PClientCallbacks pCallbacksProvider, PCHAR iotGetCredentialEndpoint, PCHAR certPath, PCHAR privateKeyPath,
+                              PCHAR caCertPath, PCHAR roleAlias, PCHAR streamName, PAuthCallbacks* ppIotAuthCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -42,15 +36,10 @@ STATUS createIotAuthCallbacks(PClientCallbacks pCallbacksProvider,
     pIotAuthCallbacks->authCallbacks.deviceCertToTokenFn = NULL;
     pIotAuthCallbacks->authCallbacks.getDeviceFingerprintFn = NULL;
 
-    CHK_STATUS(createCurlIotCredentialProviderWithTime(iotGetCredentialEndpoint,
-            certPath,
-            privateKeyPath,
-            caCertPath,
-            roleAlias,
-            streamName,
-            pIotAuthCallbacks->pCallbacksProvider->clientCallbacks.getCurrentTimeFn,
-            pIotAuthCallbacks->pCallbacksProvider->clientCallbacks.customData,
-            (PAwsCredentialProvider*) &pIotAuthCallbacks->pCredentialProvider));
+    CHK_STATUS(createCurlIotCredentialProviderWithTime(iotGetCredentialEndpoint, certPath, privateKeyPath, caCertPath, roleAlias, streamName,
+                                                       pIotAuthCallbacks->pCallbacksProvider->clientCallbacks.getCurrentTimeFn,
+                                                       pIotAuthCallbacks->pCallbacksProvider->clientCallbacks.customData,
+                                                       (PAwsCredentialProvider*) &pIotAuthCallbacks->pCredentialProvider));
 
     CHK_STATUS(addAuthCallbacks(pCallbacksProvider, (PAuthCallbacks) pIotAuthCallbacks));
 
@@ -119,8 +108,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS getStreamingTokenIotFunc(UINT64 customData, PCHAR streamName, STREAM_ACCESS_MODE accessMode,
-                                PServiceCallContext pServiceCallContext)
+STATUS getStreamingTokenIotFunc(UINT64 customData, PCHAR streamName, STREAM_ACCESS_MODE accessMode, PServiceCallContext pServiceCallContext)
 {
     UNUSED_PARAM(streamName);
     UNUSED_PARAM(accessMode);
@@ -132,27 +120,20 @@ STATUS getStreamingTokenIotFunc(UINT64 customData, PCHAR streamName, STREAM_ACCE
     PCallbacksProvider pCallbacksProvider = NULL;
     PIotAuthCallbacks pIotAuthCallbacks = (PIotAuthCallbacks) customData;
 
-    CHK(pIotAuthCallbacks != NULL, STATUS_NULL_ARG);
+    CHK(pIotAuthCallbacks != NULL && pServiceCallContext != NULL, STATUS_NULL_ARG);
 
     pCallbacksProvider = pIotAuthCallbacks->pCallbacksProvider;
     pCredentialProvider = (PAwsCredentialProvider) pIotAuthCallbacks->pCredentialProvider;
     CHK_STATUS(pCredentialProvider->getCredentialsFn(pCredentialProvider, &pAwsCredentials));
 
-    CHK_STATUS(getStreamingTokenResultEvent(pServiceCallContext->customData,
-                                            SERVICE_CALL_RESULT_OK,
-                                            (PBYTE) pAwsCredentials,
-                                            pAwsCredentials->size,
+    CHK_STATUS(getStreamingTokenResultEvent(pServiceCallContext->customData, SERVICE_CALL_RESULT_OK, (PBYTE) pAwsCredentials, pAwsCredentials->size,
                                             pAwsCredentials->expiration));
 
 CleanUp:
 
-    if (STATUS_FAILED(retStatus)) {
+    if (STATUS_FAILED(retStatus) && pServiceCallContext != NULL) {
         // Notify PIC on failure
-        getStreamingTokenResultEvent(pServiceCallContext->customData,
-                                     SERVICE_CALL_UNKNOWN,
-                                     NULL,
-                                     0,
-                                     0);
+        getStreamingTokenResultEvent(pServiceCallContext->customData, SERVICE_CALL_UNKNOWN, NULL, 0, 0);
 
         // Notify clients
         notifyCallResult(pCallbacksProvider, retStatus, pServiceCallContext->customData);
@@ -162,7 +143,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS getSecurityTokenIotFunc(UINT64 customData, PBYTE *ppBuffer, PUINT32 pSize, PUINT64 pExpiration)
+STATUS getSecurityTokenIotFunc(UINT64 customData, PBYTE* ppBuffer, PUINT32 pSize, PUINT64 pExpiration)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -170,8 +151,7 @@ STATUS getSecurityTokenIotFunc(UINT64 customData, PBYTE *ppBuffer, PUINT32 pSize
     PAwsCredentialProvider pCredentialProvider;
 
     PIotAuthCallbacks pIotAuthCallbacks = (PIotAuthCallbacks) customData;
-    CHK(pIotAuthCallbacks != NULL && ppBuffer != NULL && pSize != NULL && pExpiration != NULL,
-        STATUS_NULL_ARG);
+    CHK(pIotAuthCallbacks != NULL && ppBuffer != NULL && pSize != NULL && pExpiration != NULL, STATUS_NULL_ARG);
 
     pCredentialProvider = (PAwsCredentialProvider) pIotAuthCallbacks->pCredentialProvider;
     CHK_STATUS(pCredentialProvider->getCredentialsFn(pCredentialProvider, &pAwsCredentials));

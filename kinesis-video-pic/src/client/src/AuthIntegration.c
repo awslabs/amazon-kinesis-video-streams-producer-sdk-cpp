@@ -21,10 +21,8 @@ STATUS getAuthInfo(PKinesisVideoClient pKinesisVideoClient)
 
     // Try to integrate with the security token first
     if (pKinesisVideoClient->clientCallbacks.getSecurityTokenFn != NULL) {
-        CHK_STATUS(pKinesisVideoClient->clientCallbacks.getSecurityTokenFn(pKinesisVideoClient->clientCallbacks.customData,
-                                                                     &pAuthData,
-                                                                     &authDataSize,
-                                                                     &authExpiration));
+        CHK_STATUS(pKinesisVideoClient->clientCallbacks.getSecurityTokenFn(pKinesisVideoClient->clientCallbacks.customData, &pAuthData, &authDataSize,
+                                                                           &authExpiration));
 
         if (authDataSize != 0 && pAuthData != NULL) {
             // Got the token successfully - store it
@@ -41,10 +39,8 @@ STATUS getAuthInfo(PKinesisVideoClient pKinesisVideoClient)
     }
 
     if (pKinesisVideoClient->clientCallbacks.getDeviceCertificateFn != NULL) {
-        CHK_STATUS(pKinesisVideoClient->clientCallbacks.getDeviceCertificateFn(pKinesisVideoClient->clientCallbacks.customData,
-                                                                         &pAuthData,
-                                                                         &authDataSize,
-                                                                         &authExpiration));
+        CHK_STATUS(pKinesisVideoClient->clientCallbacks.getDeviceCertificateFn(pKinesisVideoClient->clientCallbacks.customData, &pAuthData,
+                                                                               &authDataSize, &authExpiration));
 
         if (authDataSize != 0 && pAuthData != NULL) {
             // Got the token successfully - store it
@@ -113,18 +109,16 @@ UINT64 getCurrentAuthExpiration(PKinesisVideoClient pKinesisVideoClient)
  */
 UINT64 randomizeAuthInfoExpiration(PKinesisVideoClient pKinesisVideoClient, UINT64 expiration, UINT64 currentTime)
 {
-    UINT64 jitterInSec = (UINT64) ((expiration - currentTime) * AUTH_INFO_EXPIRATION_JITTER_RATIO / HUNDREDS_OF_NANOS_IN_A_SECOND);
+    UINT64 jitterInSec = (UINT64)((expiration - currentTime) * AUTH_INFO_EXPIRATION_JITTER_RATIO / HUNDREDS_OF_NANOS_IN_A_SECOND);
 
     // Quick check whether we need to do anything
-    if (!ENABLE_AUTH_INFO_EXPIRATION_RANDOMIZATION ||
-        jitterInSec == 0 ||
+    if (!ENABLE_AUTH_INFO_EXPIRATION_RANDOMIZATION || jitterInSec == 0 ||
         currentTime + AUTH_INFO_EXPIRATION_RANDOMIZATION_DURATION_THRESHOLD > expiration) {
         return expiration;
     }
 
     // Calculate the jitter and take random part.
-    UINT64 randomizedJitter = pKinesisVideoClient->clientCallbacks.getRandomNumberFn(
-            pKinesisVideoClient->clientCallbacks.customData) % jitterInSec;
+    UINT64 randomizedJitter = pKinesisVideoClient->clientCallbacks.getRandomNumberFn(pKinesisVideoClient->clientCallbacks.customData) % jitterInSec;
 
     // Ensure no more than max jitter is applied
     UINT64 jitter = MIN(randomizedJitter * HUNDREDS_OF_NANOS_IN_A_SECOND, MAX_AUTH_INFO_EXPIRATION_RANDOMIZATION);
@@ -158,10 +152,8 @@ STATUS provisionKinesisVideoProducer(PKinesisVideoClient pKinesisVideoClient)
         pKinesisVideoClient->deviceFingerprint[MAX_DEVICE_FINGERPRINT_LENGTH] = '\0';
     } else {
         // Generate one
-        createRandomName(pKinesisVideoClient->deviceFingerprint,
-                         MAX_DEVICE_FINGERPRINT_LENGTH,
-                         pKinesisVideoClient->clientCallbacks.getRandomNumberFn,
-                         pKinesisVideoClient->clientCallbacks.customData);
+        createRandomName(pKinesisVideoClient->deviceFingerprint, MAX_DEVICE_FINGERPRINT_LENGTH,
+                         pKinesisVideoClient->clientCallbacks.getRandomNumberFn, pKinesisVideoClient->clientCallbacks.customData);
     }
 
     // TODO: Implement provisioning

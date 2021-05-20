@@ -408,3 +408,189 @@ TEST_F(HashTableFunctionalityTest, HashTableIterateEntries)
     // Destroy the table
     EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
 }
+
+// The purpose of this test is to exercise the add/check/remove path primarily for the
+// code analysis tools to catch any BOs
+TEST_F(HashTableFunctionalityTest, HashTableRandomPutContainsRemoveIsEmpty)
+{
+    PHashTable pHashTable;
+    UINT64 val;
+    UINT32 retCount;
+    BOOL contains;
+    BOOL isEmpty;
+    UINT64 count = 30 * DEFAULT_HASH_TABLE_BUCKET_COUNT * DEFAULT_HASH_TABLE_BUCKET_LENGTH;
+    PUINT64 keys = (PUINT64) MEMALLOC(count * SIZEOF(UINT64));
+    UINT64 key;
+
+    SRAND(12345);
+
+    // Create the table
+    EXPECT_EQ(STATUS_SUCCESS, hashTableCreate(&pHashTable));
+
+    // Validate the count and empty
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(0, retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_TRUE(isEmpty);
+
+    // Insert elements
+    for (UINT64 i = 0; i < count;) {
+        key = (UINT64) RAND() * RAND();
+        EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, key, &contains));
+
+        // If the key doesn't exist then add it
+        if (!contains) {
+            EXPECT_EQ(STATUS_SUCCESS, hashTablePut(pHashTable, key, i));
+            keys[i] = key;
+            i++;
+        }
+    }
+
+    // Validate the count and empty
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(count, (UINT64) retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_FALSE(isEmpty);
+
+    // Check if element exists and get
+    for (UINT64 i = 0; i < count; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, keys[i], &contains));
+        EXPECT_TRUE(contains);
+
+        EXPECT_EQ(STATUS_SUCCESS, hashTableGet(pHashTable, keys[i], &val));
+        EXPECT_EQ(val, i);
+    }
+
+    // Validate the count and empty hasn't changed
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(count, (UINT64) retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_FALSE(isEmpty);
+
+    // Remove and check if element exists and get
+    for (UINT64 i = 0; i < count; i++) {
+        EXPECT_EQ(STATUS_SUCCESS, hashTableRemove(pHashTable, keys[i]));
+        EXPECT_EQ(STATUS_HASH_KEY_NOT_PRESENT, hashTableRemove(pHashTable, keys[i]));
+
+        EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, keys[i], &contains));
+        EXPECT_FALSE(contains);
+
+        EXPECT_EQ(STATUS_HASH_KEY_NOT_PRESENT, hashTableGet(pHashTable, keys[i], &val));
+
+        // Validate the count
+        EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+        EXPECT_EQ(count - i - 1, (UINT64) retCount);
+    }
+
+    // Validate the count and empty
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(0, retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_TRUE(isEmpty);
+
+    // Clear the data
+    EXPECT_EQ(STATUS_SUCCESS, hashTableClear(pHashTable));
+
+    // Validate the count
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(0, (UINT64) retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_TRUE(isEmpty);
+
+    // Destroy the table
+    EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
+
+    MEMFREE(keys);
+}
+
+TEST_F(HashTableFunctionalityTest, HashTableRandomPutContainsRemoveBackwardsIsEmpty)
+{
+    PHashTable pHashTable;
+    UINT64 val;
+    UINT32 retCount;
+    BOOL contains;
+    BOOL isEmpty;
+    UINT64 count = 30 * DEFAULT_HASH_TABLE_BUCKET_COUNT * DEFAULT_HASH_TABLE_BUCKET_LENGTH;
+    PUINT64 keys = (PUINT64) MEMALLOC(count * SIZEOF(UINT64));
+    UINT64 key;
+
+    SRAND(12345);
+
+    // Create the table
+    EXPECT_EQ(STATUS_SUCCESS, hashTableCreate(&pHashTable));
+
+    // Validate the count and empty
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(0, retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_TRUE(isEmpty);
+
+    // Insert elements
+    for (UINT64 i = 0; i < count;) {
+        key = (UINT64) RAND() * RAND();
+        EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, key, &contains));
+
+        // If the key doesn't exist then add it
+        if (!contains) {
+            EXPECT_EQ(STATUS_SUCCESS, hashTablePut(pHashTable, key, i));
+            keys[i] = key;
+            i++;
+        }
+    }
+
+    // Validate the count and empty
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(count, (UINT64) retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_FALSE(isEmpty);
+
+    // Check if element exists and get
+    for (UINT64 i = count; i != 0; i--) {
+        EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, keys[i - 1], &contains));
+        EXPECT_TRUE(contains);
+
+        EXPECT_EQ(STATUS_SUCCESS, hashTableGet(pHashTable, keys[i - 1], &val));
+        EXPECT_EQ(val, i - 1);
+    }
+
+    // Validate the count and empty hasn't changed
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(count, (UINT64) retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_FALSE(isEmpty);
+
+    // Remove and check if element exists and get
+    for (UINT64 i = count; i != 0; i--) {
+        EXPECT_EQ(STATUS_SUCCESS, hashTableRemove(pHashTable, keys[i - 1]));
+        EXPECT_EQ(STATUS_HASH_KEY_NOT_PRESENT, hashTableRemove(pHashTable, keys[i - 1]));
+
+        EXPECT_EQ(STATUS_SUCCESS, hashTableContains(pHashTable, keys[i - 1], &contains));
+        EXPECT_FALSE(contains);
+
+        EXPECT_EQ(STATUS_HASH_KEY_NOT_PRESENT, hashTableGet(pHashTable, keys[i - 1], &val));
+
+        // Validate the count
+        EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+        EXPECT_EQ(i - 1, (UINT64) retCount);
+    }
+
+    // Validate the count and empty
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(0, retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_TRUE(isEmpty);
+
+    // Clear the data
+    EXPECT_EQ(STATUS_SUCCESS, hashTableClear(pHashTable));
+
+    // Validate the count
+    EXPECT_EQ(STATUS_SUCCESS, hashTableGetCount(pHashTable, &retCount));
+    EXPECT_EQ(0, (UINT64) retCount);
+    EXPECT_EQ(STATUS_SUCCESS, hashTableIsEmpty(pHashTable, &isEmpty));
+    EXPECT_TRUE(isEmpty);
+
+    // Destroy the table
+    EXPECT_EQ(STATUS_SUCCESS, hashTableFree(pHashTable));
+
+    MEMFREE(keys);
+}

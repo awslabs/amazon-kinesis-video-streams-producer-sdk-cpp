@@ -6,20 +6,20 @@
 #include "Include_i.h"
 
 #ifdef HEAP_DEBUG
-    ALLOCATION_HEADER gVramHeader = {0, VRAM_ALLOCATION_TYPE, 0, ALLOCATION_HEADER_MAGIC};
-    ALLOCATION_FOOTER gVramFooter = {1, ALLOCATION_FOOTER_MAGIC};
+ALLOCATION_HEADER gVramHeader = {0, VRAM_ALLOCATION_TYPE, 0, ALLOCATION_HEADER_MAGIC};
+ALLOCATION_FOOTER gVramFooter = {1, ALLOCATION_FOOTER_MAGIC};
 
-#define VRAM_ALLOCATION_FOOTER_SIZE      SIZEOF(gVramFooter)
+#define VRAM_ALLOCATION_FOOTER_SIZE SIZEOF(gVramFooter)
 
 #else
-    ALLOCATION_HEADER gVramHeader = {0, VRAM_ALLOCATION_TYPE, 0};
-    ALLOCATION_FOOTER gVramFooter = {0};
+ALLOCATION_HEADER gVramHeader = {0, VRAM_ALLOCATION_TYPE, 0};
+ALLOCATION_FOOTER gVramFooter = {0};
 
-#define VRAM_ALLOCATION_FOOTER_SIZE      0
+#define VRAM_ALLOCATION_FOOTER_SIZE 0
 
 #endif
 
-#define VRAM_ALLOCATION_HEADER_SIZE      SIZEOF(gVramHeader)
+#define VRAM_ALLOCATION_HEADER_SIZE SIZEOF(gVramHeader)
 
 STATUS hybridCreateHeap(PHeap pHeap, UINT32 spillRatio, UINT32 behaviorFlags, PHybridHeap* ppHybridHeap)
 {
@@ -44,38 +44,31 @@ STATUS hybridCreateHeap(PHeap pHeap, UINT32 spillRatio, UINT32 behaviorFlags, PH
     // NOTE: The library will only be present on VRAM allocation capable devices
     // We will try to load the library with the name first and then with full path
     if (NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_NAME, RTLD_NOW | RTLD_GLOBAL)) &&
-            NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_FULL_PATH, RTLD_NOW | RTLD_GLOBAL))) {
-                    CHK_ERR(FALSE, STATUS_HEAP_VRAM_LIB_MISSING, "Failed to load library %s with %s", VRAM_LIBRARY_NAME, DLERROR());
+        NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_FULL_PATH, RTLD_NOW | RTLD_GLOBAL))) {
+        CHK_ERR(FALSE, STATUS_HEAP_VRAM_LIB_MISSING, "Failed to load library %s with %s", VRAM_LIBRARY_NAME, DLERROR());
     }
 
     // HACK Reopening the vram library to increment the ref count, because for some unknown reason in heapRelease we
     // get a SIGSEGV on DLCLOSE as the library seems to be already closed, https://jira2.amazon.com/browse/AIVPLAYERS-5111.
     if (reopenVramLibrary && NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_NAME, RTLD_NOW | RTLD_GLOBAL)) &&
         NULL == (handle = DLOPEN((PCHAR) VRAM_LIBRARY_FULL_PATH, RTLD_NOW | RTLD_GLOBAL))) {
-                CHK_ERR(FALSE, STATUS_HEAP_VRAM_LIB_REOPEN, "Failed to re-open library %s with %s", VRAM_LIBRARY_NAME, DLERROR());
+        CHK_ERR(FALSE, STATUS_HEAP_VRAM_LIB_REOPEN, "Failed to re-open library %s with %s", VRAM_LIBRARY_NAME, DLERROR());
     }
 
     // Load the functions and store the pointers
-    CHK_ERR(NULL != (vramInit = (VramInit) DLSYM(handle, (PCHAR) VRAM_INIT_FUNC_SYMBOL_NAME)),
-            STATUS_HEAP_VRAM_INIT_FUNC_SYMBOL,
+    CHK_ERR(NULL != (vramInit = (VramInit) DLSYM(handle, (PCHAR) VRAM_INIT_FUNC_SYMBOL_NAME)), STATUS_HEAP_VRAM_INIT_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_INIT_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramAlloc = (VramAlloc) DLSYM(handle, (PCHAR) VRAM_ALLOC_FUNC_SYMBOL_NAME)),
-            STATUS_HEAP_VRAM_ALLOC_FUNC_SYMBOL,
+    CHK_ERR(NULL != (vramAlloc = (VramAlloc) DLSYM(handle, (PCHAR) VRAM_ALLOC_FUNC_SYMBOL_NAME)), STATUS_HEAP_VRAM_ALLOC_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_ALLOC_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramFree = (VramFree) DLSYM(handle, (PCHAR) VRAM_FREE_FUNC_SYMBOL_NAME)),
-            STATUS_HEAP_VRAM_FREE_FUNC_SYMBOL,
+    CHK_ERR(NULL != (vramFree = (VramFree) DLSYM(handle, (PCHAR) VRAM_FREE_FUNC_SYMBOL_NAME)), STATUS_HEAP_VRAM_FREE_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_FREE_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramLock = (VramLock) DLSYM(handle, (PCHAR) VRAM_LOCK_FUNC_SYMBOL_NAME)),
-            STATUS_HEAP_VRAM_LOCK_FUNC_SYMBOL,
+    CHK_ERR(NULL != (vramLock = (VramLock) DLSYM(handle, (PCHAR) VRAM_LOCK_FUNC_SYMBOL_NAME)), STATUS_HEAP_VRAM_LOCK_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_LOCK_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramUnlock = (VramUnlock) DLSYM(handle, (PCHAR) VRAM_UNLOCK_FUNC_SYMBOL_NAME)),
-            STATUS_HEAP_VRAM_UNLOCK_FUNC_SYMBOL,
+    CHK_ERR(NULL != (vramUnlock = (VramUnlock) DLSYM(handle, (PCHAR) VRAM_UNLOCK_FUNC_SYMBOL_NAME)), STATUS_HEAP_VRAM_UNLOCK_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_UNLOCK_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramUninit = (VramUninit) DLSYM(handle, (PCHAR) VRAM_UNINIT_FUNC_SYMBOL_NAME)),
-            STATUS_HEAP_VRAM_UNINIT_FUNC_SYMBOL,
+    CHK_ERR(NULL != (vramUninit = (VramUninit) DLSYM(handle, (PCHAR) VRAM_UNINIT_FUNC_SYMBOL_NAME)), STATUS_HEAP_VRAM_UNINIT_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_UNINIT_FUNC_SYMBOL_NAME, DLERROR());
-    CHK_ERR(NULL != (vramGetMax = (VramGetMax) DLSYM(handle, (PCHAR) VRAM_GETMAX_FUNC_SYMBOL_NAME)),
-            STATUS_HEAP_VRAM_GETMAX_FUNC_SYMBOL,
+    CHK_ERR(NULL != (vramGetMax = (VramGetMax) DLSYM(handle, (PCHAR) VRAM_GETMAX_FUNC_SYMBOL_NAME)), STATUS_HEAP_VRAM_GETMAX_FUNC_SYMBOL,
             "Failed to load exported function %s with %s", VRAM_GETMAX_FUNC_SYMBOL_NAME, DLERROR());
 
     DLOGS("Creating hybrid heap with spill ratio %d", spillRatio);
@@ -84,7 +77,7 @@ STATUS hybridCreateHeap(PHeap pHeap, UINT32 spillRatio, UINT32 behaviorFlags, PH
 
     // Set the values
     pHybridHeap->pMemHeap = (PBaseHeap) pHeap;
-    pHybridHeap->spillRatio = (DOUBLE)spillRatio / 100;
+    pHybridHeap->spillRatio = (DOUBLE) spillRatio / 100;
     pHybridHeap->vramInit = vramInit;
     pHybridHeap->vramAlloc = vramAlloc;
     pHybridHeap->vramFree = vramFree;
@@ -113,11 +106,24 @@ STATUS hybridCreateHeap(PHeap pHeap, UINT32 spillRatio, UINT32 behaviorFlags, PH
     pBaseHeap->getAllocationSizeFn = hybridGetAllocationSize;
     pBaseHeap->getAllocationHeaderSizeFn = hybridGetAllocationHeaderSize;
     pBaseHeap->getAllocationFooterSizeFn = hybridGetAllocationFooterSize;
+    pBaseHeap->getAllocationAlignedSizeFn = hybridGetAllocationAlignedSize;
     pBaseHeap->getHeapLimitsFn = hybridGetHeapLimits;
 
 CleanUp:
-    if (STATUS_FAILED(retStatus) && handle != NULL) {
-        DLCLOSE(handle);
+    if (STATUS_FAILED(retStatus)) {
+        if (handle != NULL) {
+            DLCLOSE(handle);
+        }
+
+        if (pHybridHeap != NULL) {
+            // Ensure it doesn't get closed again
+            pHybridHeap->libHandle = NULL;
+
+            // Base heap will be released by the common heap
+            pHybridHeap->pMemHeap = NULL;
+
+            hybridHeapRelease((PHeap) pHybridHeap);
+        }
     }
 
     LEAVES();
@@ -152,37 +158,26 @@ DEFINE_INIT_HEAP(hybridHeapInit)
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PHybridHeap pHybridHeap = (PHybridHeap) pHeap;
-    UINT32 ret;
-    UINT32 memHeapLimit;
-    UINT32 vramHeapLimit;
-    UINT32 maxVramSize;
+    UINT32 ret, memHeapLimit, vramHeapLimit, maxVramSize;
 
     // Delegate the call directly
     CHK_STATUS(commonHeapInit(pHeap, heapLimit));
 
     // Calculate the in-memory and vram based heap sizes
-    memHeapLimit = (UINT32) (heapLimit * pHybridHeap->spillRatio);
-    vramHeapLimit = (UINT32) (heapLimit - memHeapLimit);
+    memHeapLimit = (UINT32)(heapLimit * pHybridHeap->spillRatio);
+    vramHeapLimit = (UINT32)(heapLimit - memHeapLimit);
 
     // Try to see if we can allocate enough vram
     maxVramSize = pHybridHeap->vramGetMax();
-    CHK_ERR(maxVramSize >= vramHeapLimit,
-            STATUS_NOT_ENOUGH_MEMORY,
-            "Can't reserve VRAM with size %u. Max allowed is %u bytes",
-            vramHeapLimit,
+    CHK_ERR(maxVramSize >= vramHeapLimit, STATUS_NOT_ENOUGH_MEMORY, "Can't reserve VRAM with size %u. Max allowed is %u bytes", vramHeapLimit,
             maxVramSize);
 
     // Initialize the encapsulated heap
-    CHK_STATUS_ERR(pHybridHeap->pMemHeap->heapInitializeFn((PHeap) pHybridHeap->pMemHeap, memHeapLimit),
-            STATUS_HEAP_DIRECT_MEM_INIT,
-            "Failed to initialize the in-memory heap with limit size %u",
-            memHeapLimit);
+    CHK_STATUS_ERR(pHybridHeap->pMemHeap->heapInitializeFn((PHeap) pHybridHeap->pMemHeap, memHeapLimit), STATUS_HEAP_DIRECT_MEM_INIT,
+                   "Failed to initialize the in-memory heap with limit size %u", memHeapLimit);
 
     // Initialize the VRAM
-    CHK_ERR(0 == (ret = pHybridHeap->vramInit()),
-            STATUS_HEAP_VRAM_INIT_FAILED,
-            "Failed to initialize the vcsm heap. Error returned %u",
-            ret);
+    CHK_ERR(0 == (ret = pHybridHeap->vramInit()), STATUS_HEAP_VRAM_INIT_FAILED, "Failed to initialize the vcsm heap. Error returned %u", ret);
 
     pHybridHeap->vramInitialized = TRUE;
 
@@ -205,26 +200,24 @@ DEFINE_RELEASE_HEAP(hybridHeapRelease)
     INT32 dlCloseRet, vramUninitRet;
 
     // The call should be idempotent
-    CHK (pHeap != NULL, STATUS_SUCCESS);
+    CHK(pHeap != NULL, STATUS_SUCCESS);
 
     // Regardless of the status (heap might be corrupted) we still want to free the memory
     retStatus = commonHeapRelease(pHeap);
 
     // Release the direct memory heap
-    if (STATUS_SUCCESS != (memHeapStatus = pHybridHeap->pMemHeap->heapReleaseFn((PHeap) pHybridHeap->pMemHeap))) {
+    if (pHybridHeap->pMemHeap != NULL && STATUS_SUCCESS != (memHeapStatus = pHybridHeap->pMemHeap->heapReleaseFn((PHeap) pHybridHeap->pMemHeap))) {
         DLOGW("Failed to release in-memory heap with 0x%08x", memHeapStatus);
     }
 
     // Release the vcsm heap
-    if (pHybridHeap->vramInitialized
-        && (0 != (vramUninitRet = pHybridHeap->vramUninit()))) {
+    if (pHybridHeap->vramInitialized && (0 != (vramUninitRet = pHybridHeap->vramUninit()))) {
         vramUninitStatus = STATUS_HEAP_VRAM_UNINIT_FAILED;
         DLOGW("Failed to uninitialize the vram library with %d", vramUninitRet);
     }
 
     // Close the library handle
-    if (pHybridHeap->libHandle != NULL &&
-            (0 != (dlCloseRet = DLCLOSE(pHybridHeap->libHandle)))) {
+    if (pHybridHeap->libHandle != NULL && (0 != (dlCloseRet = DLCLOSE(pHybridHeap->libHandle)))) {
         dlCloseStatus = STATUS_HEAP_LIBRARY_FREE_FAILED;
         DLOGW("Failed to close the library with %d", dlCloseRet);
     }
@@ -292,10 +285,8 @@ DEFINE_HEAP_ALLOC(hybridHeapAlloc)
     // Need to map and add the metadata
     // Validate that the allocation is not greater than 32 bit max
     CHK_ERR(allocationSize < MAX_UINT32, STATUS_HEAP_VRAM_ALLOC_FAILED, "Can not allocate more than 4G from VRAM");
-    CHK_ERR(INVALID_VRAM_HANDLE != (handle = pHybridHeap->vramAlloc((UINT32) allocationSize)),
-            STATUS_HEAP_VRAM_ALLOC_FAILED,
-            "Failed to allocate %u bytes from VRAM",
-            allocationSize);
+    CHK_ERR(INVALID_VRAM_HANDLE != (handle = pHybridHeap->vramAlloc((UINT32) allocationSize)), STATUS_HEAP_VRAM_ALLOC_FAILED,
+            "Failed to allocate %u bytes from VRAM", allocationSize);
 
     // Map the allocation
     if (NULL == (pAlloc = pHybridHeap->vramLock(handle))) {
@@ -315,13 +306,13 @@ DEFINE_HEAP_ALLOC(hybridHeapAlloc)
     // Set up the header and footer
     pHeader = (PALLOCATION_HEADER) pAlloc;
     MEMCPY(pHeader, &gVramHeader, VRAM_ALLOCATION_HEADER_SIZE);
-    MEMCPY((PBYTE)pHeader + VRAM_ALLOCATION_HEADER_SIZE + size, &gVramFooter, VRAM_ALLOCATION_FOOTER_SIZE);
+    MEMCPY((PBYTE) pHeader + VRAM_ALLOCATION_HEADER_SIZE + size, &gVramFooter, VRAM_ALLOCATION_FOOTER_SIZE);
 
     // Fix-up the allocation size
     pHeader->size = size;
 
     // Store the handle
-    pHeader->handle = handle;
+    pHeader->vramHandle = handle;
 
     // Un-map the range
     if (0 != pHybridHeap->vramUnlock(handle)) {
@@ -366,10 +357,7 @@ DEFINE_HEAP_FREE(hybridHeapFree)
     DLOGS("Indirect allocation");
     // Convert the handle
     vramHandle = TO_VRAM_HANDLE(handle);
-    CHK_ERR(0 == (ret = pHybridHeap->vramFree(vramHandle)),
-            STATUS_HEAP_VRAM_FREE_FAILED,
-            "Failed to free VRAM handle %08x with %lu",
-            vramHandle,
+    CHK_ERR(0 == (ret = pHybridHeap->vramFree(vramHandle)), STATUS_HEAP_VRAM_FREE_FAILED, "Failed to free VRAM handle %08x with %lu", vramHandle,
             ret);
 
 CleanUp:
@@ -404,9 +392,7 @@ DEFINE_HEAP_GET_ALLOC_SIZE(hybridHeapGetAllocSize)
     vramHandle = TO_VRAM_HANDLE(handle);
     DLOGS("VRAM allocation. Handle 0x%016" PRIx64 " VRAM handle 0x%08x", handle, vramHandle);
 
-    CHK_ERR(NULL != (pHeader = (PALLOCATION_HEADER)pHybridHeap->vramLock(vramHandle)),
-            STATUS_HEAP_VRAM_MAP_FAILED,
-            "Failed to map VRAM handle %08x",
+    CHK_ERR(NULL != (pHeader = (PALLOCATION_HEADER) pHybridHeap->vramLock(vramHandle)), STATUS_HEAP_VRAM_MAP_FAILED, "Failed to map VRAM handle %08x",
             vramHandle);
 
     // Set the values and return
@@ -460,8 +446,7 @@ DEFINE_HEAP_SET_ALLOC_SIZE(hybridHeapSetAllocSize)
     // 6) Unmapping the new allocation
     // 7) Free-ing the old allocation
 
-    DLOGS("Sets new allocation size %\" PRIu64 \" for handle 0x%016"
-                  PRIx64, newSize, existingAllocationHandle);
+    DLOGS("Sets new allocation size %\" PRIu64 \" for handle 0x%016" PRIx64, newSize, existingAllocationHandle);
 
     CHK_STATUS(hybridHeapAlloc(pHeap, newSize, &newAllocationHandle));
     CHK(IS_VALID_ALLOCATION_HANDLE(newAllocationHandle), STATUS_NOT_ENOUGH_MEMORY);
@@ -517,9 +502,7 @@ DEFINE_HEAP_MAP(hybridHeapMap)
     vramHandle = TO_VRAM_HANDLE(handle);
     DLOGS("VRAM allocation. Handle 0x%016" PRIx64 " VRAM handle 0x%08x", handle, vramHandle);
 
-    CHK_ERR(NULL != (pHeader = (PALLOCATION_HEADER)pHybridHeap->vramLock(vramHandle)),
-            STATUS_HEAP_VRAM_MAP_FAILED,
-            "Failed to map VRAM handle %08x",
+    CHK_ERR(NULL != (pHeader = (PALLOCATION_HEADER) pHybridHeap->vramLock(vramHandle)), STATUS_HEAP_VRAM_MAP_FAILED, "Failed to map VRAM handle %08x",
             vramHandle);
 
     // Set the values and return
@@ -539,7 +522,7 @@ DEFINE_HEAP_UNMAP(hybridHeapUnmap)
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PHybridHeap pHybridHeap = (PHybridHeap) pHeap;
-    PALLOCATION_HEADER pHeader = (PALLOCATION_HEADER)pAllocation - 1;
+    PALLOCATION_HEADER pHeader = (PALLOCATION_HEADER) pAllocation - 1;
     UINT32 ret;
 
     // Call the base class to ensure the params are ok
@@ -558,11 +541,8 @@ DEFINE_HEAP_UNMAP(hybridHeapUnmap)
 
     DLOGS("Indirect allocation");
     // Un-map from the vram
-    CHK_ERR(0 == (ret = pHybridHeap->vramUnlock(pHeader->handle)),
-            STATUS_HEAP_VRAM_UNMAP_FAILED,
-            "Failed to un-map handle 0x%08x. Error returned %u",
-            pHeader->handle,
-            ret);
+    CHK_ERR(0 == (ret = pHybridHeap->vramUnlock(pHeader->vramHandle)), STATUS_HEAP_VRAM_UNMAP_FAILED,
+            "Failed to un-map handle 0x%08x. Error returned %u", pHeader->vramHandle, ret);
 
 CleanUp:
     LEAVES();
@@ -579,18 +559,26 @@ DEFINE_FOOTER_SIZE(hybridGetAllocationFooterSize)
     return VRAM_ALLOCATION_FOOTER_SIZE;
 }
 
+DEFINE_ALIGNED_SIZE(hybridGetAllocationAlignedSize)
+{
+    return size;
+}
+
 DEFINE_ALLOC_SIZE(hybridGetAllocationSize)
 {
     PHybridHeap pHybridHeap = (PHybridHeap) pHeap;
     UINT32 vramHandle;
     PALLOCATION_HEADER pAllocation;
+    UINT64 memSizes, vramSizes, memHeapAllocationSize;
+
+    CHECK_EXT(pHeap != NULL, "Internal error with VRAM heap being null");
 
     // Check if this is a direct allocation
     if (IS_DIRECT_ALLOCATION_HANDLE(handle)) {
         // Get the allocation header and footer in order to compensate the accounting for vram header and footer.
-        UINT64 memSizes = pHybridHeap->pMemHeap->getAllocationHeaderSizeFn() + pHybridHeap->pMemHeap->getAllocationFooterSizeFn();
-        UINT64 vramSizes = hybridGetAllocationHeaderSize() + hybridGetAllocationFooterSize();
-        UINT64 memHeapAllocationSize = pHybridHeap->pMemHeap->getAllocationSizeFn((PHeap) pHybridHeap->pMemHeap, handle);
+        memSizes = pHybridHeap->pMemHeap->getAllocationHeaderSizeFn() + pHybridHeap->pMemHeap->getAllocationFooterSizeFn();
+        vramSizes = hybridGetAllocationHeaderSize() + hybridGetAllocationFooterSize();
+        memHeapAllocationSize = pHybridHeap->pMemHeap->getAllocationSizeFn((PHeap) pHybridHeap->pMemHeap, handle);
         return memHeapAllocationSize - memSizes + vramSizes;
     }
 
@@ -598,7 +586,7 @@ DEFINE_ALLOC_SIZE(hybridGetAllocationSize)
     vramHandle = TO_VRAM_HANDLE(handle);
 
     // Map the allocation
-    if (NULL == (pAllocation = (PALLOCATION_HEADER)pHybridHeap->vramLock(vramHandle))) {
+    if (NULL == (pAllocation = (PALLOCATION_HEADER) pHybridHeap->vramLock(vramHandle))) {
         // This is the failure sentinel
         DLOGE("Failed to map VRAM handle 0x%08x", vramHandle);
         return INVALID_ALLOCATION_VALUE;

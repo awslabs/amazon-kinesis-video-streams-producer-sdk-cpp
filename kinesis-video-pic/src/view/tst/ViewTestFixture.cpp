@@ -1,10 +1,11 @@
 #include "ViewTestFixture.h"
 
-VOID removeNotificationCallback(PContentView pContentView, UINT64 customData, PViewItem pViewItem, BOOL current)
+VOID ViewTestBase::removeNotificationCallback(PContentView pContentView, UINT64 customData, PViewItem pViewItem, BOOL frameNotTransferred)
 {
-    gContentView = pContentView;
-    gCustomData = customData;
-    gCurrent = current;
-    gViewItem = *pViewItem;
-    gCallCount++;
+    ViewTestBase* pTestBase = (ViewTestBase *) customData;
+    pTestBase->gContentView = pContentView;
+    pTestBase->gCustomData = customData;
+    pTestBase->gFrameDropped = frameNotTransferred;
+    pTestBase->gViewItem = *pViewItem;
+    pTestBase->gCallCount++;
 }

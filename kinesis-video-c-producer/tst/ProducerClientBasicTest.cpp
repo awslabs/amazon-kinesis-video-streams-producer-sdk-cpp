@@ -71,11 +71,11 @@ PVOID ProducerClientBasicTest::staticCreateProducerClientRoutine(PVOID arg)
     deviceInfo.clientInfo.createStreamTimeout = 0;
     deviceInfo.clientInfo.createClientTimeout = 0;
     deviceInfo.clientInfo.offlineBufferAvailabilityTimeout = 0;
-    deviceInfo.clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    deviceInfo.clientInfo.loggerLogLevel = GET_LOGGER_LOG_LEVEL();
     deviceInfo.clientInfo.logMetric = TRUE;
 
     EXPECT_EQ(STATUS_SUCCESS, createAbstractDefaultCallbacksProvider(TEST_DEFAULT_CHAIN_COUNT,
-            FALSE,
+            API_CALL_CACHE_TYPE_NONE,
             TEST_CACHING_ENDPOINT_PERIOD,
             pTest->mRegion,
             TEST_CONTROL_PLANE_URI,
@@ -477,6 +477,7 @@ TEST_F(ProducerClientBasicTest, create_produce_stream)
 
         // Spin off the producer
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&mProducerThread, staticProducerRoutine, (PVOID) mStreams[i]));
+        THREAD_DETACH(mProducerThread);
     }
 
 #if 0
@@ -509,6 +510,7 @@ TEST_F(ProducerClientBasicTest, create_produce_stream)
 
             // Spin off the producer
             EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&mProducerThread, staticProducerRoutine, (PVOID) mStreams[i]));
+            THREAD_DETACH(mProducerThread);
         }
     }
 #endif
@@ -554,6 +556,7 @@ TEST_F(ProducerClientBasicTest, create_produce_stream_parallel)
         // Create the streams
         THREAD_SLEEP(300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
         THREAD_CREATE(&mProducerThread, staticCreateProducerRoutine, (PVOID) i);
+        THREAD_DETACH(mProducerThread);
     }
 
     // Await for all the streams to finish creating
@@ -564,6 +567,7 @@ TEST_F(ProducerClientBasicTest, create_produce_stream_parallel)
     for (UINT32 i = 0; i < TEST_STREAM_COUNT; i++) {
         // Spin off the producer
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&mProducerThread, staticProducerRoutine, (PVOID) mStreams[i]));
+        THREAD_DETACH(mProducerThread);
     }
 
     // Wait for some time to produce
@@ -599,6 +603,7 @@ TEST_F(ProducerClientBasicTest, create_produce_client_parallel)
         // Create the streams
         THREAD_SLEEP(300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
         THREAD_CREATE(&mProducerThread, staticCreateProducerClientRoutine, (PVOID) i);
+        THREAD_DETACH(mProducerThread);
     }
 
     // Await for all the streams to finish creating
@@ -608,6 +613,7 @@ TEST_F(ProducerClientBasicTest, create_produce_client_parallel)
 
     for (UINT64 i = 0; i < TEST_STREAM_COUNT; i++) {
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&mProducerThread, staticProducerClientStartRoutine, (PVOID) i));
+        THREAD_DETACH(mProducerThread);
     }
 
     // Wait for some time to produce
@@ -647,6 +653,7 @@ TEST_F(ProducerClientBasicTest, cachingEndpointProvider_Returns_EndpointFromCach
 
         // Spin off the producer
         EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&mProducerThread, staticProducerRoutine, (PVOID) mStreams[i]));
+        THREAD_DETACH(mProducerThread);
     }
 
     // Wait for a couple of rotations and ensure we didn't call the endpoint
@@ -696,14 +703,15 @@ TEST_F(ProducerClientBasicTest, createStreamStopSyncFree)
     STRNCPY(streamName, (PCHAR) TEST_STREAM_NAME, MAX_STREAM_NAME_LEN);
     streamName[MAX_STREAM_NAME_LEN] = '\0';
     EXPECT_EQ(STATUS_SUCCESS, createDefaultDeviceInfo(&pDeviceInfo));
-    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.loggerLogLevel = GET_LOGGER_LOG_LEVEL();
     EXPECT_EQ(STATUS_SUCCESS, createRealtimeVideoStreamInfoProvider(streamName, TEST_RETENTION_PERIOD, TEST_STREAM_BUFFER_DURATION, &pStreamInfo));
 
 
     EXPECT_EQ(STATUS_SUCCESS, createDefaultCallbacksProvider(5, mAccessKey, mSecretKey,
                                                              mSessionToken, GETTIME() + TEST_STREAMING_TOKEN_DURATION,
                                                              mRegion, TEST_CONTROL_PLANE_URI,
-                                                             mCaCertPath, NULL, NULL, FALSE, TEST_CACHING_ENDPOINT_PERIOD,
+                                                             mCaCertPath, NULL, NULL,
+                                                             API_CALL_CACHE_TYPE_NONE, TEST_CACHING_ENDPOINT_PERIOD,
                                                              FALSE, &pClientCallbacks));
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(pDeviceInfo, pClientCallbacks, &clientHandle));
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStreamSync(clientHandle, pStreamInfo, &streamHandle));
@@ -738,13 +746,14 @@ TEST_F(ProducerClientBasicTest, createStreamPutOneFrameStopSyncFree)
     STRNCPY(streamName, (PCHAR) TEST_STREAM_NAME, MAX_STREAM_NAME_LEN);
     streamName[MAX_STREAM_NAME_LEN] = '\0';
     EXPECT_EQ(STATUS_SUCCESS, createDefaultDeviceInfo(&pDeviceInfo));
-    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.loggerLogLevel = GET_LOGGER_LOG_LEVEL();
     EXPECT_EQ(STATUS_SUCCESS, createRealtimeVideoStreamInfoProvider(streamName, TEST_RETENTION_PERIOD, TEST_STREAM_BUFFER_DURATION, &pStreamInfo));
     pStreamInfo->streamCaps.nalAdaptationFlags = NAL_ADAPTATION_FLAG_NONE;
     EXPECT_EQ(STATUS_SUCCESS, createDefaultCallbacksProvider(5, mAccessKey, mSecretKey,
                                                              mSessionToken, GETTIME() + TEST_STREAMING_TOKEN_DURATION,
                                                              mRegion, TEST_CONTROL_PLANE_URI,
-                                                             mCaCertPath, NULL, NULL, FALSE, TEST_CACHING_ENDPOINT_PERIOD,
+                                                             mCaCertPath, NULL, NULL,
+                                                             API_CALL_CACHE_TYPE_NONE, TEST_CACHING_ENDPOINT_PERIOD,
                                                              FALSE, &pClientCallbacks));
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(pDeviceInfo, pClientCallbacks, &clientHandle));
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStreamSync(clientHandle, pStreamInfo, &streamHandle));
@@ -782,13 +791,14 @@ TEST_F(ProducerClientBasicTest, createStreamPutMultipleFrameStopSyncFree)
     STRNCPY(streamName, (PCHAR) TEST_STREAM_NAME, MAX_STREAM_NAME_LEN);
     streamName[MAX_STREAM_NAME_LEN] = '\0';
     EXPECT_EQ(STATUS_SUCCESS, createDefaultDeviceInfo(&pDeviceInfo));
-    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.loggerLogLevel = GET_LOGGER_LOG_LEVEL();
     EXPECT_EQ(STATUS_SUCCESS, createRealtimeVideoStreamInfoProvider(streamName, TEST_RETENTION_PERIOD, TEST_STREAM_BUFFER_DURATION, &pStreamInfo));
     pStreamInfo->streamCaps.nalAdaptationFlags = NAL_ADAPTATION_FLAG_NONE;
     EXPECT_EQ(STATUS_SUCCESS, createDefaultCallbacksProvider(5, mAccessKey, mSecretKey,
                                                              mSessionToken, MAX_UINT64,
                                                              mRegion, TEST_CONTROL_PLANE_URI,
-                                                             mCaCertPath, NULL, NULL, FALSE, TEST_CACHING_ENDPOINT_PERIOD,
+                                                             mCaCertPath, NULL, NULL,
+                                                             API_CALL_CACHE_TYPE_NONE, TEST_CACHING_ENDPOINT_PERIOD,
                                                              FALSE, &pClientCallbacks));
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(pDeviceInfo, pClientCallbacks, &clientHandle));
     EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStreamSync(clientHandle, pStreamInfo, &streamHandle));
@@ -838,18 +848,18 @@ TEST_F(ProducerClientBasicTest, createStreamStreamUntilTokenRotationStopSyncFree
     STRNCPY(streamName, (PCHAR) TEST_STREAM_NAME, MAX_STREAM_NAME_LEN);
     streamName[MAX_STREAM_NAME_LEN] = '\0';
     EXPECT_EQ(STATUS_SUCCESS, createDefaultDeviceInfo(&pDeviceInfo));
-    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.loggerLogLevel = GET_LOGGER_LOG_LEVEL();
     EXPECT_EQ(STATUS_SUCCESS, createRealtimeVideoStreamInfoProvider(streamName, TEST_RETENTION_PERIOD, TEST_STREAM_BUFFER_DURATION, &pStreamInfo));
     pStreamInfo->streamCaps.nalAdaptationFlags = NAL_ADAPTATION_FLAG_NONE;
     EXPECT_EQ(STATUS_SUCCESS, createAbstractDefaultCallbacksProvider(TEST_DEFAULT_CHAIN_COUNT,
-                                                                   FALSE,
-                                                                   TEST_CACHING_ENDPOINT_PERIOD,
-                                                                   mRegion,
-                                                                   TEST_CONTROL_PLANE_URI,
-                                                                   mCaCertPath,
-                                                                   NULL,
-                                                                   NULL,
-                                                                   &pClientCallbacks));
+            API_CALL_CACHE_TYPE_NONE,
+            TEST_CACHING_ENDPOINT_PERIOD,
+            mRegion,
+            TEST_CONTROL_PLANE_URI,
+            mCaCertPath,
+            NULL,
+            NULL,
+            &pClientCallbacks));
 
     UINT64 expiration = currentTime + TEST_STREAMING_TOKEN_DURATION;
 
@@ -910,11 +920,11 @@ TEST_F(ProducerClientBasicTest, createStreamStreamUntilTokenRotationStopSyncFree
     STRNCPY(streamName, (PCHAR) TEST_STREAM_NAME, MAX_STREAM_NAME_LEN);
     streamName[MAX_STREAM_NAME_LEN] = '\0';
     EXPECT_EQ(STATUS_SUCCESS, createDefaultDeviceInfo(&pDeviceInfo));
-    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.loggerLogLevel = GET_LOGGER_LOG_LEVEL();
     EXPECT_EQ(STATUS_SUCCESS, createRealtimeVideoStreamInfoProvider(streamName, TEST_RETENTION_PERIOD, TEST_STREAM_BUFFER_DURATION, &pStreamInfo));
     pStreamInfo->streamCaps.nalAdaptationFlags = NAL_ADAPTATION_FLAG_NONE;
     EXPECT_EQ(STATUS_SUCCESS, createAbstractDefaultCallbacksProvider(TEST_DEFAULT_CHAIN_COUNT,
-                                                                     FALSE,
+                                                                     API_CALL_CACHE_TYPE_NONE,
                                                                      TEST_CACHING_ENDPOINT_PERIOD,
                                                                      mRegion,
                                                                      TEST_CONTROL_PLANE_URI,
@@ -945,6 +955,79 @@ TEST_F(ProducerClientBasicTest, createStreamStreamUntilTokenRotationStopSyncFree
         frame.presentationTs = frame.decodingTs;
         frame.flags = frame.index % TEST_FPS == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
         currentTime = GETTIME();
+    }
+
+    EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStreamSync(streamHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoStream(&streamHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeKinesisVideoClient(&clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, freeDeviceInfo(&pDeviceInfo));
+    EXPECT_EQ(STATUS_SUCCESS, freeStreamInfoProvider(&pStreamInfo));
+    EXPECT_EQ(STATUS_SUCCESS, freeCallbacksProvider(&pClientCallbacks));
+}
+
+TEST_F(ProducerClientBasicTest, createStreamPutMultipleFrameTimeoutLatencyStopSyncFree)
+{
+    PDeviceInfo pDeviceInfo;
+    PClientCallbacks pClientCallbacks;
+    CLIENT_HANDLE clientHandle;
+    STREAM_HANDLE streamHandle;
+    PStreamInfo pStreamInfo;
+    CHAR streamName[MAX_STREAM_NAME_LEN + 1];
+    Frame frame;
+    UINT32 i;
+    BYTE frameBuf[100000]; // large frames are needed
+    UINT32 fragmentCount = 3, frameRate = 30, keyFrameInterval = 60;
+
+    frame.version = FRAME_CURRENT_VERSION;
+    frame.duration = 15 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    frame.frameData = frameBuf;
+    frame.trackId = DEFAULT_VIDEO_TRACK_ID;
+    frame.index = 0;
+    frame.decodingTs = 0;
+    frame.presentationTs = 0;
+    frame.size = SIZEOF(frameBuf);
+    frame.flags = FRAME_FLAG_KEY_FRAME;
+    Frame eofr = EOFR_FRAME_INITIALIZER;
+
+    STRNCPY(streamName, (PCHAR) TEST_STREAM_NAME, MAX_STREAM_NAME_LEN);
+    streamName[MAX_STREAM_NAME_LEN] = '\0';
+    EXPECT_EQ(STATUS_SUCCESS, createDefaultDeviceInfo(&pDeviceInfo));
+    pDeviceInfo->clientInfo.loggerLogLevel = GET_LOGGER_LOG_LEVEL();
+    EXPECT_EQ(STATUS_SUCCESS, createRealtimeVideoStreamInfoProvider(streamName, TEST_RETENTION_PERIOD, TEST_STREAM_BUFFER_DURATION, &pStreamInfo));
+    pStreamInfo->streamCaps.nalAdaptationFlags = NAL_ADAPTATION_FLAG_NONE;
+    pStreamInfo->streamCaps.maxLatency = 15 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    pStreamInfo->streamCaps.replayDuration = 30 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    pStreamInfo->streamCaps.bufferDuration = 120 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    pStreamInfo->streamCaps.connectionStalenessDuration = 40 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+    pStreamInfo->streamCaps.keyFrameFragmentation = TRUE;
+    pStreamInfo->streamCaps.frameRate = frameRate;
+    pStreamInfo->streamCaps.frameTimecodes = TRUE;
+
+    EXPECT_EQ(STATUS_SUCCESS, createDefaultCallbacksProvider(5, mAccessKey, mSecretKey,
+                                                             mSessionToken, MAX_UINT64,
+                                                             mRegion, TEST_CONTROL_PLANE_URI,
+                                                             mCaCertPath, NULL, NULL,
+                                                             API_CALL_CACHE_TYPE_ALL, TEST_CACHING_ENDPOINT_PERIOD,
+                                                             TRUE, &pClientCallbacks));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoClientSync(pDeviceInfo, pClientCallbacks, &clientHandle));
+    EXPECT_EQ(STATUS_SUCCESS, createKinesisVideoStreamSync(clientHandle, pStreamInfo, &streamHandle));
+
+    for(i = 0; i < fragmentCount * keyFrameInterval; i++) {
+        frame.flags = frame.index % keyFrameInterval == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+        if (i == keyFrameInterval && frame.flags == FRAME_FLAG_KEY_FRAME) {
+            DLOGD("PAUSING to cause a timeout");
+            EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &eofr));
+            THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
+            DLOGD("PAUSING After the pause");
+        }
+
+        frame.decodingTs = GETTIME();
+        frame.presentationTs = frame.decodingTs;
+
+        EXPECT_EQ(STATUS_SUCCESS, putKinesisVideoFrame(streamHandle, &frame));
+        THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+        frame.index++;
     }
 
     EXPECT_EQ(STATUS_SUCCESS, stopKinesisVideoStreamSync(streamHandle));

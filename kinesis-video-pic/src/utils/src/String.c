@@ -35,7 +35,7 @@ STATUS ulltostr(UINT64 value, PCHAR pStr, UINT32 size, UINT32 base, PUINT32 pSiz
     }
 
     while (value != 0) {
-        remainder = (UINT32) (value % base);
+        remainder = (UINT32)(value % base);
         value = value / base;
 
         // Need space for the NULL terminator
@@ -102,15 +102,14 @@ STATUS strtoint(PCHAR pStart, PCHAR pEnd, UINT32 base, PUINT64 pRet, PBOOL pSign
             break;
     }
 
-    while (pCur != pEnd && *pCur != '\0')
-    {
+    while (pCur != pEnd && *pCur != '\0') {
         curChar = *pCur;
         if (curChar >= '0' && curChar <= '9') {
-            digit = (UINT64) (curChar - '0');
+            digit = (UINT64)(curChar - '0');
         } else if (curChar >= 'a' && curChar <= 'z') {
-            digit = (UINT64) (curChar - 'a') + 10;
+            digit = (UINT64)(curChar - 'a') + 10;
         } else if (curChar >= 'A' && curChar <= 'Z') {
-            digit = (UINT64) (curChar - 'A') + 10;
+            digit = (UINT64)(curChar - 'A') + 10;
         } else {
             CHK(FALSE, STATUS_INVALID_DIGIT);
         }
@@ -131,7 +130,7 @@ STATUS strtoint(PCHAR pStart, PCHAR pEnd, UINT32 base, PUINT64 pRet, PBOOL pSign
     CHK(seenChars, STATUS_EMPTY_STRING);
 
     if (!positive) {
-        result = (UINT64)((INT64)result * -1);
+        result = (UINT64)((INT64) result * -1);
     }
 
     *pRet = result;
@@ -305,7 +304,7 @@ PCHAR strnchr(PCHAR pStr, UINT32 strLen, CHAR ch)
     UINT32 i = 0;
 
     while (*pStr != ch) {
-        if (*pStr++ == '\0' || i++ == strLen) {
+        if (*pStr++ == '\0' || i++ == strLen - 1) {
             return NULL;
         }
     }
@@ -389,7 +388,7 @@ STATUS trimstrall(PCHAR pStr, UINT32 strLen, PCHAR* ppStart, PCHAR* ppEnd)
 
     // Calculate the new length
     if (strLen != 0) {
-        strLen -= (UINT32) (*ppStart - pStr);
+        strLen -= (UINT32)(*ppStart - pStr);
         if (strLen == 0) {
             // This is the case where we have no more string left and we can't call the rtrimstr API
             // as it will interpret the strLen of 0 as a signal to calculate the length
@@ -435,7 +434,7 @@ STATUS tolowerupperstr(PCHAR pStr, UINT32 strLen, BOOL toUpper, PCHAR pConverted
 
     // Iterate strLen characters (not accounting for the NULL terminator) or until the NULL terminator is reached
     while (i++ < strLen && *pSrc != '\0') {
-        *pDst = (CHAR) (toUpper ? TOUPPER(*pSrc) : TOLOWER(*pSrc));
+        *pDst = (CHAR)(toUpper ? TOUPPER(*pSrc) : TOLOWER(*pSrc));
 
         pSrc++;
         pDst++;
@@ -449,4 +448,89 @@ CleanUp:
     }
 
     return retStatus;
+}
+
+// This is a string search using Rabin–Karp algorithm.
+// Running time complexity:
+//   * Average: Θ(n + m)
+//   * Worst  : Θ((n−m)m)
+// Memory complexity: O(1)
+PCHAR defaultStrnstr(PCHAR haystack, PCHAR needle, SIZE_T len)
+{
+    UINT32 prime = 16777619;
+    UINT32 windowHash = 0;
+    UINT32 needleHash = 0;
+    UINT32 i;
+    UINT32 square = prime, power = 1;
+    UINT32 haystackSize, needleSize;
+
+    if (needle == NULL) {
+        return haystack;
+    }
+
+    if (haystack == NULL) {
+        return NULL;
+    }
+
+    haystackSize = (UINT32) STRNLEN(haystack, len);
+    needleSize = (UINT32) STRLEN(needle);
+    if (needleSize > haystackSize) {
+        return NULL;
+    }
+
+    for (i = 0; i < needleSize; i++) {
+        windowHash = windowHash * prime + (UINT32) haystack[i];
+        needleHash = needleHash * prime + (UINT32) needle[i];
+    }
+
+    if (windowHash == needleHash && STRNCMP(haystack, needle, needleSize) == 0) {
+        return haystack;
+    }
+
+    // Precompute the largest power in O(log n).
+    //
+    // This algorithm takes an advantage for the fact that a number that's multiplied
+    // by itself will double the power.
+    //
+    // For example:
+    //    a ^ 4 = (a ^ 2) * (a ^ 2) = a * a * a * a
+    //
+    //
+    // This largest power then can be used to efficiently slide the hash window.
+    //
+    // For example:
+    //    windowString = "abc"
+    //    ASCII table:
+    //        a = 97
+    //        b = 98
+    //        c = 99
+    //
+    //    windowHash = 97 * prime ^ 2 + 98 * prime ^ 1 + 99
+    //
+    //    After this calculation, power = prime ^ 2
+    //
+    // The idea is to not repeat recalculating prime ^ 2 everytime we slide
+    // the window.
+    for (i = needleSize - 1; i > 0; i /= 2) {
+        // When it's odd, bring back to even again by storing the extra square
+        // in power
+        if (i % 2 != 0) {
+            power *= square;
+        }
+        square *= square;
+    }
+
+    for (i = needleSize; i < haystackSize;) {
+        // slide the window hash, remove oldest char and add a new char
+        windowHash = windowHash - (((UINT32) haystack[i - needleSize]) * power);
+        windowHash = windowHash * prime + (UINT32) haystack[i];
+
+        i++;
+        // make sure that the hash is not collided
+        if (windowHash == needleHash && STRNCMP(haystack + i - needleSize, needle, needleSize) == 0) {
+            return haystack + i - needleSize;
+        }
+    }
+
+    return NULL;
 }

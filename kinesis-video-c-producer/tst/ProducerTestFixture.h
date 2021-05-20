@@ -3,57 +3,71 @@
 #include <src/source/Include_i.h>
 #include "RotatingStaticAuthCallbacks.h"
 
-#define TEST_AUTH_FILE_PATH                                     (PCHAR) "TEST_KVS_AUTH_FILE_PATH"
-#define TEST_STREAM_NAME                                        (PCHAR) "ScaryTestStream_0"
-#define TEST_DEVICE_INFO_NAME                                   (PCHAR) "TestDeviceName"
-#define TEST_USER_AGENT                                         (PCHAR) "Test User Agent"
-#define TEST_CLIENT_ID                                          (PCHAR) "Test Client"
-#define TEST_MAX_STREAM_COUNT                                   5000
-#define TEST_DEFAULT_REGION                                     (PCHAR) "us-west-2"
-#define TEST_CONTROL_PLANE_URI                                  EMPTY_STRING
-#define TEST_CERTIFICATE_PATH                                   EMPTY_STRING
-#define TEST_DEFAULT_CHAIN_COUNT                                DEFAULT_CALLBACK_CHAIN_COUNT
+#define TEST_AUTH_FILE_PATH      (PCHAR) "TEST_KVS_AUTH_FILE_PATH"
+#define TEST_STREAM_NAME         (PCHAR) "ScaryTestStream_0"
+#define TEST_DEVICE_INFO_NAME    (PCHAR) "TestDeviceName"
+#define TEST_USER_AGENT          (PCHAR) "Test User Agent"
+#define TEST_CLIENT_ID           (PCHAR) "Test Client"
+#define TEST_MAX_STREAM_COUNT    5000
+#define TEST_DEFAULT_REGION      (PCHAR) "us-west-2"
+#define TEST_CONTROL_PLANE_URI   EMPTY_STRING
+#define TEST_CERTIFICATE_PATH    EMPTY_STRING
+#define TEST_DEFAULT_CHAIN_COUNT DEFAULT_CALLBACK_CHAIN_COUNT
 
-#define TEST_ACCESS_KEY                                         (PCHAR) "Test access key"
-#define TEST_SECRET_KEY                                         (PCHAR) "Test secret key"
-#define TEST_SESSION_TOKEN                                      (PCHAR) "Test session token"
 
-#define TEST_FRAME_DURATION                                     (50 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
-#define TEST_EXECUTION_DURATION                                 (10 * HUNDREDS_OF_NANOS_IN_A_SECOND)
-#define TEST_KEY_FRAME_INTERVAL                                 50
-#define TEST_STREAM_COUNT                                       2
-#define TEST_FRAME_SIZE                                         1000
-#define TEST_STREAMING_TOKEN_DURATION                           (40 * HUNDREDS_OF_NANOS_IN_A_SECOND)
-#define TEST_CREDENTIAL_EXPIRATION                              (24 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
-#define TEST_STORAGE_SIZE_IN_BYTES                              (128 * 1024 * 1024ull)
-#define TEST_MAX_STREAM_LATENCY                                 (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
-#define TEST_STREAM_BUFFER_DURATION                             (120 * HUNDREDS_OF_NANOS_IN_A_SECOND)
-#define TEST_START_STOP_ITERATION_COUNT                         200
-#define TEST_CACHING_ENDPOINT_PERIOD                            (5 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
-#define TEST_TAG_COUNT                                          5
-#define TEST_DEFAULT_PRESSURE_HANDLER_RETRY_COUNT               10
-#define TEST_DEFAULT_PRESSURE_HANDLER_GRACE_PERIOD_SECONDS      5
+#define TEST_ACCESS_KEY    (PCHAR) "Test access key"
+#define TEST_SECRET_KEY    (PCHAR) "Test secret key"
+#define TEST_SESSION_TOKEN (PCHAR) "Test session token"
 
-#define TEST_FPS                                                20
-#define TEST_MEDIA_DURATION_SECONDS                             60
+#define TEST_FRAME_DURATION                                (50 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define TEST_EXECUTION_DURATION                            (3 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define TEST_KEY_FRAME_INTERVAL                            50
+#define TEST_STREAM_COUNT                                  2
+#define TEST_FRAME_SIZE                                    1000
+#define TEST_STREAMING_TOKEN_DURATION                      (40 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define TEST_CREDENTIAL_EXPIRATION                         (24 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
+#define TEST_STORAGE_SIZE_IN_BYTES                         (128 * 1024 * 1024ull)
+#define TEST_MAX_STREAM_LATENCY                            (30 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define TEST_STREAM_BUFFER_DURATION                        (120 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define TEST_START_STOP_ITERATION_COUNT                    100
+#define TEST_CACHING_ENDPOINT_PERIOD                       (5 * HUNDREDS_OF_NANOS_IN_A_MINUTE)
+#define TEST_TAG_COUNT                                     5
+#define TEST_DEFAULT_PRESSURE_HANDLER_RETRY_COUNT          10
+#define TEST_DEFAULT_PRESSURE_HANDLER_GRACE_PERIOD_SECONDS 3
+#define TEST_STREAM_CONNECTION_STALENESS_DURATION          (120 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define TEST_VIDEO_TRACK_ID                                1
+#define TEST_AUDIO_TRACK_ID                                2
+
+
+#define TEST_FPS                    20
+#define TEST_MEDIA_DURATION_SECONDS 60
 
 // 1 minutes of frames
-#define TEST_TOTAL_FRAME_COUNT                                  (TEST_FPS * TEST_MEDIA_DURATION_SECONDS)
+#define TEST_TOTAL_FRAME_COUNT (TEST_FPS * TEST_MEDIA_DURATION_SECONDS)
 
-#define TEST_TIMESTAMP_SENTINEL                                 -1
-#define TEST_RETENTION_PERIOD                                   (2 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
+#define TEST_TIMESTAMP_SENTINEL -1
+#define TEST_RETENTION_PERIOD   (2 * HUNDREDS_OF_NANOS_IN_AN_HOUR)
 
-#define TEST_CREATE_PRODUCER_TIMEOUT                            (300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
-#define TEST_CREATE_STREAM_TIMEOUT                              (10 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define TEST_CREATE_PRODUCER_TIMEOUT (300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)
+#define TEST_CREATE_STREAM_TIMEOUT   (10 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+#define TEST_STOP_STREAM_TIMEOUT     (20 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+
+#define TEST_IOT_ENDPOINT              (PCHAR) "Test.iot.endpoint"
+#define TEST_IOT_CERT_PATH             (PCHAR) "/Test/credentials/cert/path"
+#define TEST_IOT_CERT_PRIVATE_KEY_PATH (PCHAR) "/Test/private/key/path"
+#define TEST_CA_CERT_PATH              (PCHAR) "/Test/private/ca_cert/path"
+#define TEST_IOT_ROLE_ALIAS            (PCHAR) "TestRoleAlias"
+#define TEST_IOT_THING_NAME            (PCHAR) "TestThingName"
+#define TEST_USER_AGENT_POSTFIX        (PCHAR) "Postfix"
 
 #ifdef _WIN32
-#define TEST_TEMP_DIR_PATH                                      (PCHAR) "C:\\Windows\\Temp\\"
-#define TEST_TEMP_DIR_PATH_NO_ENDING_SEPARTOR                   (PCHAR) "C:\\Windows\\Temp"
+#define TEST_TEMP_DIR_PATH                    (PCHAR) "C:\\Windows\\Temp\\"
+#define TEST_TEMP_DIR_PATH_NO_ENDING_SEPARTOR (PCHAR) "C:\\Windows\\Temp"
 #else
-#define TEST_TEMP_DIR_PATH                                      (PCHAR) "/tmp/"
-#define TEST_TEMP_DIR_PATH_NO_ENDING_SEPARTOR                   (PCHAR) "/tmp"
+#define TEST_TEMP_DIR_PATH                    (PCHAR) "/tmp/"
+#define TEST_TEMP_DIR_PATH_NO_ENDING_SEPARTOR (PCHAR) "/tmp"
 #endif
-#define TEST_MAGIC_NUMBER                                       0x1234abcd
+#define TEST_MAGIC_NUMBER 0x1234abcd
 //
 // Set the allocators to the instrumented equivalents
 //
@@ -62,7 +76,10 @@ extern memAlignAlloc globalMemAlignAlloc;
 extern memCalloc globalMemCalloc;
 extern memFree globalMemFree;
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
+namespace com {
+namespace amazonaws {
+namespace kinesis {
+namespace video {
 //
 // Default allocator functions
 //
@@ -70,19 +87,19 @@ extern UINT64 gTotalProducerClientMemoryUsage;
 extern MUTEX gProducerClientMemMutex;
 INLINE PVOID instrumentedClientMemAlloc(SIZE_T size)
 {
-    DLOGS("Test malloc %llu bytes", (UINT64)size);
+    DLOGS("Test malloc %llu bytes", (UINT64) size);
     MUTEX_LOCK(gProducerClientMemMutex);
     gTotalProducerClientMemoryUsage += size;
     MUTEX_UNLOCK(gProducerClientMemMutex);
     PBYTE pAlloc = (PBYTE) malloc(size + SIZEOF(SIZE_T));
-    *(PSIZE_T)pAlloc = size;
+    *(PSIZE_T) pAlloc = size;
 
     return pAlloc + SIZEOF(SIZE_T);
 }
 
 INLINE PVOID instrumentedClientMemAlignAlloc(SIZE_T size, SIZE_T alignment)
 {
-    DLOGS("Test align malloc %llu bytes", (UINT64)size);
+    DLOGS("Test align malloc %llu bytes", (UINT64) size);
     // Just do malloc
     UNUSED_PARAM(alignment);
     return instrumentedClientMemAlloc(size);
@@ -91,13 +108,13 @@ INLINE PVOID instrumentedClientMemAlignAlloc(SIZE_T size, SIZE_T alignment)
 INLINE PVOID instrumentedClientMemCalloc(SIZE_T num, SIZE_T size)
 {
     SIZE_T overallSize = num * size;
-    DLOGS("Test calloc %llu bytes", (UINT64)overallSize);
+    DLOGS("Test calloc %llu bytes", (UINT64) overallSize);
     MUTEX_LOCK(gProducerClientMemMutex);
     gTotalProducerClientMemoryUsage += overallSize;
     MUTEX_UNLOCK(gProducerClientMemMutex);
 
     PBYTE pAlloc = (PBYTE) calloc(1, overallSize + SIZEOF(SIZE_T));
-    *(PSIZE_T)pAlloc = overallSize;
+    *(PSIZE_T) pAlloc = overallSize;
 
     return pAlloc + SIZEOF(SIZE_T);
 }
@@ -106,7 +123,7 @@ INLINE VOID instrumentedClientMemFree(PVOID ptr)
 {
     PBYTE pAlloc = (PBYTE) ptr - SIZEOF(SIZE_T);
     SIZE_T size = *(PSIZE_T) pAlloc;
-    DLOGS("Test free %llu bytes", (UINT64)size);
+    DLOGS("Test free %llu bytes", (UINT64) size);
 
     MUTEX_LOCK(gProducerClientMemMutex);
     gTotalProducerClientMemoryUsage -= size;
@@ -115,10 +132,7 @@ INLINE VOID instrumentedClientMemFree(PVOID ptr)
     free(pAlloc);
 }
 
-typedef enum {
-    BufferPressureOK,
-    BufferInPressure
-} BufferPressureState;
+typedef enum { BufferPressureOK, BufferInPressure } BufferPressureState;
 
 // Forward declaration
 class ProducerClientTestBase;
@@ -126,15 +140,13 @@ class ProducerClientTestBase;
 extern ProducerClientTestBase* gProducerClientTestBase;
 
 class ProducerClientTestBase : public ::testing::Test {
-public:
-
+  public:
     ProducerClientTestBase();
     VOID updateFrame();
 
     PVOID basicProducerRoutine(STREAM_HANDLE streamHandle, STREAMING_TYPE streaming_type = STREAMING_TYPE_REALTIME);
 
-protected:
-
+  protected:
     virtual void SetUp()
     {
         DLOGI("\nSetting up test: %s\n", GetTestName());
@@ -189,16 +201,16 @@ protected:
 
     PCHAR GetTestName()
     {
-        return (PCHAR) ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name();
+        return (PCHAR)::testing::UnitTest::GetInstance()->current_test_info()->test_case_name();
     };
 
-    VOID createDefaultProducerClient(BOOL cachingEndpoint = FALSE,
-                                     UINT64 createStreamTimeout = TEST_CREATE_STREAM_TIMEOUT,
-                                     BOOL continuousRetry = FALSE);
-    STATUS createTestStream(UINT32 index,
-                            STREAMING_TYPE streamingType = STREAMING_TYPE_REALTIME,
-                            UINT32 maxLatency = TEST_MAX_STREAM_LATENCY,
-                            UINT32 bufferDuration = TEST_STREAM_BUFFER_DURATION);
+    VOID createDefaultProducerClient(BOOL cachingEndpoint = FALSE, UINT64 createStreamTimeout = TEST_CREATE_STREAM_TIMEOUT,
+                                     UINT64 stopStreamTimeout = TEST_STOP_STREAM_TIMEOUT, BOOL continuousRetry = FALSE, UINT64 sessionRotationPeriod = TEST_CREDENTIAL_EXPIRATION);
+    VOID createDefaultProducerClient(API_CALL_CACHE_TYPE cacheType = API_CALL_CACHE_TYPE_NONE,
+                                     UINT64 createStreamTimeout = TEST_CREATE_STREAM_TIMEOUT, UINT64 stopStreamTimeout = TEST_STOP_STREAM_TIMEOUT,
+                                     BOOL continuousRetry = FALSE, UINT64 sessionRotationPeriod = TEST_CREDENTIAL_EXPIRATION);
+    STATUS createTestStream(UINT32 index, STREAMING_TYPE streamingType = STREAMING_TYPE_REALTIME, UINT64 maxLatency = TEST_MAX_STREAM_LATENCY,
+                            UINT64 bufferDuration = TEST_STREAM_BUFFER_DURATION, BOOL sync = TRUE);
     VOID freeStreams(BOOL sync = FALSE);
     VOID printFrameInfo(PFrame pFrame);
 
@@ -213,7 +225,7 @@ protected:
 
     static STATUS testDescribeStreamSecondFunc(UINT64, PCHAR, PServiceCallContext);
     static STATUS testDescribeStreamThirdFunc(UINT64, PCHAR, PServiceCallContext);
-    //Api callback chain stops if any function in the chain terminates callback continuation through stop chain status
+    // Api callback chain stops if any function in the chain terminates callback continuation through stop chain status
     static STATUS testDescribeStreamStopChainFunc(UINT64, PCHAR, PServiceCallContext);
 
     static STATUS testBufferDurationOverflowFunc(UINT64, STREAM_HANDLE, UINT64);
@@ -230,12 +242,7 @@ protected:
     // Test hook function for easy perform
     static STATUS curlEasyPerformHookFunc(PCurlResponse);
     static STATUS curlWriteCallbackHookFunc(PCurlResponse, PCHAR, UINT32, PCHAR*, PUINT32);
-    static STATUS curlReadCallbackHookFunc(PCurlResponse,
-                                           UPLOAD_HANDLE,
-                                           PBYTE,
-                                           UINT32,
-                                           PUINT32,
-                                           STATUS);
+    static STATUS curlReadCallbackHookFunc(PCurlResponse, UPLOAD_HANDLE, PBYTE, UINT32, PUINT32, STATUS);
 
     CLIENT_HANDLE mClientHandle;
     PClientCallbacks mCallbacksProvider;
@@ -337,6 +344,10 @@ protected:
     volatile UINT32 mStreamClosedFnCount;
     volatile UINT32 mPersistedFragmentCount;
     volatile UINT32 mStorageOverflowCount;
+    volatile UINT64 mLastErrorAckTimestamp;
+    volatile UINT64 mLastBufferingAckTimestamp;
+    volatile UINT64 mLastReceivedAckTimestamp;
+    volatile UINT64 mLastPersistedAckTimestamp;
 
     // Buffer pressure state machine variables
     volatile BOOL mBufferDurationInPressure;
@@ -344,17 +355,28 @@ protected:
     BufferPressureState mCurrentPressureState;
     UINT32 mPressureHandlerRetryCount;
 
-private:
+    // Storing the last error
+    volatile STATUS mLastError;
 
+    // Members for fault injection
+    volatile UINT32 mDescribeFailCount;
+    volatile UINT32 mDescribeRecoverCount;
+    volatile STATUS mDescribeRetStatus;
+
+    UINT32 loggerLogLevel = LOG_LEVEL_WARN;
+
+    // Stored auth callbacks which is used to inject fault
+    PAuthCallbacks mAuthCallbacks;
+
+  private:
     // Stored function pointers to reset on exit
     memAlloc mStoredMemAlloc;
     memAlignAlloc mStoredMemAlignAlloc;
     memCalloc mStoredMemCalloc;
     memFree mStoredMemFree;
-
 };
 
-}  // namespace video
-}  // namespace kinesis
-}  // namespace amazonaws
-}  // namespace com;
+} // namespace video
+} // namespace kinesis
+} // namespace amazonaws
+} // namespace com

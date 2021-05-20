@@ -50,7 +50,7 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamWithResultEventAfterGrace
     EXPECT_EQ(STATUS_SUCCESS,
               putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, localUploadHandle));
 
-    currentputStreamFuncCount = mPutStreamFuncCount;
+    currentputStreamFuncCount = ATOMIC_LOAD(&mPutStreamFuncCount);
 
     MockProducer mockProducer(mMockProducerConfig, mStreamHandle);
 
@@ -69,7 +69,7 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamWithResultEventAfterGrace
             EXPECT_EQ(STATUS_SUCCESS, mockProducer.timedPutFrame(currentTime, &didPutFrame));
         }
 
-        if (mPutStreamFuncCount > currentputStreamFuncCount) {
+        if (ATOMIC_LOAD(&mPutStreamFuncCount) > currentputStreamFuncCount) {
 
             putStreamEventResultTime =
                     currentTime + (STREAMING_TOKEN_EXPIRATION_GRACE_PERIOD - 1 * HUNDREDS_OF_NANOS_IN_A_SECOND);
@@ -96,7 +96,7 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamWithResultEventAfterGrace
             retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS,
                       mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
             if (retStatus == STATUS_END_OF_STREAM) {
                 tokenRotateCount++;
             }
@@ -161,7 +161,7 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamWithLargeBufferMultipleSe
 
             retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
             if (retStatus == STATUS_END_OF_STREAM) {
                 tokenRotateCount++;
             }
@@ -198,9 +198,9 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamForMultipleRotationsStopS
             mockConsumer = mStreamingSession.getConsumer(uploadHandle);
             STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
         }
-    } while(currentTime < testTerminationTime);
+    } while (currentTime < testTerminationTime);
 
     VerifyStopStreamSyncAndFree();
 }
@@ -227,10 +227,11 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamNewPutStreamResultComesFa
         currentTime = mClientCallbacks.getCurrentTimeFn((UINT64) this);
         EXPECT_EQ(STATUS_SUCCESS, mockProducer.timedPutFrame(currentTime, &didPutFrame));
 
-        if (!eventReplied[mPutStreamFuncCount]) {
+        if (!eventReplied[ATOMIC_LOAD(&mPutStreamFuncCount)]) {
             UPLOAD_HANDLE localUploadHandle = mStreamingSession.addNewConsumerSession(mMockConsumerConfig,
                     mStreamHandle);
-            switch (mPutStreamFuncCount) {
+            UINT32 putStreamFuncCount = ATOMIC_LOAD(&mPutStreamFuncCount);
+            switch (putStreamFuncCount) {
                 case 1:
                     putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, localUploadHandle);
                     break;
@@ -239,26 +240,26 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamNewPutStreamResultComesFa
                     putStreamResultEvent(mCallContext.customData, SERVICE_CALL_RESULT_OK, localUploadHandle);
                     break;
             }
-            eventReplied[mPutStreamFuncCount] = TRUE;
+            eventReplied[ATOMIC_LOAD(&mPutStreamFuncCount)] = TRUE;
         }
 
         mStreamingSession.getActiveUploadHandles(currentUploadHandles);
         for (int i = 0; i < currentUploadHandles.size(); i++) {
             UPLOAD_HANDLE uploadHandle = currentUploadHandles[i];
-            if (mPutStreamFuncCount == 1 || uploadHandle == newUploadHandle) {
+            if (ATOMIC_LOAD(&mPutStreamFuncCount) == 1 || uploadHandle == newUploadHandle) {
                 mockConsumer = mStreamingSession.getConsumer(uploadHandle);
                 STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
                 EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-                VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+                VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
             } else {
                 mockConsumer = mStreamingSession.getConsumer(uploadHandle);
                 STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
                 EXPECT_EQ(STATUS_SUCCESS,
                           mockConsumer->submitErrorAck(SERVICE_CALL_RESULT_ACK_INTERNAL_ERROR, &submittedAck));
-                VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+                VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
             }
         }
-    } while(currentTime < testTerminationTime);
+    } while (currentTime < testTerminationTime);
 
     VerifyStopStreamSyncAndFree();
 }
@@ -294,7 +295,7 @@ TEST_P(TokenRotationFunctionalityTest, CreateSyncStreamAtTokenRotationLongDelayF
             mockConsumer = mStreamingSession.getConsumer(uploadHandle);
             STATUS retStatus = mockConsumer->timedGetStreamData(currentTime, &gotStreamData);
             EXPECT_EQ(STATUS_SUCCESS, mockConsumer->timedSubmitNormalAck(currentTime, &submittedAck));
-            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime);
+            VerifyGetStreamDataResult(retStatus, gotStreamData, uploadHandle, &currentTime, &mockConsumer);
         }
     } while (currentTime < streamStopTime);
 

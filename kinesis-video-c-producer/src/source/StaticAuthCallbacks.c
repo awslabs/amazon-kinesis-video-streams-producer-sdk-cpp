@@ -7,9 +7,8 @@
 /**
  * Creates Static Auth callbacks
  */
-STATUS createStaticAuthCallbacks(PClientCallbacks pCallbacksProvider, PCHAR accessKeyId, PCHAR secretKey,
-                                 PCHAR sessionToken, UINT64 expiration,
-                                 PAuthCallbacks *ppStaticAuthCallbacks)
+STATUS createStaticAuthCallbacks(PClientCallbacks pCallbacksProvider, PCHAR accessKeyId, PCHAR secretKey, PCHAR sessionToken, UINT64 expiration,
+                                 PAuthCallbacks* ppStaticAuthCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -38,8 +37,7 @@ STATUS createStaticAuthCallbacks(PClientCallbacks pCallbacksProvider, PCHAR acce
     pStaticAuthCallbacks->authCallbacks.getDeviceFingerprintFn = NULL;
 
     // Initialize the provider
-    CHK_STATUS(createStaticCredentialProvider(accessKeyId, 0, secretKey, 0,
-                                              sessionToken, 0, expiration, &pCredentialProvider));
+    CHK_STATUS(createStaticCredentialProvider(accessKeyId, 0, secretKey, 0, sessionToken, 0, expiration, &pCredentialProvider));
     pStaticAuthCallbacks->pCredentialProvider = (PAwsCredentialProvider) pCredentialProvider;
 
     // Append to the auth chain
@@ -48,7 +46,7 @@ STATUS createStaticAuthCallbacks(PClientCallbacks pCallbacksProvider, PCHAR acce
 CleanUp:
 
     if (STATUS_FAILED(retStatus)) {
-        freeStaticAuthCallbacks((PAuthCallbacks *) &pStaticAuthCallbacks);
+        freeStaticAuthCallbacks((PAuthCallbacks*) &pStaticAuthCallbacks);
         pStaticAuthCallbacks = NULL;
     }
 
@@ -66,7 +64,7 @@ CleanUp:
  *
  * NOTE: The caller should have passed a pointer which was previously created by the corresponding function
  */
-STATUS freeStaticAuthCallbacks(PAuthCallbacks *ppStaticAuthCallbacks)
+STATUS freeStaticAuthCallbacks(PAuthCallbacks* ppStaticAuthCallbacks)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -110,8 +108,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS getStreamingTokenStaticFunc(UINT64 customData, PCHAR streamName, STREAM_ACCESS_MODE accessMode,
-                                   PServiceCallContext pServiceCallContext)
+STATUS getStreamingTokenStaticFunc(UINT64 customData, PCHAR streamName, STREAM_ACCESS_MODE accessMode, PServiceCallContext pServiceCallContext)
 {
     UNUSED_PARAM(streamName);
     UNUSED_PARAM(accessMode);
@@ -128,11 +125,8 @@ STATUS getStreamingTokenStaticFunc(UINT64 customData, PCHAR streamName, STREAM_A
     pCredentialProvider = (PAwsCredentialProvider) pStaticAuthCallbacks->pCredentialProvider;
     CHK_STATUS(pCredentialProvider->getCredentialsFn(pCredentialProvider, &pAwsCredentials));
 
-    retStatus = getStreamingTokenResultEvent(
-            pServiceCallContext->customData, SERVICE_CALL_RESULT_OK,
-            (PBYTE) pAwsCredentials,
-            pAwsCredentials->size,
-            pAwsCredentials->expiration);
+    retStatus = getStreamingTokenResultEvent(pServiceCallContext->customData, SERVICE_CALL_RESULT_OK, (PBYTE) pAwsCredentials, pAwsCredentials->size,
+                                             pAwsCredentials->expiration);
 
     PCallbacksProvider pCallbacksProvider = pStaticAuthCallbacks->pCallbacksProvider;
 
@@ -142,7 +136,6 @@ CleanUp:
 
     LEAVES();
     return retStatus;
-
 }
 
 STATUS getSecurityTokenStaticFunc(UINT64 customData, PBYTE* ppBuffer, PUINT32 pSize, PUINT64 pExpiration)

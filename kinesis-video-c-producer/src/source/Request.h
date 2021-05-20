@@ -6,12 +6,9 @@ Request internal include file
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
-
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
 
 /**
  * Forward declarations
@@ -80,7 +77,8 @@ typedef struct __CurlRequest* PCurlRequest;
  *
  * @return - STATUS code of the execution
  */
-STATUS createCurlRequest(HTTP_REQUEST_VERB, PCHAR, PCHAR, STREAM_HANDLE, PCHAR, UINT64, UINT64, UINT64, UINT64, PCHAR, PAwsCredentials, struct __CurlApiCallbacks*, PCurlRequest*);
+STATUS createCurlRequest(HTTP_REQUEST_VERB, PCHAR, PCHAR, STREAM_HANDLE, PCHAR, UINT64, UINT64, UINT64, UINT64, PCHAR, PAwsCredentials,
+                         struct __CurlApiCallbacks*, PCurlRequest*);
 
 /**
  * Frees a Request object
@@ -91,9 +89,7 @@ STATUS createCurlRequest(HTTP_REQUEST_VERB, PCHAR, PCHAR, STREAM_HANDLE, PCHAR, 
  */
 STATUS freeCurlRequest(PCurlRequest*);
 
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __KINESIS_VIDEO_REQUEST_INCLUDE_I__ */
+#endif /* __KINESIS_VIDEO_REQUEST_INCLUDE_I__ */

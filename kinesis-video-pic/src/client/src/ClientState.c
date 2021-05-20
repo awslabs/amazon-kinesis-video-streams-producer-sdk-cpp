@@ -9,16 +9,51 @@
  * Static definitions of the states
  */
 StateMachineState CLIENT_STATE_MACHINE_STATES[] = {
-        {CLIENT_STATE_NEW, CLIENT_STATE_NONE | CLIENT_STATE_NEW, fromNewClientState, executeNewClientState, INFINITE_RETRY_COUNT_SENTINEL, STATUS_INVALID_CLIENT_READY_STATE},
-        {CLIENT_STATE_AUTH, CLIENT_STATE_READY | CLIENT_STATE_NEW | CLIENT_STATE_AUTH, fromAuthClientState, executeAuthClientState, SERVICE_CALL_MAX_RETRY_COUNT, STATUS_CLIENT_AUTH_CALL_FAILED},
-        {CLIENT_STATE_GET_TOKEN, CLIENT_STATE_AUTH | CLIENT_STATE_PROVISION | CLIENT_STATE_GET_TOKEN, fromGetTokenClientState, executeGetTokenClientState, SERVICE_CALL_MAX_RETRY_COUNT, STATUS_GET_CLIENT_TOKEN_CALL_FAILED},
-        {CLIENT_STATE_PROVISION, CLIENT_STATE_AUTH | CLIENT_STATE_PROVISION, fromProvisionClientState, executeProvisionClientState, SERVICE_CALL_MAX_RETRY_COUNT, STATUS_CLIENT_PROVISION_CALL_FAILED},
-        {CLIENT_STATE_CREATE, CLIENT_STATE_PROVISION| CLIENT_STATE_GET_TOKEN | CLIENT_STATE_AUTH | CLIENT_STATE_CREATE, fromCreateClientState, executeCreateClientState, SERVICE_CALL_MAX_RETRY_COUNT, STATUS_CREATE_CLIENT_CALL_FAILED},
-        {CLIENT_STATE_TAG_CLIENT, CLIENT_STATE_CREATE | CLIENT_STATE_TAG_CLIENT | CLIENT_STATE_READY, fromTagClientState, executeTagClientState, SERVICE_CALL_MAX_RETRY_COUNT, STATUS_TAG_CLIENT_CALL_FAILED},
-        {CLIENT_STATE_READY, CLIENT_STATE_GET_TOKEN | CLIENT_STATE_AUTH | CLIENT_STATE_TAG_CLIENT | CLIENT_STATE_CREATE | CLIENT_STATE_READY, fromReadyClientState, executeReadyClientState, INFINITE_RETRY_COUNT_SENTINEL, STATUS_CLIENT_READY_CALLBACK_FAILED},
+    {CLIENT_STATE_NEW, CLIENT_STATE_NONE | CLIENT_STATE_NEW, fromNewClientState, executeNewClientState, INFINITE_RETRY_COUNT_SENTINEL,
+     STATUS_INVALID_CLIENT_READY_STATE},
+    {CLIENT_STATE_AUTH, CLIENT_STATE_READY | CLIENT_STATE_NEW | CLIENT_STATE_AUTH, fromAuthClientState, executeAuthClientState,
+     SERVICE_CALL_MAX_RETRY_COUNT, STATUS_CLIENT_AUTH_CALL_FAILED},
+    {CLIENT_STATE_GET_TOKEN, CLIENT_STATE_AUTH | CLIENT_STATE_PROVISION | CLIENT_STATE_GET_TOKEN, fromGetTokenClientState, executeGetTokenClientState,
+     SERVICE_CALL_MAX_RETRY_COUNT, STATUS_GET_CLIENT_TOKEN_CALL_FAILED},
+    {CLIENT_STATE_PROVISION, CLIENT_STATE_AUTH | CLIENT_STATE_PROVISION, fromProvisionClientState, executeProvisionClientState,
+     SERVICE_CALL_MAX_RETRY_COUNT, STATUS_CLIENT_PROVISION_CALL_FAILED},
+    {CLIENT_STATE_CREATE, CLIENT_STATE_PROVISION | CLIENT_STATE_GET_TOKEN | CLIENT_STATE_AUTH | CLIENT_STATE_CREATE, fromCreateClientState,
+     executeCreateClientState, SERVICE_CALL_MAX_RETRY_COUNT, STATUS_CREATE_CLIENT_CALL_FAILED},
+    {CLIENT_STATE_TAG_CLIENT, CLIENT_STATE_CREATE | CLIENT_STATE_TAG_CLIENT | CLIENT_STATE_READY, fromTagClientState, executeTagClientState,
+     SERVICE_CALL_MAX_RETRY_COUNT, STATUS_TAG_CLIENT_CALL_FAILED},
+    {CLIENT_STATE_READY, CLIENT_STATE_GET_TOKEN | CLIENT_STATE_AUTH | CLIENT_STATE_TAG_CLIENT | CLIENT_STATE_CREATE | CLIENT_STATE_READY,
+     fromReadyClientState, executeReadyClientState, INFINITE_RETRY_COUNT_SENTINEL, STATUS_CLIENT_READY_CALLBACK_FAILED},
 };
 
 UINT32 CLIENT_STATE_MACHINE_STATE_COUNT = SIZEOF(CLIENT_STATE_MACHINE_STATES) / SIZEOF(StateMachineState);
+
+// Helper method for stepping the client state machine
+STATUS stepClientStateMachine(PKinesisVideoClient pKinesisVideoClient)
+{
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    BOOL clientLocked = FALSE;
+
+    CHK(pKinesisVideoClient != NULL, STATUS_NULL_ARG);
+
+    // Interlock the state stepping
+    pKinesisVideoClient->clientCallbacks.lockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
+    clientLocked = TRUE;
+
+    CHK_STATUS(stepStateMachine(pKinesisVideoClient->base.pStateMachine));
+
+    pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
+    clientLocked = FALSE;
+
+CleanUp:
+
+    if (clientLocked) {
+        pKinesisVideoClient->clientCallbacks.unlockMutexFn(pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->base.lock);
+    }
+
+    LEAVES();
+    return retStatus;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // State machine callback functions
@@ -86,7 +121,8 @@ STATUS fromAuthClientState(UINT64 customData, PUINT64 pState)
             currentTime = pKinesisVideoClient->clientCallbacks.getCurrentTimeFn(pKinesisVideoClient->clientCallbacks.customData);
             if (currentTime >= pKinesisVideoClient->tokenAuthInfo.expiration ||
                 (pKinesisVideoClient->tokenAuthInfo.expiration - currentTime) < MIN_STREAMING_TOKEN_EXPIRATION_DURATION) {
-                DLOGW("Invalid auth token as it is expiring in less than %u seconds", MIN_STREAMING_TOKEN_EXPIRATION_DURATION / HUNDREDS_OF_NANOS_IN_A_SECOND);
+                DLOGW("Invalid auth token as it is expiring in less than %u seconds",
+                      MIN_STREAMING_TOKEN_EXPIRATION_DURATION / HUNDREDS_OF_NANOS_IN_A_SECOND);
                 state = CLIENT_STATE_AUTH;
                 break;
             }
@@ -212,8 +248,7 @@ STATUS fromGetTokenClientState(UINT64 customData, PUINT64 pState)
 
     // If the call succeeds and we have the token or auth none then we are ready to move on
     authType = getCurrentAuthType(pKinesisVideoClient);
-    if (pKinesisVideoClient->base.result == SERVICE_CALL_RESULT_OK &&
-           (authType == AUTH_INFO_TYPE_STS || authType == AUTH_INFO_NONE)) {
+    if (pKinesisVideoClient->base.result == SERVICE_CALL_RESULT_OK && (authType == AUTH_INFO_TYPE_STS || authType == AUTH_INFO_NONE)) {
         // Move the create client state if we are creating a new client, otherwise, move to ready state
         if (pKinesisVideoClient->clientReady) {
             state = CLIENT_STATE_READY;
@@ -249,10 +284,12 @@ STATUS executeGetTokenClientState(UINT64 customData, UINT64 time)
 
     // Call API if specified. Raise and error at this stage if not.
     CHK(pKinesisVideoClient->clientCallbacks.deviceCertToTokenFn != NULL, STATUS_SERVICE_CALL_CALLBACKS_MISSING);
+
+    // NOTE: The following callback is a non-prompt operation.
+    // The client will be awaiting for the resulting event and
+    // the state machine will not be primed to continue.
     CHK_STATUS(pKinesisVideoClient->clientCallbacks.deviceCertToTokenFn(
-        pKinesisVideoClient->clientCallbacks.customData,
-        pKinesisVideoClient->deviceInfo.name,
-        &pKinesisVideoClient->base.serviceCallContext));
+        pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->deviceInfo.name, &pKinesisVideoClient->base.serviceCallContext));
 
 CleanUp:
 
@@ -305,9 +342,7 @@ STATUS executeCreateClientState(UINT64 customData, UINT64 time)
 
     // Call API
     CHK_STATUS(pKinesisVideoClient->clientCallbacks.createDeviceFn(
-        pKinesisVideoClient->clientCallbacks.customData,
-        pKinesisVideoClient->deviceInfo.name,
-        &pKinesisVideoClient->base.serviceCallContext));
+        pKinesisVideoClient->clientCallbacks.customData, pKinesisVideoClient->deviceInfo.name, &pKinesisVideoClient->base.serviceCallContext));
 
 CleanUp:
 
@@ -352,17 +387,17 @@ STATUS executeTagClientState(UINT64 customData, UINT64 time)
     pKinesisVideoClient->base.serviceCallContext.callAfter = time;
 
     // Reset the call result
-    //FIXME: Enable tag resource when we have device tagging
-    //pKinesisVideoClient->base.result = SERVICE_CALL_RESULT_NOT_SET;
+    // FIXME: Enable tag resource when we have device tagging
+    // pKinesisVideoClient->base.result = SERVICE_CALL_RESULT_NOT_SET;
 
     // Call API
-    //FIXME: Enable tag resource when we have device tagging
-//    CHK_STATUS(pKinesisVideoClient->clientCallbacks.tagResourceFn(
-//        pKinesisVideoClient->clientCallbacks.customData,
-//        pKinesisVideoClient->base.arn,
-//        pKinesisVideoClient->deviceInfo.tagCount,
-//        pKinesisVideoClient->deviceInfo.tags,
-//        &pKinesisVideoClient->base.serviceCallContext));
+    // FIXME: Enable tag resource when we have device tagging
+    //    CHK_STATUS(pKinesisVideoClient->clientCallbacks.tagResourceFn(
+    //        pKinesisVideoClient->clientCallbacks.customData,
+    //        pKinesisVideoClient->base.arn,
+    //        pKinesisVideoClient->deviceInfo.tagCount,
+    //        pKinesisVideoClient->deviceInfo.tags,
+    //        &pKinesisVideoClient->base.serviceCallContext));
 
     pKinesisVideoClient->base.result = SERVICE_CALL_RESULT_OK;
 
@@ -417,14 +452,12 @@ STATUS executeReadyClientState(UINT64 customData, UINT64 time)
         pKinesisVideoClient->clientReady = TRUE;
 
         // Pulse the ready condition variable
-        CHK_STATUS(pKinesisVideoClient->clientCallbacks.broadcastConditionVariableFn(
-                pKinesisVideoClient->clientCallbacks.customData,
-                pKinesisVideoClient->base.ready));
+        CHK_STATUS(pKinesisVideoClient->clientCallbacks.broadcastConditionVariableFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                                                     pKinesisVideoClient->base.ready));
 
         // Call the ready callback
-        CHK_STATUS(pKinesisVideoClient->clientCallbacks.clientReadyFn(
-                pKinesisVideoClient->clientCallbacks.customData,
-                TO_CLIENT_HANDLE(pKinesisVideoClient)));
+        CHK_STATUS(pKinesisVideoClient->clientCallbacks.clientReadyFn(pKinesisVideoClient->clientCallbacks.customData,
+                                                                      TO_CLIENT_HANDLE(pKinesisVideoClient)));
     }
 
 CleanUp:

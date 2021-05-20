@@ -333,6 +333,75 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const std::string &custom_user_agent,
         const std::string &cert_path,
         bool is_caching_endpoint,
+        std::chrono::duration<uint64_t> caching_update_period) : DefaultCallbackProvider (
+                move(client_callback_provider),
+                move(stream_callback_provider),
+                move(credentials_provider),
+                region,
+                control_plane_uri,
+                user_agent_name,
+                custom_user_agent,
+                cert_path,
+                is_caching_endpoint,
+                caching_update_period.count() * HUNDREDS_OF_NANOS_IN_A_SECOND) {
+}
+
+DefaultCallbackProvider::DefaultCallbackProvider(
+        unique_ptr <ClientCallbackProvider> client_callback_provider,
+        unique_ptr <StreamCallbackProvider> stream_callback_provider,
+        unique_ptr <CredentialProvider> credentials_provider,
+        const string& region,
+        const string& control_plane_uri,
+        const std::string &user_agent_name,
+        const std::string &custom_user_agent,
+        const std::string &cert_path,
+        API_CALL_CACHE_TYPE api_call_caching,
+        std::chrono::duration<uint64_t> caching_update_period) : DefaultCallbackProvider (
+                move(client_callback_provider),
+                move(stream_callback_provider),
+                move(credentials_provider),
+                region,
+                control_plane_uri,
+                user_agent_name,
+                custom_user_agent,
+                cert_path,
+                api_call_caching,
+                caching_update_period.count() * HUNDREDS_OF_NANOS_IN_A_SECOND) {
+}
+
+DefaultCallbackProvider::DefaultCallbackProvider(
+        unique_ptr <ClientCallbackProvider> client_callback_provider,
+        unique_ptr <StreamCallbackProvider> stream_callback_provider,
+        unique_ptr <CredentialProvider> credentials_provider,
+        const string& region,
+        const string& control_plane_uri,
+        const std::string &user_agent_name,
+        const std::string &custom_user_agent,
+        const std::string &cert_path,
+        bool is_caching_endpoint,
+        uint64_t caching_update_period) : DefaultCallbackProvider (
+                move(client_callback_provider),
+                move(stream_callback_provider),
+                move(credentials_provider),
+                region,
+                control_plane_uri,
+                user_agent_name,
+                custom_user_agent,
+                cert_path,
+                is_caching_endpoint ? API_CALL_CACHE_TYPE_ENDPOINT_ONLY : API_CALL_CACHE_TYPE_NONE,
+                caching_update_period) {
+}
+
+DefaultCallbackProvider::DefaultCallbackProvider(
+        unique_ptr <ClientCallbackProvider> client_callback_provider,
+        unique_ptr <StreamCallbackProvider> stream_callback_provider,
+        unique_ptr <CredentialProvider> credentials_provider,
+        const string& region,
+        const string& control_plane_uri,
+        const std::string &user_agent_name,
+        const std::string &custom_user_agent,
+        const std::string &cert_path,
+        API_CALL_CACHE_TYPE api_call_caching,
         uint64_t caching_update_period)
         : region_(region),
           service_(std::string(KINESIS_VIDEO_SERVICE_NAME)),
@@ -359,12 +428,12 @@ DefaultCallbackProvider::DefaultCallbackProvider(
     getPlatformCallbacks();
     if (STATUS_FAILED(retStatus = createAbstractDefaultCallbacksProvider(
             DEFAULT_CALLBACK_CHAIN_COUNT,
-            is_caching_endpoint,
+            api_call_caching,
             caching_update_period,
             STRING_TO_PCHAR(region),
             STRING_TO_PCHAR(control_plane_uri),
             STRING_TO_PCHAR(cert_path),
-            DEFAULT_USER_AGENT_NAME,
+            (PCHAR) DEFAULT_USER_AGENT_NAME,
             STRING_TO_PCHAR(custom_user_agent_),
             &client_callbacks_))) {
         std::stringstream status_strstrm;

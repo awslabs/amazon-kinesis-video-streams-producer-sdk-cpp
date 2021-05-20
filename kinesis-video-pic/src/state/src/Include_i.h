@@ -6,7 +6,7 @@ Main internal include file
 
 #pragma once
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -15,16 +15,13 @@ extern "C" {
 ////////////////////////////////////////////////////
 #include "com/amazonaws/kinesis/video/state/Include.h"
 
-// For tight packing
-#pragma pack(push, include_i, 1) // for byte alignment
-
 ////////////////////////////////////////////////////
 // General defines and data structures
 ////////////////////////////////////////////////////
 /**
  * Calculates the next service call retry time
  */
-#define NEXT_SERVICE_CALL_RETRY_DELAY(r)        (((UINT64)1 << (r)) * SERVICE_CALL_RETRY_TIMEOUT)
+#define NEXT_SERVICE_CALL_RETRY_DELAY(r) (((UINT64) 1 << (r)) * SERVICE_CALL_RETRY_TIMEOUT)
 
 /**
  * State Machine context
@@ -69,10 +66,7 @@ typedef struct __StateMachineImpl* PStateMachineImpl;
 // Internal functionality
 ////////////////////////////////////////////////////
 
-
-#pragma pack(pop, include_i)
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
-#endif  /* __CONTENT_STATE_INCLUDE_I__ */
+#endif /* __CONTENT_STATE_INCLUDE_I__ */

@@ -27,6 +27,7 @@ DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_u
         cert_path_(cert_path){
     memset(&device_info_, 0, sizeof(device_info_));
     device_info_.version = DEVICE_INFO_CURRENT_VERSION;
+    device_info_.clientInfo.version = CLIENT_INFO_CURRENT_VERSION;
 
     // Set the device name
     const string &device_id = "Kinesis_Video_Device";
