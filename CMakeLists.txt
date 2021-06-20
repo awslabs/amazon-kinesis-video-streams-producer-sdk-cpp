@@ -10,7 +10,7 @@ project(KinesisVideoProducerCpp)
 set(CMAKE_CXX_STANDARD 11)
 
 # User Flags
-option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" ON)
+option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
 option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/Android" OFF)
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
