@@ -19,6 +19,7 @@ endif()
 add_executable(${PROJECT_NAME} ${PRODUCER_TEST_SOURCES})
 target_link_libraries(${PROJECT_NAME}
             KinesisVideoProducer
+            kvspicUtils
             ${GTEST_LIBNAME})
 add_test(${PROJECT_NAME} ${PROJECT_NAME})
 
@@ -34,6 +35,7 @@ if(BUILD_GSTREAMER_PLUGIN AND NOT WIN32)
   target_link_libraries(${GST_KVS_PLUGIN_TEST_NAME}
               ${GTEST_LIBNAME}
               KinesisVideoProducer
+              kvspicUtils
               ${GST_APP_LIBRARIES}
               ${GST_CHECK_LIBRARIES})
   add_test(${GST_KVS_PLUGIN_TEST_NAME} ${GST_KVS_PLUGIN_TEST_NAME})
