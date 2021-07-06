@@ -7,6 +7,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
+include(GNUInstallDirs)
+
 set(CMAKE_CXX_STANDARD 11)
 
 # User Flags
@@ -175,13 +177,25 @@ target_link_libraries(
          cproducer
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
+install(
+    TARGETS KinesisVideoProducer
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
   include_directories(${JNI_INCLUDE_DIRS})
-
+  install(
+    DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include
+    DESTINATION .)
   add_library(KinesisVideoProducerJNI SHARED ${JNI_HEADERS} ${JNI_SOURCE_FILES})
   target_link_libraries(KinesisVideoProducerJNI kvspic)
+  install(
+    TARGETS KinesisVideoProducerJNI
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
 
@@ -192,18 +206,23 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  install(TARGETS gstkvssink LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0")
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
   target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  install(TARGETS kvs_gstreamer_sample RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
   add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
   target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  install(TARGETS kvs_gstreamer_multistream_sample RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
   add_executable(kvs_gstreamer_audio_video_sample samples/kvs_gstreamer_audio_video_sample.cpp)
   target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  install(TARGETS kvs_gstreamer_audio_video_sample RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
   target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
+  install(TARGETS kvs_gstreamer_file_uploader_sample RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
 if(BUILD_TEST)
