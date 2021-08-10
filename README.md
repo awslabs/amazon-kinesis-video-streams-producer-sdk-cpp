@@ -95,7 +95,7 @@ cmake -DBUILD_JNI=TRUE
 The GStreamer plugin and samples are NOT built by default.  If you wish to build them you MUST add -DBUILD_GSTREAMER_PLUGIN=TRUE when running cmake:
 
 ```
-cmake -DBUILD_GSTREAMER_PLUGIN=TRUE
+cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 ```
 
 ### Compiling 
