@@ -652,7 +652,12 @@ gst_kvs_sink_finalize(GObject *object) {
     g_free(kvssink->track_name);
     g_free(kvssink->secret_key);
     g_free(kvssink->access_key);
+    g_free(kvssink->aws_region);
     g_free(kvssink->audio_codec_id);
+    g_free(kvssink->kms_key_id);
+    g_free(kvssink->log_config_path);
+    g_free(kvssink->credential_file_path);
+
     if (kvssink->iot_certificate) {
         gst_structure_free (kvssink->iot_certificate);
     }
