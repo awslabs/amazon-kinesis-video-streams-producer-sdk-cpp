@@ -83,7 +83,7 @@ You can pass the following options to `cmake ..`.
 
 #### To Include JNI
 
-JNI examples are NOT built by default.  If you wish to build JNI you MUST add -DBUILD_JNI=TRUE when running cmake:
+JNI examples are NOT built by default.  If you wish to build JNI you MUST add `-DBUILD_JNI=TRUE` when running `cmake`:
 
 ```
 cmake -DBUILD_JNI=TRUE
@@ -91,7 +91,7 @@ cmake -DBUILD_JNI=TRUE
 
 #### To Include Building GStreamer Sample Programs
 
-The GStreamer plugin and samples are NOT built by default.  If you wish to build them you MUST add -DBUILD_GSTREAMER_PLUGIN=TRUE when running cmake:
+The GStreamer plugin and samples are NOT built by default. If you wish to build them you MUST add `-DBUILD_GSTREAMER_PLUGIN=TRUE` when running cmake:
 
 ```
 cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
@@ -99,7 +99,7 @@ cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 
 ### Compiling 
 
-After running cmake, in the same build directior run make:
+After running cmake, in the same build directory run `make`:
 
 ```
 make
@@ -174,6 +174,9 @@ For examples of common use cases you can look at [Example: Kinesis Video Streams
 * The sample docker scripts for RTSP plugin, raspberry pi and linux can be found in the [Kinesis demos repository](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/tree/master/producer-cpp).
 
 ## DEBUG
+* When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure your environment variables are set correctly:  
+`export JAVA_INCLUDE_PATH2=/Library/Java/JavaVirtualMachines/<YOUR_JDK_VERSION>/Contents/Home/include` or `export JAVA_INCLUDE_PATH2=$JAVA_HOME/include` for Mac OS.  
+`export JAVA_INCLUDE_PATH2='/usr/java/<JDK_VERSION>/include'` for Linux.
 * If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
 
 ## FAQ
