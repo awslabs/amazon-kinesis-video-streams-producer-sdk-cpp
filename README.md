@@ -169,6 +169,8 @@ The kvssink element has the following required parameters:
 
 For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
 
+## Running in offline mode
+By default, the samples run in near realtime mode. To set offline mode, set streamInfo.streamCaps.streamingType to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.
 
 ## Dockerscripts
 * The sample docker scripts for RTSP plugin, raspberry pi and linux can be found in the [Kinesis demos repository](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/tree/master/producer-cpp).
