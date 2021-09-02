@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.6.3)
 find_program(MAKE_EXE NAMES make)
 
 project(log4cplus-download NONE)
