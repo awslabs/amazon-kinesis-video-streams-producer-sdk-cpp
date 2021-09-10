@@ -633,6 +633,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 
     kvssink->data = make_shared<KvsSinkCustomData>();
 
+    log4cplus::initialize();
+
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
 
@@ -756,6 +758,7 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             break;
         case PROP_LOG_CONFIG_PATH:
             kvssink->log_config_path = g_strdup (g_value_get_string (value));
+            log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
             break;
         case PROP_FRAMERATE:
             kvssink->framerate = g_value_get_uint (value);
@@ -1358,8 +1361,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
-            log4cplus::initialize();
-            log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
             try {
                 kinesis_video_producer_init(kvssink);
                 init_track_data(kvssink);
