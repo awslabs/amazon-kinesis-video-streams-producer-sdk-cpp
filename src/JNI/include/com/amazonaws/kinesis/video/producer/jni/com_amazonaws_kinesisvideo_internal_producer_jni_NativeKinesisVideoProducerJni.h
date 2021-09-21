@@ -210,6 +210,15 @@ JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_Nat
 JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_kinesisVideoStreamTerminated
 (JNIEnv *, jobject, jlong, jlong, jlong, jint);
 
+/*
+ * Class:     com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni
+ * Method:    addFileLoggerPlatformCallbacksProvider
+ * 
+ */
+JNIEXPORT jint JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_addFileLoggerPlatformCallbacksProvider
+(JNIEnv*, jobject, jlong, jlong, jlong, jstring, jboolean);
+
+
 #ifdef __cplusplus
 }
 #endif

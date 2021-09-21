@@ -2604,6 +2604,30 @@ CleanUp:
     return retStatus;
 }
 
+void KinesisVideoClientWrapper::addFileLoggerPlatformCallbacksProvider(jlong stringBufferSize, jlong maxLogFileCount, jstring logFileDir, jboolean printLog)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    JNIEnv *env;
+    mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+
+    DLOGI("HELLO FROM CPP KVC WRAPPER!!!");
+
+    if (!IS_VALID_CLIENT_HANDLE(mClientHandle)) {
+        DLOGE("Invalid client object");
+        throwNativeException(env, EXCEPTION_NAME, "Invalid call after the client is freed.", STATUS_INVALID_OPERATION);
+        return;
+    }
+
+    if (STATUS_FAILED(retStatus = ::addFileLoggerPlatformCallbacksProvider(&mClientCallbacks, (UINT64)stringBufferSize, (UINT64) maxLogFileCount, (PCHAR) logFileDir, (BOOL) printLog)))
+    {
+        DLOGE("Failed to add file logger with status code 0x%08x", retStatus);
+        JNIEnv *env;
+        mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+        throwNativeException(env, EXCEPTION_NAME, "Failed to add file logger.", retStatus);
+        return;
+    }
+}
+
 AUTH_INFO_TYPE KinesisVideoClientWrapper::authInfoTypeFromInt(UINT32 authInfoType)
 {
     switch (authInfoType) {

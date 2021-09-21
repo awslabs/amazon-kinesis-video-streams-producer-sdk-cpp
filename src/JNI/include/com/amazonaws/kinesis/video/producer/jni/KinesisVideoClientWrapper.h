@@ -197,6 +197,7 @@ public:
     void deviceCertToTokenResult(jlong clientHandle, jint httpStatusCode, jbyteArray token, jint tokenSize, jlong expiration);
     void kinesisVideoStreamFragmentAck(jlong streamHandle, jlong uploadHandle, jobject fragmentAck);
     void kinesisVideoStreamParseFragmentAck(jlong streamHandle, jlong uploadHandle, jstring ack);
+    void addFileLoggerPlatformCallbacksProvider(jlong stringBufferSize, jlong maxLogFileCount, jstring logFileDir, jboolean printLog);
 private:
     BOOL setCallbacks(JNIEnv* env, jobject thiz);
 };

@@ -459,6 +459,24 @@ CleanUp:
         LEAVE();
     }
 
+    PUBLIC_API jint JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_addFileLoggerPlatformCallbacksProvider(JNIEnv* env, jobject thiz, jlong handle, 
+    jlong stringBufferSize, jlong maxLogFileCount, jstring logFileDir, jboolean printLog)
+    {
+        ENTER();
+
+        DLOGI("Writing logs to file via CPP");
+        DLOGI("Stream terminated event for handle 0x%016" PRIx64 ".", (UINT64) handle);
+        CHECK(env != NULL && thiz != NULL);
+
+        KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
+        if (pWrapper != NULL) {
+            SyncMutex::Autolock l(pWrapper->getSyncLock(), __FUNCTION__);
+            pWrapper->addFileLoggerPlatformCallbacksProvider(stringBufferSize, maxLogFileCount, logFileDir, printLog);
+        }
+
+        LEAVE();
+    }
+
 #ifdef __cplusplus
 } // End extern "C"
 #endif
