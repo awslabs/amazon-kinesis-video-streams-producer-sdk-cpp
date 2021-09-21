@@ -170,6 +170,8 @@ void KinesisVideoProducer::freeStream(std::shared_ptr<KinesisVideoStream> kinesi
 
     // Find the stream and remove it from the map
     active_streams_.remove(stream_handle);
+
+    callback_provider_.reset();
 }
 
 void KinesisVideoProducer::freeStreams() {
