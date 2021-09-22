@@ -181,7 +181,7 @@ if(BUILD_JNI)
   include_directories(${JNI_INCLUDE_DIRS})
 
   add_library(KinesisVideoProducerJNI SHARED ${JNI_HEADERS} ${JNI_SOURCE_FILES})
-  target_link_libraries(KinesisVideoProducerJNI kvspic)
+  target_link_libraries(KinesisVideoProducerJNI cproducer kvspic)
 endif()
 
 

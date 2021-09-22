@@ -4,6 +4,7 @@
 #define LOG_CLASS "KinesisVideoClientWrapper"
 
 #include "com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.h"
+#include <com/amazonaws/kinesis/video/cproducer/Include.h>
 
 KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
                                          jobject thiz,
@@ -2610,22 +2611,14 @@ void KinesisVideoClientWrapper::addFileLoggerPlatformCallbacksProvider(jlong str
     JNIEnv *env;
     mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
 
-    DLOGI("HELLO FROM CPP KVC WRAPPER!!!");
-
-    if (!IS_VALID_CLIENT_HANDLE(mClientHandle)) {
-        DLOGE("Invalid client object");
-        throwNativeException(env, EXCEPTION_NAME, "Invalid call after the client is freed.", STATUS_INVALID_OPERATION);
-        return;
-    }
-
-    if (STATUS_FAILED(retStatus = ::addFileLoggerPlatformCallbacksProvider(&mClientCallbacks, (UINT64)stringBufferSize, (UINT64) maxLogFileCount, (PCHAR) logFileDir, (BOOL) printLog)))
+    PCHAR plogFileDirStr = (PCHAR) env->GetStringUTFChars(logFileDir, NULL);
+    if (STATUS_FAILED(retStatus = ::addFileLoggerPlatformCallbacksProvider(&mClientCallbacks, (UINT64) stringBufferSize, (UINT64) maxLogFileCount, plogFileDirStr, (BOOL) (printLog == JNI_TRUE))))
     {
         DLOGE("Failed to add file logger with status code 0x%08x", retStatus);
-        JNIEnv *env;
-        mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
         throwNativeException(env, EXCEPTION_NAME, "Failed to add file logger.", retStatus);
         return;
     }
+    env->ReleaseStringUTFChars(logFileDir, plogFileDirStr);
 }
 
 AUTH_INFO_TYPE KinesisVideoClientWrapper::authInfoTypeFromInt(UINT32 authInfoType)

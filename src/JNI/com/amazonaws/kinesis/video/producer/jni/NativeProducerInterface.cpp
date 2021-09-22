@@ -465,7 +465,6 @@ CleanUp:
         ENTER();
 
         DLOGI("Writing logs to file via CPP");
-        DLOGI("Stream terminated event for handle 0x%016" PRIx64 ".", (UINT64) handle);
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
