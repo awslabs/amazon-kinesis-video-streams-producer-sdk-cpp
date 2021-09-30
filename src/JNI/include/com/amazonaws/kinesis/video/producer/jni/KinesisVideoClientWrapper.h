@@ -54,8 +54,8 @@
 class KinesisVideoClientWrapper
 {
     CLIENT_HANDLE mClientHandle;
-    JavaVM *mJvm;
-    jobject mGlobalJniObjRef;
+    static JavaVM *mJvm;
+    static jobject mGlobalJniObjRef;
     ClientCallbacks mClientCallbacks;
     DeviceInfo mDeviceInfo;
     AuthInfo mAuthInfo;
@@ -86,6 +86,7 @@ class KinesisVideoClientWrapper
     jmethodID mClientReadyMethodId;
     jmethodID mCreateDeviceMethodId;
     jmethodID mDeviceCertToTokenMethodId;
+    static jmethodID mLogPrintMethodId;
 
     //////////////////////////////////////////////////////////////////////////////////////
     // Internal private methods
@@ -166,6 +167,7 @@ class KinesisVideoClientWrapper
     static STATUS deviceCertToTokenFunc(UINT64,
                                         PCHAR,
                                         PServiceCallContext);
+    static VOID logPrintFunc(UINT32, PCHAR, PCHAR, ...);
 
 public:
     KinesisVideoClientWrapper(JNIEnv* env,
@@ -197,7 +199,6 @@ public:
     void deviceCertToTokenResult(jlong clientHandle, jint httpStatusCode, jbyteArray token, jint tokenSize, jlong expiration);
     void kinesisVideoStreamFragmentAck(jlong streamHandle, jlong uploadHandle, jobject fragmentAck);
     void kinesisVideoStreamParseFragmentAck(jlong streamHandle, jlong uploadHandle, jstring ack);
-    void addFileLoggerPlatformCallbacksProvider(jlong stringBufferSize, jlong maxLogFileCount, jstring logFileDir, jboolean printLog);
 private:
     BOOL setCallbacks(JNIEnv* env, jobject thiz);
 };

@@ -4,13 +4,15 @@
 #define LOG_CLASS "KinesisVideoClientWrapper"
 
 #include "com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.h"
-#include <com/amazonaws/kinesis/video/cproducer/Include.h>
+
+JavaVM* KinesisVideoClientWrapper::mJvm = NULL;
+jobject KinesisVideoClientWrapper::mGlobalJniObjRef = NULL;
+jmethodID KinesisVideoClientWrapper::mLogPrintMethodId = NULL;
+
 
 KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
                                          jobject thiz,
-                                         jobject deviceInfo) : mClientHandle(INVALID_CLIENT_HANDLE_VALUE),
-                                                               mJvm(NULL),
-                                                               mGlobalJniObjRef(NULL)
+                                         jobject deviceInfo): mClientHandle(INVALID_CLIENT_HANDLE_VALUE)
 {
     UINT32 retStatus;
 
@@ -1002,6 +1004,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mClientCallbacks.clientReadyFn = clientReadyFunc;
     mClientCallbacks.createDeviceFn = createDeviceFunc;
     mClientCallbacks.deviceCertToTokenFn = deviceCertToTokenFunc;
+    mClientCallbacks.logPrintFn = logPrintFunc;
 
     // TODO: Currently we set the shutdown callbacks to NULL.
     // We need to expose these in the near future
@@ -1012,7 +1015,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     // as the signature of the function does not have "custom_data"
     // to properly map to the client object.
     // We will use the default logger for Java.
-    mClientCallbacks.logPrintFn = NULL;
+    // mClientCallbacks.logPrintFn = NULL;
 
     // Extract the method IDs for the callbacks and set a global reference
     jclass thizCls = env->GetObjectClass(thiz);
@@ -1169,6 +1172,12 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mDeviceCertToTokenMethodId = env->GetMethodID(thizCls, "deviceCertToToken", "(Ljava/lang/String;JJ[BIJ)I");
     if (mDeviceCertToTokenMethodId == NULL) {
         DLOGE("Couldn't find method id deviceCertToToken");
+        return FALSE;
+    }
+
+    mLogPrintMethodId = env->GetMethodID(thizCls, "logPrint", "(ILjava/lang/String;Ljava/lang/String;)V");
+    if (mLogPrintMethodId == NULL) {
+        DLOGE("Couldn't find method id logPrint");
         return FALSE;
     }
 
@@ -2605,22 +2614,6 @@ CleanUp:
     return retStatus;
 }
 
-void KinesisVideoClientWrapper::addFileLoggerPlatformCallbacksProvider(jlong stringBufferSize, jlong maxLogFileCount, jstring logFileDir, jboolean printLog)
-{
-    STATUS retStatus = STATUS_SUCCESS;
-    JNIEnv *env;
-    mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
-
-    PCHAR plogFileDirStr = (PCHAR) env->GetStringUTFChars(logFileDir, NULL);
-    if (STATUS_FAILED(retStatus = ::addFileLoggerPlatformCallbacksProvider(&mClientCallbacks, (UINT64) stringBufferSize, (UINT64) maxLogFileCount, plogFileDirStr, (BOOL) (printLog == JNI_TRUE))))
-    {
-        DLOGE("Failed to add file logger with status code 0x%08x", retStatus);
-        throwNativeException(env, EXCEPTION_NAME, "Failed to add file logger.", retStatus);
-        return;
-    }
-    env->ReleaseStringUTFChars(logFileDir, plogFileDirStr);
-}
-
 AUTH_INFO_TYPE KinesisVideoClientWrapper::authInfoTypeFromInt(UINT32 authInfoType)
 {
     switch (authInfoType) {
@@ -2629,4 +2622,51 @@ AUTH_INFO_TYPE KinesisVideoClientWrapper::authInfoTypeFromInt(UINT32 authInfoTyp
         case 3: return AUTH_INFO_NONE;
         default: return AUTH_INFO_UNDEFINED;
     }
+}
+
+VOID KinesisVideoClientWrapper::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt, ...)
+{
+    JNIEnv *env;
+    BOOL detached = FALSE;
+    STATUS retStatus = STATUS_SUCCESS;
+    jstring jstrTag = NULL, jstrFmt = NULL;
+
+    CHECK(mJvm != NULL);
+
+    INT32 envState = mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+    if (envState == JNI_EDETACHED) {
+        if (mJvm->AttachCurrentThread((PVOID*) &env, NULL) != 0) {
+            goto CleanUp;
+        }
+        detached = TRUE;
+    }
+
+    if (tag != NULL) {
+        jstrTag = env->NewStringUTF(tag);
+    }
+    if (fmt != NULL) {
+        jstrFmt = env->NewStringUTF(fmt);
+    }
+
+    CHK(jstrTag != NULL, STATUS_NOT_ENOUGH_MEMORY);
+    CHK(jstrFmt != NULL, STATUS_NOT_ENOUGH_MEMORY);
+
+    env->CallVoidMethod(mGlobalJniObjRef, mLogPrintMethodId, level, jstrTag, jstrFmt);
+
+    CHK_JVM_EXCEPTION(env);
+
+CleanUp:
+
+    if (jstrTag != NULL) {
+        env->DeleteLocalRef(jstrTag);
+    }
+
+    if (jstrFmt != NULL) {
+        env->DeleteLocalRef(jstrFmt);
+    }
+
+    // Detach the thread if we have attached it to JVM
+    if (detached) {
+        mJvm->DetachCurrentThread();
+    }   
 }
