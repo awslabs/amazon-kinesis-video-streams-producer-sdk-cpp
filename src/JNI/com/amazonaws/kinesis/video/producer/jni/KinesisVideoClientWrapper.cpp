@@ -13,7 +13,7 @@ jmethodID KinesisVideoClientWrapper::mLogPrintMethodId = NULL;
 
 KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
                                          jobject thiz,
-                                         jobject deviceInfo)
+                                         jobject deviceInfo): mClientHandle(INVALID_CLIENT_HANDLE_VALUE)
 {
     UINT32 retStatus;
 
