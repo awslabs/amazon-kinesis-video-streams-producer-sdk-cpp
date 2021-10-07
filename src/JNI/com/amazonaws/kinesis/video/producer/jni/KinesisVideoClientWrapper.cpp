@@ -2,6 +2,7 @@
  * Implementation of Kinesis Video Producer client wrapper
  */
 #define LOG_CLASS "KinesisVideoClientWrapper"
+#define MAX_LOG_MESSAGE_LENGTH 1024 * 10
 
 #include "com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.h"
 
@@ -12,7 +13,7 @@ jmethodID KinesisVideoClientWrapper::mLogPrintMethodId = NULL;
 
 KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
                                          jobject thiz,
-                                         jobject deviceInfo): mClientHandle(INVALID_CLIENT_HANDLE_VALUE)
+                                         jobject deviceInfo)
 {
     UINT32 retStatus;
 
@@ -1175,7 +1176,7 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
         return FALSE;
     }
 
-    mLogPrintMethodId = env->GetMethodID(thizCls, "logPrint", "(ILjava/lang/String;Ljava/lang/String;)V");
+    mLogPrintMethodId = env->GetMethodID(thizCls, "logPrint", "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
     if (mLogPrintMethodId == NULL) {
         DLOGE("Couldn't find method id logPrint");
         return FALSE;
@@ -2629,9 +2630,10 @@ VOID KinesisVideoClientWrapper::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt,
     JNIEnv *env;
     BOOL detached = FALSE;
     STATUS retStatus = STATUS_SUCCESS;
-    jstring jstrTag = NULL, jstrFmt = NULL;
+    jstring jstrTag = NULL, jstrFmt = NULL, jstrBuffer = NULL;
+    CHAR buffer[MAX_LOG_MESSAGE_LENGTH];
 
-    CHECK(mJvm != NULL);
+    CHECK(mJvm != NULL && mGlobalJniObjRef != NULL);
 
     INT32 envState = mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
     if (envState == JNI_EDETACHED) {
@@ -2640,18 +2642,23 @@ VOID KinesisVideoClientWrapper::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt,
         }
         detached = TRUE;
     }
+    
+    va_list list;
+    va_start(list, fmt);
+    vsnprintf(buffer, MAX_LOG_MESSAGE_LENGTH, fmt, list);
+    va_end(list);
 
-    if (tag != NULL) {
+    if (tag != NULL && fmt != NULL && STRLEN(buffer) > 0) {
         jstrTag = env->NewStringUTF(tag);
-    }
-    if (fmt != NULL) {
         jstrFmt = env->NewStringUTF(fmt);
+        jstrBuffer = env->NewStringUTF(buffer);
     }
 
     CHK(jstrTag != NULL, STATUS_NOT_ENOUGH_MEMORY);
     CHK(jstrFmt != NULL, STATUS_NOT_ENOUGH_MEMORY);
+    CHK(jstrBuffer != NULL, STATUS_NOT_ENOUGH_MEMORY);
 
-    env->CallVoidMethod(mGlobalJniObjRef, mLogPrintMethodId, level, jstrTag, jstrFmt);
+    env->CallVoidMethod(mGlobalJniObjRef, mLogPrintMethodId, level, jstrTag, jstrFmt, jstrBuffer);
 
     CHK_JVM_EXCEPTION(env);
 
@@ -2663,6 +2670,10 @@ CleanUp:
 
     if (jstrFmt != NULL) {
         env->DeleteLocalRef(jstrFmt);
+    }
+
+    if (jstrBuffer != NULL) {
+        env->DeleteLocalRef(jstrBuffer);
     }
 
     // Detach the thread if we have attached it to JVM
