@@ -1126,9 +1126,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
                 if (data->first_video_frame) {
                     data->first_video_frame = false;
-                } else {
-                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
                 }
+                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
             }
             break;
     }
