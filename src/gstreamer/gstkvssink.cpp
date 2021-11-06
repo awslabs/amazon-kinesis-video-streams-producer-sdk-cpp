@@ -296,7 +296,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         }
 
         std::map<std::string, std::string>::iterator it = iot_cert_params.find(IOT_THING_NAME); 
-        if (it == iot_cert_params.end() ) {
+        if (it == iot_cert_params.end()) {
             iot_cert_params.insert( std::pair<std::string,std::string>(IOT_THING_NAME, kvssink->stream_name) );
         }
 

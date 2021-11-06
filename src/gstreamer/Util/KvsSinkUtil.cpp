@@ -67,7 +67,8 @@ gboolean parseIotCredentialGstructure(GstStructure *g_struct, std::map<std::stri
         ++it) {
         params_key_set.insert(it->first);
     }
-    if( params_key_set.count(IOT_THING_NAME) == 0) {
+
+    if(params_key_set.count(IOT_THING_NAME) == 0) {
         params_key_set.insert(IOT_THING_NAME);
     }
 
