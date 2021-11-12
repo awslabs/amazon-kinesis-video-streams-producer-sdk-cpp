@@ -295,12 +295,17 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
             LOG_AND_THROW("Failed to parse Iot credentials");
         }
 
+        std::map<std::string, std::string>::iterator it = iot_cert_params.find(IOT_THING_NAME); 
+        if (it == iot_cert_params.end()) {
+            iot_cert_params.insert( std::pair<std::string,std::string>(IOT_THING_NAME, kvssink->stream_name) );
+        }
+
         credential_provider.reset(new IotCertCredentialProvider(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
                 iot_cert_params[CERTIFICATE_PATH],
                 iot_cert_params[PRIVATE_KEY_PATH],
                 iot_cert_params[ROLE_ALIASES],
                 iot_cert_params[CA_CERT_PATH],
-                kvssink->stream_name));
+                iot_cert_params[IOT_THING_NAME] ) );
     } else {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }

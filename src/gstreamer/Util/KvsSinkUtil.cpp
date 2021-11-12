@@ -8,7 +8,8 @@ static const std::set<std::string> iot_param_set = {IOT_GET_CREDENTIAL_ENDPOINT,
                                                     CERTIFICATE_PATH,
                                                     PRIVATE_KEY_PATH,
                                                     CA_CERT_PATH,
-                                                    ROLE_ALIASES};
+                                                    ROLE_ALIASES,
+                                                    IOT_THING_NAME};
 
 static const time_t time_point = std::time(NULL);
 static const long timezone_offset =
@@ -66,6 +67,11 @@ gboolean parseIotCredentialGstructure(GstStructure *g_struct, std::map<std::stri
         ++it) {
         params_key_set.insert(it->first);
     }
+
+    if(params_key_set.count(IOT_THING_NAME) == 0) {
+        params_key_set.insert(IOT_THING_NAME);
+    }
+
     if (params_key_set != iot_param_set) {
         std::ostringstream ostream;
         std::copy(iot_param_set.begin(), iot_param_set.end(), std::ostream_iterator<std::string>(ostream, ","));
