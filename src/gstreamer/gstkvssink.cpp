@@ -1092,7 +1092,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                     (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
 
     if (isDroppable) {
-        LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf));
+        LOG_WARN("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf));
         goto CleanUp;
     }
 
