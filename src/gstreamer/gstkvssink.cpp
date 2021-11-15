@@ -1298,7 +1298,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                         // drop if buffer contains header and has invalid timestamp
                         (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
         if (isDroppable) {
-            LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf) << " for " << kvssink->stream_name);
+            LOG_WARN("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf) << " for " << kvssink->stream_name);
             goto CleanUp;
         }
 
