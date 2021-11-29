@@ -755,6 +755,7 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             kvssink->rotation_period = g_value_get_uint (value);
             break;
         case PROP_LOG_CONFIG_PATH:
+            g_free(kvssink->log_config_path);
             kvssink->log_config_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_FRAMERATE:
@@ -764,6 +765,7 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             kvssink->storage_size = g_value_get_uint (value);
             break;
         case PROP_CREDENTIAL_FILE_PATH:
+            g_free(kvssink->credential_file_path);
             kvssink->credential_file_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_IOT_CERTIFICATE: {
