@@ -6,6 +6,7 @@
 
 #include "com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.h"
 
+// initializing static members of the class
 JavaVM* KinesisVideoClientWrapper::mJvm = NULL;
 jobject KinesisVideoClientWrapper::mGlobalJniObjRef = NULL;
 jmethodID KinesisVideoClientWrapper::mLogPrintMethodId = NULL;
@@ -1011,12 +1012,6 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     // We need to expose these in the near future
     mClientCallbacks.clientShutdownFn = NULL;
     mClientCallbacks.streamShutdownFn = NULL;
-
-    // We do not expose logging functionality to Java
-    // as the signature of the function does not have "custom_data"
-    // to properly map to the client object.
-    // We will use the default logger for Java.
-    // mClientCallbacks.logPrintFn = NULL;
 
     // Extract the method IDs for the callbacks and set a global reference
     jclass thizCls = env->GetObjectClass(thiz);
@@ -2661,6 +2656,19 @@ VOID KinesisVideoClientWrapper::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt,
     env->CallVoidMethod(mGlobalJniObjRef, mLogPrintMethodId, level, jstrTag, jstrFmt, jstrBuffer);
 
     CHK_JVM_EXCEPTION(env);
+
+    /*
+    Sample logs from PIC as displayed by log4j2 in Java Producer SDK
+    2021-12-10 10:01:53,874 [main] TRACE c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] KinesisVideoProducerJNI - Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_createKinesisVideoStream(): Enter
+    2021-12-10 10:01:53,875 [main] INFO  c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] KinesisVideoProducerJNI - Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_createKinesisVideoStream(): Creating Kinesis Video stream.
+    2021-12-10 10:01:53,875 [main] INFO  c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] KinesisVideoClient - createKinesisVideoStream(): Creating Kinesis Video Stream.
+    2021-12-10 10:01:53,875 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): Kinesis Video Stream Info
+
+    2021-12-10 10:01:53,875 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): Kinesis Video Stream Info
+    2021-12-10 10:01:53,875 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): 	Stream name: NewStreamJava12 
+    2021-12-10 10:01:53,875 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): 	Streaming type: STREAMING_TYPE_REALTIME 
+    2021-12-10 10:01:53,876 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): 	Content type: video/h264 
+    */
 
 CleanUp:
 

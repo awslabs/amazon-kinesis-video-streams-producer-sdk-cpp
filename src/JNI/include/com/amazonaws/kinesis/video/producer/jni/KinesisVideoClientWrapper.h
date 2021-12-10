@@ -54,8 +54,8 @@
 class KinesisVideoClientWrapper
 {
     CLIENT_HANDLE mClientHandle;
-    static JavaVM *mJvm;
-    static jobject mGlobalJniObjRef;
+    static JavaVM *mJvm; // scope revised to static to make it accessible from static function- logPrintFunc 
+    static jobject mGlobalJniObjRef; // scope revised to static to make it accessible from static function- logPrintFunc
     ClientCallbacks mClientCallbacks;
     DeviceInfo mDeviceInfo;
     AuthInfo mAuthInfo;
