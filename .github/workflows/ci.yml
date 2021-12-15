@@ -35,8 +35,7 @@ mac-os-catalina-build-clang:
           mkdir build
           cd build
           sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE'
-          make
-          ./tst/producerTest
+          make && ./tst/producerTest
 
   mac-os-catalina-build-gcc:
     runs-on: macos-latest
@@ -50,8 +49,7 @@ mac-os-catalina-build-clang:
           mkdir build
           cd build
           sh -c 'cmake .. -DBUILD_TEST=TRUE;cmake .. -DBUILD_TEST=TRUE'
-          make
-          ./tst/producerTest
+          make && ./tst/producerTest
 
   linux-gcc-code-coverage:
     runs-on: ubuntu-latest
