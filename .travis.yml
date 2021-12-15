@@ -4,7 +4,7 @@ sudo: true
 branches:
   only:
   - master
-  - develop
+#  - develop
 
 cache:
 - directories:
