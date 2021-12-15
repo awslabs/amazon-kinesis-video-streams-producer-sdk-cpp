@@ -23,7 +23,7 @@ jobs:
           cd ..
           bash scripts/check-clang.sh
 
-mac-os-catalina-build-clang:
+  mac-os-catalina-build-clang:
     runs-on: macos-latest
     env:
       CC: clang
