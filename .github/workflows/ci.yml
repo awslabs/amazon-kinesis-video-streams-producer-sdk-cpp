@@ -12,6 +12,8 @@ jobs:
     runs-on: macos-latest
     env:
       CC: clang
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -25,6 +27,8 @@ jobs:
     runs-on: macos-latest
     env:
       CC: gcc
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -36,6 +40,9 @@ jobs:
 
   linux-gcc-code-coverage:
     runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -57,6 +64,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CC: clang
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -75,6 +84,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CC: clang
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -112,6 +123,8 @@ jobs:
     runs-on: ubuntu-18.04
     env:
       CC: clang
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -129,6 +142,9 @@ jobs:
           
   linux-gcc-4_4:
     runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -153,6 +169,9 @@ jobs:
 
   windows-msvc:
     runs-on: windows-2019
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
