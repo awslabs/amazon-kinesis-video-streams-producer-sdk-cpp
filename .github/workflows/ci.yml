@@ -9,18 +9,15 @@ on:
       - master
 jobs:
   clang-format-check:
-    runs-on: macos-11
+    runs-on: macos-latest
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Install clang-format
         run: |
-          sudo apt-get -q update
-          sudo apt-get -y install clang-format
-          mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TEST=TRUE
+          brew install clang-format@8
       - name: Run clang format check
         run: |
-          cd ..
           bash scripts/check-clang.sh
 
   mac-os-catalina-build-clang:
@@ -32,8 +29,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Build repository
         run: |
-          mkdir build
-          cd build
+          mkdir build && cd build
           sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE'
           make && ./tst/producerTest
 
@@ -46,8 +42,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Build repository
         run: |
-          mkdir build
-          cd build
+          mkdir build && cd build
           sh -c 'cmake .. -DBUILD_TEST=TRUE;cmake .. -DBUILD_TEST=TRUE'
           make && ./tst/producerTest
 
@@ -58,8 +53,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Build repository
         run: |
-          mkdir build
-          cd build
+          mkdir build && cd build
           cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
           export AWS_KVS_LOG_LEVEL=2
           make
@@ -71,7 +65,7 @@ jobs:
           bash <(curl -s https://codecov.io/bash)
 
   address-sanitizer:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     env:
       CC: clang
     steps:
@@ -154,11 +148,12 @@ jobs:
           sudo apt-get -q update
           sudo apt-get -y install gcc-4.4
           sudo apt-get -y install gdb
+          apt-get install -y libgstreamer0.10-dev libgstreamer-plugins-base0.10-dev
       - name: Build repository
         run: |
           export CC=gcc-4.4
-          mkdir build
-          cd build && cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
           export AWS_KVS_LOG_LEVEL=2
           make
           ulimit -c unlimited -S
