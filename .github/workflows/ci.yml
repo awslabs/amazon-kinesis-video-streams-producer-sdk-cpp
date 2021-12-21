@@ -8,18 +8,6 @@ on:
       - develop
       - master
 jobs:
-  clang-format-check:
-    runs-on: macos-11
-    steps:
-      - name: Clone repository
-        uses: actions/checkout@v2
-      - name: Install clang-format
-        run: |
-          brew install clang-format@8
-      - name: Run clang format check
-        run: |
-          bash scripts/check-clang.sh
-
   mac-os-catalina-build-clang:
     runs-on: macos-latest
     env:
@@ -148,7 +136,7 @@ jobs:
           sudo apt-get -q update
           sudo apt-get -y install gcc-4.4
           sudo apt-get -y install gdb
-          sudo apt-get install -y libgstreamer0.10-dev libgstreamer-plugins-base0.10-dev
+          sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
           export CC=gcc-4.4
@@ -173,6 +161,5 @@ jobs:
           choco install nasm strawberryperl
           choco install gstreamer --version=1.16.2
           choco install gstreamer-devel --version=1.16.2
-          export "PATH=/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:/c/Program Files/NASM:`pwd`/open-source/local/lib:`pwd`/open-source/local/bin:$PATH"
           .github/build_windows.bat
           cd build/tst && ./producerTest.exe
