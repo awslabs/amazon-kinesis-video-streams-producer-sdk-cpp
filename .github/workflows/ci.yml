@@ -19,7 +19,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Build repository
         run: |
-          echo $AWS_ACCESS_KEY_ID
           mkdir build && cd build
           sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE'
           make && ./tst/producerTest
