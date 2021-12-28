@@ -8,167 +8,194 @@ on:
       - develop
       - master
 
-env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
 jobs:
   mac-os-catalina-build-clang:
     runs-on: macos-latest
+    env:
+      CC: clang
+      CXX: clang++
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Build repository
         run: |
-          export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
-          export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+          unset AWS_SESSION_TOKEN
           mkdir build && cd build
           sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE'
           make && ./tst/producerTest
 
-  # mac-os-catalina-build-gcc:
-  #   runs-on: macos-latest
-  #   env:
-  #     CC: gcc
-  #   steps:
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Build repository
-  #       run: |
-  #         mkdir build && cd build
-  #         sh -c 'cmake .. -DBUILD_TEST=TRUE;cmake .. -DBUILD_TEST=TRUE'
-  #         make && ./tst/producerTest
+  mac-os-catalina-build-gcc:
+    runs-on: macos-latest
+    env:
+      CC: gcc-11
+      CXX: g++-11
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Build repository
+        run: |
+          unset AWS_SESSION_TOKEN
+          mkdir build && cd build
+          sh -c 'cmake .. -DBUILD_TEST=TRUE;cmake .. -DBUILD_TEST=TRUE'
+          make && ./tst/producerTest
 
-  # linux-gcc-code-coverage:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Build repository
-  #       run: |
-  #         sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
-  #         mkdir build && cd build
-  #         cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-  #         export AWS_KVS_LOG_LEVEL=2
-  #         make
-  #         ulimit -c unlimited -S
-  #         timeout --signal=SIGABRT 20m ./tst/producerTest
-  #     - name: Code coverage
-  #       run: |
-  #         for test_file in $(find CMakeFiles/KinesisVideoProducer.dir gstkvssink.dir KinesisVideoProducerJNI.dir -name '*.gcno'); do gcov $test_file; done
-  #         bash <(curl -s https://codecov.io/bash)
+  linux-gcc-code-coverage:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Build repository
+        run: |
+          unset AWS_SESSION_TOKEN
+          sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+          mkdir build && cd build
+          cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          export AWS_KVS_LOG_LEVEL=2
+          make
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 20m ./tst/producerTest
+      - name: Code coverage
+        run: |
+          for test_file in $(find CMakeFiles/KinesisVideoProducer.dir gstkvssink.dir KinesisVideoProducerJNI.dir -name '*.gcno'); do gcov $test_file; done
+          bash <(curl -s https://codecov.io/bash)
 
-  # address-sanitizer:
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     CC: clang
-  #   steps:
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Build repository
-  #       run: |
-  #         sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
-  #         mkdir build
-  #         cd build
-  #         cmake .. -DBUILD_TEST=TRUE -DADDRESS_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-  #         export AWS_KVS_LOG_LEVEL=2
-  #         make
-  #         ulimit -c unlimited -S
-  #         timeout --signal=SIGABRT 20m ./tst/producerTest
+  address-sanitizer:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Build repository
+        run: |
+          unset AWS_SESSION_TOKEN
+          sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DADDRESS_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          export AWS_KVS_LOG_LEVEL=2
+          make
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 20m ./tst/producerTest
 
-  # undefined-behavior-sanitizer:
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     CC: clang
-  #   steps:
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Build repository
-  #       continue-on-error: true
-  #       run: |
-  #         sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
-  #         mkdir build
-  #         cd build
-  #         cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-  #         export AWS_KVS_LOG_LEVEL=2
-  #         make
-  #         ulimit -c unlimited -S
-  #         timeout --signal=SIGABRT 20m ./tst/producerTest
+  undefined-behavior-sanitizer:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Build repository
+        continue-on-error: true
+        run: |
+          unset AWS_SESSION_TOKEN
+          sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          export AWS_KVS_LOG_LEVEL=2
+          make
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 20m ./tst/producerTest
 
-  # # memory-sanitizer:
-  # #   runs-on: ubuntu-latest
-  # #   env:
-  # #     CC: clang
-  # #   steps:
-  # #     - name: Clone repository
-  # #       uses: actions/checkout@v2
-  # #     - name: Build repository
-  # #       continue-on-error: true
-  # #       run: |
-  # #         mkdir build
-  # #         cd build
-  # #         cmake .. -DBUILD_TEST=TRUE -DMEMORY_SANITIZER=TRUE -DBUILD_COMMON_LWS=TRUE
-  # #         export AWS_KVS_LOG_LEVEL=3
-  # #         make
-  # #         ulimit -c unlimited -S
-  # #         timeout --signal=SIGABRT 150m ./tst/producer_test --gtest_break_on_failure
+  memory-sanitizer:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Build repository
+        continue-on-error: true
+        run: |
+          unset AWS_SESSION_TOKEN
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DMEMORY_SANITIZER=TRUE -DBUILD_COMMON_LWS=TRUE
+          export AWS_KVS_LOG_LEVEL=3
+          make
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 150m ./tst/producer_test --gtest_break_on_failure
 
-  # thread-sanitizer:
-  #   runs-on: ubuntu-18.04
-  #   env:
-  #     CC: clang
-  #   steps:
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Build repository
-  #       continue-on-error: true
-  #       run: |
-  #         sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
-  #         mkdir build
-  #         cd build
-  #         cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-  #         export AWS_KVS_LOG_LEVEL=2
-  #         make
-  #         ulimit -c unlimited -S
-  #         timeout --signal=SIGABRT 20m ./tst/producerTest
+  thread-sanitizer:
+    runs-on: ubuntu-18.04
+    env:
+      CC: clang
+      CXX: clang++
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Build repository
+        continue-on-error: true
+        run: |
+          unset AWS_SESSION_TOKEN
+          sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          export AWS_KVS_LOG_LEVEL=2
+          make
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 20m ./tst/producerTest
           
-  # linux-gcc-4_4:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Install deps
-  #       run: |
-  #         sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  #         sudo add-apt-repository 'deb http://archive.ubuntu.com/ubuntu/ trusty main'
-  #         sudo add-apt-repository 'deb http://archive.ubuntu.com/ubuntu/ trusty universe'
-  #         sudo apt-get -q update
-  #         sudo apt-get -y install gcc-4.4
-  #         sudo apt-get -y install gdb
-  #         sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
-  #     - name: Build repository
-  #       run: |
-  #         export CC=gcc-4.4
-  #         mkdir build && cd build
-  #         cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-  #         export AWS_KVS_LOG_LEVEL=2
-  #         make
-  #         ulimit -c unlimited -S
-  #         timeout --signal=SIGABRT 20m ./tst/producerTest
+  linux-gcc-4_4:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Install deps
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo add-apt-repository 'deb http://archive.ubuntu.com/ubuntu/ trusty main'
+          sudo add-apt-repository 'deb http://archive.ubuntu.com/ubuntu/ trusty universe'
+          sudo apt-get -q update
+          sudo apt-get -y install gcc-4.4
+          sudo apt-get -y install gdb
+          sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+      - name: Build repository
+        run: |
+          unset AWS_SESSION_TOKEN
+          export CC=gcc-4.4
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          export AWS_KVS_LOG_LEVEL=2
+          make
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 20m ./tst/producerTest
 
-  # windows-msvc:
-  #   runs-on: windows-2019
-  #   steps:
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Setup MSVC 
-  #       uses: ilammy/msvc-dev-cmd@v1
-  #       with:
-  #         arch: x86
-  #     - name: Build and run
-  #       run: |
-  #         choco install nasm strawberryperl
-  #         choco install gstreamer --version=1.16.2
-  #         choco install gstreamer-devel --version=1.16.2
-  #         .github/build_windows.bat
-  #         cd build/tst && ./producerTest.exe
+  windows-msvc:
+    runs-on: windows-2019
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Setup MSVC 
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+      - name: Build and run
+        run: |
+          choco install nasm strawberryperl
+          choco install gstreamer --version=1.16.2
+          choco install gstreamer-devel --version=1.16.2
+          .github/build_windows.bat
+          cd build/tst && ./producerTest.exe
