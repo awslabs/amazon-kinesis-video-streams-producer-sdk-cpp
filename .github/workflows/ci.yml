@@ -12,8 +12,6 @@ jobs:
   mac-os-catalina-build-clang:
     runs-on: macos-latest
     env:
-      CC: clang
-      CXX: clang++
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
