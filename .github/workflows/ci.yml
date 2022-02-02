@@ -159,7 +159,7 @@ jobs:
           export AWS_KVS_LOG_LEVEL=3
           make
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 150m ./tst/producer_test --gtest_break_on_failure
+          timeout --signal=SIGABRT 150m ./tst/producerTest --gtest_break_on_failure
   thread-sanitizer:
     runs-on: ubuntu-18.04
     permissions:
@@ -224,6 +224,8 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - name: Setup MSVC 
+        uses: ilammy/msvc-dev-cmd@v1
       - name: Clone repository
         uses: actions/checkout@v2
       - name: Configure AWS Credentials
@@ -232,14 +234,12 @@ jobs:
           role-to-assume: arn:aws:iam::502759840390:role/GitHubActionsRole
           role-session-name: SampleRoleSession
           aws-region: us-west-2
-      - name: Setup MSVC 
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x86
       - name: Build and run
         run: |
           choco install nasm strawberryperl
           choco install gstreamer --version=1.16.2
-          choco install gstreamer-devel --version=1.16.2
+          choco install gstreamer-devel --version=1.16.2 
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-c\amazon-kinesis-video-streams-producer-c\open-source\lib;D:\a\amazon-kinesis-video-streams-producer-c\amazon-kinesis-video-streams-producer-c\open-source\bin'
+          git config --system core.longpaths true
           .github/build_windows.bat
-          cd build/tst && ./producerTest.exe
+          cd tst && ./producerTest.exe
