@@ -4,7 +4,7 @@ sudo: true
 branches:
   only:
   - master
-#  - develop
+  - develop
 
 cache:
 - directories:
@@ -29,81 +29,34 @@ matrix:
     - env: allowTestFail=true
 
   include:
-    # MacOS Builds
-    - name: "OSX GCC"
-      os: osx
-      compiler: gcc
-      before_install: skip # Only for Linux
-      before_script:
-        - mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE
-      script:
-        - make
-        - ./tst/producerTest
-
-    - name: "OSX Clang"
-      os: osx
-      compiler: clang
-      before_install: skip # Only for Linux
-      before_script:
-        - mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE
-      script:
-        - make
-        - ./tst/producerTest
-
-    # Code Coverage
-    - name: "Linux GCC Code Coverage"
-      os: linux
-      compiler: gcc
-      before_script:
-        - mkdir build && cd build && cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-      after_success:
-        - for test_file in $(find CMakeFiles/KinesisVideoProducer.dir gstkvssink.dir KinesisVideoProducerJNI.dir -name '*.gcno'); do gcov $test_file; done
-        - bash <(curl -s https://codecov.io/bash)
-
-    # AddressSanitizer
-    - name: "Linux Clang AddressSanitizer"
-      os: linux
-      compiler: clang
-      env: ASAN_OPTIONS=detect_odr_violation=0:detect_leaks=1
-      before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DADDRESS_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
 
     # UndefinedBehaviorSanitizer
-    - name: "Linux Clang UndefinedBehaviorSanitizer"
-      os: linux
-      compiler: clang
-      env: allowTestFail=true
-      # env: UBSAN_OPTIONS=halt_on_error=1
-      before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+    # - name: "Linux Clang UndefinedBehaviorSanitizer"
+    #   os: linux
+    #   compiler: clang
+    #   env: allowTestFail=true
+    #   # env: UBSAN_OPTIONS=halt_on_error=1
+    #   before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
 
     # MemorySanitizer
-    - name: "Linux Clang MemorySanitizer"
-      env: allowTestFail=true
-      before_install:
-        - mkdir build
-        - docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -w /src/build -dit --name msan-tester -v $(pwd):/src seaduboi/kvs-msan-tester
-        - msan-tester() { docker exec -it msan-tester "$@"; }
-      script:
-        - msan-tester cmake .. -DBUILD_DEPENDENCIES=FALSE -DBUILD_TEST=TRUE -DMEMORY_SANITIZER=TRUE -DCMAKE_CXX_FLAGS="-stdlib=libc++ -L/usr/src/libcxx_msan/lib -lc++abi -I/usr/src/libcxx_msan/include -I/usr/src/libcxx_msan/include/c++/v1" -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-        - msan-tester make
-        - msan-tester ./tst/producerTest
+    # - name: "Linux Clang MemorySanitizer"
+    #   env: allowTestFail=true
+    #   before_install:
+    #     - mkdir build
+    #     - docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -w /src/build -dit --name msan-tester -v $(pwd):/src seaduboi/kvs-msan-tester
+    #     - msan-tester() { docker exec -it msan-tester "$@"; }
+    #   script:
+    #     - msan-tester cmake .. -DBUILD_DEPENDENCIES=FALSE -DBUILD_TEST=TRUE -DMEMORY_SANITIZER=TRUE -DCMAKE_CXX_FLAGS="-stdlib=libc++ -L/usr/src/libcxx_msan/lib -lc++abi -I/usr/src/libcxx_msan/include -I/usr/src/libcxx_msan/include/c++/v1" -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+    #     - msan-tester make
+    #     - msan-tester ./tst/producerTest
 
     # ThreadSanitizer
-    - name: "Linux Clang ThreadSanitizer"
-      os: linux
-      compiler: clang
-      env: allowTestFail=true
-      # env: TSAN_OPTIONS=halt_on_error=1:suppressions=../tst/suppressions/TSAN.supp
-      before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-
-    # Old Version GCC 4.4
-    - name: "Linux GCC 4.4 Build"
-      os: linux
-      compiler: gcc
-      before_script:
-        - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-        - sudo apt-get -q update
-        - sudo apt-get -y install gcc-4.4
-        - export CC=gcc-4.4 && mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+    # - name: "Linux Clang ThreadSanitizer"
+    #   os: linux
+    #   compiler: clang
+    #   env: allowTestFail=true
+    #   # env: TSAN_OPTIONS=halt_on_error=1:suppressions=../tst/suppressions/TSAN.supp
+    #   before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
 
     - name: "Windows MSVC"
       os: windows
