@@ -15,7 +15,7 @@ option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
-option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
+option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" ON)
 
 # Developer Flags
 option(BUILD_TEST "Build the testing tree" OFF)
@@ -154,7 +154,7 @@ if(MSVC)
 endif()
 
 ############# Build Targets ############
-file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credential-providers/*.cpp")
+file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credential-providers/*.cpp" "src/vendor/*.cpp")
 file(GLOB GST_PLUGIN_SOURCE_FILES "src/gstreamer/*.cpp" "src/gstreamer/Util/*.cpp")
 file(GLOB_RECURSE JNI_SOURCE_FILES "src/JNI/*.cpp")
 file(GLOB PIC_HEADERS "${pic_project_SOURCE_DIR}/src/*/include")
@@ -165,6 +165,7 @@ include_directories(${OPEN_SRC_INCLUDE_DIRS})
 include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/include)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
+include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/vendor)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
