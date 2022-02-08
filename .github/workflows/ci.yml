@@ -12,7 +12,7 @@ on:
 
 jobs:
   mac-os-catalina-build-clang:
-    runs-on: macos-latest
+    runs-on: macos-10.15
     permissions:
       id-token: write
       contents: read
@@ -34,13 +34,13 @@ jobs:
           sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE'
           make && ./tst/producerTest
   mac-os-catalina-build-gcc:
-    runs-on: macos-latest
+    runs-on: macos-10.15
     permissions:
       id-token: write
       contents: read
     env:
-      CC: gcc-11
-      CXX: g++-11
+      CC: gcc
+      CXX: g++
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
