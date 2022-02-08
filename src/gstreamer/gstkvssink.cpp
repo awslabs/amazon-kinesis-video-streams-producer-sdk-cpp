@@ -56,11 +56,13 @@
 #include <chrono>
 #include <Logger.h>
 #include <RotatingCredentialProvider.h>
+#include <NuveoCredentialProvider.h>
 #include "KvsSinkStreamCallbackProvider.h"
 #include "KvsSinkClientCallbackProvider.h"
 #include "KvsSinkDeviceInfoProvider.h"
 #include <IotCertCredentialProvider.h>
 #include "Util/KvsSinkUtil.h"
+#include <stdexcept>
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
@@ -239,13 +241,15 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
 
+    char const *client_id;
+    char const *client_secret;
     char const *access_key;
     char const *secret_key;
     char const *session_token;
     char const *default_region;
-    string access_key_str;
-    string secret_key_str;
-    string session_token_str;
+    string access_key_str = "";
+    string secret_key_str = "";
+    string session_token_str = "";
     string region_str;
     bool credential_is_static = true;
 
@@ -255,24 +259,11 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                            GST_DEBUG_FUNCPTR(gst_collect_pads_clip_running_time), kvssink);
     }
 
-    if (0 == strcmp(kvssink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
-        if (nullptr == (access_key = getenv(ACCESS_KEY_ENV_VAR))
-            || nullptr == (secret_key = getenv(SECRET_KEY_ENV_VAR))) { // if no static credential is available in env var.
-            credential_is_static = false; // No static credential available.
-            access_key_str = "";
-            secret_key_str = "";
-        } else {
-            access_key_str = string(access_key);
-            secret_key_str = string(secret_key);
-            session_token_str = "";
-            if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
-                session_token_str = string(session_token);
-            }
-        }
-
-    } else {
-        access_key_str = string(kvssink->access_key);
-        secret_key_str = string(kvssink->secret_key);
+    if (nullptr == (client_id = getenv("NUVEO_CLIENT_ID"))) {
+        LOG_AND_THROW("Please provide a valid client ID");
+    }
+    if (nullptr == (client_secret = getenv("NUVEO_CLIENT_SECRET"))) {
+        LOG_AND_THROW("Please provide a valid client secret");
     }
 
     if (nullptr == (default_region = getenv(DEFAULT_REGION_ENV_VAR))) {
@@ -283,27 +274,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
 
     unique_ptr<CredentialProvider> credential_provider;
 
-    if (credential_is_static) {
-        kvssink->credentials_.reset(new Credentials(access_key_str,
-                secret_key_str,
-                session_token_str,
-                std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
-        credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
-    } else if (kvssink->iot_certificate) {
-        std::map<std::string, std::string> iot_cert_params;
-        if (!kvs_sink_util::parseIotCredentialGstructure(kvssink->iot_certificate, iot_cert_params)){
-            LOG_AND_THROW("Failed to parse Iot credentials");
-        }
 
-        credential_provider.reset(new IotCertCredentialProvider(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
-                iot_cert_params[CERTIFICATE_PATH],
-                iot_cert_params[PRIVATE_KEY_PATH],
-                iot_cert_params[ROLE_ALIASES],
-                iot_cert_params[CA_CERT_PATH],
-                kvssink->stream_name));
-    } else {
-        credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
-    }
+    credential_provider.reset(new NuveoCredentialProvider(client_id, client_secret));
 
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
                                                                     move(client_callback_provider),
