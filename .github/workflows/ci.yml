@@ -242,5 +242,6 @@ jobs:
           git config --system core.longpaths true
           $env:AWS_KVS_LOG_LEVEL=7
           .github/build_windows.bat
+          cd build\tst\
           dir
           & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe"
