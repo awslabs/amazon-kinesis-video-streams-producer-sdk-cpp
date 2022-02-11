@@ -62,7 +62,7 @@ jobs:
           sh -c 'cmake .. -DBUILD_TEST=TRUE;cmake .. -DBUILD_TEST=TRUE'
           make && ./tst/producerTest
   linux-gcc-code-coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -90,7 +90,7 @@ jobs:
           for test_file in $(find CMakeFiles/KinesisVideoProducer.dir gstkvssink.dir KinesisVideoProducerJNI.dir -name '*.gcno'); do gcov $test_file; done
           bash <(curl -s https://codecov.io/bash)
   address-sanitizer:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
