@@ -193,7 +193,7 @@ jobs:
   #         cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
   #         make
   #         ulimit -c unlimited -S 
-  #         timeout --signal=SIGABRT 20m ./tst/producerTest
+  #         timeout --signal=SIGABRT 20m ./tst/producerTest 
   linux-gcc-4_4:
     runs-on: ubuntu-latest
     env:
