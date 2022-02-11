@@ -221,6 +221,8 @@ jobs:
   #         timeout --signal=SIGABRT 20m ./tst/producerTest
   windows-msvc:
     runs-on: windows-2022
+    env:
+      AWS_KVS_LOG_LEVEL: 7
     permissions:
       id-token: write
       contents: read
@@ -238,7 +240,7 @@ jobs:
           choco install nasm strawberryperl
           choco install gstreamer --version=1.16.2
           choco install gstreamer-devel --version=1.16.2 
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
           git config --system core.longpaths true
-          $env:AWS_KVS_LOG_LEVEL=7
           .github/build_windows.bat
           & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe"
