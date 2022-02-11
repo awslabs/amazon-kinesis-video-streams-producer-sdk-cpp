@@ -30,33 +30,33 @@ matrix:
 
   include:
 
-    # UndefinedBehaviorSanitizer
-    # - name: "Linux Clang UndefinedBehaviorSanitizer"
-    #   os: linux
-    #   compiler: clang
-    #   env: allowTestFail=true
-    #   # env: UBSAN_OPTIONS=halt_on_error=1
-    #   before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+    UndefinedBehaviorSanitizer
+    - name: "Linux Clang UndefinedBehaviorSanitizer"
+      os: linux
+      compiler: clang
+      env: allowTestFail=true
+      # env: UBSAN_OPTIONS=halt_on_error=1
+      before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
 
-    # MemorySanitizer
-    # - name: "Linux Clang MemorySanitizer"
-    #   env: allowTestFail=true
-    #   before_install:
-    #     - mkdir build
-    #     - docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -w /src/build -dit --name msan-tester -v $(pwd):/src seaduboi/kvs-msan-tester
-    #     - msan-tester() { docker exec -it msan-tester "$@"; }
-    #   script:
-    #     - msan-tester cmake .. -DBUILD_DEPENDENCIES=FALSE -DBUILD_TEST=TRUE -DMEMORY_SANITIZER=TRUE -DCMAKE_CXX_FLAGS="-stdlib=libc++ -L/usr/src/libcxx_msan/lib -lc++abi -I/usr/src/libcxx_msan/include -I/usr/src/libcxx_msan/include/c++/v1" -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-    #     - msan-tester make
-    #     - msan-tester ./tst/producerTest
+    MemorySanitizer
+    - name: "Linux Clang MemorySanitizer"
+      env: allowTestFail=true
+      before_install:
+        - mkdir build
+        - docker run -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -w /src/build -dit --name msan-tester -v $(pwd):/src seaduboi/kvs-msan-tester
+        - msan-tester() { docker exec -it msan-tester "$@"; }
+      script:
+        - msan-tester cmake .. -DBUILD_DEPENDENCIES=FALSE -DBUILD_TEST=TRUE -DMEMORY_SANITIZER=TRUE -DCMAKE_CXX_FLAGS="-stdlib=libc++ -L/usr/src/libcxx_msan/lib -lc++abi -I/usr/src/libcxx_msan/include -I/usr/src/libcxx_msan/include/c++/v1" -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+        - msan-tester make
+        - msan-tester ./tst/producerTest
 
-    # ThreadSanitizer
-    # - name: "Linux Clang ThreadSanitizer"
-    #   os: linux
-    #   compiler: clang
-    #   env: allowTestFail=true
-    #   # env: TSAN_OPTIONS=halt_on_error=1:suppressions=../tst/suppressions/TSAN.supp
-    #   before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+    ThreadSanitizer
+    - name: "Linux Clang ThreadSanitizer"
+      os: linux
+      compiler: clang
+      env: allowTestFail=true
+      # env: TSAN_OPTIONS=halt_on_error=1:suppressions=../tst/suppressions/TSAN.supp
+      before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
 
     - name: "Windows MSVC"
       os: windows

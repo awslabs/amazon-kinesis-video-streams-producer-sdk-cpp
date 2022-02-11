@@ -11,8 +11,10 @@ on:
       - master
 
 jobs:
-  mac-os-catalina-build-clang:
-    runs-on: macos-10.15
+  mac-os-build-clang:
+    runs-on: macos-latest
+    env:
+      AWS_KVS_LOG_LEVEL: 2
     permissions:
       id-token: write
       contents: read
@@ -33,7 +35,7 @@ jobs:
           mkdir build && cd build
           sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE'
           make && ./tst/producerTest
-  mac-os-catalina-build-gcc:
+  mac-os-build-gcc:
     runs-on: macos-10.15
     permissions:
       id-token: write
@@ -41,6 +43,7 @@ jobs:
     env:
       CC: gcc
       CXX: g++
+      AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -59,7 +62,9 @@ jobs:
           sh -c 'cmake .. -DBUILD_TEST=TRUE;cmake .. -DBUILD_TEST=TRUE'
           make && ./tst/producerTest
   linux-gcc-code-coverage:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
+    env:
+      AWS_KVS_LOG_LEVEL: 2
     permissions:
       id-token: write
       contents: read
@@ -77,7 +82,6 @@ jobs:
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
           mkdir build && cd build
           cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-          export AWS_KVS_LOG_LEVEL=2
           make
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
@@ -93,6 +97,7 @@ jobs:
     env:
       CC: clang
       CXX: clang++
+      AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -107,7 +112,6 @@ jobs:
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
           mkdir build && cd build
           cmake .. -DBUILD_TEST=TRUE -DADDRESS_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-          export AWS_KVS_LOG_LEVEL=2
           make
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
@@ -119,6 +123,7 @@ jobs:
   #   env:
   #     CC: clang
   #     CXX: clang++
+  #     AWS_KVS_LOG_LEVEL: 2
   #   steps:
   #     - name: Clone repository
   #       uses: actions/checkout@v2
@@ -138,13 +143,14 @@ jobs:
   #         ulimit -c unlimited -S
   #         timeout --signal=SIGABRT 20m ./tst/producerTest
   # memory-sanitizer:
-  #   runs-on: ubuntu-18.04
+  #   runs-on: ubuntu-18.04 
   #   permissions:
   #     id-token: write
   #     contents: read
   #   env:
   #     CC: clang
   #     CXX: clang++
+  #     AWS_KVS_LOG_LEVEL: 2
   #   steps:
   #     - name: Clone repository
   #       uses: actions/checkout@v2
@@ -170,6 +176,7 @@ jobs:
   #   env:
   #     CC: clang
   #     CXX: clang++
+  #     AWS_KVS_LOG_LEVEL: 2
   #   steps:
   #     - name: Clone repository
   #       uses: actions/checkout@v2
@@ -184,12 +191,14 @@ jobs:
   #         sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
   #         mkdir build && cd build
   #         cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-  #         export AWS_KVS_LOG_LEVEL=2
   #         make
   #         ulimit -c unlimited -S
   #         timeout --signal=SIGABRT 20m ./tst/producerTest
   linux-gcc-4_4:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
+    env:
+      AWS_KVS_LOG_LEVEL: 2
+      CC: gcc-4.4
     permissions:
       id-token: write
       contents: read
@@ -213,10 +222,8 @@ jobs:
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
-          export CC=gcc-4.4
           mkdir build && cd build
           cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-          export AWS_KVS_LOG_LEVEL=2
           make
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
