@@ -227,28 +227,28 @@ jobs:
           make
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
-  # windows-msvc:
-  #   runs-on: windows-2019
-  #   permissions:
-  #     id-token: write
-  #     contents: read
-  #   steps:
-  #     - name: Setup MSVC 
-  #       uses: ilammy/msvc-dev-cmd@v1
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Configure AWS Credentials
-  #       uses: aws-actions/configure-aws-credentials@v1
-  #       with:
-  #         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-  #         role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
-  #         aws-region: ${{ secrets.AWS_REGION }}
-  #     - name: Build and run
-  #       run: |
-  #         choco install nasm strawberryperl
-  #         choco install gstreamer --version=1.16.2
-  #         choco install gstreamer-devel --version=1.16.2 
-  #         $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-c\amazon-kinesis-video-streams-producer-c\open-source\lib;D:\a\amazon-kinesis-video-streams-producer-c\amazon-kinesis-video-streams-producer-c\open-source\bin'
-  #         git config --system core.longpaths true
-  #         .github/build_windows.bat
-  #         cd tst && .\producerTest.exe
+  windows-msvc:
+    runs-on: windows-2022
+    env:
+      AWS_KVS_LOG_LEVEL: 7
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Build and run
+        run: |
+          choco install nasm strawberryperl
+          choco install gstreamer --version=1.16.2
+          choco install gstreamer-devel --version=1.16.2 
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
+          git config --system core.longpaths true
+          .github/build_windows.bat
+          & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe"
