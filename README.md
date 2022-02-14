@@ -97,6 +97,14 @@ The GStreamer plugin and samples are NOT built by default. If you wish to build 
 cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 ```
 
+#### To Include Images/Events feature
+
+The images feature is available in the sample kvs_gstreamer_audio_video_sample.cpp . To enable it change the value:
+```
+#define OPTIONAL_EVENTS_FEATURE 0
+```
+from 0 to 1.
+
 ### Compiling 
 
 After running cmake, in the same build directory run `make`:

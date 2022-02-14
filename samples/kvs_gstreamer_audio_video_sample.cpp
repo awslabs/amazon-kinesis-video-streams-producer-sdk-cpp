@@ -66,6 +66,9 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_AUDIO_CODEC_ID "A_AAC"
 #define DEFAULT_AUDIO_TRACKID 2
 
+
+#define OPTIONAL_EVENTS_FEATURE 0
+
 typedef struct _FileInfo {
     _FileInfo():
             path(""),
@@ -461,6 +464,9 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         if (data->first_video_frame) {
             // start cutting fragment at second video key frame because we can have audio frames before first video key frame
             data->first_video_frame = false;
+            if (OPTIONAL_EVENTS_FEATURE) {
+                data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
+            }
         } else {
             kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
         }

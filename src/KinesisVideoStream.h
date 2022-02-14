@@ -83,6 +83,7 @@ public:
      */
     bool putFragmentMetadata(const std::string& name, const std::string& value, bool persistent = true);
 
+    bool putEventMetadata(uint32_t event, PStreamEventMetadata pStreamEvenMetadata);
     /**
      * Initializes the track identified by trackId with a hex-encoded codec private data
      * and puts the stream in a state that it is ready to receive frames via putFrame().
