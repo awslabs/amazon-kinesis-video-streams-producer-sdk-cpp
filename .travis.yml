@@ -57,14 +57,4 @@ matrix:
       env: allowTestFail=true
       # env: TSAN_OPTIONS=halt_on_error=1:suppressions=../tst/suppressions/TSAN.supp
       before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-
-    - name: "Linux GCC 4.4 Build"
-      os: linux
-      compiler: gcc
-      before_script:
-        - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-        - sudo apt-get -q update
-        - sudo apt-get -y install gcc-4.4
-        - export CC=gcc-4.4 && mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
       
-
