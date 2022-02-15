@@ -55,5 +55,6 @@ matrix:
       os: linux
       compiler: clang
       env: allowTestFail=true
-      env: TSAN_OPTIONS=halt_on_error=1:suppressions=../tst/suppressions/TSAN.supp
+      # env: TSAN_OPTIONS=halt_on_error=1:suppressions=../tst/suppressions/TSAN.supp
       before_script: mkdir build && cd build && cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+      
