@@ -115,33 +115,33 @@ jobs:
           make
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
-  # undefined-behavior-sanitizer:
-  #   runs-on: ubuntu-18.04
-  #   permissions:
-  #     id-token: write
-  #     contents: read
-  #   env:
-  #     CC: clang
-  #     CXX: clang++
-  #     AWS_KVS_LOG_LEVEL: 2
-  #   steps:
-  #     - name: Clone repository
-  #       uses: actions/checkout@v2
-  #     - name: Configure AWS Credentials
-  #       uses: aws-actions/configure-aws-credentials@v1
-  #       with:
-  #         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-  #         role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
-  #         aws-region: ${{ secrets.AWS_REGION }}
-  #     - name: Build repository
-  #       run: |
-  #         sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
-  #         mkdir build && cd build
-  #         cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
-  #         export AWS_KVS_LOG_LEVEL=2
-  #         make
-  #         ulimit -c unlimited -S
-  #         timeout --signal=SIGABRT 20m ./tst/producerTest
+  undefined-behavior-sanitizer:
+    runs-on: ubuntu-18.04
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      CC: clang
+      CXX: clang++
+      AWS_KVS_LOG_LEVEL: 2
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Build repository
+        run: |
+          sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          export AWS_KVS_LOG_LEVEL=2
+          make
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 20m ./tst/producerTest
   # memory-sanitizer:
   #   runs-on: ubuntu-18.04 
   #   permissions:
