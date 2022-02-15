@@ -59,7 +59,7 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          sh -c 'cmake .. -DBUILD_TEST=TRUE;cmake .. -DBUILD_TEST=TRUE'
+          cmake .. -DBUILD_TEST=TRUE
           make && ./tst/producerTest
   linux-gcc-code-coverage:
     runs-on: ubuntu-18.04
