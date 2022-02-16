@@ -37,7 +37,8 @@ jobs:
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Run tests
-        run: |  
+        run: |
+          cd build  
           ./tst/producerTest
 
   mac-os-build-gcc:
@@ -68,6 +69,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Run tests
         run: |  
+          cd build
           ./tst/producerTest
   
   linux-gcc-code-coverage:
@@ -96,10 +98,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Run tests
         run: |
+          cd build
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
       - name: Code coverage
         run: |
+          cd build
           for test_file in $(find CMakeFiles/KinesisVideoProducer.dir gstkvssink.dir KinesisVideoProducerJNI.dir -name '*.gcno'); do gcov $test_file; done
           bash <(curl -s https://codecov.io/bash)
   
@@ -131,6 +135,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Run tests
         run: |
+          cd build
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
 
@@ -162,6 +167,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Run tests
         run: |
+          cd build
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
 
@@ -250,6 +256,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Run tests
         run: |
+          cd build
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 20m ./tst/producerTest
   
