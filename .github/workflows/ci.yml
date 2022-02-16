@@ -5,6 +5,7 @@ on:
     branches:
       - develop
       - master
+      - fix_oidc_ga
   pull_request:
     branches:
       - develop
