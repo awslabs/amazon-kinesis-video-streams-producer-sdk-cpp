@@ -7,7 +7,7 @@ include(ExternalProject)
 # clone repo only
 ExternalProject_Add(libkvscproducer-download
 	GIT_REPOSITORY    https://github.com/awslabs/amazon-kinesis-video-streams-producer-c.git
-	GIT_TAG           6a7aab4fcde0791b5b092a15e61a5cacfc57c259
+	GIT_TAG           6d9d47c064f35fbe4443b4d0420c67410d1c465b
 	SOURCE_DIR        "${CMAKE_CURRENT_BINARY_DIR}/kvscproducer-src"
 	BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/kvscproducer-build"
 	CONFIGURE_COMMAND ""
