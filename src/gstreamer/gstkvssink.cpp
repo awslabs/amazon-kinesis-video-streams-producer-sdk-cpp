@@ -295,12 +295,17 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
             LOG_AND_THROW("Failed to parse Iot credentials");
         }
 
+        std::map<std::string, std::string>::iterator it = iot_cert_params.find(IOT_THING_NAME); 
+        if (it == iot_cert_params.end()) {
+            iot_cert_params.insert( std::pair<std::string,std::string>(IOT_THING_NAME, kvssink->stream_name) );
+        }
+
         credential_provider.reset(new IotCertCredentialProvider(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
                 iot_cert_params[CERTIFICATE_PATH],
                 iot_cert_params[PRIVATE_KEY_PATH],
                 iot_cert_params[ROLE_ALIASES],
                 iot_cert_params[CA_CERT_PATH],
-                kvssink->stream_name));
+                iot_cert_params[IOT_THING_NAME] ) );
     } else {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }
@@ -335,7 +340,7 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
     // (i.e. starting from 0)
     if (kvssink->streaming_type == STREAMING_TYPE_OFFLINE && kvssink->file_start_time != 0) {
         kvssink->absolute_fragment_times = TRUE;
-        data->pts_base = (uint64_t) duration_cast<nanoseconds>(seconds(kvssink->file_start_time)).count();
+        data->pts_base = (uint64_t) duration_cast<nanoseconds>(milliseconds(kvssink->file_start_time)).count();
     }
 
     switch (data->media_type) {
@@ -563,8 +568,8 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
 
     g_object_class_install_property (gobject_class, PROP_FILE_START_TIME,
                                      g_param_spec_uint64 ("file-start-time", "File Start Time",
-                                                        "Epoch time that the file starts in kinesis video stream. By default, current time is used. Unit: Seconds",
-                                                         0, G_MAXULONG, 0, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                                                        "Epoch time that the file starts in kinesis video stream. By default, current time is used. Unit: Milliseconds",
+                                                         0, G_MAXUINT64, 0, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_DISABLE_BUFFER_CLIPPING,
                                      g_param_spec_boolean ("disable-buffer-clipping", "Disable Buffer Clipping",
@@ -626,7 +631,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->log_config_path = g_strdup (DEFAULT_LOG_FILE_PATH);
     kvssink->storage_size = DEFAULT_STORAGE_SIZE_MB;
     kvssink->credential_file_path = g_strdup (DEFAULT_CREDENTIAL_FILE_PATH);
-    kvssink->file_start_time = (uint64_t) chrono::duration_cast<seconds>(
+    kvssink->file_start_time = (uint64_t) chrono::duration_cast<milliseconds>(
             systemCurrentTime().time_since_epoch()).count();
     kvssink->track_info_type = MKV_TRACK_INFO_TYPE_VIDEO;
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
@@ -755,7 +760,6 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             kvssink->rotation_period = g_value_get_uint (value);
             break;
         case PROP_LOG_CONFIG_PATH:
-            g_free(kvssink->log_config_path);
             kvssink->log_config_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_FRAMERATE:
@@ -765,7 +769,6 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             kvssink->storage_size = g_value_get_uint (value);
             break;
         case PROP_CREDENTIAL_FILE_PATH:
-            g_free(kvssink->credential_file_path);
             kvssink->credential_file_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_IOT_CERTIFICATE: {
@@ -1128,7 +1131,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
                 if (data->first_video_frame) {
                     data->first_video_frame = false;
-                } 
+                }
                 kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
             }
             break;
