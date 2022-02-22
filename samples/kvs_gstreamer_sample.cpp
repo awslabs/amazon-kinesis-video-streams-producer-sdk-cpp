@@ -401,6 +401,9 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         if (!gst_buffer_map(buffer, &info, GST_MAP_READ)){
             goto CleanUp;
         }
+        if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
+            data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
+        }
 
         put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
