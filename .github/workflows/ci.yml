@@ -299,7 +299,7 @@ jobs:
   #         & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
 
   arm-cross-compilation:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     env:
       CC: arm-linux-gnueabi-gcc
       CXX: arm-linux-gnueabi-g++
