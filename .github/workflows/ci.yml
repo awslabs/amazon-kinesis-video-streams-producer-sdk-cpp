@@ -300,6 +300,9 @@ jobs:
 
   arm-cross-compilation:
     runs-on: ubuntu-latest
+    env:
+      CC: aarch64-linux-gnu-gcc
+      CXX: aarch64-linux-gnu-g++
     steps:
       - name: Set up QEMU
         id: qemu
@@ -310,7 +313,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Clone repository
         uses: actions/checkout@v2
