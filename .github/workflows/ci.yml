@@ -313,27 +313,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt-get -y install sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
-      - name: Clone repository
-        uses: actions/checkout@v2
-      - name: Build Repository
-        run: |
-          sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
-          mkdir build && cd build
-          cmake .. -DBUILD_OPENSSL_PLATFORM=linux-generic32 -DBUILD_GSTREAMER_PLUGIN=ON
-          make
-
-  arm-cross-compilation-ubuntu:
-    runs-on: ubuntu-latest
-    env:
-      CC: gcc-aarch64-linux-gnu
-      CXX: g++-aarch64-linux-gnu
-    steps:
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt-get -y install sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Clone repository
         uses: actions/checkout@v2
