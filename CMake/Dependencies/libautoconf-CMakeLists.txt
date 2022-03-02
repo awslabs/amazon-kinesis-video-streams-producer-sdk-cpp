@@ -8,7 +8,7 @@ include(ExternalProject)
 ExternalProject_Add(project_libautoconf
     URL               http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz
     PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
-    CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_libautoconf/configure --prefix=${OPEN_SRC_INSTALL_PREFIX}
+    CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_libautoconf/configure --prefix=${OPEN_SRC_INSTALL_PREFIX} --build=i686-pc-linux-gnu --host=arm-linux-gnueabi
     BUILD_COMMAND     ${MAKE_EXE} -j 4
     BUILD_IN_SOURCE   TRUE
     INSTALL_COMMAND   ${MAKE_EXE} install
