@@ -304,12 +304,6 @@ jobs:
       CC: aarch64-linux-gnu-gcc
       CXX: aarch64-linux-gnu-g++
     steps:
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v1
-        with:
-          image: tonistiigi/binfmt:latest
-          platforms: arm64
       - name: Install dependencies
         run: |
           sudo apt update
@@ -319,8 +313,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Build Repository
         run: |
-          echo $CC
-          echo $CXX
           sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
           mkdir build && cd build
           cmake .. -DBUILD_OPENSSL_PLATFORM=linux-generic32 -DBUILD_GSTREAMER_PLUGIN=ON
