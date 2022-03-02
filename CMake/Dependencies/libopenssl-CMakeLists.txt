@@ -12,9 +12,9 @@ else()
   endif()
 
   if (DEFINED BUILD_OPENSSL_PLATFORM AND NOT BUILD_OPENSSL_PLATFORM STREQUAL OFF)
-    SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_libopenssl/Configure ${OPENSSL_EXTRA} --prefix=${OPEN_SRC_INSTALL_PREFIX} --build=i686-pc-linux-gnu --host=arm-linux-gnueabi --openssldir=${OPEN_SRC_INSTALL_PREFIX} ${BUILD_OPENSSL_PLATFORM})
+    SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_libopenssl/Configure ${OPENSSL_EXTRA} --prefix=${OPEN_SRC_INSTALL_PREFIX} --openssldir=${OPEN_SRC_INSTALL_PREFIX} ${BUILD_OPENSSL_PLATFORM})
   else()
-    SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_libopenssl/config ${OPENSSL_EXTRA} --prefix=${OPEN_SRC_INSTALL_PREFIX} --build=i686-pc-linux-gnu --host=arm-linux-gnueabi --openssldir=${OPEN_SRC_INSTALL_PREFIX})
+    SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_libopenssl/config ${OPENSSL_EXTRA} --prefix=${OPEN_SRC_INSTALL_PREFIX} --openssldir=${OPEN_SRC_INSTALL_PREFIX})
   endif()
 endif()
 
