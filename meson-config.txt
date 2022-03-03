@@ -1,0 +1,23 @@
+[host_machine]
+system = 'linux'
+cpu_family = 'arm'
+cpu = 'aarch64'
+endian = 'little'
+
+[properties]
+c_args = ['--sysroot=/opt/rpi/sysroot/']
+c_link_args = ['--sysroot=/opt/rpi/sysroot/', '-L=/usr/lib/aarch64-linux-gnu', '-L=/lib/aarch64-linux-gnu']
+cpp_args = ['--sysroot=/opt/rpi/sysroot/']
+cpp_link_args = ['--sysroot=/opt/rpi/sysroot/', '-L=/usr/lib/aarch64-linux-gnu', '-L=/lib/aarch64-linux-gnu', '-L=/usr/lib/gcc/aarch64-linux-gnu']
+sys_root = '/opt/rpi/sysroot/'
+pkg_config_libdir = ['/opt/rpi/sysroot/usr/lib/pkgconfig/','/opt/rpi/sysroot/usr/share/pkgconfig/','/opt/rpi/sysroot/usr/lib/aarch64-linux-gnu/pkgconfig/']
+
+[binaries]
+c = 'aarch64-linux-gnu-gcc'
+cpp = 'aarch64-linux-gnu-g++'
+ar = 'aarch64-linux-gnu-ar'
+strip = 'aarch64-linux-gnu-strip'
+pkgconfig = 'aarch64-linux-gnu-pkg-config'
+
+
+meson --cross-file ../meson-cross-file.txt build --errorlogs -Dbuildtype=release -Dpython=disabled -Dgstreamer:libunwind=disabled
