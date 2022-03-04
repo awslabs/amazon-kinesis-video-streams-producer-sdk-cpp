@@ -15,8 +15,9 @@ option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
+set(BUILD_LOGCPLUS_HOST "arm-linux" CACHE STRING "The host name for log4plus build")
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
-set(BUILD_LOGCPLUS_HOST "" CACHE STRING "The host name for log4plus build")
+
 
 # Developer Flags
 option(BUILD_TEST "Build the testing tree" OFF)
