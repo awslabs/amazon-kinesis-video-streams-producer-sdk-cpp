@@ -15,8 +15,8 @@ option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
-set(BUILD_LOGCPLUS_HOST "arm-linux" CACHE STRING "The host name for log4plus build")
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
+option(BUILD_LOG4CPLUS_HOST "If buildng OpenSSL what is the target platform" OFF)
 
 
 # Developer Flags
@@ -54,6 +54,10 @@ endif()
 # pass ca cert location to sdk
 add_definitions(-DKVS_CA_CERT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/certs/cert.pem")
 add_definitions(-DCMAKE_DETECTED_CACERT_PATH)
+
+if (BUILD_LOG4CPLUS_HOST)
+  add_definitions(-DBUILD_LOG4CPLUS_HOST)
+endif()
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})

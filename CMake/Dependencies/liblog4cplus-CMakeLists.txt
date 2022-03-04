@@ -3,11 +3,9 @@ find_program(MAKE_EXE NAMES make)
 
 project(log4cplus-download NONE)
 
-if(BUILD_LOGCPLUS_HOST STREQUAL "")
-  message(STATUS "Before setting in if - ${BUILD_LOGCPLUS_HOST}")
+if (DEFINED BUILD_LOG4CPLUS_HOST AND NOT BUILD_LOG4CPLUS_HOST STREQUAL OFF)
   SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_log4cplus/configure "CFLAGS=${CMAKE_C_FLAGS}" --prefix=${OPEN_SRC_INSTALL_PREFIX})
 else()
-  message(STATUS "Before setting in else - ${BUILD_LOGCPLUS_HOST}")
   SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_log4cplus/configure "CFLAGS=${CMAKE_C_FLAGS}" --prefix=${OPEN_SRC_INSTALL_PREFIX} --host=${BUILD_LOGCPLUS_HOST})
 endif()
 
