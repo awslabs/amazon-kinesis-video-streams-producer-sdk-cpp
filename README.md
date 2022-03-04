@@ -76,6 +76,7 @@ Note: The default log level is `DEBUG`
 
 #### Cross-Compilation
 If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [ci.yml](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/develop/.github/workflows/ci.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
+Please note that GStreamer is not cross-compiled as a part of the cross-compilation of the KVS-SDK, customers will have to cross-compile it separately.
 
 
 #### CMake Arguments
