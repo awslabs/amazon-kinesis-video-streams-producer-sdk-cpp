@@ -4,9 +4,9 @@ find_program(MAKE_EXE NAMES make)
 project(log4cplus-download NONE)
 
 if(BUILD_LOGCPLUS_HOST)
-  SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_log4cplus/configure "CFLAGS=${CMAKE_C_FLAGS}" --prefix=${OPEN_SRC_INSTALL_PREFIX} --host=${BUILD_LOGCPLUS_HOST})
-else()
   SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_log4cplus/configure "CFLAGS=${CMAKE_C_FLAGS}" --prefix=${OPEN_SRC_INSTALL_PREFIX})
+else()
+  SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_log4cplus/configure "CFLAGS=${CMAKE_C_FLAGS}" --prefix=${OPEN_SRC_INSTALL_PREFIX} --host=${BUILD_LOGCPLUS_HOST})
 endif()
 
 if (DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "")
