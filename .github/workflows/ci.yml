@@ -316,6 +316,28 @@ jobs:
           mkdir build && cd build
           cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic64 -DBUILD_LOG4CPLUS_HOST=arm-linux
           make
+          file libKinesisVideoProducer.so
+
+  linux-aarch64-cross-compilation:
+    runs-on: ubuntu-latest
+    env:
+      CC: aarch64-linux-gnu-gcc
+      CXX: aarch64-linux-gnu-g++
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Build Repository
+        run: |
+          sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-aarch64 -DBUILD_LOG4CPLUS_HOST=arm-linux
+          make
+          file libKinesisVideoProducer.so
 
   arm32-cross-compilation:
     runs-on: ubuntu-latest
@@ -336,6 +358,7 @@ jobs:
           mkdir build && cd build
           cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic32 -DBUILD_LOG4CPLUS_HOST=arm-linux
           make
+          file libKinesisVideoProducer.so
   
   arm64-qemu-build:
     runs-on: ubuntu-latest
@@ -358,3 +381,4 @@ jobs:
           mkdir build && cd build
           cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic64
           make
+          file libKinesisVideoProducer.so
