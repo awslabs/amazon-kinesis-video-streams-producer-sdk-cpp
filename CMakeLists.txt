@@ -16,6 +16,8 @@ option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
+option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
+
 
 # Developer Flags
 option(BUILD_TEST "Build the testing tree" OFF)
@@ -53,6 +55,7 @@ endif()
 add_definitions(-DKVS_CA_CERT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/certs/cert.pem")
 add_definitions(-DCMAKE_DETECTED_CACERT_PATH)
 
+
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
     file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
@@ -73,7 +76,13 @@ if(BUILD_DEPENDENCIES)
     build_dependency(autoconf)
     build_dependency(automake)
   endif()
-  build_dependency(log4cplus)
+  
+  if(BUILD_LOG4CPLUS_HOST)
+    set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
+    build_dependency(log4cplus ${BUILD_ARGS})
+  else()
+    build_dependency(log4cplus)
+  endif()
 
   message(STATUS "Finished building dependencies.")
 endif()
