@@ -310,8 +310,6 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }
 
-    DeviceInfo device_info = device_info_provider->getDeviceInfo();
-    device_info.clientInfo.automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
                                                                     move(client_callback_provider),
                                                                     move(stream_callback_provider),
@@ -319,6 +317,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                                     region_str,
                                                                     "",
                                                                     KVS_CLIENT_USER_AGENT_NAME);
+    DeviceInfo device_info = device_info_provider->getDeviceInfo();
+    device_info.clientInfo.automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
 }
 
 void create_kinesis_video_stream(GstKvsSink *kvssink) {
