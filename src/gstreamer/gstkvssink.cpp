@@ -317,8 +317,6 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                                     region_str,
                                                                     "",
                                                                     KVS_CLIENT_USER_AGENT_NAME);
-    DeviceInfo device_info = device_info_provider->getDeviceInfo();
-    device_info.clientInfo.automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
 }
 
 void create_kinesis_video_stream(GstKvsSink *kvssink) {

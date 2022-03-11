@@ -38,6 +38,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
 
     CLIENT_HANDLE client_handle;
     DeviceInfo device_info = device_info_provider->getDeviceInfo();
+    device_info.clientInfo.automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
 
     // Create the producer object
     std::unique_ptr<KinesisVideoProducer> kinesis_video_producer(new KinesisVideoProducer());
