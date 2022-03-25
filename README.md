@@ -182,7 +182,6 @@ The events will start on the 2nd key frame, and will reoccur every 200 key frame
 #### To run from a file
 in the kvs_gstreamer_audio_video_sample.cpp if you would like to upload from a file, include the option flag -f <file_path>
 
-
 ## Running in offline mode
 By default, the samples run in near realtime mode. To set offline mode, set streamInfo.streamCaps.streamingType to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.
 
