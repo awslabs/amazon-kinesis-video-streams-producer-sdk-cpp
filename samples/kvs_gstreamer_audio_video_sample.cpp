@@ -1005,7 +1005,7 @@ CleanUp:
 }
 
 int main(int argc, char *argv[]) {
-    PropertyConfigurator::doConfigure("../samples/kvs_log_configuration");
+    PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
     if (argc < 2) {
         LOG_ERROR(
