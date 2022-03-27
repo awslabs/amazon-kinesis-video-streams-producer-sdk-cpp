@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.6.3)
 
 project(libkvscproducer-download NONE)
 
@@ -7,7 +7,7 @@ include(ExternalProject)
 # clone repo only
 ExternalProject_Add(libkvscproducer-download
 	GIT_REPOSITORY    https://github.com/awslabs/amazon-kinesis-video-streams-producer-c.git
-	GIT_TAG           99c1a8cd8cec88f99c9c4ce3944b53ae341d1491
+	GIT_TAG           79da5b6d6ad67560cc08530f967e9187a6d1c594
 	SOURCE_DIR        "${CMAKE_CURRENT_BINARY_DIR}/kvscproducer-src"
 	BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/kvscproducer-build"
 	CONFIGURE_COMMAND ""

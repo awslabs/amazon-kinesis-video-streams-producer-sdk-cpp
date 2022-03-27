@@ -61,9 +61,22 @@ On Ubuntu and Raspberry Pi OS you can get the libraries by running
 ```
 $ sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
 ```
+### Setup desired log level:
+Set up the desired log level. The log levels currently available with `log4cplus` are:
+1. `TRACE`
+2. `DEBUG` 
+3. `INFO`   
+4. `WARN`   
+5. `ERROR`   
+6. `FATAL`   
+
+To set a log level, update the log level value [here](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/samples/kvs_log_configuration#L1)
+
+Note: The default log level is `DEBUG`
 
 #### Cross-Compilation
-If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [.travis.yml](.travis.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
+If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [ci.yml](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/develop/.github/workflows/ci.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
+Please note that GStreamer is not cross-compiled as a part of the cross-compilation of the KVS-SDK, customers will have to cross-compile it separately.
 
 
 #### CMake Arguments
@@ -80,6 +93,7 @@ You can pass the following options to `cmake ..`.
 * `-DTHREAD_SANITIZER` -- Build with ThreadSanitizer
 * `-DUNDEFINED_BEHAVIOR_SANITIZER` Build with UndefinedBehaviorSanitizer
 * `-DALIGNED_MEMORY_MODEL` Build for aligned memory model only devices. Default is OFF.
+* `-DBUILD_LOG4CPLUS_HOST` Specify host-name for log4cplus for cross-compilation. Default is OFF.
 
 #### To Include JNI
 
@@ -96,7 +110,6 @@ The GStreamer plugin and samples are NOT built by default. If you wish to build 
 ```
 cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 ```
-
 ### Compiling 
 
 After running cmake, in the same build directory run `make`:
@@ -168,6 +181,20 @@ The kvssink element has the following required parameters:
 
 
 For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
+
+#### To Include Images/Events feature
+
+The images feature is available in the sample kvs_gstreamer_audio_video_sample.cpp . To enable it include the argument "-e <event_option>"
+event option is a string that can be:
+
+notification -- for a notification event
+image -- for an image event
+both -- for both
+
+The events will start on the 2nd key frame, and will reoccur every 200 key frames. If you would to change this frequence you can edit the sample.
+
+#### To run from a file
+in the kvs_gstreamer_audio_video_sample.cpp if you would like to upload from a file, include the option flag -f <file_path>
 
 ## Running in offline mode
 By default, the samples run in near realtime mode. To set offline mode, set streamInfo.streamCaps.streamingType to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.

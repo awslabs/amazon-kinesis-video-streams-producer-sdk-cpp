@@ -54,8 +54,8 @@
 class KinesisVideoClientWrapper
 {
     CLIENT_HANDLE mClientHandle;
-    JavaVM *mJvm;
-    jobject mGlobalJniObjRef;
+    static JavaVM *mJvm; // scope revised to static to make it accessible from static function- logPrintFunc 
+    static jobject mGlobalJniObjRef; // scope revised to static to make it accessible from static function- logPrintFunc
     ClientCallbacks mClientCallbacks;
     DeviceInfo mDeviceInfo;
     AuthInfo mAuthInfo;
@@ -86,6 +86,7 @@ class KinesisVideoClientWrapper
     jmethodID mClientReadyMethodId;
     jmethodID mCreateDeviceMethodId;
     jmethodID mDeviceCertToTokenMethodId;
+    static jmethodID mLogPrintMethodId;
 
     //////////////////////////////////////////////////////////////////////////////////////
     // Internal private methods
@@ -166,6 +167,7 @@ class KinesisVideoClientWrapper
     static STATUS deviceCertToTokenFunc(UINT64,
                                         PCHAR,
                                         PServiceCallContext);
+    static VOID logPrintFunc(UINT32, PCHAR, PCHAR, ...);
 
 public:
     KinesisVideoClientWrapper(JNIEnv* env,

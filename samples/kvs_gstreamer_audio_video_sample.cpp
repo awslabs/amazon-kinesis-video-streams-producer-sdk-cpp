@@ -66,6 +66,11 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_AUDIO_CODEC_ID "A_AAC"
 #define DEFAULT_AUDIO_TRACKID 2
 
+
+#define KEYFRAME_EVENT_INTERVAL 200
+
+uint8_t gEvents = 0;
+
 typedef struct _FileInfo {
     _FileInfo():
             path(""),
@@ -376,6 +381,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     int track_id = (string(g_stream_handle_key).back()) - '0';
     g_free(g_stream_handle_key);
     GstMapInfo info;
+    static uint16_t key_frame_count = 0;
 
     info.data = nullptr;
     sample = gst_app_sink_pull_sample(GST_APP_SINK (sink));
@@ -462,7 +468,24 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             // start cutting fragment at second video key frame because we can have audio frames before first video key frame
             data->first_video_frame = false;
         } else {
+            if (key_frame_count % KEYFRAME_EVENT_INTERVAL == 0) {
+                key_frame_count = 0;
+                switch(gEvents) {
+                    case 1:
+                        data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION, NULL);
+                        break;
+                    case 2:
+                        data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
+                        break;
+                    case 3:
+                        data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
+                        break;
+                    default:
+                        break;
+                }
+            }
             kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+            key_frame_count++;
         }
     }
 
@@ -982,7 +1005,7 @@ CleanUp:
 }
 
 int main(int argc, char *argv[]) {
-    PropertyConfigurator::doConfigure("../samples/kvs_log_configuration");
+    PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
     if (argc < 2) {
         LOG_ERROR(
@@ -998,6 +1021,7 @@ int main(int argc, char *argv[]) {
     string file_path;
     int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
     STATUS stream_status = STATUS_SUCCESS;
+    uint8_t argFlags = 0;
 
 
     /* init Kinesis Video */
@@ -1008,20 +1032,50 @@ int main(int argc, char *argv[]) {
     data.uploading_file = false;
 
     if (argc >= 3) {
-        // skip over stream name
-        for(int i = 2; i < argc; ++i) {
-            file_path = string(argv[i]);
-            // file path should be at least 4 char (shortest example: a.ts)
-            if (file_path.size() < 4) {
-                LOG_ERROR("Invalid file path");
-                return 1;
+        for(int i = 2; i < argc; i++)
+        {
+            if (!STRCMP(argv[i], "-f")) {
+                argFlags = 1;
             }
-            FileInfo fileInfo;
-            fileInfo.path = file_path;
-            data.file_list.push_back(fileInfo);
-        }
+            else if (!STRCMP(argv[i], "-e")) {
+                argFlags = 2;
+            }
+            else {
+                continue;
+            }
+            i++; // found flag, next argument
+            switch(argFlags) {
+                case 1: //-f
+                {
+                    file_path = string(argv[i]);
+                    // file path should be at least 4 char (shortest example: a.ts)
+                    if (file_path.size() < 4) {
+                        LOG_ERROR("Invalid file path");
+                        return 1;
+                    }
+                    FileInfo fileInfo;
+                    fileInfo.path = file_path;
+                    data.file_list.push_back(fileInfo);
 
-        data.uploading_file = true;
+                    data.uploading_file = true;
+                    break;
+                }
+                case 2: //-e
+                {
+                    if (!STRCMP(argv[i], "both")) {
+                        gEvents = 3;
+                    } else if (!STRCMP(argv[i], "image")) {
+                        gEvents = 2;
+                    } else if (!STRCMP(argv[i], "notification")) {
+                        gEvents = 1;
+                    }
+                    break;
+                }
+                default:
+                    LOG_ERROR("Unknown flag");
+                    break;
+            }
+        }
     }
 
     try {
