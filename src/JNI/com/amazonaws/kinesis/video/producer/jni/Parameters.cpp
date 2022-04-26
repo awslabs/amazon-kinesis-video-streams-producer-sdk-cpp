@@ -231,12 +231,12 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         DLOGW("Couldn't find method id getAutomaticStreamingFlags");
     } else {
         automaticStreamingFlag = env->CallIntMethod(clientInfo, methodId);
-    if (automaticStreamingFlag == AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS) {
-        pClientInfo->automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
-    } else {
-        pClientInfo->automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER;
-        pClientInfo->reservedCallbackPeriod = INTERMITTENT_PRODUCER_PERIOD_SENTINEL_VALUE;
-    }
+        if (automaticStreamingFlag == AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS) {
+            pClientInfo->automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
+        } else {
+            pClientInfo->automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER;
+            pClientInfo->reservedCallbackPeriod = INTERMITTENT_PRODUCER_PERIOD_SENTINEL_VALUE;
+        }
         CHK_JVM_EXCEPTION(env);
     }
 
