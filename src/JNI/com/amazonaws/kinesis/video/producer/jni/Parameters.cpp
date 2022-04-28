@@ -158,6 +158,7 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
     STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
     const char *retChars;
+    int automaticStreamingFlag;
 
     CHECK(env != NULL && clientInfo != NULL && pClientInfo != NULL);
 
@@ -222,6 +223,20 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         DLOGW("Couldn't find method id getLogMetric");
     } else {
         pClientInfo->logMetric = env->CallBooleanMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getAutomaticStreamingFlags", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getAutomaticStreamingFlags");
+    } else {
+        automaticStreamingFlag = env->CallIntMethod(clientInfo, methodId);
+        if (automaticStreamingFlag == AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS) {
+            pClientInfo->automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
+        } else {
+            pClientInfo->automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER;
+            pClientInfo->reservedCallbackPeriod = INTERMITTENT_PRODUCER_PERIOD_SENTINEL_VALUE;
+        }
         CHK_JVM_EXCEPTION(env);
     }
 
