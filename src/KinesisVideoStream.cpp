@@ -19,7 +19,7 @@ KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video
     }
 }
 
-bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
+bool KinesisVideoStream::putFrame(KinesisVideoFrame & frame) const {
     if (debug_dump_frame_info_) {
         LOG_DEBUG("pts: " << frame.presentationTs << ", dts: " << frame.decodingTs << ", duration: " << frame.duration << ", size: " << frame.size << ", trackId: " << frame.trackId
                           << ", isKey: " << CHECK_FRAME_FLAG_KEY_FRAME(frame.flags));
