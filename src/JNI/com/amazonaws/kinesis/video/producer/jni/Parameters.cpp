@@ -158,7 +158,6 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
     STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
     const char *retChars;
-    int automaticStreamingFlag;
 
     CHECK(env != NULL && clientInfo != NULL && pClientInfo != NULL);
 
@@ -230,7 +229,7 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getAutomaticStreamingFlags");
     } else {
-        automaticStreamingFlag = (AUTOMATIC_STREAMING_FLAGS) env->CallIntMethod(clientInfo, methodId);
+        pClientInfo->automaticStreamingFlags = (AUTOMATIC_STREAMING_FLAGS) env->CallIntMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
