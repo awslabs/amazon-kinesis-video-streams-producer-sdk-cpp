@@ -2,14 +2,19 @@
  * Implementation of Kinesis Video Producer client wrapper
  */
 #define LOG_CLASS "KinesisVideoClientWrapper"
+#define MAX_LOG_MESSAGE_LENGTH 1024 * 10
 
 #include "com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.h"
 
+// initializing static members of the class
+JavaVM* KinesisVideoClientWrapper::mJvm = NULL;
+jobject KinesisVideoClientWrapper::mGlobalJniObjRef = NULL;
+jmethodID KinesisVideoClientWrapper::mLogPrintMethodId = NULL;
+
+
 KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
                                          jobject thiz,
-                                         jobject deviceInfo) : mClientHandle(INVALID_CLIENT_HANDLE_VALUE),
-                                                               mJvm(NULL),
-                                                               mGlobalJniObjRef(NULL)
+                                         jobject deviceInfo): mClientHandle(INVALID_CLIENT_HANDLE_VALUE)
 {
     UINT32 retStatus;
 
@@ -1001,17 +1006,12 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mClientCallbacks.clientReadyFn = clientReadyFunc;
     mClientCallbacks.createDeviceFn = createDeviceFunc;
     mClientCallbacks.deviceCertToTokenFn = deviceCertToTokenFunc;
+    mClientCallbacks.logPrintFn = logPrintFunc;
 
     // TODO: Currently we set the shutdown callbacks to NULL.
     // We need to expose these in the near future
     mClientCallbacks.clientShutdownFn = NULL;
     mClientCallbacks.streamShutdownFn = NULL;
-
-    // We do not expose logging functionality to Java
-    // as the signature of the function does not have "custom_data"
-    // to properly map to the client object.
-    // We will use the default logger for Java.
-    mClientCallbacks.logPrintFn = NULL;
 
     // Extract the method IDs for the callbacks and set a global reference
     jclass thizCls = env->GetObjectClass(thiz);
@@ -1168,6 +1168,12 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mDeviceCertToTokenMethodId = env->GetMethodID(thizCls, "deviceCertToToken", "(Ljava/lang/String;JJ[BIJ)I");
     if (mDeviceCertToTokenMethodId == NULL) {
         DLOGE("Couldn't find method id deviceCertToToken");
+        return FALSE;
+    }
+
+    mLogPrintMethodId = env->GetMethodID(thizCls, "logPrint", "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+    if (mLogPrintMethodId == NULL) {
+        DLOGE("Couldn't find method id logPrint");
         return FALSE;
     }
 
@@ -2612,4 +2618,74 @@ AUTH_INFO_TYPE KinesisVideoClientWrapper::authInfoTypeFromInt(UINT32 authInfoTyp
         case 3: return AUTH_INFO_NONE;
         default: return AUTH_INFO_UNDEFINED;
     }
+}
+
+VOID KinesisVideoClientWrapper::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt, ...)
+{
+    JNIEnv *env;
+    BOOL detached = FALSE;
+    STATUS retStatus = STATUS_SUCCESS;
+    jstring jstrTag = NULL, jstrFmt = NULL, jstrBuffer = NULL;
+    CHAR buffer[MAX_LOG_MESSAGE_LENGTH];
+
+    CHECK(mJvm != NULL && mGlobalJniObjRef != NULL);
+
+    INT32 envState = mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+    if (envState == JNI_EDETACHED) {
+        if (mJvm->AttachCurrentThread((PVOID*) &env, NULL) != 0) {
+            goto CleanUp;
+        }
+        detached = TRUE;
+    }
+    
+    va_list list;
+    va_start(list, fmt);
+    vsnprintf(buffer, MAX_LOG_MESSAGE_LENGTH, fmt, list);
+    va_end(list);
+
+    if (tag != NULL && fmt != NULL && STRLEN(buffer) > 0) {
+        jstrTag = env->NewStringUTF(tag);
+        jstrFmt = env->NewStringUTF(fmt);
+        jstrBuffer = env->NewStringUTF(buffer);
+    }
+
+    CHK(jstrTag != NULL, STATUS_NOT_ENOUGH_MEMORY);
+    CHK(jstrFmt != NULL, STATUS_NOT_ENOUGH_MEMORY);
+    CHK(jstrBuffer != NULL, STATUS_NOT_ENOUGH_MEMORY);
+
+    env->CallVoidMethod(mGlobalJniObjRef, mLogPrintMethodId, level, jstrTag, jstrFmt, jstrBuffer);
+
+    CHK_JVM_EXCEPTION(env);
+
+    /*
+    Sample logs from PIC as displayed by log4j2 in Java Producer SDK
+    2021-12-10 10:01:53,874 [main] TRACE c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] KinesisVideoProducerJNI - Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_createKinesisVideoStream(): Enter
+    2021-12-10 10:01:53,875 [main] INFO  c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] KinesisVideoProducerJNI - Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_createKinesisVideoStream(): Creating Kinesis Video stream.
+    2021-12-10 10:01:53,875 [main] INFO  c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] KinesisVideoClient - createKinesisVideoStream(): Creating Kinesis Video Stream.
+    2021-12-10 10:01:53,875 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): Kinesis Video Stream Info
+
+    2021-12-10 10:01:53,875 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): Kinesis Video Stream Info
+    2021-12-10 10:01:53,875 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): 	Stream name: NewStreamJava12 
+    2021-12-10 10:01:53,875 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): 	Streaming type: STREAMING_TYPE_REALTIME 
+    2021-12-10 10:01:53,876 [main] DEBUG c.a.k.j.c.KinesisVideoJavaClientFactory - [PIC] Stream - logStreamInfo(): 	Content type: video/h264 
+    */
+
+CleanUp:
+
+    if (jstrTag != NULL) {
+        env->DeleteLocalRef(jstrTag);
+    }
+
+    if (jstrFmt != NULL) {
+        env->DeleteLocalRef(jstrFmt);
+    }
+
+    if (jstrBuffer != NULL) {
+        env->DeleteLocalRef(jstrBuffer);
+    }
+
+    // Detach the thread if we have attached it to JVM
+    if (detached) {
+        mJvm->DetachCurrentThread();
+    }   
 }

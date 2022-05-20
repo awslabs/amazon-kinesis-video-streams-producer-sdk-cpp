@@ -103,7 +103,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_SECRET_KEY "secret_key"
 #define DEFAULT_REGION "us-west-2"
 #define DEFAULT_ROTATION_PERIOD_SECONDS 3600
-#define DEFAULT_LOG_FILE_PATH "./kvs_log_configuration"
+#define DEFAULT_LOG_FILE_PATH "../kvs_log_configuration"
 #define DEFAULT_STORAGE_SIZE_MB 128
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 #define DEFAULT_FRAME_DURATION_MS 2
@@ -295,12 +295,17 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
             LOG_AND_THROW("Failed to parse Iot credentials");
         }
 
+        std::map<std::string, std::string>::iterator it = iot_cert_params.find(IOT_THING_NAME); 
+        if (it == iot_cert_params.end()) {
+            iot_cert_params.insert( std::pair<std::string,std::string>(IOT_THING_NAME, kvssink->stream_name) );
+        }
+
         credential_provider.reset(new IotCertCredentialProvider(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
                 iot_cert_params[CERTIFICATE_PATH],
                 iot_cert_params[PRIVATE_KEY_PATH],
                 iot_cert_params[ROLE_ALIASES],
                 iot_cert_params[CA_CERT_PATH],
-                kvssink->stream_name));
+                iot_cert_params[IOT_THING_NAME] ) );
     } else {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }
@@ -755,6 +760,7 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             kvssink->rotation_period = g_value_get_uint (value);
             break;
         case PROP_LOG_CONFIG_PATH:
+            g_free(kvssink->log_config_path);
             kvssink->log_config_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_FRAMERATE:
@@ -764,6 +770,7 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             kvssink->storage_size = g_value_get_uint (value);
             break;
         case PROP_CREDENTIAL_FILE_PATH:
+            g_free(kvssink->credential_file_path);
             kvssink->credential_file_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_IOT_CERTIFICATE: {
@@ -1126,9 +1133,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
                 if (data->first_video_frame) {
                     data->first_video_frame = false;
-                } else {
-                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
                 }
+                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
             }
             break;
     }

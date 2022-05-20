@@ -13,6 +13,7 @@
 #define PRIVATE_KEY_PATH "key-path"
 #define CA_CERT_PATH "ca-path"
 #define ROLE_ALIASES "role-aliases"
+#define IOT_THING_NAME "iot-thing-name"
 
 namespace kvs_sink_util{
 
