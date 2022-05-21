@@ -85,6 +85,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Install dependencies
         run: |  
+          sudo apt-get update
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
@@ -123,6 +124,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Install dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
@@ -156,6 +158,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Install dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
@@ -326,7 +329,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt update
+          sudo apt-get update
           sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Clone repository
@@ -347,7 +350,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt update
+          sudo apt-get update
           sudo apt-get -y install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi binutils-arm-linux-gnueabi
           sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Clone repository
