@@ -364,7 +364,7 @@ jobs:
           make
           file libKinesisVideoProducer.so
 
-ubuntu-22:
+  ubuntu-22:
     runs-on: ubuntu-22.04
     permissions:
       id-token: write
