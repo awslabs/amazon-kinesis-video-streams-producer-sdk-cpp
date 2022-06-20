@@ -45,6 +45,10 @@ Create a build directory in the newly checked out repository, and execute CMake 
 
 If you are building on Windows you need to generate `NMake Makefiles`, you should run `cmake .. -G "NMake Makefiles"`
 
+GStreamer is NOT built by default, if you wish to build it you MUST execute `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON`
+
+JNI is NOT built by default, if you wish to build it you MUST execute `cmake .. -DBUILD_JNI=TRUE`
+
 GStreamer and JNI is NOT built by default, if you wish to build both you MUST execute `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
 
 By default we download all the libraries from GitHub and build them locally, so should require nothing to be installed ahead of time.
@@ -58,6 +62,11 @@ On Ubuntu and Raspberry Pi OS you can get the libraries by running
 ```
 $ sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
 ```
+
+Sample builds for reference:
+1. [Mac](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/.github/workflows/ci.yml#L14-L31)
+2. [Ubuntu](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/.github/workflows/ci.yml#L76-L94)
+3. [Windows](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/.github/workflows/ci.yml#L271-L290)
 
 #### Cross-Compilation
 If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [.travis.yml](.travis.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
