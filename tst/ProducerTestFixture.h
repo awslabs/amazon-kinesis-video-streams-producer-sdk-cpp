@@ -135,13 +135,15 @@ private:
 
 class TestDeviceInfoProvider : public DefaultDeviceInfoProvider {
     uint64_t device_storage_size_;
+    AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags_;
 public:
-    TestDeviceInfoProvider(uint64_t device_storage_size): device_storage_size_(device_storage_size) {}
+    TestDeviceInfoProvider(uint64_t device_storage_size, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags): device_storage_size_(device_storage_size), automaticStreamingFlags_(automaticStreamingFlags) {}
 
     device_info_t getDeviceInfo() override {
         auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
         device_info.storageInfo.storageSize = (UINT64) device_storage_size_;
         device_info.streamCount = TEST_STREAM_COUNT;
+        device_info.clientInfo.automaticStreamingFlags = automaticStreamingFlags_;
         return device_info;
     }
 };
@@ -307,37 +309,30 @@ protected:
     }
 
 
-    void CreateProducer(bool cachingEndpoingProvider = false) {
+    void CreateProducer(bool cachingEndpointProvider = false, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER) {
+        CreateProducer(cachingEndpointProvider ? API_CALL_CACHE_TYPE_ENDPOINT_ONLY : API_CALL_CACHE_TYPE_NONE,automaticStreamingFlags);
+    }
+
+    void CreateProducer(API_CALL_CACHE_TYPE api_call_caching, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags) {
         // Create the producer client
         CreateCredentialProvider();
-        device_provider_.reset(new TestDeviceInfoProvider(device_storage_size_));
+        device_provider_.reset(new TestDeviceInfoProvider(device_storage_size_, automaticStreamingFlags));
         client_callback_provider_.reset(new TestClientCallbackProvider(this));
         stream_callback_provider_.reset(new TestStreamCallbackProvider(this));
 
         try {
           std::unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
-            if (cachingEndpoingProvider) {
-                defaultCallbackProvider.reset(new CachingEndpointOnlyCallbackProvider(
-                        move(client_callback_provider_),
-                        move(stream_callback_provider_),
-                        move(credential_provider_),
-                        defaultRegion_,
-                        "",
-                        "",
-                        "",
-                        caCertPath_,
-                        DEFAULT_CACHE_UPDATE_PERIOD_IN_SECONDS));
-            } else {
-                defaultCallbackProvider.reset(new DefaultCallbackProvider(
-                        move(client_callback_provider_),
-                        move(stream_callback_provider_),
-                        move(credential_provider_),
-                        defaultRegion_,
-                        "",
-                        "",
-                        "",
-                        caCertPath_));
-            }
+          defaultCallbackProvider.reset(new DefaultCallbackProvider(
+                  move(client_callback_provider_),
+                  move(stream_callback_provider_),
+                  move(credential_provider_),
+                  defaultRegion_,
+                  EMPTY_STRING,
+                  EMPTY_STRING,
+                  EMPTY_STRING,
+                  caCertPath_,
+                  api_call_caching,
+                  DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
 
             // testDefaultCallbackProvider = reinterpret_cast<TestDefaultCallbackProvider *>(defaultCallbackProvider.get());
             kinesis_video_producer_ = KinesisVideoProducer::createSync(move(device_provider_),

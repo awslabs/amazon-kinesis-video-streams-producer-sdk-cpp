@@ -57,6 +57,13 @@ public:
     }
 
     /**
+     * Returns elementary stream frame rate in frames per second
+     */
+    double getCurrentElementaryFrameRate() const {
+        return stream_metrics_.elementaryFrameRate;
+    }
+
+    /**
      * Returns the observed transfer rate in bytes per second
      */
     uint64_t getCurrentTransferRate() const {

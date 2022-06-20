@@ -60,30 +60,38 @@ The pipeline above uses default video and audio source on a Mac. If you have an 
 gst-launch-1.0 -v avfvideosrc device-index=1 ! videoconvert ! vtenc_h264_hw allow-frame-reordering=FALSE realtime=TRUE max-keyframe-interval=45 ! kvssink name=sink stream-name="my_stream_name" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" osxaudiosrc device=67 ! audioconvert ! avenc_aac ! queue ! sink.
 ```
 
+##### Running the `gst-launch-1.0` command with Iot-certificate and different stream-names than the thing-name
+
+**Note:** Supply a the matching iot-thing-name (that the certificate points to) and we can stream to multiple stream-names (without the stream-name needing to be the same as the thing-name) using the same certificate credentials. iot-thing-name and stream-name can be completely different as long as there is a policy that allows the thing to write to the kinesis stream
+```
+$ gst-launch-1.0 -v rtspsrc location="rtsp://YourCameraRtspUrl" short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
+ h264parse ! kvssink name=aname storage-size=512 iot-certificate="iot-certificate,endpoint=xxxxx.credentials.iot.ap-southeast-2.amazonaws.com,cert-path=/greengrass/v2/thingCert.crt,key-path=/greengrass/v2/privKey.key,ca-path=/greengrass/v2/rootCA.pem,role-aliases=KvsCameraIoTRoleAlias,iot-thing-name=myThingName123" aws-region="ap-southeast-2" log-config="/etc/mtdata/kvssink-log.config" stream-name=myThingName123-video1
+```
+
 ##### Running the GStreamer webcam sample application
 The sample application `kinesis_video_gstreamer_sample_app` in the `build` directory uses GStreamer pipeline to get video data from the camera. Launch it with a stream name and it will start streaming from the camera. The user can also supply a streaming resolution (width and height) through command line arguments.
 
 ```
-Usage: AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my_stream_name> -w <width> -h <height> -f <framerate> -b <bitrateInKBPS>
+Usage: AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_sample <my_stream_name> -w <width> -h <height> -f <framerate> -b <bitrateInKBPS>
 ```
 * **A.** If **resolution is provided** then the sample will try to check if the camera supports that resolution. If it does detect that the camera can support the resolution supplied in command line, then streaming starts; else, it will fail with an error message `Resolution not supported`.
 * **B.** If **no resolution is specified**, the sample application will try to use these three resolutions **640x480, 1280x720 and 1920x1080** and will **start streaming** once the camera supported resolution is detected.
 
 ##### Running the GStreamer RTSP sample application
-`kinesis_video_gstreamer_sample_app` supports sending video from a RTSP URL (IP camera). You can find the RTSP URL from your IP camera manual or manufacturers product page. Change your current working direcctory to `build` directory. Launch it with a stream name and `rtsp_url`  and it will start streaming.
+`kvs_gstreamer_sample` supports sending video from a RTSP URL (IP camera). You can find the RTSP URL from your IP camera manual or manufacturers product page. Change your current working direcctory to `build` directory. Launch it with a stream name and `rtsp_url`  and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my-rtsp-stream> <my_rtsp_url>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_sample <my-rtsp-stream> <my_rtsp_url>
 ```
 
 ##### Running the GStreamer sample application to upload a *video* file
 
-`kinesis_video_gstreamer_sample_app` supports uploading a video that is either MKV, MPEGTS, or MP4. The sample application expects the video is encoded in H264.
+`kvs_gstreamer_sample` supports uploading a video that is either MKV, MPEGTS, or MP4. The sample application expects the video is encoded in H264.
 
 Change your current working directory to `build`. Launch the sample application with a stream name and a path to the file and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_sample_app <my-stream> </path/to/file>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_sample <my-stream> </path/to/file>
 ```
 
 ###### Running the `gst-launch-1.0` command to upload [MKV](https://www.matroska.org/) file that contains both *audio and video* in **Mac-OS**. Note that video should be H264 encoded and audio should be AAC encoded.
@@ -106,17 +114,17 @@ gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! q
 
 ##### Running the GStreamer sample application to upload a *audio and video* file
 
-`kinesis_video_gstreamer_audio_video_sample_app` supports uploading a video that is either MKV, MPEGTS, or MP4. The sample application expects the video is encoded in H264 and audio is encoded in AAC format. Note: If your media uses a different format, then you can revise the pipeline elements in the sample application to suit your media format.
+`kvs_gstreamer_audio_video_sample` supports uploading a video that is either MKV, MPEGTS, or MP4. The sample application expects the video is encoded in H264 and audio is encoded in AAC format. Note: If your media uses a different format, then you can revise the pipeline elements in the sample application to suit your media format.
 
 Change your current working directory to `build`. Launch the sample application with a stream name and a path to the file and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_audio_video_sample_app <my-stream> </path/to/file>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_audio_video_sample <my-stream> </path/to/file>
 ```
 
 ##### Running the GStreamer sample application to stream audio and video from live source
 
-`kinesis_video_gstreamer_audio_video_sample_app` supports streaming audio and video from live sources such as a audio enabled webcam. First you need to figure out what your audio device is using the steps mentioned above and export it as environment variable like such:
+`kvs_gstreamer_audio_video_sample` supports streaming audio and video from live sources such as a audio enabled webcam. First you need to figure out what your audio device is using the steps mentioned above and export it as environment variable like such:
 
 `export AWS_KVS_AUDIO_DEVICE=67`
 
@@ -127,19 +135,8 @@ You can also choose to use other video devices by doing
 If no `AWS_KVS_VIDEO_DEVICE` or `AWS_KVS_AUDIO_DEVICE` environment variable was detected, the sample app will use the default device.
 After the environment variables are set, launch the sample application with a stream name and it will start streaming.
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kinesis_video_gstreamer_audio_video_sample_app <my-stream>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_audio_video_sample <my-stream>
 ```
-
-### How to run sample applications for sending H264 video files to KVS
-
-The sample application `kinesis_video_cproducer_video_only_sample` sends h264  video frames inside the folder `kinesis-video-c-producer/samples/h264SampleFrames` to KVS.
-The following command sends the video frames in a loop for ten seconds to KVS.
-you can run `./kinesis_video_cproducer_video_only_sample YourStreamName 10`
-`./kinesis_video_cproducer_video_only_sample YourStreamName 10`
-
-If you want to send H264 files from another folder (`MyH264FramesFolder`) you can run the sample with the following arguments
-`./kinesis_video_cproducer_video_only_sample YourStreamName 10 MyH264FramesFolder`
-
 
 ##### Additional examples
 For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Video Streams Parsing Library refer:
@@ -149,11 +146,27 @@ For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Vid
 ##### [Kinesis Video Streams Android SDK](https://github.com/awslabs/aws-sdk-android-samples/tree/master/AmazonKinesisVideoDemoApp)
 -----
 
-##### Running C++ Unit tests
+##### Running C++ unit tests
 
-The executable for **unit tests** will be built as `./tst/producerTest` inside the `build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
+**Note:** Please set the credentials before running the unit tests:
+
+```
+$ export AWS_ACCESS_KEY_ID=YourAccessKeyId
+$ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
+optionally, set AWS_SESSION_TOKEN if integrating with temporary token and AWS_DEFAULT_REGION for the region other than us-west-2
+```
+
+The executable for **unit tests** will be built as `./tst/producer_test` inside the `build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
 
 ##### Running GStreamer Unit tests
+
+**Note:** Please set the credentials before running the unit tests:
+
+```
+$ export AWS_ACCESS_KEY_ID=YourAccessKeyId
+$ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
+optionally, set AWS_SESSION_TOKEN if integrating with temporary token and AWS_DEFAULT_REGION for the region other than us-west-2
+```
 
 The executable for **GStreamer unit tests** will be built as `./tst/gstkvsplugintest` inside the `build` directory. Launch it and it will run the unit test and kick off dummy frame streaming.
 
