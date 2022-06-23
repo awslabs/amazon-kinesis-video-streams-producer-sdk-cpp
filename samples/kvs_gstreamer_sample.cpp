@@ -9,6 +9,17 @@
 #include <mutex>
 #include <IotCertCredentialProvider.h>
 
+#include <com/amazonaws/kinesis/video/cproducer/Include.h>
+#include <aws/core/Aws.h>
+#include <aws/monitoring/CloudWatchClient.h>
+#include <aws/monitoring/model/PutMetricDataRequest.h>
+#include <aws/logs/CloudWatchLogsClient.h>
+#include <aws/logs/model/CreateLogGroupRequest.h>
+#include <aws/logs/model/CreateLogStreamRequest.h>
+#include <aws/logs/model/PutLogEventsRequest.h>
+#include <aws/logs/model/DeleteLogStreamRequest.h>
+#include <aws/logs/model/DescribeLogStreamsRequest.h>
+
 using namespace std;
 using namespace std::chrono;
 using namespace com::amazonaws::kinesis::video;
@@ -51,6 +62,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
 typedef enum _StreamSource {
+    TEST_SOURCE,
     FILE_SOURCE,
     LIVE_SOURCE,
     RTSP_SOURCE
@@ -67,7 +79,7 @@ typedef struct _FileInfo {
 typedef struct _CustomData {
 
     _CustomData():
-            streamSource(LIVE_SOURCE),
+            streamSource(TEST_SOURCE),
             h264_stream_supported(false),
             synthetic_dts(0),
             last_unpersisted_file_idx(0),
@@ -551,11 +563,6 @@ void kinesis_video_stream_init(CustomData *data) {
     STREAMING_TYPE streaming_type = DEFAULT_STREAMING_TYPE;
     data->use_absolute_fragment_times = DEFAULT_ABSOLUTE_FRAGMENT_TIMES;
 
-    if (data->streamSource == FILE_SOURCE) {
-        streaming_type = STREAMING_TYPE_OFFLINE;
-        data->use_absolute_fragment_times = true;
-    }
-
     unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
         data->stream_name,
         hours(DEFAULT_RETENTION_PERIOD_HOURS),
@@ -588,11 +595,6 @@ void kinesis_video_stream_init(CustomData *data) {
     data->stream_status = STATUS_SUCCESS;
     data->stream_started = false;
 
-    // since we are starting new putMedia, timestamp need not be padded.
-    if (data->streamSource == FILE_SOURCE) {
-        data->base_pts = 0;
-        data->max_frame_pts = 0;
-    }
 
     LOG_DEBUG("Stream is ready");
 }
@@ -615,6 +617,72 @@ static void pad_added_cb(GstElement *element, GstPad *pad, GstElement *target) {
     gst_object_unref(target_sink);
     g_free(pad_name);
 }
+
+
+
+
+
+
+int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
+    
+    GstElement *appsink, *source, *h264parse, *video_filter, *h264enc, *autovidcon;
+
+    GstCaps *caps;
+
+    // define the elements
+    source = gst_element_factory_make("videotestsrc", "source");
+    autovidcon = gst_element_factory_make("autovideoconvert", "vidconv");
+    h264enc = gst_element_factory_make("x264enc", "h264enc");
+    h264parse = gst_element_factory_make("h264parse", "h264parse");
+    appsink = gst_element_factory_make("appsink", "appsink");
+
+    // to change output video pattern to a moving ball, uncomment below
+    //g_object_set(source, "pattern", 18, NULL);
+
+    // configure appsink
+    g_object_set(G_OBJECT (appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), data);
+    
+    // define the elements
+    h264enc = gst_element_factory_make("vtenc_h264_hw", "h264enc");
+    h264parse = gst_element_factory_make("h264parse", "h264parse");
+
+    // define and configure video filter, we only want the specified format to pass to the sink
+    // ("caps" is short for "capabilities")
+    string video_caps_string = "video/x-h264, stream-format=(string) avc, alignment=(string) au";
+    video_filter = gst_element_factory_make("capsfilter", "video_filter");
+    caps = gst_caps_from_string(video_caps_string.c_str());
+    g_object_set(G_OBJECT (video_filter), "caps", caps, NULL);
+    gst_caps_unref(caps);
+
+    // check if all elements were created
+    if (!pipeline || !source || !appsink || !autovidcon || !h264parse || !video_filter || !h264enc)
+    {
+        g_printerr("Not all elements could be created.\n");
+        return 1;
+    }
+
+    // build the pipeline
+    gst_bin_add_many(GST_BIN (pipeline), source, autovidcon, h264enc, h264parse, video_filter, appsink, NULL);
+
+    // check if all elements were linked
+    if (!gst_element_link_many(source, autovidcon, h264enc, h264parse, video_filter, appsink, NULL)) 
+    {
+        g_printerr("Elements could not be linked.\n");
+        gst_object_unref(pipeline);
+        return 1;
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+
+
 
 int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElement *pipeline) {
 
@@ -977,7 +1045,6 @@ int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
     return 0;
 }
 
-
 int gstreamer_init(int argc, char* argv[], CustomData *data) {
 
     /* init GStreamer */
@@ -991,23 +1058,17 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
     data->first_pts = GST_CLOCK_TIME_NONE;
 
     switch (data->streamSource) {
+        case TEST_SOURCE:
+            LOG_INFO("Streaming from test source");
+            pipeline = gst_pipeline_new("test-kinesis-pipeline");
+            ret = gstreamer_test_source_init(data, pipeline);
+            break;
         case LIVE_SOURCE:
             LOG_INFO("Streaming from live source");
             pipeline = gst_pipeline_new("live-kinesis-pipeline");
             ret = gstreamer_live_source_init(argc, argv, data, pipeline);
             break;
-        case RTSP_SOURCE:
-            LOG_INFO("Streaming from rtsp source");
-            pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
-            ret = gstreamer_rtsp_source_init(data, pipeline);
-            break;
-        case FILE_SOURCE:
-            LOG_INFO("Streaming from file source");
-            pipeline = gst_pipeline_new("file-kinesis-pipeline");
-            ret = gstreamer_file_source_init(data, pipeline);
-            break;
     }
-
     if (ret != 0){
         return ret;
     }
@@ -1062,36 +1123,8 @@ int main(int argc, char* argv[]) {
     stream_name[MAX_STREAM_NAME_LEN] = '\0';
     data.stream_name = stream_name;
 
-    data.streamSource = LIVE_SOURCE;
-    if (argc > 2) {
-        string third_arg = string(argv[2]);
-        // config options for live source begin with -
-        if (third_arg[0] != '-') {
-            string prefix = third_arg.substr(0, 4);
-            string suffix = third_arg.substr(third_arg.size() - 3);
-            if (prefix.compare("rtsp") == 0) {
-                data.streamSource = RTSP_SOURCE;
-                data.rtsp_url = string(argv[2]);
-
-            } else if (suffix.compare("mkv") == 0 ||
-                       suffix.compare("mp4") == 0 ||
-                       suffix.compare(".ts") == 0) {
-                data.streamSource = FILE_SOURCE;
-                // skip over stream name
-                for(int i = 2; i < argc; ++i) {
-                    string file_path = string(argv[i]);
-                    // file path should be at least 4 char (shortest example: a.ts)
-                    if (file_path.size() < 4) {
-                        LOG_ERROR("Invalid file path");
-                        return 1;
-                    }
-                    FileInfo fileInfo;
-                    fileInfo.path = file_path;
-                    data.file_list.push_back(fileInfo);
-                }
-            }
-        }
-    }
+    // set the video stream source
+    data.streamSource = TEST_SOURCE;
 
     /* init Kinesis Video */
     try{
@@ -1104,74 +1137,15 @@ int main(int argc, char* argv[]) {
 
     bool do_retry = true;
 
-    if (data.streamSource == FILE_SOURCE) {
-        do {
-            uint32_t i = data.last_unpersisted_file_idx.load();
-            bool continue_uploading = true;
-
-            for(; i < data.file_list.size() && continue_uploading; ++i) {
-
-                data.current_file_idx = i;
-                LOG_DEBUG("Attempt to upload file: " << data.file_list[i].path);
-
-                // control will return after gstreamer_init after file eos or any GST_ERROR was put on the bus.
-                gstreamer_init(argc, argv, &data);
-
-                // check if any stream error occurred.
-                stream_status = data.stream_status.load();
-
-                if (STATUS_FAILED(stream_status)) {
-                    continue_uploading = false;
-                    // fatal cases
-                    if (!IS_RETRIABLE_ERROR(stream_status)) {
-                        LOG_ERROR("Fatal stream error occurred: " << stream_status << ". Terminating.");
-                        do_retry = false;
-                    } else {
-                        do_retry = true;
-                    }
-                    data.kinesis_video_stream->stop();
-                } else {
-                    LOG_INFO("Finished sending file to kvs producer: " << data.file_list[i].path);
-                    // check if we just finished sending the last file.
-                    if (i == data.file_list.size() - 1) {
-                        // stop sync will send out remaining frames. If stopSync
-                        // succeeds then everything is done, otherwise do retry
-                        if (data.kinesis_video_stream->stopSync()) {
-                            LOG_INFO("All files have been persisted");
-                            do_retry = false;
-                        } else {
-                            do_retry = true;
-                        }
-                    }
-                }
-            }
-
-            if (do_retry) {
-                file_retry_count--;
-                if (file_retry_count == 0) {
-                    i = data.last_unpersisted_file_idx.load();
-                    LOG_ERROR("Failed to upload file " << data.file_list[i].path << " after retrying. Terminating.");
-                    data.kinesis_video_stream->stop();
-                    do_retry = false;           // exit while loop
-                } else {
-                    // flush out buffers
-                    data.kinesis_video_stream->resetStream();
-                    // reset state
-                    data.stream_status = STATUS_SUCCESS;
-                    data.stream_started = false;
-                }
-            }
-        } while(do_retry);
-
-    } else {
-        // non file uploading scenario
+    if (data.streamSource == TEST_SOURCE)
+    {
         gstreamer_init(argc, argv, &data);
         if (STATUS_SUCCEEDED(stream_status)) {
-            // if stream_status is success after eos, send out remaining frames.
-            data.kinesis_video_stream->stopSync();
-        } else {
-            data.kinesis_video_stream->stop();
-        }
+                // if stream_status is success after eos, send out remaining frames.
+                data.kinesis_video_stream->stopSync();
+            } else {
+                data.kinesis_video_stream->stop();
+            }
     }
 
     // CleanUp

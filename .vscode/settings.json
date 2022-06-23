@@ -1,0 +1,12 @@
+{
+    "cmake.configureOnOpen": true,
+    "files.associations": {
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "vector": "cpp",
+        "iterator": "cpp",
+        "thread": "cpp",
+        "ctype.h": "c"
+    }
+}

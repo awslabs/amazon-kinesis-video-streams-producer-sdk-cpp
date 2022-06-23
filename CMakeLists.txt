@@ -18,7 +18,6 @@ option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from sour
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
 option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
 
-
 # Developer Flags
 option(BUILD_TEST "Build the testing tree" OFF)
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
@@ -55,7 +54,6 @@ endif()
 add_definitions(-DKVS_CA_CERT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/certs/cert.pem")
 add_definitions(-DCMAKE_DETECTED_CACERT_PATH)
 
-
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
     file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
@@ -71,6 +69,8 @@ if(BUILD_DEPENDENCIES)
 
 
   message(STATUS "Begin building dependencies.")
+
+  build_dependency(cppsdk)
 
   if (NOT WIN32)
     build_dependency(autoconf)
@@ -104,6 +104,8 @@ add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EX
 
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
+find_package(AWSSDK REQUIRED COMPONENTS monitoring logs)
+
 
 if (OPEN_SRC_INSTALL_PREFIX)
   find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
@@ -177,6 +179,8 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
+
+
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 target_link_libraries(
   KinesisVideoProducer
@@ -203,7 +207,7 @@ if(BUILD_GSTREAMER_PLUGIN)
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} ${AWSSDK_LINK_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
   target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
