@@ -354,8 +354,8 @@ bool put_frame(Aws::CloudWatch::CloudWatchClient cw, shared_ptr<KinesisVideoStre
 
     // canaryStreamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
 
-    //if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
-    //{
+    if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
+    {
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
 
         auto stream_metrics = kinesis_video_stream->getMetrics();
@@ -377,7 +377,7 @@ bool put_frame(Aws::CloudWatch::CloudWatchClient cw, shared_ptr<KinesisVideoStre
         {
             std::cout << "Successfully put sample metric data" << std::endl;
         }
-    //}
+    }
 
     return ret;
 }
