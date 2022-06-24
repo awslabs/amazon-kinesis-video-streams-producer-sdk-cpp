@@ -61,6 +61,11 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CREDENTIAL_ROTATION_SECONDS 3600
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
+Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
+Aws::CloudWatch::Model::MetricDatum STREAM_DATUM;
+
+
+
 typedef enum _StreamSource {
     TEST_SOURCE,
     FILE_SOURCE,
@@ -79,6 +84,7 @@ typedef struct _FileInfo {
 typedef struct _CustomData {
 
     _CustomData():
+            CWclient(client_config),
             streamSource(TEST_SOURCE),
             h264_stream_supported(false),
             synthetic_dts(0),
@@ -91,7 +97,12 @@ typedef struct _CustomData {
             first_pts(GST_CLOCK_TIME_NONE),
             use_absolute_fragment_times(true) {
         producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
+        client_config.region = "us-west-2";
     }
+
+    Aws::Client::ClientConfiguration client_config;
+
+    Aws::CloudWatch::CloudWatchClient CWclient;
 
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
@@ -335,10 +346,40 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
+bool put_frame(Aws::CloudWatch::CloudWatchClient cw, shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
+
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
-    return kinesis_video_stream->putFrame(frame);
+    bool ret = kinesis_video_stream->putFrame(frame);
+
+    // canaryStreamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
+
+    //if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
+    //{
+        Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+
+        auto stream_metrics = kinesis_video_stream->getMetrics();
+        auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
+
+        STREAM_DATUM.SetValue(frameRate);
+        STREAM_DATUM.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+
+        cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
+        cwRequest.AddMetricData(STREAM_DATUM);
+
+        auto outcome = cw.PutMetricData(cwRequest);
+        if (!outcome.IsSuccess())
+        {
+            std::cout << "Failed to put sample metric data:" <<
+                outcome.GetError().GetMessage() << std::endl;
+        }
+        else
+        {
+            std::cout << "Successfully put sample metric data" << std::endl;
+        }
+    //}
+
+    return ret;
 }
 
 static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
@@ -417,7 +458,9 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
         }
 
-        put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
+
+
+        put_frame(data->CWclient, data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
     }
 
@@ -620,9 +663,6 @@ static void pad_added_cb(GstElement *element, GstPad *pad, GstElement *target) {
 
 
 
-
-
-
 int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     
     GstElement *appsink, *source, *h264parse, *video_filter, *h264enc, *autovidcon;
@@ -675,12 +715,6 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
 
     return 0;
 }
-
-
-
-
-
-
 
 
 
@@ -1102,54 +1136,72 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
 int main(int argc, char* argv[]) {
     PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
-    if (argc < 2) {
-        LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name rtsp-url\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
-        return 1;
-    }
+    STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
 
-    const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
-
-    CustomData data;
-    char stream_name[MAX_STREAM_NAME_LEN + 1];
-    int ret = 0;
-    int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
-    STATUS stream_status = STATUS_SUCCESS;
-
-    STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
-    stream_name[MAX_STREAM_NAME_LEN] = '\0';
-    data.stream_name = stream_name;
-
-    // set the video stream source
-    data.streamSource = TEST_SOURCE;
-
-    /* init Kinesis Video */
-    try{
-        kinesis_video_init(&data);
-        kinesis_video_stream_init(&data);
-    } catch (runtime_error &err) {
-        LOG_ERROR("Failed to initialize kinesis video with an exception: " << err.what());
-        return 1;
-    }
-
-    bool do_retry = true;
-
-    if (data.streamSource == TEST_SOURCE)
+    Aws::SDKOptions options;
+    Aws::InitAPI(options);
     {
-        gstreamer_init(argc, argv, &data);
-        if (STATUS_SUCCEEDED(stream_status)) {
-                // if stream_status is success after eos, send out remaining frames.
-                data.kinesis_video_stream->stopSync();
-            } else {
-                data.kinesis_video_stream->stop();
-            }
-    }
+
+        if (argc < 2) {
+            LOG_ERROR(
+                    "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS\n \
+            or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name\n \
+            or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name rtsp-url\n \
+            or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
+            return 1;
+        }
+
+        const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
+
+        CustomData data;
+        char stream_name[MAX_STREAM_NAME_LEN + 1];
+        int ret = 0;
+        int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
+        STATUS stream_status = STATUS_SUCCESS;
+
+        STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
+        stream_name[MAX_STREAM_NAME_LEN] = '\0';
+        data.stream_name = stream_name;
+
+        // set the video stream source
+        data.streamSource = TEST_SOURCE;
+
+
+        PCHAR pStreamName = data.stream_name;      
+        
+
+        DIMENSION_PER_STREAM.SetName("ProducerSDKCanaryStreamNameCPP");
+        DIMENSION_PER_STREAM.SetValue(pStreamName);
+        
+        STREAM_DATUM.SetMetricName("FrameRate");
+        STREAM_DATUM.AddDimensions(DIMENSION_PER_STREAM);
+
+
+        /* init Kinesis Video */
+        try{
+            kinesis_video_init(&data);
+            kinesis_video_stream_init(&data);
+        } catch (runtime_error &err) {
+            LOG_ERROR("Failed to initialize kinesis video with an exception: " << err.what());
+            return 1;
+        }
+
+        bool do_retry = true;
+
+        if (data.streamSource == TEST_SOURCE)
+        {
+            gstreamer_init(argc, argv, &data);
+            if (STATUS_SUCCEEDED(stream_status)) {
+                    // if stream_status is success after eos, send out remaining frames.
+                    data.kinesis_video_stream->stopSync();
+                } else {
+                    data.kinesis_video_stream->stop();
+                }
+        }
 
     // CleanUp
     data.kinesis_video_producer->freeStream(data.kinesis_video_stream);
+    }
 
     return 0;
 }
