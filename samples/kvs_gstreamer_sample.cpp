@@ -64,6 +64,8 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
 Aws::CloudWatch::Model::MetricDatum STREAM_DATUM;
 
+int TESTING_FPS = 40;
+
 
 
 typedef enum _StreamSource {
@@ -665,7 +667,7 @@ static void pad_added_cb(GstElement *element, GstPad *pad, GstElement *target) {
 
 int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     
-    GstElement *appsink, *source, *h264parse, *video_filter, *h264enc, *autovidcon;
+    GstElement *appsink, *source, *video_src_filter, *h264parse, *video_filter, *h264enc, *autovidcon;
 
     GstCaps *caps;
 
@@ -695,18 +697,27 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     g_object_set(G_OBJECT (video_filter), "caps", caps, NULL);
     gst_caps_unref(caps);
 
+    video_caps_string = "video/x-raw, framerate=" + to_string(TESTING_FPS) + "/1";
+    video_src_filter = gst_element_factory_make("capsfilter", "video_source_filter");
+    caps = gst_caps_from_string(video_caps_string.c_str());
+    g_object_set(G_OBJECT (video_src_filter), "caps", caps, NULL);
+    gst_caps_unref(caps);
+
     // check if all elements were created
-    if (!pipeline || !source || !appsink || !autovidcon || !h264parse || !video_filter || !h264enc)
+    if (!pipeline || !source || !video_src_filter || !appsink || !autovidcon || !h264parse || 
+        !video_filter || !h264enc)
     {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
 
     // build the pipeline
-    gst_bin_add_many(GST_BIN (pipeline), source, autovidcon, h264enc, h264parse, video_filter, appsink, NULL);
+    gst_bin_add_many(GST_BIN (pipeline), source, video_src_filter, autovidcon, h264enc,
+                    h264parse, video_filter, appsink, NULL);
 
     // check if all elements were linked
-    if (!gst_element_link_many(source, autovidcon, h264enc, h264parse, video_filter, appsink, NULL)) 
+    if (!gst_element_link_many(source, video_src_filter, autovidcon, h264enc, 
+        h264parse, video_filter, appsink, NULL)) 
     {
         g_printerr("Elements could not be linked.\n");
         gst_object_unref(pipeline);
