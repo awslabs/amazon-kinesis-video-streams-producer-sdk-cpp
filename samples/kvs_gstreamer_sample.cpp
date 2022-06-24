@@ -64,7 +64,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
 Aws::CloudWatch::Model::MetricDatum STREAM_DATUM;
 
-int TESTING_FPS = 40;
+int TESTING_FPS = 60;
 
 
 
@@ -86,7 +86,6 @@ typedef struct _FileInfo {
 typedef struct _CustomData {
 
     _CustomData():
-            CWclient(client_config),
             streamSource(TEST_SOURCE),
             h264_stream_supported(false),
             synthetic_dts(0),
@@ -100,11 +99,12 @@ typedef struct _CustomData {
             use_absolute_fragment_times(true) {
         producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
         client_config.region = "us-west-2";
+        pCWclient = nullptr;
     }
 
     Aws::Client::ClientConfiguration client_config;
 
-    Aws::CloudWatch::CloudWatchClient CWclient;
+    Aws::CloudWatch::CloudWatchClient *pCWclient;
 
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
@@ -348,7 +348,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-bool put_frame(Aws::CloudWatch::CloudWatchClient cw, shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
+bool put_frame(Aws::CloudWatch::CloudWatchClient *cw, shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
 
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
@@ -369,7 +369,7 @@ bool put_frame(Aws::CloudWatch::CloudWatchClient cw, shared_ptr<KinesisVideoStre
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
         cwRequest.AddMetricData(STREAM_DATUM);
 
-        auto outcome = cw.PutMetricData(cwRequest);
+        auto outcome = cw->PutMetricData(cwRequest);
         if (!outcome.IsSuccess())
         {
             std::cout << "Failed to put sample metric data:" <<
@@ -462,7 +462,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
 
 
-        put_frame(data->CWclient, data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
+        put_frame(data->pCWclient, data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
     }
 
@@ -1169,6 +1169,9 @@ int main(int argc, char* argv[]) {
         int ret = 0;
         int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
         STATUS stream_status = STATUS_SUCCESS;
+
+        Aws::CloudWatch::CloudWatchClient CWclient(data.client_config);
+        data.pCWclient = &CWclient;
 
         STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
         stream_name[MAX_STREAM_NAME_LEN] = '\0';
