@@ -8,6 +8,7 @@
         "iterator": "cpp",
         "thread": "cpp",
         "ctype.h": "c",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "memory": "cpp"
     }
 }
