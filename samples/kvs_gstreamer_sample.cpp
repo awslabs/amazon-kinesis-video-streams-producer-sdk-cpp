@@ -359,31 +359,34 @@ bool put_frame(Aws::CloudWatch::CloudWatchClient *cw, shared_ptr<KinesisVideoStr
 
     if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
     {
-        Aws::CloudWatch::Model::MetricDatum frameRate_datum;
-        Aws::CloudWatch::Model::MetricDatum transferRate_datum;
+        Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum;
 
         frameRate_datum.SetMetricName("FrameRate");
         frameRate_datum.AddDimensions(DIMENSION_PER_STREAM);
         transferRate_datum.SetMetricName("TransferRate");
-        transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);        
+        transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);   
+        currentViewDuration_datum.SetMetricName("CurrentViewDuration");
+        currentViewDuration_datum.AddDimensions(DIMENSION_PER_STREAM);      
 
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
 
         auto stream_metrics = kinesis_video_stream->getMetrics();
         auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
-        auto transferRate = 8 * stream_metrics.getCurrentTransferRate();
-        //auto currentViewDuration = stream_metrics.getCurrentViewDuration();
-        // (bps): " << transfer_rate << " (" << transfer_rate / 1024 << " Kbps)
+        auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; //*8 makes it bytes->bits. /1024 bits->kilobits
+        auto currentViewDuration = stream_metrics.getCurrentViewDuration().count();
 
         frameRate_datum.SetValue(frameRate);
         frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
         transferRate_datum.SetValue(transferRate);
-        transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Bytes_Second);
+        transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Kilobits_Second);
+        currentViewDuration_datum.SetValue(currentViewDuration);
+        currentViewDuration_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
 
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
         cwRequest.AddMetricData(frameRate_datum);
         cwRequest.AddMetricData(transferRate_datum);
+        cwRequest.AddMetricData(currentViewDuration_datum);
 
         auto outcome = cw->PutMetricData(cwRequest);
         if (!outcome.IsSuccess())
