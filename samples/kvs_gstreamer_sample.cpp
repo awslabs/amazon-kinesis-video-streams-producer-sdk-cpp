@@ -359,29 +359,37 @@ bool put_frame(Aws::CloudWatch::CloudWatchClient *cw, shared_ptr<KinesisVideoStr
 
     if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
     {
-        Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum;
-
-        frameRate_datum.SetMetricName("FrameRate");
-        frameRate_datum.AddDimensions(DIMENSION_PER_STREAM);
-        transferRate_datum.SetMetricName("TransferRate");
-        transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);   
-        currentViewDuration_datum.SetMetricName("CurrentViewDuration");
-        currentViewDuration_datum.AddDimensions(DIMENSION_PER_STREAM);      
-
-        Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+        Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum;      
 
         auto stream_metrics = kinesis_video_stream->getMetrics();
-        auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
-        auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; //*8 makes it bytes->bits. /1024 bits->kilobits
-        auto currentViewDuration = stream_metrics.getCurrentViewDuration().count();
+        auto client_metrics = kinesis_video_stream->getProducer().getMetrics();
 
+        auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
+        frameRate_datum.SetMetricName("FrameRate");
+        frameRate_datum.AddDimensions(DIMENSION_PER_STREAM);
         frameRate_datum.SetValue(frameRate);
         frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+
+        auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; //*8 makes it bytes->bits. /1024 bits->kilobits
+        transferRate_datum.SetMetricName("TransferRate");
+        transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);  
         transferRate_datum.SetValue(transferRate);
         transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Kilobits_Second);
+
+        auto currentViewDuration = stream_metrics.getCurrentViewDuration().count();
+        currentViewDuration_datum.SetMetricName("CurrentViewDuration");
+        currentViewDuration_datum.AddDimensions(DIMENSION_PER_STREAM);
         currentViewDuration_datum.SetValue(currentViewDuration);
         currentViewDuration_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
 
+        //TODO: for some reason this metric is not being pushed, dimension not even shown on CW console
+        auto availableStoreSize = client_metrics.getContentStoreSizeSize();
+        availableStoreSize_datum.SetMetricName("ContentStoreAvailableSize");
+        availableStoreSize_datum.AddDimensions(DIMENSION_PER_STREAM);
+        availableStoreSize_datum.SetValue(availableStoreSize);
+        availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
+
+        Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
         cwRequest.AddMetricData(frameRate_datum);
