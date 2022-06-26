@@ -62,11 +62,10 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
 Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
-Aws::CloudWatch::Model::MetricDatum STREAM_DATUM;
-Aws::CloudWatch::Model::MetricDatum TRANSFER_RATE_DATUM;
 
 
-int TESTING_FPS = 60;
+
+int TESTING_FPS = 30;
 
 
 
@@ -360,22 +359,31 @@ bool put_frame(Aws::CloudWatch::CloudWatchClient *cw, shared_ptr<KinesisVideoStr
 
     if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
     {
+        Aws::CloudWatch::Model::MetricDatum frameRate_datum;
+        Aws::CloudWatch::Model::MetricDatum transferRate_datum;
+
+        frameRate_datum.SetMetricName("FrameRate");
+        frameRate_datum.AddDimensions(DIMENSION_PER_STREAM);
+        transferRate_datum.SetMetricName("TransferRate");
+        transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);        
+
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
 
         auto stream_metrics = kinesis_video_stream->getMetrics();
         auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
         auto transferRate = 8 * stream_metrics.getCurrentTransferRate();
+        //auto currentViewDuration = stream_metrics.getCurrentViewDuration();
         // (bps): " << transfer_rate << " (" << transfer_rate / 1024 << " Kbps)
 
-        STREAM_DATUM.SetValue(frameRate);
-        STREAM_DATUM.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
-        TRANSFER_RATE_DATUM.SetValue(transferRate);
-        TRANSFER_RATE_DATUM.SetUnit(Aws::CloudWatch::Model::StandardUnit::Bytes_Second);
+        frameRate_datum.SetValue(frameRate);
+        frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+        transferRate_datum.SetValue(transferRate);
+        transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Bytes_Second);
 
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
-        cwRequest.AddMetricData(STREAM_DATUM);
-        cwRequest.AddMetricData(TRANSFER_RATE_DATUM);
+        cwRequest.AddMetricData(frameRate_datum);
+        cwRequest.AddMetricData(transferRate_datum);
 
         auto outcome = cw->PutMetricData(cwRequest);
         if (!outcome.IsSuccess())
@@ -1155,7 +1163,8 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
 int main(int argc, char* argv[]) {
     PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
-    STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
+    // should be good to remove the line below...
+    // STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
 
     Aws::SDKOptions options;
     Aws::InitAPI(options);
@@ -1195,10 +1204,10 @@ int main(int argc, char* argv[]) {
         DIMENSION_PER_STREAM.SetName("ProducerSDKCanaryStreamNameCPP");
         DIMENSION_PER_STREAM.SetValue(pStreamName);
         
-        STREAM_DATUM.SetMetricName("FrameRate");
-        STREAM_DATUM.AddDimensions(DIMENSION_PER_STREAM);
-        TRANSFER_RATE_DATUM.SetMetricName("TransferRate");
-        TRANSFER_RATE_DATUM.AddDimensions(DIMENSION_PER_STREAM);
+        // STREAM_DATUM.SetMetricName("FrameRate");
+        // STREAM_DATUM.AddDimensions(DIMENSION_PER_STREAM);
+        // TRANSFER_RATE_DATUM.SetMetricName("TransferRate");
+        // TRANSFER_RATE_DATUM.AddDimensions(DIMENSION_PER_STREAM);
 
         /* init Kinesis Video */
         try{
