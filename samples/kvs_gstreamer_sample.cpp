@@ -87,6 +87,7 @@ typedef struct _FileInfo {
 typedef struct _CustomData {
 
     _CustomData():
+            onFirstFrame(true),
             streamSource(TEST_SOURCE),
             h264_stream_supported(false),
             synthetic_dts(0),
@@ -104,6 +105,7 @@ typedef struct _CustomData {
     }
 
     Aws::Client::ClientConfiguration client_config;
+    bool onFirstFrame;
 
     Aws::CloudWatch::CloudWatchClient *pCWclient;
 
@@ -373,6 +375,7 @@ bool put_frame(Aws::CloudWatch::CloudWatchClient *cw, shared_ptr<KinesisVideoStr
         frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
         cwRequest.AddMetricData(frameRate_datum);
 
+        //Should I include this one? (it's not in design doc)
         auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; //*8 makes it bytes->bits. /1024 bits->kilobits
         transferRate_datum.SetMetricName("TransferRate");
         transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);  
@@ -387,13 +390,13 @@ bool put_frame(Aws::CloudWatch::CloudWatchClient *cw, shared_ptr<KinesisVideoStr
         currentViewDuration_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
         cwRequest.AddMetricData(currentViewDuration_datum);
 
-        //TODO: for some reason this metric is not being pushed, dimension not even shown on CW console
         auto availableStoreSize = client_metrics.getContentStoreSizeSize();
         availableStoreSize_datum.SetMetricName("ContentStoreAvailableSize");
         availableStoreSize_datum.AddDimensions(DIMENSION_PER_STREAM);
         availableStoreSize_datum.SetValue(availableStoreSize);
         availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
         cwRequest.AddMetricData(availableStoreSize_datum);
+
 
         auto outcome = cw->PutMetricData(cwRequest);
         if (!outcome.IsSuccess())
@@ -486,10 +489,35 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
         }
 
-
-
-        put_frame(data->pCWclient, data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
+        bool putFrameSuccess = put_frame(data->pCWclient, data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
+
+        if(data->onFirstFrame && putFrameSuccess)
+        {
+            // push startup latency matric to CW
+            double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+            double startUpLatency = (double)(currentTimestamp - data->producer_start_time / 1000000); // / (double) HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+            Aws::CloudWatch::Model::MetricDatum startupLatency_datum;
+            Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+            cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
+            startupLatency_datum.SetMetricName("StartupLatency");
+            startupLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
+            startupLatency_datum.SetValue(startUpLatency);
+            startupLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
+            cwRequest.AddMetricData(startupLatency_datum);
+            auto outcome = data->pCWclient->PutMetricData(cwRequest);
+            if (!outcome.IsSuccess())
+            {
+                std::cout << "Failed to put StartupLatency metric data:" <<
+                    outcome.GetError().GetMessage() << std::endl;
+            }
+            else
+            {
+                std::cout << "Successfully put StartupLatency metric data" << std::endl;
+            }
+
+            data->onFirstFrame = false;
+        }
     }
 
 CleanUp:
@@ -1179,6 +1207,8 @@ int main(int argc, char* argv[]) {
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     {
+        // can put CustomData initialization lower to avoid keeping certain things within producer_start_time
+        CustomData data;
 
         if (argc < 2) {
             LOG_ERROR(
@@ -1191,7 +1221,6 @@ int main(int argc, char* argv[]) {
 
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
 
-        CustomData data;
         char stream_name[MAX_STREAM_NAME_LEN + 1];
         int ret = 0;
         int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
