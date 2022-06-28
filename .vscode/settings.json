@@ -9,6 +9,15 @@
         "thread": "cpp",
         "ctype.h": "c",
         "chrono": "cpp",
-        "memory": "cpp"
+        "memory": "cpp",
+        "__bit_reference": "cpp",
+        "__string": "cpp",
+        "deque": "cpp",
+        "future": "cpp",
+        "ios": "cpp",
+        "algorithm": "cpp",
+        "type_traits": "cpp",
+        "iosfwd": "cpp",
+        "utility": "cpp"
     }
 }
