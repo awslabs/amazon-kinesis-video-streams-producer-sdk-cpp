@@ -18,6 +18,7 @@
         "algorithm": "cpp",
         "type_traits": "cpp",
         "iosfwd": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "ostream": "cpp"
     }
 }

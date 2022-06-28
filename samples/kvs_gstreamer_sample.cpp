@@ -64,6 +64,21 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
 
+// Configs to add:
+/*
+Stream Name	User-defined stream name
+Source Type	Options: file reader, IP camera, test source
+IoT Credential Information	Information includes: certificate, private key, role alias, thing name
+Fragment Size	Size in bytes
+Canary Duration	Canary run time in seconds
+Buffer Duration	Time in seconds
+Storage Size	Size in bytes
+Run Type	Options: normal, intermitent
+Stream Type	Options: realtime, offline
+Label	Any label useful to the user
+Control Plane URL	Endpoint URL
+*/
+
 
 
 int TESTING_FPS = 30;
@@ -316,14 +331,19 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
     if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED)
     {
          // std::unique_lock<std::mutex> lk(data->file_list_mtx);
-        uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 1000000;
+        uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
 
         Aws::CloudWatch::Model::MetricDatum persistedAckLatency_datum;
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
-        double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-        double persistedAckLatency = currentTimestamp - timeOfFragmentEndSent;
+        //auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        double currentTimestamp = time(0) * 1000.0;
+        auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent;
+        cout << "currentTimestamp: " << currentTimestamp << endl;
+        cout << "timeOfFragmentEndSent: " << timeOfFragmentEndSent << endl;
+        cout << "timeOfFragment: " << data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->first << endl;
+        cout << "persistedAckLatency: " << persistedAckLatency << endl;
         persistedAckLatency_datum.SetMetricName("PersistedAckLatency");
         persistedAckLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
         persistedAckLatency_datum.SetValue(persistedAckLatency);
@@ -369,7 +389,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
                                 void *data, size_t len) {
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-    frame->presentationTs = static_cast<UINT64>(pts.count()) / 1000000;
+    frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
     // set duration to 0 due to potential high spew from rtsp streams
     frame->duration = 0;
     frame->size = static_cast<UINT32>(len);
@@ -389,15 +409,17 @@ bool put_frame(CustomData *cusData, Aws::CloudWatch::CloudWatchClient *cw, share
 
     if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
     {
+        cout << "Frame.presentationTs: " << frame.presentationTs << endl;
+        cout << "pts: " << pts.count() << endl;
         cusData->curKeyFrameTime = frame.presentationTs;
         if (cusData->lastKeyFrameTime != 0)
         {
             auto mapPtr = cusData->timeOfNextKeyFrame;
-            (*mapPtr)[cusData->lastKeyFrameTime] = cusData->curKeyFrameTime;
+            (*mapPtr)[cusData->lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = cusData->curKeyFrameTime;
             auto iter = mapPtr->begin();
             while (iter != mapPtr->end()) {
                 // clean up from current timestamp of 5 min timestamps would be removed
-                if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300 * 1000000)) / 1000000) {
+                if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)) / HUNDREDS_OF_NANOS_IN_A_MILLISECOND) {
                     iter = mapPtr->erase(iter);
                 } else {
                     break;
@@ -443,6 +465,7 @@ bool put_frame(CustomData *cusData, Aws::CloudWatch::CloudWatchClient *cw, share
 
 
         auto outcome = cw->PutMetricData(cwRequest);
+        cout << "currentTimestamp = " << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() << endl;
         if (!outcome.IsSuccess())
         {
             std::cout << "Failed to put sample metric data:" <<
@@ -1242,10 +1265,25 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
 }
 
 int main(int argc, char* argv[]) {
+
+    string streamName;
+    string sourceType;
+    string canaryRunType;
+    string streamType;
+    string canaryLabel;
+    string cpUrl;
+    unsigned int fragmentSize;
+    unsigned int canaryDuration;
+    unsigned int bufferDuration;
+    unsigned int storageSize;
+    // IoT credential stuff
+
+
+
     PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
-    // should be good to remove the line below...
-    // STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
+    initializeEndianness();
+    SRAND(time(0));
 
     Aws::SDKOptions options;
     Aws::InitAPI(options);
