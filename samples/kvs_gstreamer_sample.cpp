@@ -121,6 +121,7 @@ typedef struct _CustomData {
         client_config.region = "us-west-2";
         pCWclient = nullptr;
         timeOfNextKeyFrame = new map<uint64_t, uint64_t>();
+        timeCounter = producer_start_time / 1000000000; // nanosecond to second conversion
     }
 
     Aws::Client::ClientConfiguration client_config;
@@ -139,6 +140,8 @@ typedef struct _CustomData {
     map<uint64_t, uint64_t>* timeOfNextKeyFrame;
     uint64_t lastKeyFrameTime;
     uint64_t curKeyFrameTime;
+
+    unsigned double timeCounter;
 
     // list of files to upload.
     vector<FileInfo> file_list;
@@ -446,12 +449,14 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         }
         cusData->lastKeyFrameTime = frame.presentationTs;
         
-        Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum;
+        Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum
+                                                putFrameErrorRate_datum;
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
 
         auto stream_metrics = cusData->kinesis_video_stream->getMetrics();
         auto client_metrics = cusData->kinesis_video_stream->getProducer().getMetrics();
+        auto stream_metrics_raw = stream_metrics.getRawMetrics(); // perhaps switch to using this to retrieve all the metrics in this code block
 
         auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
         frameRate_datum.SetMetricName("FrameRate");
@@ -474,6 +479,7 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         currentViewDuration_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
         cwRequest.AddMetricData(currentViewDuration_datum);
 
+        // Metrics seem to always be the same -> look into
         auto availableStoreSize = client_metrics.getContentStoreSizeSize();
         availableStoreSize_datum.SetMetricName("ContentStoreAvailableSize");
         availableStoreSize_datum.AddDimensions(DIMENSION_PER_STREAM);
@@ -481,6 +487,21 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Bytes);
         cwRequest.AddMetricData(availableStoreSize_datum);
 
+        // Capture error rate metrics every 60 seconds
+        unsigned double duration = duration_cast<seconds>(system_clock::now().time_since_epoch()).count() - cusData->timeCounter;
+        if(duration > 60 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+        {
+            cusData->timeCounter = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+            
+            auto putFrameErrorRate = (double)stream_metrics_raw.putFrameErrors / (double)duration ;
+            putFrameErrorRate_datum.SetMetricName("PutFrameErrorRate");
+            putFrameErrorRate_datum.AddDimensions(DIMENSION_PER_STREAM);
+            putFrameErrorRate_datum.SetValue(putFrameErrorRate);
+            putFrameErrorRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+            cwRequest.AddMetricData(putFrameErrorRate_datum);
+        }
+
+        // Send metrics to CW
         auto outcome = cusData->pCWclient->PutMetricData(cwRequest);
         cout << "currentTimestamp = " << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() << endl;
         if (!outcome.IsSuccess())
@@ -492,6 +513,7 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         {
             std::cout << "Successfully put sample metric data" << std::endl;
         }
+
     }
 
     return ret;
