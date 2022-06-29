@@ -479,7 +479,7 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         availableStoreSize_datum.SetMetricName("ContentStoreAvailableSize");
         availableStoreSize_datum.AddDimensions(DIMENSION_PER_STREAM);
         availableStoreSize_datum.SetValue(availableStoreSize);
-        availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
+        availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Bytes);
         cwRequest.AddMetricData(availableStoreSize_datum);
 
         auto outcome = cusData->pCWclient->PutMetricData(cwRequest);
