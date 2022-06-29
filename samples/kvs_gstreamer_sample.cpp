@@ -339,10 +339,6 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 
         auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent;
-        cout << "currentTimestamp: " << currentTimestamp << endl;
-        cout << "timeOfFragmentEndSent: " << timeOfFragmentEndSent << endl;
-        cout << "timeOfFragment: " << data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->first << endl;
-        cout << "persistedAckLatency: " << persistedAckLatency << endl;
         persistedAckLatency_datum.SetMetricName("PersistedAckLatency");
         persistedAckLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
         persistedAckLatency_datum.SetValue(persistedAckLatency);
@@ -352,16 +348,41 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
         auto outcome = data->pCWclient->PutMetricData(cwRequest);
         if (!outcome.IsSuccess())
         {
-            std::cout << "Failed to PutPersistedAckLatency metric data:" <<
+            std::cout << "Failed to put PersistedAckLatency metric data:" <<
                 outcome.GetError().GetMessage() << std::endl;
         }
         else
         {
             std::cout << "Successfully put PersistedAckLatency metric data" << std::endl;
         }
-    }
-    LOG_DEBUG("Reporting fragment ack received. Ack timecode " << pFragmentAck->timestamp);
-    return STATUS_SUCCESS;
+    } else if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_RECEIVED)
+        {
+            // std::unique_lock<std::mutex> lk(data->file_list_mtx);
+            uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
+
+            Aws::CloudWatch::Model::MetricDatum recievedAckLatency_datum;
+            Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+            cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
+
+            auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+            auto recievedAckLatency = currentTimestamp - timeOfFragmentEndSent;
+            recievedAckLatency_datum.SetMetricName("RecievedAckLatency");
+            recievedAckLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
+            recievedAckLatency_datum.SetValue(recievedAckLatency);
+            recievedAckLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
+            cwRequest.AddMetricData(recievedAckLatency_datum);
+
+            auto outcome = data->pCWclient->PutMetricData(cwRequest);
+            if (!outcome.IsSuccess())
+            {
+                std::cout << "Failed to put RecievedAckLatency metric data:" <<
+                    outcome.GetError().GetMessage() << std::endl;
+            }
+            else
+            {
+                std::cout << "Successfully put RecievedAckLatency metric data" << std::endl;
+            }
+        }
 }
 
 }  // namespace video
@@ -398,18 +419,17 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
 
 // TODO: instead of passing cw, can I just get it from data instead? (not sure because data is a void pointer in this case...
 //          and so what is info.data?)
-bool put_frame(CustomData *cusData, Aws::CloudWatch::CloudWatchClient *cw, shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
+bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
 
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
-    bool ret = kinesis_video_stream->putFrame(frame);
+    bool ret = cusData->kinesis_video_stream->putFrame(frame);
 
     // canaryStreamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
 
     if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
     {
-        cout << "Frame.presentationTs: " << frame.presentationTs << endl;
-        cout << "pts: " << pts.count() << endl;
+        // Update the next key-frame hash map
         cusData->curKeyFrameTime = frame.presentationTs;
         if (cusData->lastKeyFrameTime != 0)
         {
@@ -417,7 +437,7 @@ bool put_frame(CustomData *cusData, Aws::CloudWatch::CloudWatchClient *cw, share
             (*mapPtr)[cusData->lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = cusData->curKeyFrameTime;
             auto iter = mapPtr->begin();
             while (iter != mapPtr->end()) {
-                // clean up from current timestamp of 5 min timestamps would be removed
+                // clean up map: remove timestamps older than 5 min from now
                 if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)) / HUNDREDS_OF_NANOS_IN_A_MILLISECOND) {
                     iter = mapPtr->erase(iter);
                 } else {
@@ -431,8 +451,8 @@ bool put_frame(CustomData *cusData, Aws::CloudWatch::CloudWatchClient *cw, share
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
 
-        auto stream_metrics = kinesis_video_stream->getMetrics();
-        auto client_metrics = kinesis_video_stream->getProducer().getMetrics();
+        auto stream_metrics = cusData->kinesis_video_stream->getMetrics();
+        auto client_metrics = cusData->kinesis_video_stream->getProducer().getMetrics();
 
         auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
         frameRate_datum.SetMetricName("FrameRate");
@@ -441,7 +461,7 @@ bool put_frame(CustomData *cusData, Aws::CloudWatch::CloudWatchClient *cw, share
         frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
         cwRequest.AddMetricData(frameRate_datum);
 
-        auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; //*8 makes it bytes->bits. /1024 bits->kilobits
+        auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; // *8 makes it bytes->bits. /1024 bits->kilobits
         transferRate_datum.SetMetricName("TransferRate");
         transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);  
         transferRate_datum.SetValue(transferRate);
@@ -462,8 +482,7 @@ bool put_frame(CustomData *cusData, Aws::CloudWatch::CloudWatchClient *cw, share
         availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
         cwRequest.AddMetricData(availableStoreSize_datum);
 
-
-        auto outcome = cw->PutMetricData(cwRequest);
+        auto outcome = cusData->pCWclient->PutMetricData(cwRequest);
         cout << "currentTimestamp = " << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() << endl;
         if (!outcome.IsSuccess())
         {
@@ -546,8 +565,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 data->producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
                 data->first_pts = buffer->pts;
             }
-            cout << "first_pts: " << data->first_pts << endl;
-            cout << "producer_start_time: " << data->producer_start_time << endl;
             buffer->pts += (data->producer_start_time - data->first_pts);
         }
 
@@ -558,12 +575,13 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
         }
 
-        bool putFrameSuccess = put_frame(data, data->pCWclient, data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
+        bool putFrameSuccess = put_frame(data, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
 
+
+        // If on first frame of stream, push startup latency metric to CW
         if(data->onFirstFrame && putFrameSuccess)
         {
-            // push startup latency matric to CW
             double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
             double startUpLatency = (double)(currentTimestamp - data->producer_start_time / 1000000); // / (double) HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
             Aws::CloudWatch::Model::MetricDatum startupLatency_datum;
@@ -785,8 +803,6 @@ static void pad_added_cb(GstElement *element, GstPad *pad, GstElement *target) {
     g_free(pad_name);
 }
 
-
-
 int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     
     GstElement *appsink, *source, *video_src_filter, *h264parse, *video_filter, *h264enc, *autovidcon;
@@ -852,8 +868,6 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
 
     return 0;
 }
-
-
 
 int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElement *pipeline) {
 
@@ -1306,19 +1320,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        /*
-        PClientCallbacks pClientCallbacks = nullptr;
-        // char * cacertpath = "hello";
-        com::amazonaws::kinesis::video::createAbstractDefaultCallbacksProvider(DEFAULT_CALLBACK_CHAIN_COUNT, API_CALL_CACHE_TYPE_NONE,
-                                                ENDPOINT_UPDATE_PERIOD_SENTINEL_VALUE, data.client_config.region, MAX_URI_CHAR_LEN,
-                                                nullptr, NULL, NULL, &pClientCallbacks);
-        StreamCallbacks streamCallBacks;
-        PStreamCallbacks pStreamCallBacks = &streamCallBacks;
-        streamCallBacks.fragmentAckReceivedFn = canaryStreamFragmentAckHandler;
-        addStreamCallbacks(pClientCallbacks, pStreamCallBacks);
-        */
-
-
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
 
         char stream_name[MAX_STREAM_NAME_LEN + 1];
@@ -1343,10 +1344,6 @@ int main(int argc, char* argv[]) {
         DIMENSION_PER_STREAM.SetName("ProducerSDKCanaryStreamNameCPP");
         DIMENSION_PER_STREAM.SetValue(pStreamName);
         
-        // STREAM_DATUM.SetMetricName("FrameRate");
-        // STREAM_DATUM.AddDimensions(DIMENSION_PER_STREAM);
-        // TRANSFER_RATE_DATUM.SetMetricName("TransferRate");
-        // TRANSFER_RATE_DATUM.AddDimensions(DIMENSION_PER_STREAM);
 
         /* init Kinesis Video */
         try{
