@@ -417,8 +417,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-// TODO: instead of passing cw, can I just get it from data instead? (not sure because data is a void pointer in this case...
-//          and so what is info.data?)
+
 bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
 
     Frame frame;
@@ -619,6 +618,7 @@ CleanUp:
 
     return ret;
 }
+
 
 static bool format_supported_by_source(GstCaps *src_caps, GstCaps *query_caps, int width, int height, int framerate) {
     gst_caps_set_simple(query_caps,
