@@ -337,8 +337,7 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
-        //auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-        double currentTimestamp = time(0) * 1000.0;
+        auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent;
         cout << "currentTimestamp: " << currentTimestamp << endl;
         cout << "timeOfFragmentEndSent: " << timeOfFragmentEndSent << endl;
@@ -544,9 +543,12 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             }
         } else if (data->use_absolute_fragment_times) {
             if (data->first_pts == GST_CLOCK_TIME_NONE) {
+                data->producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
                 data->first_pts = buffer->pts;
             }
-            buffer->pts += data->producer_start_time - data->first_pts;
+            cout << "first_pts: " << data->first_pts << endl;
+            cout << "producer_start_time: " << data->producer_start_time << endl;
+            buffer->pts += (data->producer_start_time - data->first_pts);
         }
 
         if (!gst_buffer_map(buffer, &info, GST_MAP_READ)){
@@ -800,6 +802,10 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
 
     // to change output video pattern to a moving ball, uncomment below
     //g_object_set(source, "pattern", 18, NULL);
+
+    // NEED TO SET THIS TO LIVE to increment buffer pts and dts; when not set to live,
+    // it will mess up fragment ack metrics
+    g_object_set(source, "is-live", TRUE, NULL);
 
     // configure appsink
     g_object_set(G_OBJECT (appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
