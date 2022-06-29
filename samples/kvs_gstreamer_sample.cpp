@@ -141,7 +141,7 @@ typedef struct _CustomData {
     uint64_t lastKeyFrameTime;
     uint64_t curKeyFrameTime;
 
-    unsigned double timeCounter;
+    double timeCounter;
 
     // list of files to upload.
     vector<FileInfo> file_list;
@@ -449,7 +449,7 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         }
         cusData->lastKeyFrameTime = frame.presentationTs;
         
-        Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum
+        Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum,
                                                 putFrameErrorRate_datum;
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
@@ -488,12 +488,12 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         cwRequest.AddMetricData(availableStoreSize_datum);
 
         // Capture error rate metrics every 60 seconds
-        unsigned double duration = duration_cast<seconds>(system_clock::now().time_since_epoch()).count() - cusData->timeCounter;
+        double duration = duration_cast<seconds>(system_clock::now().time_since_epoch()).count() - cusData->timeCounter;
         if(duration > 60 * HUNDREDS_OF_NANOS_IN_A_SECOND)
         {
             cusData->timeCounter = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
             
-            auto putFrameErrorRate = (double)stream_metrics_raw.putFrameErrors / (double)duration ;
+            auto putFrameErrorRate = (double)stream_metrics_raw->putFrameErrors / (double)duration ;
             putFrameErrorRate_datum.SetMetricName("PutFrameErrorRate");
             putFrameErrorRate_datum.AddDimensions(DIMENSION_PER_STREAM);
             putFrameErrorRate_datum.SetValue(putFrameErrorRate);
