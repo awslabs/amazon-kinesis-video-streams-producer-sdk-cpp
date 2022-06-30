@@ -81,7 +81,7 @@ Control Plane URL	Endpoint URL
 
 
 
-int TESTING_FPS = 30;
+int TESTING_FPS = 120;
 
 
 
@@ -514,7 +514,7 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
             auto errorAckRate = newErrorAcks / (double)duration;
             errorAckRate_datum.SetMetricName("ErrorAckRate");
             errorAckRate_datum.AddDimensions(DIMENSION_PER_STREAM);
-            errorAckRate_datum.SetValue(errorAckRate);ma
+            errorAckRate_datum.SetValue(errorAckRate);
             errorAckRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
             cwRequest.AddMetricData(errorAckRate_datum);
 
@@ -885,7 +885,8 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     g_object_set(G_OBJECT (video_filter), "caps", caps, NULL);
     gst_caps_unref(caps);
 
-    video_caps_string = "video/x-raw, framerate=" + to_string(TESTING_FPS) + "/1";
+    // TODO: make the width and height configurable
+    video_caps_string = "video/x-raw, width=3840, height=2160, framerate=" + to_string(TESTING_FPS) + "/1";
     video_src_filter = gst_element_factory_make("capsfilter", "video_source_filter");
     caps = gst_caps_from_string(video_caps_string.c_str());
     g_object_set(G_OBJECT (video_src_filter), "caps", caps, NULL);
