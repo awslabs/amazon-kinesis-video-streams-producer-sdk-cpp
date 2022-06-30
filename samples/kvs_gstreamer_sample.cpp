@@ -103,6 +103,8 @@ typedef struct _FileInfo {
 typedef struct _CustomData {
 
     _CustomData():
+            totalPutFrameErrorCount(0),
+            totalErrorAckCount(0),
             lastKeyFrameTime(0),
             curKeyFrameTime(0),
             onFirstFrame(true),
@@ -142,6 +144,8 @@ typedef struct _CustomData {
     uint64_t curKeyFrameTime;
 
     double timeCounter;
+    double totalPutFrameErrorCount;
+    double totalErrorAckCount;
 
     // list of files to upload.
     vector<FileInfo> file_list;
@@ -450,7 +454,7 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         cusData->lastKeyFrameTime = frame.presentationTs;
         
         Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum,
-                                                putFrameErrorRate_datum;
+                                                putFrameErrorRate_datum, errorAckRate_datum, totalNumberOfErrors_datum;
         Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
         cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
 
@@ -489,21 +493,41 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
 
         // Capture error rate metrics every 60 seconds
         double duration = duration_cast<seconds>(system_clock::now().time_since_epoch()).count() - cusData->timeCounter;
-        if(duration > 60 * HUNDREDS_OF_NANOS_IN_A_SECOND)
+        if(duration > 60)
         {
+            cout << "putFrameErrors: " << stream_metrics_raw->putFrameErrors << endl;
+            cout << "errorAcks: " << stream_metrics_raw->errorAcks << endl;
+
             cusData->timeCounter = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
-            
-            auto putFrameErrorRate = (double)stream_metrics_raw->putFrameErrors / (double)duration ;
+
+            double newPutFrameErrors = (double)stream_metrics_raw->putFrameErrors - cusData->totalPutFrameErrorCount;
+            cusData->totalPutFrameErrorCount = stream_metrics_raw->putFrameErrors;
+            auto putFrameErrorRate = newPutFrameErrors / (double)duration;
             putFrameErrorRate_datum.SetMetricName("PutFrameErrorRate");
             putFrameErrorRate_datum.AddDimensions(DIMENSION_PER_STREAM);
             putFrameErrorRate_datum.SetValue(putFrameErrorRate);
             putFrameErrorRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
             cwRequest.AddMetricData(putFrameErrorRate_datum);
+
+            double newErrorAcks = (double)stream_metrics_raw->errorAcks - cusData->totalErrorAckCount;
+            cusData->totalErrorAckCount = stream_metrics_raw->errorAcks;
+            auto errorAckRate = newErrorAcks / (double)duration;
+            errorAckRate_datum.SetMetricName("ErrorAckRate");
+            errorAckRate_datum.AddDimensions(DIMENSION_PER_STREAM);
+            errorAckRate_datum.SetValue(errorAckRate);ma
+            errorAckRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+            cwRequest.AddMetricData(errorAckRate_datum);
+
+            auto totalNumberOfErrors = cusData->totalPutFrameErrorCount + cusData->totalErrorAckCount;
+            totalNumberOfErrors_datum.SetMetricName("TotalNumberOfErrors");
+            totalNumberOfErrors_datum.AddDimensions(DIMENSION_PER_STREAM);
+            totalNumberOfErrors_datum.SetValue(totalNumberOfErrors);
+            totalNumberOfErrors_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count);
+            cwRequest.AddMetricData(totalNumberOfErrors_datum);            
         }
 
         // Send metrics to CW
         auto outcome = cusData->pCWclient->PutMetricData(cwRequest);
-        cout << "currentTimestamp = " << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() << endl;
         if (!outcome.IsSuccess())
         {
             std::cout << "Failed to put sample metric data:" <<
