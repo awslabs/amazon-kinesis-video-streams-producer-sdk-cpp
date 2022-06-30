@@ -71,7 +71,7 @@ typedef struct _CanaryConfig
 {
     _CanaryConfig():
             streamName("DefaultStreamName"),
-            sourceType("videotestsrc"),
+            sourceType("TEST_SOURCE"),
             canaryRunType("Normal"),
             streamType("Reatime"),
             canaryLabel("DefaultCanaryLabel"),
@@ -476,6 +476,7 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 
             auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
             auto recievedAckLatency = currentTimestamp - timeOfFragmentEndSent;
+            cout << "recievedAckLatency: " << recievedAckLatency << endl;
             recievedAckLatency_datum.SetMetricName("RecievedAckLatency");
             recievedAckLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
             recievedAckLatency_datum.SetValue(recievedAckLatency);
@@ -989,7 +990,8 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     gst_caps_unref(caps);
 
     // TODO: make the width and height configurable
-    video_caps_string = "video/x-raw, width=1280, height=720, framerate=" + to_string(TESTING_FPS) + "/1";
+    //video_caps_string = "video/x-raw, width=1280, height=720, framerate=" + to_string(TESTING_FPS) + "/1";
+    video_caps_string = "video/x-raw, framerate=" + to_string(TESTING_FPS) + "/1";
     video_src_filter = gst_element_factory_make("capsfilter", "video_source_filter");
     caps = gst_caps_from_string(video_caps_string.c_str());
     g_object_set(G_OBJECT (video_src_filter), "caps", caps, NULL);
@@ -1445,40 +1447,36 @@ int main(int argc, char* argv[]) {
     {
         // can put CustomData initialization lower to avoid keeping certain things within producer_start_time
         CustomData data;
+        CanaryConfig canaryConfig;
+        initWithEnvVars(&canaryConfig);
 
-        if (argc < 2) {
-            LOG_ERROR(
-                    "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS\n \
-            or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name\n \
-            or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name rtsp-url\n \
-            or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
-            return 1;
-        }
+        // if (argc < 2) {
+        //     LOG_ERROR(
+        //             "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS\n \
+        //     or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name\n \
+        //     or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name rtsp-url\n \
+        //     or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
+        //     return 1;
+        // }
 
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
 
-        char stream_name[MAX_STREAM_NAME_LEN + 1];
-        int ret = 0;
         int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
         STATUS stream_status = STATUS_SUCCESS;
 
         Aws::CloudWatch::CloudWatchClient CWclient(data.client_config);
         data.pCWclient = &CWclient;
-
-        STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
-        stream_name[MAX_STREAM_NAME_LEN] = '\0';
-        data.stream_name = stream_name;
+        data.stream_name = const_cast<char*>(canaryConfig.streamName.c_str());
 
         // set the video stream source
+        if (canaryConfig.sourceType == "TEST_SOURCE")
+        {
+            data.streamSource = TEST_SOURCE;     
+        }
         data.streamSource = TEST_SOURCE;
 
-
-        PCHAR pStreamName = data.stream_name;      
-        
-
         DIMENSION_PER_STREAM.SetName("ProducerSDKCanaryStreamNameCPP");
-        DIMENSION_PER_STREAM.SetValue(pStreamName);
-        
+        DIMENSION_PER_STREAM.SetValue(data.stream_name);
 
         /* init Kinesis Video */
         try{
