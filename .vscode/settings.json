@@ -79,6 +79,7 @@
         "unordered_set": "cpp",
         "variant": "cpp",
         "__functional_base": "cpp",
-        "functional": "cpp"
+        "functional": "cpp",
+        "filesystem": "cpp"
     }
 }

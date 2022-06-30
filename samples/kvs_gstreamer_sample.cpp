@@ -64,24 +64,127 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
 
-// Configs to add:
-/*
-Stream Name	User-defined stream name
-Source Type	Options: file reader, IP camera, test source
-IoT Credential Information	Information includes: certificate, private key, role alias, thing name
-Fragment Size	Size in bytes
-Canary Duration	Canary run time in seconds
-Buffer Duration	Time in seconds
-Storage Size	Size in bytes
-Run Type	Options: normal, intermitent
-Stream Type	Options: realtime, offline
-Label	Any label useful to the user
-Control Plane URL	Endpoint URL
-*/
+int TESTING_FPS = 60;
 
 
+typedef struct _CanaryConfig
+{
+    _CanaryConfig():
+            streamName("DefaultStreamName"),
+            sourceType("videotestsrc"),
+            canaryRunType("Normal"),
+            streamType("Reatime"),
+            canaryLabel("DefaultCanaryLabel"),
+            cpUrl("Default_CpURL"),
+            fragmentSize(0),
+            canaryDuration(0),
+            bufferDuration(120),
+            storageSizeInBytes(0)
+            {}
+    
 
-int TESTING_FPS = 120;
+    string streamName;
+    string sourceType;
+    string canaryRunType;
+    string streamType;
+    string canaryLabel;
+    string cpUrl;
+    int fragmentSize;
+    int canaryDuration;
+    int bufferDuration;
+    int storageSizeInBytes;
+    // IoT credential stuff
+
+    /* // From C Canary:
+    BOOL useIotCredentialProvider;
+    CHAR streamNamePrefix[CANARY_STREAM_NAME_PREFIX_LEN + 1];
+    CHAR canaryTypeStr[CANARY_TYPE_STR_LEN + 1];
+    CHAR canaryLabel[CANARY_LABEL_LEN + 1];
+    CHAR canaryScenario[CANARY_LABEL_LEN + 1];
+    CHAR canaryTrackType[CANARY_TRACK_TYPE_STR_LEN + 1];
+    CHAR iotCoreCredentialEndPointFile[MAX_URI_CHAR_LEN + 1];
+    BYTE iotEndpoint[MAX_URI_CHAR_LEN + 1];
+    CHAR iotCoreCert[MAX_PATH_LEN + 1];
+    CHAR iotCorePrivateKey[MAX_PATH_LEN + 1];
+    CHAR iotCoreRoleAlias[MAX_ROLE_ALIAS_LEN + 1];
+    CHAR iotThingName[CANARY_STREAM_NAME_STR_LEN + 1];
+    CHAR canaryCpUrl[MAX_URI_CHAR_LEN];
+    UINT64 fragmentSizeInBytes;
+    UINT64 canaryDuration;
+    UINT64 bufferDuration;
+    UINT64 storageSizeInBytes;
+    */
+} CanaryConfig;
+
+void setEnvVarsString(string& configVar, string envVar)
+{
+    if (getenv(envVar.c_str()) != NULL)
+    {
+        configVar = getenv(envVar.c_str());
+    }
+}
+void setEnvVarsInt(int& configVar, string envVar)
+{
+    if (getenv(envVar.c_str()) != NULL)
+    {
+        configVar = stoi(getenv(envVar.c_str()));
+    }
+}
+void setEnvVarsBool(bool& configVar, string envVar)
+{
+    if (getenv(envVar.c_str()) != NULL)
+    {
+        if (getenv(envVar.c_str()) == "TRUE" || getenv(envVar.c_str()) == "true" || getenv(envVar.c_str()) == "True")
+        {
+            configVar = true;
+        } else
+        {
+            configVar = false;
+        }
+    }
+}
+void initWithEnvVars(CanaryConfig* pCanaryConfig)
+{
+    setEnvVarsString(pCanaryConfig->streamName, "CANARY_STREAM_NAME_ENV_VAR");
+    setEnvVarsString(pCanaryConfig->sourceType, "CANARY_SOURCE_TYPE_ENV_VAR");
+    setEnvVarsString(pCanaryConfig->canaryRunType, "CANARY_RUN_TYPE_ENV_VAR");
+    setEnvVarsString(pCanaryConfig->streamType, "CANARY_STREAM_TYPE_ENV_VAR");
+    setEnvVarsString(pCanaryConfig->canaryLabel, "CANARY_LABEL_ENV_VAR");
+    setEnvVarsString(pCanaryConfig->cpUrl, "CANARY_CP_URL_ENV_VAR");
+
+    setEnvVarsInt(pCanaryConfig->fragmentSize, "CANARY_FRAGMENT_SIZE_ENV_VAR");
+    setEnvVarsInt(pCanaryConfig->canaryDuration, "CANARY_DURATION_ENV_VAR");
+    setEnvVarsInt(pCanaryConfig->bufferDuration, "CANARY_BUFFER_DURATION_ENV_VAR");
+    setEnvVarsInt(pCanaryConfig->storageSizeInBytes, "CANARY_STORAGE_SIZE_ENV_VAR");
+
+    
+    /*
+    CHK_STATUS(optenvUint64(FRAGMENT_SIZE_ENV_VAR, &pCanaryConfig->fragmentSizeInBytes, CANARY_DEFAULT_FRAGMENT_SIZE));
+    CHK_STATUS(optenvUint64(CANARY_DURATION_ENV_VAR, &pCanaryConfig->canaryDuration, CANARY_DEFAULT_DURATION_IN_SECONDS));
+
+    CHK_STATUS(optenvUint64(CANARY_BUFFER_DURATION_ENV_VAR, &pCanaryConfig->bufferDuration, DEFAULT_BUFFER_DURATION));
+    CHK_STATUS(optenvUint64(CANARY_STORAGE_SIZE_ENV_VAR, &pCanaryConfig->storageSizeInBytes, 0));
+
+    CHK_STATUS(optenvBool(CANARY_USE_IOT_CREDENTIALS_ENV_VAR, &pCanaryConfig->useIotCredentialProvider, FALSE));
+
+    pCanaryConfig->bufferDuration = pCanaryConfig->bufferDuration * HUNDREDS_OF_NANOS_IN_A_SECOND;
+
+    if (pCanaryConfig->useIotCredentialProvider) {
+        CHK_STATUS(mustenv(IOT_CORE_CREDENTIAL_ENDPOINT_ENV_VAR, pCanaryConfig->iotCoreCredentialEndPointFile));
+        CHK_STATUS(readFile(pCanaryConfig->iotCoreCredentialEndPointFile, TRUE, NULL, &size));
+        CHK_ERR(size != 0, STATUS_PRODUCER_EMPTY_IOT_CRED_FILE, "Empty credential file");
+        CHK_STATUS(readFile(pCanaryConfig->iotCoreCredentialEndPointFile, TRUE, pCanaryConfig->iotEndpoint, &size));
+        pCanaryConfig->iotEndpoint[size - 1] = '\0';
+        CHK_STATUS(mustenv(IOT_CORE_CERT_ENV_VAR, pCanaryConfig->iotCoreCert));
+        CHK_STATUS(mustenv(IOT_CORE_PRIVATE_KEY_ENV_VAR, pCanaryConfig->iotCorePrivateKey));
+        CHK_STATUS(mustenv(IOT_CORE_ROLE_ALIAS_ENV_VAR, pCanaryConfig->iotCoreRoleAlias));
+        CHK_STATUS(mustenv(IOT_CORE_THING_NAME_ENV_VAR, pCanaryConfig->iotThingName));
+    }
+CleanUp:
+    return retStatus;
+    */
+}
+
 
 
 
@@ -886,7 +989,7 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     gst_caps_unref(caps);
 
     // TODO: make the width and height configurable
-    video_caps_string = "video/x-raw, width=3840, height=2160, framerate=" + to_string(TESTING_FPS) + "/1";
+    video_caps_string = "video/x-raw, width=1280, height=720, framerate=" + to_string(TESTING_FPS) + "/1";
     video_src_filter = gst_element_factory_make("capsfilter", "video_source_filter");
     caps = gst_caps_from_string(video_caps_string.c_str());
     g_object_set(G_OBJECT (video_src_filter), "caps", caps, NULL);
@@ -1332,21 +1435,6 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
 }
 
 int main(int argc, char* argv[]) {
-
-    string streamName;
-    string sourceType;
-    string canaryRunType;
-    string streamType;
-    string canaryLabel;
-    string cpUrl;
-    unsigned int fragmentSize;
-    unsigned int canaryDuration;
-    unsigned int bufferDuration;
-    unsigned int storageSize;
-    // IoT credential stuff
-
-
-
     PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
     initializeEndianness();
