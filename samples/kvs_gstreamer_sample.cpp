@@ -985,7 +985,7 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     gst_caps_unref(caps);
 
     // TODO: make the width and height configurable
-    video_caps_string = "video/x-raw, framerate=" + to_string(TESTING_FPS) + "/1";
+    video_caps_string = "video/x-raw, framerate=" + to_string(TESTING_FPS) + "/1" + ", width=1440, height=1080";
     video_src_filter = gst_element_factory_make("capsfilter", "video_source_filter");
     caps = gst_caps_from_string(video_caps_string.c_str());
     g_object_set(G_OBJECT (video_src_filter), "caps", caps, NULL);
@@ -1446,8 +1446,6 @@ int main(int argc, char* argv[]) {
         initWithEnvVars(&canaryConfig);
 
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
-
-        int ret = 0;
 
         int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
         STATUS stream_status = STATUS_SUCCESS;
