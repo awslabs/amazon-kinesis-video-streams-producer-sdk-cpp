@@ -537,24 +537,13 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
-
-    Frame frame;
-    create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
-    bool ret = cusData->kinesis_video_stream->putFrame(frame);
-
-    // canaryStreamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
-
-    if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
-    {
-        // Update the next key-frame hash map
-        cusData->curKeyFrameTime = frame.presentationTs;
-        if (cusData->lastKeyFrameTime != 0)
+void updateFragmentEndTimes(uint64_t curKeyFrameTime, uint64_t& lastKeyFrameTime, map<uint64_t, uint64_t> *mapPtr)
+{
+        if (lastKeyFrameTime != 0)
         {
-            cout << "lastKeyFrameTime (frame PTs): " << cusData->lastKeyFrameTime << endl;
-            cout << "curKeyFrameTime: " << cusData->curKeyFrameTime << endl;
-            auto mapPtr = cusData->timeOfNextKeyFrame;
-            (*mapPtr)[cusData->lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = cusData->curKeyFrameTime;
+            cout << "lastKeyFrameTime (frame PTs): " << lastKeyFrameTime << endl;
+            cout << "curKeyFrameTime: " << curKeyFrameTime << endl;
+            (*mapPtr)[lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = curKeyFrameTime;
             auto iter = mapPtr->begin();
             while (iter != mapPtr->end()) {
                 // clean up map: remove timestamps older than 5 min from now
@@ -565,94 +554,116 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
                 }
             }
         }
-        cusData->lastKeyFrameTime = frame.presentationTs;
-        
-        Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum,
-                                                putFrameErrorRate_datum, errorAckRate_datum, totalNumberOfErrors_datum;
-        Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
-        cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
+        lastKeyFrameTime = curKeyFrameTime;
+}
 
-        auto stream_metrics = cusData->kinesis_video_stream->getMetrics();
-        auto client_metrics = cusData->kinesis_video_stream->getProducer().getMetrics();
-        auto stream_metrics_raw = stream_metrics.getRawMetrics(); // perhaps switch to using this to retrieve all the metrics in this code block
 
-        auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
-        frameRate_datum.SetMetricName("FrameRate");
-        frameRate_datum.AddDimensions(DIMENSION_PER_STREAM);
-        frameRate_datum.SetValue(frameRate);
-        frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
-        cwRequest.AddMetricData(frameRate_datum);
+void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
+            {
+            updateFragmentEndTimes(frame.presentationTs, cusData->lastKeyFrameTime, cusData->timeOfNextKeyFrame);
+            
+            Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum,
+                                                    putFrameErrorRate_datum, errorAckRate_datum, totalNumberOfErrors_datum;
+            Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+            cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
 
-        auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; // *8 makes it bytes->bits. /1024 bits->kilobits
-        transferRate_datum.SetMetricName("TransferRate");
-        transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);  
-        transferRate_datum.SetValue(transferRate);
-        transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Kilobits_Second);
-        cwRequest.AddMetricData(transferRate_datum);
+            auto stream_metrics = cusData->kinesis_video_stream->getMetrics();
+            auto client_metrics = cusData->kinesis_video_stream->getProducer().getMetrics();
+            auto stream_metrics_raw = stream_metrics.getRawMetrics(); // perhaps switch to using this to retrieve all the metrics in this code block
+            
+            auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
+            frameRate_datum.SetMetricName("FrameRate");
+            frameRate_datum.AddDimensions(DIMENSION_PER_STREAM);
+            frameRate_datum.SetValue(frameRate);
+            frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+            cwRequest.AddMetricData(frameRate_datum);
 
-        auto currentViewDuration = stream_metrics.getCurrentViewDuration().count();
-        currentViewDuration_datum.SetMetricName("CurrentViewDuration");
-        currentViewDuration_datum.AddDimensions(DIMENSION_PER_STREAM);
-        currentViewDuration_datum.SetValue(currentViewDuration);
-        currentViewDuration_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
-        cwRequest.AddMetricData(currentViewDuration_datum);
+            auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; // *8 makes it bytes->bits. /1024 bits->kilobits
+            transferRate_datum.SetMetricName("TransferRate");
+            transferRate_datum.AddDimensions(DIMENSION_PER_STREAM);  
+            transferRate_datum.SetValue(transferRate);
+            transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Kilobits_Second);
+            cwRequest.AddMetricData(transferRate_datum);
 
-        // Metrics seem to always be the same -> look into
-        auto availableStoreSize = client_metrics.getContentStoreSizeSize();
-        availableStoreSize_datum.SetMetricName("ContentStoreAvailableSize");
-        availableStoreSize_datum.AddDimensions(DIMENSION_PER_STREAM);
-        availableStoreSize_datum.SetValue(availableStoreSize);
-        availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Bytes);
-        cwRequest.AddMetricData(availableStoreSize_datum);
+            auto currentViewDuration = stream_metrics.getCurrentViewDuration().count();
+            currentViewDuration_datum.SetMetricName("CurrentViewDuration");
+            currentViewDuration_datum.AddDimensions(DIMENSION_PER_STREAM);
+            currentViewDuration_datum.SetValue(currentViewDuration);
+            currentViewDuration_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
+            cwRequest.AddMetricData(currentViewDuration_datum);
 
-        // Capture error rate metrics every 60 seconds
-        double duration = duration_cast<seconds>(system_clock::now().time_since_epoch()).count() - cusData->timeCounter;
-        if(duration > 60)
-        {
-            cout << "putFrameErrors: " << stream_metrics_raw->putFrameErrors << endl;
-            cout << "errorAcks: " << stream_metrics_raw->errorAcks << endl;
+            // Metrics seem to always be the same -> look into
+            auto availableStoreSize = client_metrics.getContentStoreSizeSize();
+            availableStoreSize_datum.SetMetricName("ContentStoreAvailableSize");
+            availableStoreSize_datum.AddDimensions(DIMENSION_PER_STREAM);
+            availableStoreSize_datum.SetValue(availableStoreSize);
+            availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Bytes);
+            cwRequest.AddMetricData(availableStoreSize_datum);
 
-            cusData->timeCounter = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+            // Capture error rate metrics every 60 seconds
+            double duration = duration_cast<seconds>(system_clock::now().time_since_epoch()).count() - cusData->timeCounter;
+            if(duration > 60)
+            {
+                cout << "putFrameErrors: " << stream_metrics_raw->putFrameErrors << endl;
+                cout << "errorAcks: " << stream_metrics_raw->errorAcks << endl;
 
-            double newPutFrameErrors = (double)stream_metrics_raw->putFrameErrors - cusData->totalPutFrameErrorCount;
-            cusData->totalPutFrameErrorCount = stream_metrics_raw->putFrameErrors;
-            auto putFrameErrorRate = newPutFrameErrors / (double)duration;
-            putFrameErrorRate_datum.SetMetricName("PutFrameErrorRate");
-            putFrameErrorRate_datum.AddDimensions(DIMENSION_PER_STREAM);
-            putFrameErrorRate_datum.SetValue(putFrameErrorRate);
-            putFrameErrorRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
-            cwRequest.AddMetricData(putFrameErrorRate_datum);
+                cusData->timeCounter = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
 
-            double newErrorAcks = (double)stream_metrics_raw->errorAcks - cusData->totalErrorAckCount;
-            cusData->totalErrorAckCount = stream_metrics_raw->errorAcks;
-            auto errorAckRate = newErrorAcks / (double)duration;
-            errorAckRate_datum.SetMetricName("ErrorAckRate");
-            errorAckRate_datum.AddDimensions(DIMENSION_PER_STREAM);
-            errorAckRate_datum.SetValue(errorAckRate);
-            errorAckRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
-            cwRequest.AddMetricData(errorAckRate_datum);
+                double newPutFrameErrors = (double)stream_metrics_raw->putFrameErrors - cusData->totalPutFrameErrorCount;
+                cusData->totalPutFrameErrorCount = stream_metrics_raw->putFrameErrors;
+                auto putFrameErrorRate = newPutFrameErrors / (double)duration;
+                putFrameErrorRate_datum.SetMetricName("PutFrameErrorRate");
+                putFrameErrorRate_datum.AddDimensions(DIMENSION_PER_STREAM);
+                putFrameErrorRate_datum.SetValue(putFrameErrorRate);
+                putFrameErrorRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+                cwRequest.AddMetricData(putFrameErrorRate_datum);
 
-            auto totalNumberOfErrors = cusData->totalPutFrameErrorCount + cusData->totalErrorAckCount;
-            totalNumberOfErrors_datum.SetMetricName("TotalNumberOfErrors");
-            totalNumberOfErrors_datum.AddDimensions(DIMENSION_PER_STREAM);
-            totalNumberOfErrors_datum.SetValue(totalNumberOfErrors);
-            totalNumberOfErrors_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count);
-            cwRequest.AddMetricData(totalNumberOfErrors_datum);            
+                double newErrorAcks = (double)stream_metrics_raw->errorAcks - cusData->totalErrorAckCount;
+                cusData->totalErrorAckCount = stream_metrics_raw->errorAcks;
+                auto errorAckRate = newErrorAcks / (double)duration;
+                errorAckRate_datum.SetMetricName("ErrorAckRate");
+                errorAckRate_datum.AddDimensions(DIMENSION_PER_STREAM);
+                errorAckRate_datum.SetValue(errorAckRate);
+                errorAckRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+                cwRequest.AddMetricData(errorAckRate_datum);
+
+                auto totalNumberOfErrors = cusData->totalPutFrameErrorCount + cusData->totalErrorAckCount;
+                totalNumberOfErrors_datum.SetMetricName("TotalNumberOfErrors");
+                totalNumberOfErrors_datum.AddDimensions(DIMENSION_PER_STREAM);
+                totalNumberOfErrors_datum.SetValue(totalNumberOfErrors);
+                totalNumberOfErrors_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count);
+                cwRequest.AddMetricData(totalNumberOfErrors_datum);            
+            }
+
+            // Send metrics to CW
+            auto outcome = cusData->pCWclient->PutMetricData(cwRequest);
+            if (!outcome.IsSuccess())
+            {
+                std::cout << "Failed to put sample metric data:" <<
+                    outcome.GetError().GetMessage() << std::endl;
+            }
+            else
+            {
+                std::cout << "Successfully put sample metric data" << std::endl;
+            }
+
         }
 
-        // Send metrics to CW
-        auto outcome = cusData->pCWclient->PutMetricData(cwRequest);
-        if (!outcome.IsSuccess())
-        {
-            std::cout << "Failed to put sample metric data:" <<
-                outcome.GetError().GetMessage() << std::endl;
-        }
-        else
-        {
-            std::cout << "Successfully put sample metric data" << std::endl;
-        }
+bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
 
+    Frame frame;
+    create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
+    bool ret = cusData->kinesis_video_stream->putFrame(frame);
+
+    // canaryStreamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
+
+    // push stream metrics on key frame
+    if (CHECK_FRAME_FLAG_KEY_FRAME(flags))
+    {
+        pushKeyFrameMetrics(frame, cusData);
     }
+        
+
 
     return ret;
 }
@@ -741,6 +752,9 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             data->calcSleepTimeOffset = false;
         }
 
+        cout << "Buffer pts in nanoseconds: " << std::chrono::nanoseconds(buffer->pts).count() << endl;
+        cout << "Current time in nanoseconds: " <<  duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count() << endl;
+
         bool putFrameSuccess = put_frame(data, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
 
@@ -773,9 +787,16 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     }
 
 
-    data->canaryConfig.canaryRunType ="INTERMITENT"; // make it intermitent for testing --------------------------
+    // data->canaryConfig.canaryRunType ="INTERMITENT"; // make it intermitent for testing --------------------------
     if(data->canaryConfig.canaryRunType == "INTERMITENT" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
     {
+        auto mapPtr = data->timeOfNextKeyFrame;
+        auto iter = mapPtr->begin();
+        while (iter != mapPtr->end()) 
+        {
+            // clear the map
+            iter = mapPtr->erase(iter);
+        }
         data->calcSleepTimeOffset = true;
         int sleepTime = ((rand() % 10) + 1); // [minutes]
         sleepTime = 1; // ------------------------------------
