@@ -87,7 +87,6 @@ typedef struct _FileInfo {
 } FileInfo;
 
 
-
 typedef struct _CanaryConfig
 {
     _CanaryConfig():
@@ -139,6 +138,9 @@ typedef struct _CanaryConfig
 
 typedef struct _CustomData {
     _CustomData():
+            calcSleepTimeOffset(false),
+            sleepTimeStamp(0),
+            sleepTimeOffset(0),
             totalPutFrameErrorCount(0),
             totalErrorAckCount(0),
             lastKeyFrameTime(0),
@@ -171,7 +173,9 @@ typedef struct _CustomData {
     Aws::CloudWatch::CloudWatchClient *pCWclient;
 
     int runTill;
-
+    int sleepTimeOffset;
+    int sleepTimeStamp;
+    bool calcSleepTimeOffset;
 
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
@@ -377,62 +381,70 @@ STATUS
 SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                                                          UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck) {
     CustomData *data = reinterpret_cast<CustomData *>(custom_data);
-    if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED)
+    // std::unique_lock<std::mutex> lk(data->file_list_mtx);
+    uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
+    
+    // When Canary sleeps, timeOfFragmentEndSent become less than currentTimeStamp, don't send that one
+    if (timeOfFragmentEndSent > pFragmentAck->timestamp)
     {
-         // std::unique_lock<std::mutex> lk(data->file_list_mtx);
-        uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
-
-        Aws::CloudWatch::Model::MetricDatum persistedAckLatency_datum;
-        Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
-        cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
-
-        auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-        auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent;
-        cout << "persistedAckLatency: " << persistedAckLatency << endl;
-        persistedAckLatency_datum.SetMetricName("PersistedAckLatency");
-        persistedAckLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
-        persistedAckLatency_datum.SetValue(persistedAckLatency);
-        persistedAckLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
-        cwRequest.AddMetricData(persistedAckLatency_datum);
-
-        auto outcome = data->pCWclient->PutMetricData(cwRequest);
-        if (!outcome.IsSuccess())
+        if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED)
         {
-            std::cout << "Failed to put PersistedAckLatency metric data:" <<
-                outcome.GetError().GetMessage() << std::endl;
-        }
-        else
-        {
-            std::cout << "Successfully put PersistedAckLatency metric data" << std::endl;
-        }
-    } else if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_RECEIVED)
-        {
-            // std::unique_lock<std::mutex> lk(data->file_list_mtx);
-            uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
-
-            Aws::CloudWatch::Model::MetricDatum recievedAckLatency_datum;
+            Aws::CloudWatch::Model::MetricDatum persistedAckLatency_datum;
             Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
             cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
             auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-            auto recievedAckLatency = currentTimestamp - timeOfFragmentEndSent;
-            recievedAckLatency_datum.SetMetricName("RecievedAckLatency");
-            recievedAckLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
-            recievedAckLatency_datum.SetValue(recievedAckLatency);
-            recievedAckLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
-            cwRequest.AddMetricData(recievedAckLatency_datum);
+            auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent ;//- data->sleepTimeOffset; // [milliseconds]
+            cout << "currentTimestamp: " << currentTimestamp << endl;
+            cout << "timeOfFragmentEndSent: " << timeOfFragmentEndSent << endl;
+            cout << "sleeptimeOffset: " << data->sleepTimeOffset << endl;
+            cout << "persistedAckLatency: " << persistedAckLatency << endl;
+            persistedAckLatency_datum.SetMetricName("PersistedAckLatency");
+            persistedAckLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
+            persistedAckLatency_datum.SetValue(persistedAckLatency);
+            persistedAckLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
+            cwRequest.AddMetricData(persistedAckLatency_datum);
 
             auto outcome = data->pCWclient->PutMetricData(cwRequest);
             if (!outcome.IsSuccess())
             {
-                std::cout << "Failed to put RecievedAckLatency metric data:" <<
+                std::cout << "Failed to put PersistedAckLatency metric data:" <<
                     outcome.GetError().GetMessage() << std::endl;
             }
             else
             {
-                std::cout << "Successfully put RecievedAckLatency metric data" << std::endl;
+                std::cout << "Successfully put PersistedAckLatency metric data" << std::endl;
             }
-        }
+        } else if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_RECEIVED)
+            {
+                Aws::CloudWatch::Model::MetricDatum recievedAckLatency_datum;
+                Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+                cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
+
+                auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+                auto recievedAckLatency = currentTimestamp - timeOfFragmentEndSent - data->sleepTimeOffset; // [milliseconds]
+                recievedAckLatency_datum.SetMetricName("RecievedAckLatency");
+                recievedAckLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
+                recievedAckLatency_datum.SetValue(recievedAckLatency);
+                recievedAckLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
+                cwRequest.AddMetricData(recievedAckLatency_datum);
+
+                auto outcome = data->pCWclient->PutMetricData(cwRequest);
+                if (!outcome.IsSuccess())
+                {
+                    std::cout << "Failed to put RecievedAckLatency metric data:" <<
+                        outcome.GetError().GetMessage() << std::endl;
+                }
+                else
+                {
+                    std::cout << "Successfully put RecievedAckLatency metric data" << std::endl;
+                }
+            }
+    } else
+    {
+        cout << "Not sending Ack Latency metric because: timeOfFragmentEndSent < pFragmentAck->timestamp" << endl;
+    }
+    
 }
 
 }  // namespace video
@@ -539,6 +551,8 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
         cusData->curKeyFrameTime = frame.presentationTs;
         if (cusData->lastKeyFrameTime != 0)
         {
+            cout << "lastKeyFrameTime (frame PTs): " << cusData->lastKeyFrameTime << endl;
+            cout << "curKeyFrameTime: " << cusData->curKeyFrameTime << endl;
             auto mapPtr = cusData->timeOfNextKeyFrame;
             (*mapPtr)[cusData->lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = cusData->curKeyFrameTime;
             auto iter = mapPtr->begin();
@@ -653,19 +667,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     GstSample *sample = nullptr;
     GstMapInfo info;
 
-    data->canaryConfig.canaryRunType ="INTERMITENT"; // make it intermitent for testing
-    if(data->canaryConfig.canaryRunType == "INTERMITENT" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
-    {
-        int sleepTime = ((rand() % 10) + 1); // [minutes]
-        cout << "Intermittent sleep time is set to: " << sleepTime << " minutes" << endl;
-        sleep(sleepTime * 60); // [seconds]
-        data->onFirstFrame = true;
-        int randomTime = (rand() % 10) + 1; // [minutes]
-        cout << "Intermittent run time is set to: " << randomTime << " minutes" << endl;
-        // Reset runTill to a new random value 1-10 minutes into the future
-        data->runTill = duration_cast<minutes>(system_clock::now().time_since_epoch()).count() + randomTime; // [minutes]
-    }
-
     if (STATUS_FAILED(curr_stream_status)) {
         LOG_ERROR("Received stream error: " << curr_stream_status);
         ret = GST_FLOW_ERROR;
@@ -734,15 +735,20 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
         }
 
+        if (data->calcSleepTimeOffset)
+        {
+            data->sleepTimeOffset += (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - data->sleepTimeStamp); // [milliseconds]
+            data->calcSleepTimeOffset = false;
+        }
+
         bool putFrameSuccess = put_frame(data, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
-
 
         // If on first frame of stream, push startup latency metric to CW
         if(data->onFirstFrame && putFrameSuccess)
         {
             double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-            double startUpLatency = (double)(currentTimestamp - data->producer_start_time / 1000000); // / (double) HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+            double startUpLatency = (double)(currentTimestamp - data->producer_start_time / 1000000);
             Aws::CloudWatch::Model::MetricDatum startupLatency_datum;
             Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
             cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
@@ -765,6 +771,25 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             data->onFirstFrame = false;
         }
     }
+
+
+    data->canaryConfig.canaryRunType ="INTERMITENT"; // make it intermitent for testing --------------------------
+    if(data->canaryConfig.canaryRunType == "INTERMITENT" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
+    {
+        data->calcSleepTimeOffset = true;
+        int sleepTime = ((rand() % 10) + 1); // [minutes]
+        sleepTime = 1; // ------------------------------------
+        cout << "Intermittent sleep time is set to: " << sleepTime << " minutes" << endl;
+        data->sleepTimeStamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count(); // [milliseconds]
+        sleep(sleepTime * 60); // [seconds]
+        data->onFirstFrame = true;
+        int runTime = (rand() % 10) + 1; // [minutes]
+        runTime = 1; // ------------------------------------
+        cout << "Intermittent run time is set to: " << runTime << " minutes" << endl;
+        // Set runTill to a new random value 1-10 minutes into the future
+        data->runTill = duration_cast<minutes>(system_clock::now().time_since_epoch()).count() + runTime; // [minutes]
+    }
+
 
 CleanUp:
 
