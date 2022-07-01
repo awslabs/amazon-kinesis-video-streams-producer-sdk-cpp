@@ -649,6 +649,30 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
 
         }
 
+ void pushStartupLatencyMetric(Aws::CloudWatch::CloudWatchClient *pCWclient, double producer_start_time)
+    {
+        double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        double startUpLatency = (double)(currentTimestamp - producer_start_time / 1000000);
+        Aws::CloudWatch::Model::MetricDatum startupLatency_datum;
+        Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+        cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
+        startupLatency_datum.SetMetricName("StartupLatency");
+        startupLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
+        startupLatency_datum.SetValue(startUpLatency);
+        startupLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
+        cwRequest.AddMetricData(startupLatency_datum);
+        auto outcome = pCWclient->PutMetricData(cwRequest);
+        if (!outcome.IsSuccess())
+        {
+            std::cout << "Failed to put StartupLatency metric data:" <<
+                outcome.GetError().GetMessage() << std::endl;
+        }
+        else
+        {
+            std::cout << "Successfully put StartupLatency metric data" << std::endl;
+        }
+    }
+
 bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
 
     Frame frame;
@@ -761,31 +785,10 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         // If on first frame of stream, push startup latency metric to CW
         if(data->onFirstFrame && putFrameSuccess)
         {
-            double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-            double startUpLatency = (double)(currentTimestamp - data->producer_start_time / 1000000);
-            Aws::CloudWatch::Model::MetricDatum startupLatency_datum;
-            Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
-            cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
-            startupLatency_datum.SetMetricName("StartupLatency");
-            startupLatency_datum.AddDimensions(DIMENSION_PER_STREAM);
-            startupLatency_datum.SetValue(startUpLatency);
-            startupLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
-            cwRequest.AddMetricData(startupLatency_datum);
-            auto outcome = data->pCWclient->PutMetricData(cwRequest);
-            if (!outcome.IsSuccess())
-            {
-                std::cout << "Failed to put StartupLatency metric data:" <<
-                    outcome.GetError().GetMessage() << std::endl;
-            }
-            else
-            {
-                std::cout << "Successfully put StartupLatency metric data" << std::endl;
-            }
-
+            pushStartupLatencyMetric(data->pCWclient, data->producer_start_time);
             data->onFirstFrame = false;
         }
     }
-
 
     // data->canaryConfig.canaryRunType ="INTERMITENT"; // make it intermitent for testing --------------------------
     if(data->canaryConfig.canaryRunType == "INTERMITENT" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
