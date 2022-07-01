@@ -659,7 +659,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         int sleepTime = ((rand() % 10) + 1); // [minutes]
         cout << "Intermittent sleep time is set to: " << sleepTime << " minutes" << endl;
         sleep(sleepTime * 60); // [seconds]
-        
+        data->onFirstFrame = true;
         int randomTime = (rand() % 10) + 1; // [minutes]
         cout << "Intermittent run time is set to: " << randomTime << " minutes" << endl;
         // Reset runTill to a new random value 1-10 minutes into the future
