@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <mutex>
 #include <IotCertCredentialProvider.h>
+#include <unistd.h> 
+	
 
 #include <com/amazonaws/kinesis/video/cproducer/Include.h>
 #include <aws/core/Aws.h>
@@ -84,8 +86,58 @@ typedef struct _FileInfo {
     uint64_t last_fragment_ts;
 } FileInfo;
 
-typedef struct _CustomData {
 
+
+typedef struct _CanaryConfig
+{
+    _CanaryConfig():
+            streamName("DefaultStreamName"),
+            sourceType("TEST_SOURCE"),
+            canaryRunType("NORMAL"),
+            streamType("REALTIME"), 
+            canaryLabel("DEFAULT_CANARY_LABEL"), // need to decide on a default value
+            cpUrl("DEFAULT_CPURL"), // need to decide on a default value
+            fragmentSize(0),
+            canaryDuration(0),
+            bufferDuration(120),
+            storageSizeInBytes(0)
+            {}
+
+    string streamName;
+    string sourceType;
+    string canaryRunType; // normal/continuous or intermitent
+    string streamType; // real-time or offline
+    string canaryLabel;
+    string cpUrl;
+    int fragmentSize;
+    int canaryDuration;
+    int bufferDuration;
+    int storageSizeInBytes;
+    // IoT credential stuff
+
+    /* // From C Canary:
+    BOOL useIotCredentialProvider;
+    CHAR streamNamePrefix[CANARY_STREAM_NAME_PREFIX_LEN + 1];
+    CHAR canaryTypeStr[CANARY_TYPE_STR_LEN + 1];
+    CHAR canaryLabel[CANARY_LABEL_LEN + 1];
+    CHAR canaryScenario[CANARY_LABEL_LEN + 1];
+    CHAR canaryTrackType[CANARY_TRACK_TYPE_STR_LEN + 1];
+    CHAR iotCoreCredentialEndPointFile[MAX_URI_CHAR_LEN + 1];
+    BYTE iotEndpoint[MAX_URI_CHAR_LEN + 1];
+    CHAR iotCoreCert[MAX_PATH_LEN + 1];
+    CHAR iotCorePrivateKey[MAX_PATH_LEN + 1];
+    CHAR iotCoreRoleAlias[MAX_ROLE_ALIAS_LEN + 1];
+    CHAR iotThingName[CANARY_STREAM_NAME_STR_LEN + 1];
+    CHAR canaryCpUrl[MAX_URI_CHAR_LEN];
+    UINT64 fragmentSizeInBytes;
+    UINT64 canaryDuration;
+    UINT64 bufferDuration;
+    UINT64 storageSizeInBytes;
+    */
+} CanaryConfig;
+
+
+typedef struct _CustomData {
     _CustomData():
             totalPutFrameErrorCount(0),
             totalErrorAckCount(0),
@@ -103,17 +155,23 @@ typedef struct _CustomData {
             main_loop(NULL),
             first_pts(GST_CLOCK_TIME_NONE),
             use_absolute_fragment_times(true) {
-        producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
+        producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count(); // [nanoSeconds]
         client_config.region = "us-west-2";
         pCWclient = nullptr;
         timeOfNextKeyFrame = new map<uint64_t, uint64_t>();
-        timeCounter = producer_start_time / 1000000000; // nanosecond to second conversion
+        timeCounter = producer_start_time / 1000000000; // [seconds]
+        // Default first intermittent run to 1 min
+        runTill = producer_start_time / 1000000000 / 60 + 1; // [minutes]
     }
+    CanaryConfig canaryConfig;
 
     Aws::Client::ClientConfiguration client_config;
     bool onFirstFrame;
 
     Aws::CloudWatch::CloudWatchClient *pCWclient;
+
+    int runTill;
+
 
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
@@ -384,56 +442,6 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 
 
 
-
-typedef struct _CanaryConfig
-{
-    _CanaryConfig():
-            streamName("DefaultStreamName"),
-            sourceType("TEST_SOURCE"),
-            canaryRunType("Normal"),
-            streamType("Reatime"),
-            canaryLabel("DefaultCanaryLabel"),
-            cpUrl("Default_CpURL"),
-            fragmentSize(0),
-            canaryDuration(0),
-            bufferDuration(120),
-            storageSizeInBytes(0)
-            {}
-
-
-    string streamName;
-    string sourceType;
-    string canaryRunType;
-    string streamType;
-    string canaryLabel;
-    string cpUrl;
-    int fragmentSize;
-    int canaryDuration;
-    int bufferDuration;
-    int storageSizeInBytes;
-    // IoT credential stuff
-
-    /* // From C Canary:
-    BOOL useIotCredentialProvider;
-    CHAR streamNamePrefix[CANARY_STREAM_NAME_PREFIX_LEN + 1];
-    CHAR canaryTypeStr[CANARY_TYPE_STR_LEN + 1];
-    CHAR canaryLabel[CANARY_LABEL_LEN + 1];
-    CHAR canaryScenario[CANARY_LABEL_LEN + 1];
-    CHAR canaryTrackType[CANARY_TRACK_TYPE_STR_LEN + 1];
-    CHAR iotCoreCredentialEndPointFile[MAX_URI_CHAR_LEN + 1];
-    BYTE iotEndpoint[MAX_URI_CHAR_LEN + 1];
-    CHAR iotCoreCert[MAX_PATH_LEN + 1];
-    CHAR iotCorePrivateKey[MAX_PATH_LEN + 1];
-    CHAR iotCoreRoleAlias[MAX_ROLE_ALIAS_LEN + 1];
-    CHAR iotThingName[CANARY_STREAM_NAME_STR_LEN + 1];
-    CHAR canaryCpUrl[MAX_URI_CHAR_LEN];
-    UINT64 fragmentSizeInBytes;
-    UINT64 canaryDuration;
-    UINT64 bufferDuration;
-    UINT64 storageSizeInBytes;
-    */
-} CanaryConfig;
-
 void setEnvVarsString(string& configVar, string envVar)
 {
     if (getenv(envVar.c_str()) != NULL)
@@ -461,7 +469,7 @@ void setEnvVarsBool(bool& configVar, string envVar)
         }
     }
 }
-void initWithEnvVars(CanaryConfig* pCanaryConfig)
+void initConfigWithEnvVars(CanaryConfig* pCanaryConfig)
 {
     setEnvVarsString(pCanaryConfig->streamName, "CANARY_STREAM_NAME_ENV_VAR");
     setEnvVarsString(pCanaryConfig->sourceType, "CANARY_SOURCE_TYPE_ENV_VAR");
@@ -499,6 +507,10 @@ CleanUp:
     */
 }
 
+// void sleep(unsigned int seconds) 
+// 	{ 
+// 		usleep(miliseconds * 1000 * 1000); // usleep receives microseconds 
+// 	} 
 
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
@@ -632,6 +644,7 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
 }
 
 static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {    
+
     GstBuffer *buffer;
     bool isDroppable, isHeader, delta;
     size_t buffer_size;
@@ -639,6 +652,19 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     STATUS curr_stream_status = data->stream_status.load();
     GstSample *sample = nullptr;
     GstMapInfo info;
+
+    data->canaryConfig.canaryRunType ="INTERMITENT"; // make it intermitent for testing
+    if(data->canaryConfig.canaryRunType == "INTERMITENT" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
+    {
+        int sleepTime = ((rand() % 10) + 1); // [minutes]
+        cout << "Intermittent sleep time is set to: " << sleepTime << " minutes" << endl;
+        sleep(sleepTime * 60); // [seconds]
+        
+        int randomTime = (rand() % 10) + 1; // [minutes]
+        cout << "Intermittent run time is set to: " << randomTime << " minutes" << endl;
+        // Reset runTill to a new random value 1-10 minutes into the future
+        data->runTill = duration_cast<minutes>(system_clock::now().time_since_epoch()).count() + randomTime; // [minutes]
+    }
 
     if (STATUS_FAILED(curr_stream_status)) {
         LOG_ERROR("Received stream error: " << curr_stream_status);
@@ -1023,18 +1049,15 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
 
 int main(int argc, char* argv[]) {
     PropertyConfigurator::doConfigure("../kvs_log_configuration");
-
     initializeEndianness();
-    SRAND(time(0));
-
+    srand(time(0));
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     {
         // can put CustomData initialization lower to avoid keeping certain things within producer_start_time
         CustomData data;
+        initConfigWithEnvVars(&data.canaryConfig);
 
-        CanaryConfig canaryConfig;
-        initWithEnvVars(&canaryConfig);
 
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
 
@@ -1044,10 +1067,10 @@ int main(int argc, char* argv[]) {
         Aws::CloudWatch::CloudWatchClient CWclient(data.client_config);
         data.pCWclient = &CWclient;
 
-        data.stream_name = const_cast<char*>(canaryConfig.streamName.c_str());
+        data.stream_name = const_cast<char*>(data.canaryConfig.streamName.c_str());
 
         // set the video stream source
-        if (canaryConfig.sourceType == "TEST_SOURCE")
+        if (data.canaryConfig.sourceType == "TEST_SOURCE")
         {
             data.streamSource = TEST_SOURCE;     
         }
