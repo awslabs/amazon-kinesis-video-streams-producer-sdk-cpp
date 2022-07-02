@@ -78,15 +78,6 @@ typedef enum _StreamSource {
     RTSP_SOURCE
 } StreamSource;
 
-typedef struct _FileInfo {
-    _FileInfo():
-            path(""),
-            last_fragment_ts(0) {}
-    string path;
-    uint64_t last_fragment_ts;
-} FileInfo;
-
-
 typedef struct _CanaryConfig
 {
     _CanaryConfig():
@@ -96,9 +87,9 @@ typedef struct _CanaryConfig
             streamType("REALTIME"), 
             canaryLabel("DEFAULT_CANARY_LABEL"), // need to decide on a default value
             cpUrl("DEFAULT_CPURL"), // need to decide on a default value
-            fragmentSize(0),
-            canaryDuration(0),
-            bufferDuration(120),
+            fragmentSize(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
+            canaryDuration(20), // [seconds]
+            bufferDuration(DEFAULT_BUFFER_DURATION_SECONDS),
             storageSizeInBytes(0)
             {}
 
@@ -108,36 +99,15 @@ typedef struct _CanaryConfig
     string streamType; // real-time or offline
     string canaryLabel;
     string cpUrl;
-    int fragmentSize;
+    int fragmentSize; // [milliseconds]
     int canaryDuration;
-    int bufferDuration;
+    int bufferDuration; // [seconds]
     int storageSizeInBytes;
     // IoT credential stuff
-
-    /* // From C Canary:
-    BOOL useIotCredentialProvider;
-    CHAR streamNamePrefix[CANARY_STREAM_NAME_PREFIX_LEN + 1];
-    CHAR canaryTypeStr[CANARY_TYPE_STR_LEN + 1];
-    CHAR canaryLabel[CANARY_LABEL_LEN + 1];
-    CHAR canaryScenario[CANARY_LABEL_LEN + 1];
-    CHAR canaryTrackType[CANARY_TRACK_TYPE_STR_LEN + 1];
-    CHAR iotCoreCredentialEndPointFile[MAX_URI_CHAR_LEN + 1];
-    BYTE iotEndpoint[MAX_URI_CHAR_LEN + 1];
-    CHAR iotCoreCert[MAX_PATH_LEN + 1];
-    CHAR iotCorePrivateKey[MAX_PATH_LEN + 1];
-    CHAR iotCoreRoleAlias[MAX_ROLE_ALIAS_LEN + 1];
-    CHAR iotThingName[CANARY_STREAM_NAME_STR_LEN + 1];
-    CHAR canaryCpUrl[MAX_URI_CHAR_LEN];
-    UINT64 fragmentSizeInBytes;
-    UINT64 canaryDuration;
-    UINT64 bufferDuration;
-    UINT64 storageSizeInBytes;
-    */
 } CanaryConfig;
 
-
 typedef struct _CustomData {
-    _CustomData():
+    _CustomData(CanaryConfig canaryConfig):
             calcSleepTimeOffset(false),
             sleepTimeStamp(0),
             sleepTimeOffset(0),
@@ -164,8 +134,9 @@ typedef struct _CustomData {
         timeCounter = producer_start_time / 1000000000; // [seconds]
         // Default first intermittent run to 1 min
         runTill = producer_start_time / 1000000000 / 60 + 1; // [minutes]
+        pCanaryConfig = &canaryConfig;
     }
-    CanaryConfig canaryConfig;
+    CanaryConfig *pCanaryConfig;
 
     Aws::Client::ClientConfiguration client_config;
     bool onFirstFrame;
@@ -194,10 +165,7 @@ typedef struct _CustomData {
     double totalErrorAckCount;
 
     // list of files to upload.
-    vector<FileInfo> file_list;
-
     // index of file in file_list that application is currently trying to upload.
-    uint32_t current_file_idx;
 
     // index of last file in file_list that haven't been persisted.
     atomic_uint last_unpersisted_file_idx;
@@ -224,7 +192,7 @@ typedef struct _CustomData {
     // Used in file uploading only. Assuming frame timestamp are relative. Add producer_start_time to each frame's
     // timestamp to convert them to absolute timestamp. This way fragments dont overlap after token rotation when doing
     // file uploading.
-    uint64_t producer_start_time;
+    uint64_t producer_start_time; // [nanoSeconds]
 
     volatile StreamSource streamSource;
 
@@ -494,29 +462,6 @@ void initConfigWithEnvVars(CanaryConfig* pCanaryConfig)
     setEnvVarsInt(pCanaryConfig->canaryDuration, "CANARY_DURATION_ENV_VAR");
     setEnvVarsInt(pCanaryConfig->bufferDuration, "CANARY_BUFFER_DURATION_ENV_VAR");
     setEnvVarsInt(pCanaryConfig->storageSizeInBytes, "CANARY_STORAGE_SIZE_ENV_VAR");
-
-
-    /*
-    CHK_STATUS(optenvUint64(FRAGMENT_SIZE_ENV_VAR, &pCanaryConfig->fragmentSizeInBytes, CANARY_DEFAULT_FRAGMENT_SIZE));
-    CHK_STATUS(optenvUint64(CANARY_DURATION_ENV_VAR, &pCanaryConfig->canaryDuration, CANARY_DEFAULT_DURATION_IN_SECONDS));
-    CHK_STATUS(optenvUint64(CANARY_BUFFER_DURATION_ENV_VAR, &pCanaryConfig->bufferDuration, DEFAULT_BUFFER_DURATION));
-    CHK_STATUS(optenvUint64(CANARY_STORAGE_SIZE_ENV_VAR, &pCanaryConfig->storageSizeInBytes, 0));
-    CHK_STATUS(optenvBool(CANARY_USE_IOT_CREDENTIALS_ENV_VAR, &pCanaryConfig->useIotCredentialProvider, FALSE));
-    pCanaryConfig->bufferDuration = pCanaryConfig->bufferDuration * HUNDREDS_OF_NANOS_IN_A_SECOND;
-    if (pCanaryConfig->useIotCredentialProvider) {
-        CHK_STATUS(mustenv(IOT_CORE_CREDENTIAL_ENDPOINT_ENV_VAR, pCanaryConfig->iotCoreCredentialEndPointFile));
-        CHK_STATUS(readFile(pCanaryConfig->iotCoreCredentialEndPointFile, TRUE, NULL, &size));
-        CHK_ERR(size != 0, STATUS_PRODUCER_EMPTY_IOT_CRED_FILE, "Empty credential file");
-        CHK_STATUS(readFile(pCanaryConfig->iotCoreCredentialEndPointFile, TRUE, pCanaryConfig->iotEndpoint, &size));
-        pCanaryConfig->iotEndpoint[size - 1] = '\0';
-        CHK_STATUS(mustenv(IOT_CORE_CERT_ENV_VAR, pCanaryConfig->iotCoreCert));
-        CHK_STATUS(mustenv(IOT_CORE_PRIVATE_KEY_ENV_VAR, pCanaryConfig->iotCorePrivateKey));
-        CHK_STATUS(mustenv(IOT_CORE_ROLE_ALIAS_ENV_VAR, pCanaryConfig->iotCoreRoleAlias));
-        CHK_STATUS(mustenv(IOT_CORE_THING_NAME_ENV_VAR, pCanaryConfig->iotThingName));
-    }
-CleanUp:
-    return retStatus;
-    */
 }
 
 // void sleep(unsigned int seconds) 
@@ -537,7 +482,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-void updateFragmentEndTimes(uint64_t curKeyFrameTime, uint64_t& lastKeyFrameTime, map<uint64_t, uint64_t> *mapPtr)
+void updateFragmentEndTimes(uint64_t curKeyFrameTime, uint64_t &lastKeyFrameTime, map<uint64_t, uint64_t> *mapPtr)
 {
         if (lastKeyFrameTime != 0)
         {
@@ -556,7 +501,6 @@ void updateFragmentEndTimes(uint64_t curKeyFrameTime, uint64_t& lastKeyFrameTime
         }
         lastKeyFrameTime = curKeyFrameTime;
 }
-
 
 void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
             {
@@ -686,8 +630,6 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
     {
         pushKeyFrameMetrics(frame, cusData);
     }
-        
-
 
     return ret;
 }
@@ -701,12 +643,13 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     STATUS curr_stream_status = data->stream_status.load();
     GstSample *sample = nullptr;
     GstMapInfo info;
+    
 
     if (STATUS_FAILED(curr_stream_status)) {
         LOG_ERROR("Received stream error: " << curr_stream_status);
         ret = GST_FLOW_ERROR;
         goto CleanUp;
-    }
+    } 
 
     info.data = nullptr;
     sample = gst_app_sink_pull_sample(GST_APP_SINK (sink));
@@ -730,7 +673,8 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                   (GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DISCONT) && GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT)) ||
                   // drop if buffer contains header only and has invalid timestamp
                   (isHeader && (!GST_BUFFER_PTS_IS_VALID(buffer) || !GST_BUFFER_DTS_IS_VALID(buffer)));
-
+            
+    int currTime;
     if (!isDroppable) {
 
         delta = GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
@@ -744,6 +688,12 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             buffer->dts = data->synthetic_dts;
         } else if (GST_BUFFER_DTS_IS_VALID(buffer)) {
             data->synthetic_dts = buffer->dts;
+        }
+
+        if (data->calcSleepTimeOffset)
+        {
+            data->sleepTimeOffset += (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - data->sleepTimeStamp); // [milliseconds]
+            data->calcSleepTimeOffset = false;
         }
 
         if (data->streamSource == FILE_SOURCE) {
@@ -761,6 +711,9 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 data->first_pts = buffer->pts;
             }
             buffer->pts += (data->producer_start_time - data->first_pts);
+            cout << "buffer->pts: " << buffer->pts << endl;
+            // buffer->pts += data->sleepTimeOffset * 10000000;
+            // cout << "buffer->pts: " << buffer->pts << endl;
         }
 
         if (!gst_buffer_map(buffer, &info, GST_MAP_READ)){
@@ -768,12 +721,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         }
         if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
             data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
-        }
-
-        if (data->calcSleepTimeOffset)
-        {
-            data->sleepTimeOffset += (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - data->sleepTimeStamp); // [milliseconds]
-            data->calcSleepTimeOffset = false;
         }
 
         cout << "Buffer pts in nanoseconds: " << std::chrono::nanoseconds(buffer->pts).count() << endl;
@@ -789,23 +736,25 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             data->onFirstFrame = false;
         }
     }
-
-    // data->canaryConfig.canaryRunType ="INTERMITENT"; // make it intermitent for testing --------------------------
-    if(data->canaryConfig.canaryRunType == "INTERMITENT" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
+    
+    currTime = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+    if (currTime > (data->producer_start_time / 1000000000 + data->pCanaryConfig->canaryDuration))
     {
-        auto mapPtr = data->timeOfNextKeyFrame;
-        auto iter = mapPtr->begin();
-        while (iter != mapPtr->end()) 
-        {
-            // clear the map
-            iter = mapPtr->erase(iter);
-        }
+        g_main_loop_quit(data->main_loop);
+        //goto CleanUp;
+    }
+
+    // data->pCanaryConfig->canaryRunType ="INTERMITENT"; // make it intermitent for testing --------------------------
+    if(data->pCanaryConfig->canaryRunType == "INTERMITENT" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
+    {
+        data->timeOfNextKeyFrame->clear();
         data->calcSleepTimeOffset = true;
         int sleepTime = ((rand() % 10) + 1); // [minutes]
         sleepTime = 1; // ------------------------------------
         cout << "Intermittent sleep time is set to: " << sleepTime << " minutes" << endl;
         data->sleepTimeStamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count(); // [milliseconds]
-        sleep(sleepTime * 60); // [seconds]
+        //sleep(sleepTime * 60); // [seconds]
+        sleep(20);
         data->onFirstFrame = true;
         int runTime = (rand() % 10) + 1; // [minutes]
         runTime = 1; // ------------------------------------
@@ -813,7 +762,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         // Set runTill to a new random value 1-10 minutes into the future
         data->runTill = duration_cast<minutes>(system_clock::now().time_since_epoch()).count() + runTime; // [minutes]
     }
-
 
 CleanUp:
 
@@ -1104,8 +1052,9 @@ int main(int argc, char* argv[]) {
     Aws::InitAPI(options);
     {
         // can put CustomData initialization lower to avoid keeping certain things within producer_start_time
-        CustomData data;
-        initConfigWithEnvVars(&data.canaryConfig);
+        CanaryConfig canaryConfig;
+        CustomData data(canaryConfig);
+        initConfigWithEnvVars(data.pCanaryConfig);
 
 
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
@@ -1116,10 +1065,10 @@ int main(int argc, char* argv[]) {
         Aws::CloudWatch::CloudWatchClient CWclient(data.client_config);
         data.pCWclient = &CWclient;
 
-        data.stream_name = const_cast<char*>(data.canaryConfig.streamName.c_str());
+        data.stream_name = const_cast<char*>(data.pCanaryConfig->streamName.c_str());
 
         // set the video stream source
-        if (data.canaryConfig.sourceType == "TEST_SOURCE")
+        if (data.pCanaryConfig->sourceType == "TEST_SOURCE")
         {
             data.streamSource = TEST_SOURCE;     
         }
