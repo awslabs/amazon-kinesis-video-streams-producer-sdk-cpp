@@ -9,8 +9,6 @@
 #include <mutex>
 #include <IotCertCredentialProvider.h>
 #include <unistd.h> 
-	
-
 #include <com/amazonaws/kinesis/video/cproducer/Include.h>
 #include <aws/core/Aws.h>
 #include <aws/monitoring/CloudWatchClient.h>
@@ -63,6 +61,8 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CREDENTIAL_ROTATION_SECONDS 3600
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
+#define DEFAULT_CANARY_DURATION_SECONDS 120
+
 
 Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
 
@@ -88,7 +88,7 @@ typedef struct _CanaryConfig
             canaryLabel("DEFAULT_CANARY_LABEL"), // need to decide on a default value
             cpUrl("DEFAULT_CPURL"), // need to decide on a default value
             fragmentSize(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
-            canaryDuration(20), // [seconds]
+            canaryDuration(DEFAULT_CANARY_DURATION_SECONDS),
             bufferDuration(DEFAULT_BUFFER_DURATION_SECONDS),
             storageSizeInBytes(0)
             {}
@@ -100,7 +100,7 @@ typedef struct _CanaryConfig
     string canaryLabel;
     string cpUrl;
     int fragmentSize; // [milliseconds]
-    int canaryDuration;
+    int canaryDuration; // [seconds]
     int bufferDuration; // [seconds]
     int storageSizeInBytes;
     // IoT credential stuff
@@ -119,11 +119,7 @@ typedef struct _CustomData {
             streamSource(TEST_SOURCE),
             h264_stream_supported(false),
             synthetic_dts(0),
-            last_unpersisted_file_idx(0),
             stream_status(STATUS_SUCCESS),
-            base_pts(0),
-            max_frame_pts(0),
-            key_frame_pts(0),
             main_loop(NULL),
             first_pts(GST_CLOCK_TIME_NONE),
             use_absolute_fragment_times(true) {
@@ -132,21 +128,21 @@ typedef struct _CustomData {
         pCWclient = nullptr;
         timeOfNextKeyFrame = new map<uint64_t, uint64_t>();
         timeCounter = producer_start_time / 1000000000; // [seconds]
-        // Default first intermittent run to 1 min
+        // Default first intermittent run to 1 min for testing
         runTill = producer_start_time / 1000000000 / 60 + 1; // [minutes]
         pCanaryConfig = &canaryConfig;
     }
+
     CanaryConfig *pCanaryConfig;
 
     Aws::Client::ClientConfiguration client_config;
-    bool onFirstFrame;
-
     Aws::CloudWatch::CloudWatchClient *pCWclient;
 
     int runTill;
     int sleepTimeOffset;
     int sleepTimeStamp;
     bool calcSleepTimeOffset;
+    bool onFirstFrame;
 
     GMainLoop *main_loop;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
@@ -154,40 +150,17 @@ typedef struct _CustomData {
     bool stream_started;
     bool h264_stream_supported;
     char *stream_name;
-    mutex file_list_mtx;
 
     map<uint64_t, uint64_t>* timeOfNextKeyFrame;
-    uint64_t lastKeyFrameTime;
-    uint64_t curKeyFrameTime;
+    UINT64 lastKeyFrameTime;
+    UINT64 curKeyFrameTime;
 
     double timeCounter;
     double totalPutFrameErrorCount;
     double totalErrorAckCount;
 
-    // list of files to upload.
-    // index of file in file_list that application is currently trying to upload.
-
-    // index of last file in file_list that haven't been persisted.
-    atomic_uint last_unpersisted_file_idx;
-
     // stores any error status code reported by StreamErrorCallback.
     atomic_uint stream_status;
-
-    // Since each file's timestamp start at 0, need to add all subsequent file's timestamp to base_pts starting from the
-    // second file to avoid fragment overlapping. When starting a new putMedia session, this should be set to 0.
-    // Unit: ns
-    uint64_t base_pts;
-
-    // Max pts in a file. This will be added to the base_pts for the next file. When starting a new putMedia session,
-    // this should be set to 0.
-    // Unit: ns
-    uint64_t max_frame_pts;
-
-    // When uploading file, store the pts of frames that has flag FRAME_FLAG_KEY_FRAME. When the entire file has been uploaded,
-    // key_frame_pts contains the timetamp of the last fragment in the file. key_frame_pts is then stored into last_fragment_ts
-    // of the file.
-    // Unit: ns
-    uint64_t key_frame_pts;
 
     // Used in file uploading only. Assuming frame timestamp are relative. Add producer_start_time to each frame's
     // timestamp to convert them to absolute timestamp. This way fragments dont overlap after token rotation when doing
@@ -319,13 +292,7 @@ SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREA
     CustomData *data = reinterpret_cast<CustomData *>(custom_data);
     bool terminate_pipeline = false;
 
-    // Terminate pipeline if error is not retriable or if error is retriable but we are streaming file.
-    // When streaming file, we choose to terminate the pipeline on error because the easiest way to recover
-    // is to stream the file from the beginning again.
-    // In realtime streaming, retriable error can be handled underneath. Otherwise terminate pipeline
-    // and store error status if error is fatal.
-    if ((IS_RETRIABLE_ERROR(status_code) && data->streamSource == FILE_SOURCE) ||
-        (!IS_RETRIABLE_ERROR(status_code) && !IS_RECOVERABLE_ERROR(status_code))) {
+    if ((!IS_RETRIABLE_ERROR(status_code) && !IS_RECOVERABLE_ERROR(status_code))) {
         data->stream_status = status_code;
         terminate_pipeline = true;
     }
@@ -349,7 +316,6 @@ STATUS
 SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                                                          UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck) {
     CustomData *data = reinterpret_cast<CustomData *>(custom_data);
-    // std::unique_lock<std::mutex> lk(data->file_list_mtx);
     uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
     
     // When Canary sleeps, timeOfFragmentEndSent become less than currentTimeStamp, don't send that one
@@ -464,12 +430,6 @@ void initConfigWithEnvVars(CanaryConfig* pCanaryConfig)
     setEnvVarsInt(pCanaryConfig->storageSizeInBytes, "CANARY_STORAGE_SIZE_ENV_VAR");
 }
 
-// void sleep(unsigned int seconds) 
-// 	{ 
-// 		usleep(miliseconds * 1000 * 1000); // usleep receives microseconds 
-// 	} 
-
-
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
                                 void *data, size_t len) {
     frame->flags = flags;
@@ -482,7 +442,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-void updateFragmentEndTimes(uint64_t curKeyFrameTime, uint64_t &lastKeyFrameTime, map<uint64_t, uint64_t> *mapPtr)
+void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, map<uint64_t, uint64_t> *mapPtr)
 {
         if (lastKeyFrameTime != 0)
         {
@@ -643,7 +603,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     STATUS curr_stream_status = data->stream_status.load();
     GstSample *sample = nullptr;
     GstMapInfo info;
-    
 
     if (STATUS_FAILED(curr_stream_status)) {
         LOG_ERROR("Received stream error: " << curr_stream_status);
@@ -681,9 +640,8 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
         FRAME_FLAGS kinesis_video_flags = delta ? FRAME_FLAG_NONE : FRAME_FLAG_KEY_FRAME;
 
-        // Always synthesize dts for file sources because file sources dont have meaningful dts.
         // For some rtsp sources the dts is invalid, therefore synthesize.
-        if (data->streamSource == FILE_SOURCE || !GST_BUFFER_DTS_IS_VALID(buffer)) {
+        if (!GST_BUFFER_DTS_IS_VALID(buffer)) {
             data->synthetic_dts += DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
             buffer->dts = data->synthetic_dts;
         } else if (GST_BUFFER_DTS_IS_VALID(buffer)) {
@@ -696,16 +654,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             data->calcSleepTimeOffset = false;
         }
 
-        if (data->streamSource == FILE_SOURCE) {
-            data->max_frame_pts = MAX(data->max_frame_pts, buffer->pts);
-
-            // make sure the timestamp is continuous across multiple files.
-            buffer->pts += data->base_pts + data->producer_start_time;
-
-            if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
-                data->key_frame_pts = buffer->pts;
-            }
-        } else if (data->use_absolute_fragment_times) {
+        if (data->use_absolute_fragment_times) {
             if (data->first_pts == GST_CLOCK_TIME_NONE) {
                 data->producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
                 data->first_pts = buffer->pts;
@@ -747,6 +696,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     // data->pCanaryConfig->canaryRunType ="INTERMITENT"; // make it intermitent for testing --------------------------
     if(data->pCanaryConfig->canaryRunType == "INTERMITENT" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
     {
+        // gst_element_set_state (pipeline, GST_STATE_PAUSED);
         data->timeOfNextKeyFrame->clear();
         data->calcSleepTimeOffset = true;
         int sleepTime = ((rand() % 10) + 1); // [minutes]
@@ -761,6 +711,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         cout << "Intermittent run time is set to: " << runTime << " minutes" << endl;
         // Set runTill to a new random value 1-10 minutes into the future
         data->runTill = duration_cast<minutes>(system_clock::now().time_since_epoch()).count() + runTime; // [minutes]
+        // gst_element_set_state (pipeline, GST_STATE_PLAYING);
     }
 
 CleanUp:
@@ -1059,7 +1010,6 @@ int main(int argc, char* argv[]) {
 
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
 
-        int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
         STATUS stream_status = STATUS_SUCCESS;
 
         Aws::CloudWatch::CloudWatchClient CWclient(data.client_config);
