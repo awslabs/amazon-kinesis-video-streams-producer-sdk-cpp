@@ -20,12 +20,15 @@
 #include <mutex>
 #include <iostream>
 
+#include "CanaryUtils.h"
+
+
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-class DefaultCallbackProvider : public CallbackProvider {
+class CanaryCallbackProvider : public CallbackProvider {
 public:
     using callback_t = ClientCallbacks;
-    explicit DefaultCallbackProvider(
+    explicit CanaryCallbackProvider(
             std::unique_ptr <ClientCallbackProvider> client_callback_provider,
             std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
             std::unique_ptr <CredentialProvider> credentials_provider,
@@ -37,7 +40,7 @@ public:
             bool is_caching_endpoint = false,
             uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
 
-    explicit DefaultCallbackProvider(
+    explicit CanaryCallbackProvider(
             std::unique_ptr <ClientCallbackProvider> client_callback_provider,
             std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
             std::unique_ptr <CredentialProvider> credentials_provider = (std::unique_ptr<CredentialProvider>) new EmptyCredentialProvider(),
@@ -49,7 +52,7 @@ public:
             bool is_caching_endpoint = false,
             std::chrono::duration<uint64_t> caching_update_period = std::chrono::seconds(DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD / HUNDREDS_OF_NANOS_IN_A_SECOND));
 
-    explicit DefaultCallbackProvider(
+    explicit CanaryCallbackProvider(
             std::unique_ptr <ClientCallbackProvider> client_callback_provider,
             std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
             std::unique_ptr <CredentialProvider> credentials_provider = (std::unique_ptr<CredentialProvider>) new EmptyCredentialProvider(),
@@ -61,7 +64,7 @@ public:
             API_CALL_CACHE_TYPE api_call_caching = API_CALL_CACHE_TYPE_NONE,
             std::chrono::duration<uint64_t> caching_update_period = std::chrono::seconds(DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD / HUNDREDS_OF_NANOS_IN_A_SECOND));
 
-    explicit DefaultCallbackProvider(
+    explicit CanaryCallbackProvider(
             std::unique_ptr <ClientCallbackProvider> client_callback_provider,
             std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
             std::unique_ptr <CredentialProvider> credentials_provider,
@@ -73,7 +76,7 @@ public:
             API_CALL_CACHE_TYPE api_call_caching,
             uint64_t caching_update_period);
 
-    virtual ~DefaultCallbackProvider();
+    virtual ~CanaryCallbackProvider();
 
     callback_t getCallbacks() override;
 
@@ -471,3 +474,4 @@ protected:
 } // namespace kinesis
 } // namespace amazonaws
 } // namespace com
+
