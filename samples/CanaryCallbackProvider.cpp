@@ -1,10 +1,12 @@
 /** Copyright 2017 Amazon.com. All rights reserved. */
-
+#pragma once
 #include "DefaultCallbackProvider.h"
 #include "Logger.h"
 #include <ostream>
 #include <iostream>
 
+//#include "CanaryUtils.h"
+#include "CanaryCallbackProvider.h"
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -32,13 +34,13 @@ using std::launch;
 #define MAX_CUSTOM_USER_AGENT_STRING_LENGTH             128
 #define CPP_SDK_CUSTOM_USERAGENT                        "CPPSDK"
 
-UINT64 DefaultCallbackProvider::getCurrentTimeHandler(UINT64 custom_data) {
+UINT64 CanaryCallbackProvider::getCurrentTimeHandler(UINT64 custom_data) {
     UNUSED_PARAM(custom_data);
     return std::chrono::duration_cast<std::chrono::nanoseconds>(systemCurrentTime().time_since_epoch())
             .count() / DEFAULT_TIME_UNIT_IN_NANOS;
 }
 
-STATUS DefaultCallbackProvider::createDeviceHandler(
+STATUS CanaryCallbackProvider::createDeviceHandler(
         UINT64 custom_data, PCHAR device_name, PServiceCallContext service_call_ctx) {
     UNUSED_PARAM(custom_data);
     UNUSED_PARAM(device_name);
@@ -54,7 +56,7 @@ STATUS DefaultCallbackProvider::createDeviceHandler(
     return status;
 }
 
-STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
                                                            STREAM_HANDLE stream_handle,
                                                            PCHAR stream_name,
                                                            UPLOAD_HANDLE stream_upload_handle,
@@ -65,7 +67,7 @@ STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
                       << " and stream upload handle: "
                       << stream_upload_handle);
 
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider *>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider *>(custom_data);
 
     auto stream_data_available_callback = this_obj->stream_callback_provider_->getStreamDataAvailableCallback();
     if (nullptr != stream_data_available_callback) {
@@ -80,12 +82,12 @@ STATUS DefaultCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
     }
 }
 
-STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::streamClosedHandler(UINT64 custom_data,
                                                     STREAM_HANDLE stream_handle,
                                                     UPLOAD_HANDLE stream_upload_handle) {
     LOG_DEBUG("streamClosedHandler invoked for upload handle: " << stream_upload_handle);
 
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider *>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider *>(custom_data);
 
     auto stream_eos_callback = this_obj->stream_callback_provider_->getStreamClosedCallback();
     if (nullptr != stream_eos_callback) {
@@ -110,13 +112,13 @@ STATUS DefaultCallbackProvider::streamClosedHandler(UINT64 custom_data,
  * @param STATUS status code of the failure
  * @return Status of the callback
  */
-STATUS DefaultCallbackProvider::streamErrorHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::streamErrorHandler(UINT64 custom_data,
                                                    STREAM_HANDLE stream_handle,
                                                    UPLOAD_HANDLE upload_handle,
                                                    UINT64 fragment_timecode,
                                                    STATUS status) {
     LOG_DEBUG("streamErrorHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto stream_error_callback = this_obj->stream_callback_provider_->getStreamErrorReportCallback();
@@ -131,9 +133,9 @@ STATUS DefaultCallbackProvider::streamErrorHandler(UINT64 custom_data,
     }
 }
 
-STATUS DefaultCallbackProvider::clientReadyHandler(UINT64 custom_data, CLIENT_HANDLE client_handle) {
+STATUS CanaryCallbackProvider::clientReadyHandler(UINT64 custom_data, CLIENT_HANDLE client_handle) {
     LOG_DEBUG("clientReadyHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto client_ready_callback = this_obj->client_callback_provider_->getClientReadyCallback();
@@ -144,9 +146,9 @@ STATUS DefaultCallbackProvider::clientReadyHandler(UINT64 custom_data, CLIENT_HA
     }
 }
 
-STATUS DefaultCallbackProvider::storageOverflowPressureHandler(UINT64 custom_data, UINT64 bytes_remaining) {
+STATUS CanaryCallbackProvider::storageOverflowPressureHandler(UINT64 custom_data, UINT64 bytes_remaining) {
     LOG_DEBUG("storageOverflowPressureHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto storage_pressure_callback = this_obj->client_callback_provider_->getStorageOverflowPressureCallback();
@@ -157,9 +159,9 @@ STATUS DefaultCallbackProvider::storageOverflowPressureHandler(UINT64 custom_dat
     }
 }
 
-STATUS DefaultCallbackProvider::streamUnderflowReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle) {
+STATUS CanaryCallbackProvider::streamUnderflowReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle) {
     LOG_DEBUG("streamUnderflowReportHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto stream_underflow_callback = this_obj->stream_callback_provider_->getStreamUnderflowReportCallback();
@@ -170,11 +172,11 @@ STATUS DefaultCallbackProvider::streamUnderflowReportHandler(UINT64 custom_data,
     }
 }
 
-STATUS DefaultCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data,
                                                              STREAM_HANDLE stream_handle,
                                                              UINT64 buffer_duration) {
     LOG_DEBUG("streamLatencyPressureHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto stream_latency_callback = this_obj->stream_callback_provider_->getStreamLatencyPressureCallback();
@@ -187,11 +189,11 @@ STATUS DefaultCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data,
     }
 }
 
-STATUS DefaultCallbackProvider::droppedFrameReportHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::droppedFrameReportHandler(UINT64 custom_data,
                                                           STREAM_HANDLE stream_handle,
                                                           UINT64 timecode) {
     LOG_DEBUG("droppedFrameReportHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto dropped_frame_callback = this_obj->stream_callback_provider_->getDroppedFrameReportCallback();
@@ -204,11 +206,11 @@ STATUS DefaultCallbackProvider::droppedFrameReportHandler(UINT64 custom_data,
     }
 }
 
-STATUS DefaultCallbackProvider::droppedFragmentReportHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::droppedFragmentReportHandler(UINT64 custom_data,
                                                              STREAM_HANDLE stream_handle,
                                                              UINT64 timecode) {
     LOG_DEBUG("droppedFragmentReportHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto dropped_fragment_callback = this_obj->stream_callback_provider_->getDroppedFragmentReportCallback();
@@ -221,11 +223,11 @@ STATUS DefaultCallbackProvider::droppedFragmentReportHandler(UINT64 custom_data,
     }
 }
 
-STATUS DefaultCallbackProvider::bufferDurationOverflowPressureHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::bufferDurationOverflowPressureHandler(UINT64 custom_data,
                                                                       STREAM_HANDLE stream_handle,
                                                                       UINT64 remaining_duration) {
     LOG_DEBUG("bufferDurationOverflowPressureHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto buffer_duration_overflow_pressure_callback = this_obj->stream_callback_provider_->getBufferDurationOverflowPressureCallback();
@@ -238,11 +240,11 @@ STATUS DefaultCallbackProvider::bufferDurationOverflowPressureHandler(UINT64 cus
     }
 }
 
-STATUS DefaultCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
                                                              STREAM_HANDLE stream_handle,
                                                              UINT64 last_ack_duration) {
     LOG_DEBUG("streamConnectionStaleHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto connection_stale_callback = this_obj->stream_callback_provider_->getStreamConnectionStaleCallback();
@@ -255,9 +257,9 @@ STATUS DefaultCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
     }
 }
 
-STATUS DefaultCallbackProvider::streamReadyHandler(UINT64 custom_data, STREAM_HANDLE stream_handle) {
+STATUS CanaryCallbackProvider::streamReadyHandler(UINT64 custom_data, STREAM_HANDLE stream_handle) {
     LOG_DEBUG("streamReadyHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto stream_ready_callback = this_obj->stream_callback_provider_->getStreamReadyCallback();
@@ -268,12 +270,12 @@ STATUS DefaultCallbackProvider::streamReadyHandler(UINT64 custom_data, STREAM_HA
     }
 }
 
-STATUS DefaultCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
+STATUS CanaryCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
                                                            STREAM_HANDLE stream_handle,
                                                            UPLOAD_HANDLE uploadHandle,
                                                            PFragmentAck fragment_ack) {
     LOG_DEBUG("fragmentAckReceivedHandler invoked");
-    auto this_obj = reinterpret_cast<DefaultCallbackProvider*>(custom_data);
+    auto this_obj = reinterpret_cast<CanaryCallbackProvider*>(custom_data);
 
     // Call the client callback if any specified
     auto fragment_ack_callback = this_obj->stream_callback_provider_->getFragmentAckReceivedCallback();
@@ -287,8 +289,8 @@ STATUS DefaultCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
     }
 }
 
-VOID DefaultCallbackProvider::logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt, ...) {
-    std::cout << "Default logPrintHandler worked" << std::endl;
+VOID CanaryCallbackProvider::logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt, ...) {
+    std::cout << "Canary logPrintHandler worked" << std::endl;
     static log4cplus::LogLevel picLevelToLog4cplusLevel[] = {
             log4cplus::TRACE_LOG_LEVEL,
             log4cplus::TRACE_LOG_LEVEL,
@@ -325,9 +327,26 @@ VOID DefaultCallbackProvider::logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt
     LOG4CPLUS_RESTORE_DOWHILE_WARNING()
 
     va_end(valist);
+
+    CHAR logFmtString[MAX_LOG_FORMAT_LENGTH + 1];
+    CHAR cwLogFmtString[MAX_LOG_FORMAT_LENGTH + 1];
+    UINT32 logLevelInt = GET_LOGGER_LOG_LEVEL();
+    UNUSED_PARAM(tag);
+    if (level >= logLevelInt) {
+        addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt, level);
+        // Creating a copy to store the logFmtString for cloudwatch logging purpose
+        va_list valist, valist_cw;
+        va_start(valist_cw, fmt);
+        vsnprintf(cwLogFmtString, (SIZE_T) SIZEOF(cwLogFmtString), logFmtString, valist_cw);
+        va_end(valist_cw);
+        va_start(valist, fmt);
+        vprintf(logFmtString, valist);
+        va_end(valist);
+        setUpLogEventVector(cwLogFmtString);
+    }
 }
 
-DefaultCallbackProvider::DefaultCallbackProvider(
+CanaryCallbackProvider::CanaryCallbackProvider(
         unique_ptr <ClientCallbackProvider> client_callback_provider,
         unique_ptr <StreamCallbackProvider> stream_callback_provider,
         unique_ptr <CredentialProvider> credentials_provider,
@@ -337,7 +356,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const std::string &custom_user_agent,
         const std::string &cert_path,
         bool is_caching_endpoint,
-        std::chrono::duration<uint64_t> caching_update_period) : DefaultCallbackProvider (
+        std::chrono::duration<uint64_t> caching_update_period) : CanaryCallbackProvider (
                 move(client_callback_provider),
                 move(stream_callback_provider),
                 move(credentials_provider),
@@ -352,7 +371,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
 
 }
 
-DefaultCallbackProvider::DefaultCallbackProvider(
+CanaryCallbackProvider::CanaryCallbackProvider(
         unique_ptr <ClientCallbackProvider> client_callback_provider,
         unique_ptr <StreamCallbackProvider> stream_callback_provider,
         unique_ptr <CredentialProvider> credentials_provider,
@@ -362,7 +381,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const std::string &custom_user_agent,
         const std::string &cert_path,
         API_CALL_CACHE_TYPE api_call_caching,
-        std::chrono::duration<uint64_t> caching_update_period) : DefaultCallbackProvider (
+        std::chrono::duration<uint64_t> caching_update_period) : CanaryCallbackProvider (
                 move(client_callback_provider),
                 move(stream_callback_provider),
                 move(credentials_provider),
@@ -377,7 +396,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
 
 }
 
-DefaultCallbackProvider::DefaultCallbackProvider(
+CanaryCallbackProvider::CanaryCallbackProvider(
         unique_ptr <ClientCallbackProvider> client_callback_provider,
         unique_ptr <StreamCallbackProvider> stream_callback_provider,
         unique_ptr <CredentialProvider> credentials_provider,
@@ -387,7 +406,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const std::string &custom_user_agent,
         const std::string &cert_path,
         bool is_caching_endpoint,
-        uint64_t caching_update_period) : DefaultCallbackProvider (
+        uint64_t caching_update_period) : CanaryCallbackProvider (
                 move(client_callback_provider),
                 move(stream_callback_provider),
                 move(credentials_provider),
@@ -402,7 +421,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
 
 }
 
-DefaultCallbackProvider::DefaultCallbackProvider(
+CanaryCallbackProvider::CanaryCallbackProvider(
         unique_ptr <ClientCallbackProvider> client_callback_provider,
         unique_ptr <StreamCallbackProvider> stream_callback_provider,
         unique_ptr <CredentialProvider> credentials_provider,
@@ -459,12 +478,12 @@ DefaultCallbackProvider::DefaultCallbackProvider(
     createContinuousRetryStreamCallbacks(client_callbacks_, &pContinuoutsRetryStreamCallbacks);
 }
 
-DefaultCallbackProvider::~DefaultCallbackProvider() {
+CanaryCallbackProvider::~CanaryCallbackProvider() {
     std::cout << "DefaultCallbackProvider 5" << std::endl;
     freeCallbacksProvider(&client_callbacks_);
 }
 
-StreamCallbacks DefaultCallbackProvider::getStreamCallbacks() {
+StreamCallbacks CanaryCallbackProvider::getStreamCallbacks() {
     MEMSET(&stream_callbacks_, 0, SIZEOF(stream_callbacks_));
     stream_callbacks_.customData = reinterpret_cast<uintptr_t>(this);
     stream_callbacks_.version = STREAM_CALLBACKS_CURRENT_VERSION;  // from kinesis video cproducer include
@@ -483,7 +502,7 @@ StreamCallbacks DefaultCallbackProvider::getStreamCallbacks() {
     return stream_callbacks_;
 }
 
-ProducerCallbacks DefaultCallbackProvider::getProducerCallbacks() {
+ProducerCallbacks CanaryCallbackProvider::getProducerCallbacks() {
     MEMSET(&producer_callbacks_, 0, SIZEOF(producer_callbacks_));
     producer_callbacks_.customData = reinterpret_cast<uintptr_t>(this);
     producer_callbacks_.version = PRODUCER_CALLBACKS_CURRENT_VERSION;  // from kinesis video cproducer include
@@ -493,7 +512,7 @@ ProducerCallbacks DefaultCallbackProvider::getProducerCallbacks() {
     return producer_callbacks_;
 }
 
-PlatformCallbacks DefaultCallbackProvider::getPlatformCallbacks() {
+PlatformCallbacks CanaryCallbackProvider::getPlatformCallbacks() {
     MEMSET(&platform_callbacks_, 0, SIZEOF(platform_callbacks_));
     platform_callbacks_.customData = reinterpret_cast<uintptr_t>(this);
     platform_callbacks_.version = PLATFORM_CALLBACKS_CURRENT_VERSION;  // from kinesis video cproducer include
@@ -501,111 +520,111 @@ PlatformCallbacks DefaultCallbackProvider::getPlatformCallbacks() {
     return platform_callbacks_;
 }
 
-DefaultCallbackProvider::callback_t DefaultCallbackProvider::getCallbacks() {
+CanaryCallbackProvider::callback_t CanaryCallbackProvider::getCallbacks() {
     return *client_callbacks_;
 }
 
-GetStreamingTokenFunc DefaultCallbackProvider::getStreamingTokenCallback() {
+GetStreamingTokenFunc CanaryCallbackProvider::getStreamingTokenCallback() {
     return auth_callbacks_.getStreamingTokenFn;
 }
 
-GetSecurityTokenFunc DefaultCallbackProvider::getSecurityTokenCallback() {
+GetSecurityTokenFunc CanaryCallbackProvider::getSecurityTokenCallback() {
     return auth_callbacks_.getSecurityTokenFn;
 }
 
-DeviceCertToTokenFunc DefaultCallbackProvider::getDeviceCertToTokenCallback() {
+DeviceCertToTokenFunc CanaryCallbackProvider::getDeviceCertToTokenCallback() {
     return auth_callbacks_.deviceCertToTokenFn;
 }
 
-GetDeviceCertificateFunc DefaultCallbackProvider::getDeviceCertificateCallback() {
+GetDeviceCertificateFunc CanaryCallbackProvider::getDeviceCertificateCallback() {
     return auth_callbacks_.getDeviceCertificateFn;
 }
 
-GetDeviceFingerprintFunc DefaultCallbackProvider::getDeviceFingerprintCallback() {
+GetDeviceFingerprintFunc CanaryCallbackProvider::getDeviceFingerprintCallback() {
      return auth_callbacks_.getDeviceFingerprintFn;
 }
 
-GetCurrentTimeFunc DefaultCallbackProvider::getCurrentTimeCallback() {
+GetCurrentTimeFunc CanaryCallbackProvider::getCurrentTimeCallback() {
     return getCurrentTimeHandler;
 }
 
-DroppedFragmentReportFunc DefaultCallbackProvider::getDroppedFragmentReportCallback() {
+DroppedFragmentReportFunc CanaryCallbackProvider::getDroppedFragmentReportCallback() {
     return droppedFragmentReportHandler;
 }
 
-BufferDurationOverflowPressureFunc DefaultCallbackProvider::getBufferDurationOverflowPressureCallback(){
+BufferDurationOverflowPressureFunc CanaryCallbackProvider::getBufferDurationOverflowPressureCallback(){
     return bufferDurationOverflowPressureHandler;
 }
 
-StreamReadyFunc DefaultCallbackProvider::getStreamReadyCallback() {
+StreamReadyFunc CanaryCallbackProvider::getStreamReadyCallback() {
     return streamReadyHandler;
 }
 
-StreamClosedFunc DefaultCallbackProvider::getStreamClosedCallback() {
+StreamClosedFunc CanaryCallbackProvider::getStreamClosedCallback() {
     return streamClosedHandler;
 }
 
-FragmentAckReceivedFunc DefaultCallbackProvider::getFragmentAckReceivedCallback() {
+FragmentAckReceivedFunc CanaryCallbackProvider::getFragmentAckReceivedCallback() {
     return fragmentAckReceivedHandler;
 }
 
-StreamUnderflowReportFunc DefaultCallbackProvider::getStreamUnderflowReportCallback() {
+StreamUnderflowReportFunc CanaryCallbackProvider::getStreamUnderflowReportCallback() {
     return streamUnderflowReportHandler;
 }
 
-StorageOverflowPressureFunc DefaultCallbackProvider::getStorageOverflowPressureCallback() {
+StorageOverflowPressureFunc CanaryCallbackProvider::getStorageOverflowPressureCallback() {
     return storageOverflowPressureHandler;
 }
 
-StreamLatencyPressureFunc DefaultCallbackProvider::getStreamLatencyPressureCallback() {
+StreamLatencyPressureFunc CanaryCallbackProvider::getStreamLatencyPressureCallback() {
     return streamLatencyPressureHandler;
 }
 
-DroppedFrameReportFunc DefaultCallbackProvider::getDroppedFrameReportCallback() {
+DroppedFrameReportFunc CanaryCallbackProvider::getDroppedFrameReportCallback() {
     return droppedFrameReportHandler;
 }
 
-StreamErrorReportFunc DefaultCallbackProvider::getStreamErrorReportCallback() {
+StreamErrorReportFunc CanaryCallbackProvider::getStreamErrorReportCallback() {
     return streamErrorHandler;
 }
 
-ClientReadyFunc DefaultCallbackProvider::getClientReadyCallback() {
+ClientReadyFunc CanaryCallbackProvider::getClientReadyCallback() {
     return clientReadyHandler;
 }
 
-CreateDeviceFunc DefaultCallbackProvider::getCreateDeviceCallback() {
+CreateDeviceFunc CanaryCallbackProvider::getCreateDeviceCallback() {
     return createDeviceHandler;
 }
 
-StreamDataAvailableFunc DefaultCallbackProvider::getStreamDataAvailableCallback() {
+StreamDataAvailableFunc CanaryCallbackProvider::getStreamDataAvailableCallback() {
     return streamDataAvailableHandler;
 }
 
-StreamConnectionStaleFunc DefaultCallbackProvider::getStreamConnectionStaleCallback() {
+StreamConnectionStaleFunc CanaryCallbackProvider::getStreamConnectionStaleCallback() {
     return streamConnectionStaleHandler;
 }
 
-CreateStreamFunc DefaultCallbackProvider::getCreateStreamCallback() {
+CreateStreamFunc CanaryCallbackProvider::getCreateStreamCallback() {
     return nullptr;
 }
 
-DescribeStreamFunc DefaultCallbackProvider::getDescribeStreamCallback() {
+DescribeStreamFunc CanaryCallbackProvider::getDescribeStreamCallback() {
     return nullptr;
 }
 
-GetStreamingEndpointFunc DefaultCallbackProvider::getStreamingEndpointCallback() {
+GetStreamingEndpointFunc CanaryCallbackProvider::getStreamingEndpointCallback() {
     return nullptr;
 }
 
-PutStreamFunc DefaultCallbackProvider::getPutStreamCallback() {
+PutStreamFunc CanaryCallbackProvider::getPutStreamCallback() {
     return nullptr;
 }
 
-TagResourceFunc DefaultCallbackProvider::getTagResourceCallback() {
+TagResourceFunc CanaryCallbackProvider::getTagResourceCallback() {
     return nullptr;
 }
 
-LogPrintFunc DefaultCallbackProvider::getLogPrintCallback() {
+LogPrintFunc CanaryCallbackProvider::getLogPrintCallback() {
     std::cout << "LogPrintFunc DefaultCallbackProvider::getLogPrintCallback()" << std::endl;
     return logPrintHandler;
 }
@@ -614,3 +633,5 @@ LogPrintFunc DefaultCallbackProvider::getLogPrintCallback() {
 } // namespace kinesis
 } // namespace amazonaws
 } // namespace com
+
+

@@ -1,3 +1,12 @@
+#pragma once
+
+
+
+
+
+
+
+
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 #include <string.h>
@@ -20,10 +29,15 @@
 #include <aws/logs/model/DeleteLogStreamRequest.h>
 #include <aws/logs/model/DescribeLogStreamsRequest.h>
 
+//#include "CanaryUtils.h"
+#include "CanaryCallbackProvider.h"
+
+
 using namespace std;
 using namespace std::chrono;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,6 +82,7 @@ Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
 
 
 int TESTING_FPS = 25;
+
 
 
 
@@ -131,12 +146,15 @@ typedef struct _CustomData {
         // Default first intermittent run to 1 min for testing
         runTill = producer_start_time / 1000000000 / 60 + 1; // [minutes]
         pCanaryConfig = &canaryConfig;
+        pCloudwatchLogsObject = nullptr;
     }
 
     CanaryConfig *pCanaryConfig;
 
     Aws::Client::ClientConfiguration client_config;
     Aws::CloudWatch::CloudWatchClient *pCWclient;
+
+    CloudwatchLogsObject* pCloudwatchLogsObject;
 
     int runTill;
     int sleepTimeOffset;
@@ -183,6 +201,25 @@ typedef struct _CustomData {
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
+STATUS initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    Aws::CloudWatchLogs::Model::CreateLogStreamOutcome createLogStreamOutcome;
+    CHK(pCloudwatchLogsObject != NULL, STATUS_NULL_ARG);
+    pCloudwatchLogsObject->canaryLogGroupRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
+    pCloudwatchLogsObject->pCwl->CreateLogGroup(pCloudwatchLogsObject->canaryLogGroupRequest);
+
+    pCloudwatchLogsObject->canaryLogStreamRequest.SetLogStreamName(pCloudwatchLogsObject->logStreamName);
+    pCloudwatchLogsObject->canaryLogStreamRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
+    createLogStreamOutcome = pCloudwatchLogsObject->pCwl->CreateLogStream(pCloudwatchLogsObject->canaryLogStreamRequest);
+    // CHK_ERR(createLogStreamOutcome.IsSuccess(), STATUS_INVALID_OPERATION, "Failed to create \"%s\" log stream: %s",
+    // pCloudwatchLogsObject->logStreamName, createLogStreamOutcome.GetError().GetMessage().c_str());
+    gCloudwatchLogsObject = pCloudwatchLogsObject;
+CleanUp:
+    return retStatus;
+}
+
+
 class SampleClientCallbackProvider : public ClientCallbackProvider {
 public:
 
@@ -194,8 +231,15 @@ public:
         return storageOverflowPressure;
     }
 
+    // LogPrintFunc getLogPrintCallback() override
+    // {
+    //     return logPrintHandler;
+    // }
+
     static STATUS storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes);
+    //static VOID logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt, ...);
 };
+
 
 class SampleStreamCallbackProvider : public StreamCallbackProvider {
     UINT64 custom_data_;
@@ -240,6 +284,41 @@ private:
                                 UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck);
 };
 
+// class LogCallbackProvider : public DefaultCallbackProvider {
+// public:
+//     LogCallbackProvider(
+//         unique_ptr <ClientCallbackProvider> client_callback_provider,
+//         unique_ptr <StreamCallbackProvider> stream_callback_provider,
+//         unique_ptr <CredentialProvider> credentials_provider,
+//         const string& region,
+//         const string& control_plane_uri,
+//         const std::string &user_agent_name,
+//         const std::string &custom_user_agent,
+//         const std::string &cert_path,
+//         bool is_caching_endpoint,
+//         uint64_t caching_update_period) : DefaultCallbackProvider (
+//                 move(client_callback_provider),
+//                 move(stream_callback_provider),
+//                 move(credentials_provider),
+//                 region,
+//                 control_plane_uri,
+//                 user_agent_name,
+//                 custom_user_agent,
+//                 cert_path,
+//                 is_caching_endpoint ? API_CALL_CACHE_TYPE_ENDPOINT_ONLY : API_CALL_CACHE_TYPE_NONE,
+//                 caching_update_period) {}
+
+//     LogPrintFunc getLogPrintCallback()
+//     {
+//         return logPrintHandler;
+//     }
+
+//     static VOID logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt, ...);
+// };
+
+
+
+
 class SampleCredentialProvider : public StaticCredentialProvider {
     // Test rotation period is 40 second for the grace period.
     const std::chrono::duration<uint64_t> ROTATION_PERIOD = std::chrono::seconds(DEFAULT_CREDENTIAL_ROTATION_SECONDS);
@@ -269,6 +348,119 @@ public:
         return device_info;
     }
 };
+
+
+PCHAR getLogLevelStr(UINT32 loglevel)
+{
+    switch (loglevel) {
+        case LOG_LEVEL_VERBOSE:
+            return LOG_LEVEL_VERBOSE_STR;
+        case LOG_LEVEL_DEBUG:
+            return LOG_LEVEL_DEBUG_STR;
+        case LOG_LEVEL_INFO:
+            return LOG_LEVEL_INFO_STR;
+        case LOG_LEVEL_WARN:
+            return LOG_LEVEL_WARN_STR;
+        case LOG_LEVEL_ERROR:
+            return LOG_LEVEL_ERROR_STR;
+        case LOG_LEVEL_FATAL:
+            return LOG_LEVEL_FATAL_STR;
+        default:
+            return LOG_LEVEL_SILENT_STR;
+    }
+}
+
+
+VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt, UINT32 logLevel)
+{
+    UINT32 timeStrLen = 0;
+    /* space for "yyyy-mm-dd HH:MM:SS\0" + space + null */
+    CHAR timeString[MAX_TIMESTAMP_FORMAT_STR_LEN + 1 + 1];
+    STATUS retStatus = STATUS_SUCCESS;
+    UINT32 offset = 0;
+
+#ifdef ENABLE_LOG_THREAD_ID
+    // MAX_THREAD_ID_STR_LEN + null
+    CHAR tidString[MAX_THREAD_ID_STR_LEN + 1];
+    TID threadId = GETTID();
+    SNPRINTF(tidString, ARRAY_SIZE(tidString), "(thread-0x%" PRIx64 ")", threadId);
+#endif
+
+    /* if something fails in getting time, still print the log, just without timestamp */
+    retStatus = generateTimestampStr(globalGetTime(), "%Y-%m-%d %H:%M:%S ", timeString, (UINT32) ARRAY_SIZE(timeString), &timeStrLen);
+    if (STATUS_FAILED(retStatus)) {
+        PRINTF("Fail to get time with status code is %08x\n", retStatus);
+        timeString[0] = '\0';
+    }
+
+    offset = (UINT32) SNPRINTF(buffer, bufferLen, "%s%-*s ", timeString, MAX_LOG_LEVEL_STRLEN, getLogLevelStr(logLevel));
+#ifdef ENABLE_LOG_THREAD_ID
+    offset += SNPRINTF(buffer + offset, bufferLen - offset, "%s ", tidString);
+#endif
+    SNPRINTF(buffer + offset, bufferLen - offset, "%s\n", fmt);
+}
+
+
+// VOID
+// LogCallbackProvider::logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt, ...)
+// {
+//     cout << "CanaryLogPrintHandler worked" << endl;
+//     static log4cplus::LogLevel picLevelToLog4cplusLevel[] = {
+//             log4cplus::TRACE_LOG_LEVEL,
+//             log4cplus::TRACE_LOG_LEVEL,
+//             log4cplus::DEBUG_LOG_LEVEL,
+//             log4cplus::INFO_LOG_LEVEL,
+//             log4cplus::WARN_LOG_LEVEL,
+//             log4cplus::ERROR_LOG_LEVEL,
+//             log4cplus::FATAL_LOG_LEVEL};
+//     UNUSED_PARAM(tag);
+//     va_list valist;
+//     log4cplus::LogLevel logLevel = log4cplus::TRACE_LOG_LEVEL;
+//     if (level >= LOG_LEVEL_VERBOSE && level <= LOG_LEVEL_FATAL) {
+//         logLevel = picLevelToLog4cplusLevel[level];
+//     }
+
+//     va_start(valist, fmt);
+//     auto logger = KinesisVideoLogger::getInstance();
+
+//     // This implementation is pulled from LOG4CPLUS_MACRO_FMT_BODY
+//     // Modified _snpbuf.print_va_list(va_list) to accept va_list instead of _snpbuf.print(arg...)
+//     LOG4CPLUS_SUPPRESS_DOWHILE_WARNING()
+//     do {
+//         log4cplus::Logger const & _l
+//             = log4cplus::detail::macros_get_logger (logger);
+//         if (_l.isEnabledFor (logLevel)) {
+//             LOG4CPLUS_MACRO_INSTANTIATE_SNPRINTF_BUF (_snpbuf);
+//             log4cplus::tchar const * _logEvent;
+//             _snpbuf.print_va_list (_logEvent, fmt, valist);
+//             log4cplus::detail::macro_forced_log (_l,
+//                 logLevel, _logEvent,
+//                 __FILE__, __LINE__, LOG4CPLUS_MACRO_FUNCTION ());
+//         }
+//     } while(0);
+//     LOG4CPLUS_RESTORE_DOWHILE_WARNING()
+
+//     va_end(valist);
+
+//     CHAR logFmtString[MAX_LOG_FORMAT_LENGTH + 1];
+//     CHAR cwLogFmtString[MAX_LOG_FORMAT_LENGTH + 1];
+//     UINT32 logLevel = GET_LOGGER_LOG_LEVEL();
+//     UNUSED_PARAM(tag);
+//     cout << "logPrintHandler Invoked" << endl;
+
+//     if (level >= logLevel) {
+//         addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt, level);
+//         // Creating a copy to store the logFmtString for cloudwatch logging purpose
+//         va_list valist, valist_cw;
+//         va_start(valist_cw, fmt);
+//         vsnprintf(cwLogFmtString, (SIZE_T) SIZEOF(cwLogFmtString), logFmtString, valist_cw);
+//         va_end(valist_cw);
+//         va_start(valist, fmt);
+//         vprintf(logFmtString, valist);
+//         va_end(valist);
+//         setUpLogEventVector(cwLogFmtString);
+//     }
+// }
 
 STATUS
 SampleClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes) {
@@ -380,6 +572,8 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
     }
     
 }
+
+
 
 }  // namespace video
 }  // namespace kinesis
@@ -536,7 +730,9 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
                 totalNumberOfErrors_datum.AddDimensions(DIMENSION_PER_STREAM);
                 totalNumberOfErrors_datum.SetValue(totalNumberOfErrors);
                 totalNumberOfErrors_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count);
-                cwRequest.AddMetricData(totalNumberOfErrors_datum);            
+                cwRequest.AddMetricData(totalNumberOfErrors_datum);
+
+                canaryStreamSendLogs(cusData->pCloudwatchLogsObject);            
             }
 
             // Send metrics to CW
@@ -727,6 +923,7 @@ CleanUp:
     return ret;
 }
 
+
 /* This function is called when an error message is posted on the bus */
 static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
     GError *err;
@@ -804,14 +1001,58 @@ void kinesis_video_init(CustomData *data) {
         LOG_AND_THROW("No valid credential method was found");
     }
 
+    unique_ptr<CanaryCallbackProvider> canary_callbacks(new CanaryCallbackProvider(move(client_callback_provider),
+            move(stream_callback_provider),
+            move(credential_provider),
+            DEFAULT_AWS_REGION,
+            "",
+            DEFAULT_USER_AGENT_NAME,
+            device_info_provider->getCustomUserAgent(),
+            EMPTY_STRING,
+            false,
+            DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
+
+
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
-                                                                    move(client_callback_provider),
-                                                                    move(stream_callback_provider),
-                                                                    move(credential_provider),
-                                                                    defaultRegionStr);
+                                                                    move(canary_callbacks));
+
+
+    // data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
+    //                                                                 move(client_callback_provider),
+    //                                                                 move(stream_callback_provider),
+    //                                                                 move(credential_provider),
+    //                                                                 defaultRegionStr);
 
     LOG_DEBUG("Client is ready");
 }
+
+
+
+// unique_ptr<DefaultCallbackProvider> callback_provider(new DefaultCallbackProvider(move(client_callback_provider),
+//             move(stream_callback_provider),
+//             move(credential_provider),
+//             region,
+//             control_plane_uri,
+//             user_agent_name,
+//             device_info_provider->getCustomUserAgent(),
+//             EMPTY_STRING,
+//             false,
+//             DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
+
+// const std::string &region = DEFAULT_AWS_REGION,
+// const std::string &control_plane_uri = "",
+// const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
+// bool is_caching_endpoint = false,
+// uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
+
+
+
+
+
+
+
+
+
 
 void kinesis_video_stream_init(CustomData *data) {
     /* create a test stream */
@@ -1007,13 +1248,30 @@ int main(int argc, char* argv[]) {
         CustomData data(canaryConfig);
         initConfigWithEnvVars(data.pCanaryConfig);
 
-
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
 
         STATUS stream_status = STATUS_SUCCESS;
 
         Aws::CloudWatch::CloudWatchClient CWclient(data.client_config);
         data.pCWclient = &CWclient;
+
+        STATUS retStatus = STATUS_SUCCESS;
+        Aws::CloudWatchLogs::CloudWatchLogsClient CWLclient(data.client_config);
+        CloudwatchLogsObject cloudwatchLogsObject;
+        cloudwatchLogsObject.logGroupName = "ProducerCppSDK";
+        cloudwatchLogsObject.logStreamName = data.pCanaryConfig->streamName +"-log-" + to_string(GETTIME() / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+        cloudwatchLogsObject.pCwl = &CWLclient;
+        cout << "CW Step finished" << endl;
+        if ((retStatus = initializeCloudwatchLogger(&cloudwatchLogsObject)) != STATUS_SUCCESS) {
+            cout << "Cloudwatch logger failed to be initialized with 0x" << retStatus << ">> error code. Fallback to file logging" << endl;
+            // fileLoggingEnabled = TRUE;
+        }
+        else
+        {
+            cout << "Cloudwatch logger initialization success" << endl;;
+        }
+        data.pCloudwatchLogsObject = &cloudwatchLogsObject;
+
 
         data.stream_name = const_cast<char*>(data.pCanaryConfig->streamName.c_str());
 
@@ -1053,6 +1311,8 @@ int main(int argc, char* argv[]) {
     // CleanUp
     data.kinesis_video_producer->freeStream(data.kinesis_video_stream);
     delete (data.timeOfNextKeyFrame);
+    canaryStreamSendLogSync(&cloudwatchLogsObject);
+    cout << "end of canary" << endl;
     }
 
     return 0;

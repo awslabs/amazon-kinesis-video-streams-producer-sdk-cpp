@@ -44,6 +44,14 @@ public:
         return nullptr;
     };
 
+    /**
+     * @copydoc com::amazonaws::kinesis::video::CallbackProvider::getLogPrintCallback()
+     */
+    virtual LogPrintFunc getLogPrintCallback() {
+        return nullptr;
+    };
+
+
     virtual ~ClientCallbackProvider() {};
 };
 
