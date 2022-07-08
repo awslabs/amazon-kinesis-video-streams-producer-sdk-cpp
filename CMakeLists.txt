@@ -174,7 +174,6 @@ file(GLOB PIC_HEADERS "${pic_project_SOURCE_DIR}/src/*/include")
 include_directories(${PIC_HEADERS})
 include_directories(${KinesisVideoProducerC_SOURCE_DIR}/src/include)
 include_directories(${OPEN_SRC_INCLUDE_DIRS})
-include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/include)
 include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/include)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
@@ -183,7 +182,7 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
 message("StageNumba 1")
 install(
-  DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/include
+  DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
   DESTINATION .)
 message("StageNumba 2")
 
