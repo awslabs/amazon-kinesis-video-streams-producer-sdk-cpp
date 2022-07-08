@@ -7,6 +7,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
+include(GNUInstallDirs)
+
 set(CMAKE_CXX_STANDARD 11)
 
 # User Flags
@@ -162,6 +164,7 @@ if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_WARNINGS -D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
 endif()
 
+
 ############# Build Targets ############
 file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credential-providers/*.cpp")
 file(GLOB GST_PLUGIN_SOURCE_FILES "src/gstreamer/*.cpp" "src/gstreamer/Util/*.cpp")
@@ -177,6 +180,12 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
+
+install(
+  DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/include
+  DESTINATION .)
+
+
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 target_link_libraries(
   KinesisVideoProducer
@@ -184,6 +193,14 @@ target_link_libraries(
          cproducer
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
+
+
+install(
+    TARGETS KinesisVideoProducer
+    ARCHIVE DESTINATION "${OPEN_SRC_INSTALL_PREFIX}"
+    LIBRARY DESTINATION "${OPEN_SRC_INSTALL_PREFIX}/lib"
+    RUNTIME DESTINATION "${OPEN_SRC_INSTALL_PREFIX}/bin")
+
 
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
