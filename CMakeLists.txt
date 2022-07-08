@@ -223,6 +223,7 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  install(TARGETS gstkvssink LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0")
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
   target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
