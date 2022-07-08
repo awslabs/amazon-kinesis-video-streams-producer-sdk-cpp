@@ -75,14 +75,13 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CREDENTIAL_ROTATION_SECONDS 3600
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
-#define DEFAULT_CANARY_DURATION_SECONDS 120
+#define DEFAULT_CANARY_DURATION_SECONDS (12 * 60 * 60)
 
 
 Aws::CloudWatch::Model::Dimension DIMENSION_PER_STREAM;
 
 
-int TESTING_FPS = 25;
-
+int TESTING_FPS = 25; // Add this as config param
 
 
 
@@ -201,23 +200,23 @@ typedef struct _CustomData {
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-STATUS initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject)
-{
-    STATUS retStatus = STATUS_SUCCESS;
-    Aws::CloudWatchLogs::Model::CreateLogStreamOutcome createLogStreamOutcome;
-    CHK(pCloudwatchLogsObject != NULL, STATUS_NULL_ARG);
-    pCloudwatchLogsObject->canaryLogGroupRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
-    pCloudwatchLogsObject->pCwl->CreateLogGroup(pCloudwatchLogsObject->canaryLogGroupRequest);
+// STATUS initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject)
+// {
+//     STATUS retStatus = STATUS_SUCCESS;
+//     Aws::CloudWatchLogs::Model::CreateLogStreamOutcome createLogStreamOutcome;
+//     CHK(pCloudwatchLogsObject != NULL, STATUS_NULL_ARG);
+//     pCloudwatchLogsObject->canaryLogGroupRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
+//     pCloudwatchLogsObject->pCwl->CreateLogGroup(pCloudwatchLogsObject->canaryLogGroupRequest);
 
-    pCloudwatchLogsObject->canaryLogStreamRequest.SetLogStreamName(pCloudwatchLogsObject->logStreamName);
-    pCloudwatchLogsObject->canaryLogStreamRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
-    createLogStreamOutcome = pCloudwatchLogsObject->pCwl->CreateLogStream(pCloudwatchLogsObject->canaryLogStreamRequest);
-    // CHK_ERR(createLogStreamOutcome.IsSuccess(), STATUS_INVALID_OPERATION, "Failed to create \"%s\" log stream: %s",
-    // pCloudwatchLogsObject->logStreamName, createLogStreamOutcome.GetError().GetMessage().c_str());
-    gCloudwatchLogsObject = pCloudwatchLogsObject;
-CleanUp:
-    return retStatus;
-}
+//     pCloudwatchLogsObject->canaryLogStreamRequest.SetLogStreamName(pCloudwatchLogsObject->logStreamName);
+//     pCloudwatchLogsObject->canaryLogStreamRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
+//     createLogStreamOutcome = pCloudwatchLogsObject->pCwl->CreateLogStream(pCloudwatchLogsObject->canaryLogStreamRequest);
+//     // CHK_ERR(createLogStreamOutcome.IsSuccess(), STATUS_INVALID_OPERATION, "Failed to create \"%s\" log stream: %s",
+//     // pCloudwatchLogsObject->logStreamName, createLogStreamOutcome.GetError().GetMessage().c_str());
+//     gCloudwatchLogsObject = pCloudwatchLogsObject;
+// CleanUp:
+//     return retStatus;
+// }
 
 
 class SampleClientCallbackProvider : public ClientCallbackProvider {
@@ -1044,12 +1043,6 @@ void kinesis_video_init(CustomData *data) {
 // const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
 // bool is_caching_endpoint = false,
 // uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
-
-
-
-
-
-
 
 
 
