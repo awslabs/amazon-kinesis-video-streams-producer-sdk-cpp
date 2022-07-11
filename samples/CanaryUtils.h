@@ -22,8 +22,6 @@
 #include <aws/logs/model/DeleteLogStreamRequest.h>
 #include <aws/logs/model/DescribeLogStreamsRequest.h>
 
-//#include "CanaryCallbackProvider.h"
-
 using namespace std;
 using namespace std::chrono;
 using namespace com::amazonaws::kinesis::video;
