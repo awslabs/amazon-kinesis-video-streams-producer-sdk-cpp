@@ -1,6 +1,6 @@
 #include "KinesisVideoProducer.h"
 
-#define DEFAULT_RETENTION_PERIOD          2 * HUNDREDS_OF_NANOS_IN_AN_HOUR
+#define DEFAULT_RETENTION_PERIOD          480 * HUNDREDS_OF_NANOS_IN_AN_HOUR
 #define DEFAULT_BUFFER_DURATION           120 * HUNDREDS_OF_NANOS_IN_A_SECOND
 #define DEFAULT_CALLBACK_CHAIN_COUNT      5
 #define DEFAULT_KEY_FRAME_INTERVAL        45
@@ -84,37 +84,10 @@ class KvsSink: public EdgeSink {
         CLIENT_HANDLE clientHandle = INVALID_CLIENT_HANDLE_VALUE;
         STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
         PCHAR accessKey = NULL, secretKey = NULL, sessionToken = NULL;
-        PCHAR streamName = "poc-stream-4", region = "us-west-2", cacertPath = NULL;
+        PCHAR streamName = "poc-stream-3", region = "us-west-2", cacertPath = NULL;
 
     public:
-        inline static UINT64 currentTs = 16570461440000;
-
-        static UINT64 defaultGetTime() {
-        #if defined _WIN32 || defined _WIN64
-            FILETIME fileTime;
-            GetSystemTimeAsFileTime(&fileTime);
-
-            return ((((UINT64) fileTime.dwHighDateTime << 32) | fileTime.dwLowDateTime) - TIME_DIFF_UNIX_WINDOWS_TIME);
-        #elif defined __MACH__ || defined __CYGWIN__
-            struct timeval nowTime;
-            if (0 != gettimeofday(&nowTime, NULL)) {
-                return 0;
-            }
-
-            return (UINT64) nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64) nowTime.tv_usec * HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
-        #else
-            struct timespec nowTime;
-            clock_gettime(CLOCK_REALTIME, &nowTime);
-
-            // The precision needs to be on a 100th nanosecond resolution
-            return (UINT64) nowTime.tv_sec * HUNDREDS_OF_NANOS_IN_A_SECOND + (UINT64) nowTime.tv_nsec / DEFAULT_TIME_UNIT_IN_NANOS;
-        #endif
-        }
-
-        static UINT64 uploaderGetCurrentTime(UINT64 customData) {
-            UNUSED_PARAM(customData);
-            return currentTs;
-        }
+        UINT64 currentTs = 1657160059759486;
 
         void authenticate() {
            
@@ -135,7 +108,6 @@ class KvsSink: public EdgeSink {
             createDefaultCallbacksProviderWithAwsCredentials(accessKey, secretKey, sessionToken, MAX_UINT64, region, 
                                                             cacertPath, NULL, NULL, &pClientCallbacks);  
 
-            pClientCallbacks->getCurrentTimeFn = uploaderGetCurrentTime;
             createStreamCallbacks(&pStreamCallbacks);
             addStreamCallbacks(pClientCallbacks, pStreamCallbacks);
 
@@ -184,14 +156,14 @@ INT32 main(INT32 argc, CHAR* argv[]) {
     Frame frame;
     BYTE frameBuffer[200000]; // Assuming this is enough
     UINT32 frameSize = SIZEOF(frameBuffer), frameIndex = 0, fileIndex = 0;
-    UINT64 streamStopTime, streamingDuration = DEFAULT_STREAM_DURATION;
+    UINT64 streamStopTime, streamingDuration = 20 * DEFAULT_STREAM_DURATION;
 
     MEMSET(frameBuffer, 0x00, frameSize);
     frame.frameData = frameBuffer;
     frame.version = FRAME_CURRENT_VERSION;
     frame.trackId = DEFAULT_VIDEO_TRACK_ID;
     frame.duration = HUNDREDS_OF_NANOS_IN_A_SECOND / DEFAULT_FPS_VALUE;
-    frame.decodingTs = defaultGetTime(); // current time
+    frame.decodingTs = kvssink.currentTs; 
     frame.presentationTs = frame.decodingTs;
 
     streamStopTime = defaultGetTime() + streamingDuration;
@@ -209,7 +181,7 @@ INT32 main(INT32 argc, CHAR* argv[]) {
 
         kvssink.currentTs += frame.duration;
 
-        frame.decodingTs += frame.duration;
+        frame.decodingTs = kvssink.currentTs;
         frame.presentationTs = frame.decodingTs;
         frameIndex++;
         fileIndex++;
