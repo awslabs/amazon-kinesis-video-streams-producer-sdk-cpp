@@ -4,14 +4,16 @@
 #pragma once
 #define LOG_CLASS "CanaryStreamLogs"
 
-#include "CanaryUtils.h"
+#include "CanaryLogs.h"
 
 
-PCloudwatchLogsObject gCloudwatchLogsObject = NULL;
+CanaryLogs::PCloudwatchLogsObject gCloudwatchLogsObject = NULL;
 std::mutex gLogLock; // Protect access to gCloudwatchLogsObject
 
+CanaryLogs::CanaryLogs(){};
+CanaryLogs::CloudwatchLogsObject::CloudwatchLogsObject(){};
 
-STATUS initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject)
+STATUS CanaryLogs::initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject)
 {
     STATUS retStatus = STATUS_SUCCESS;
     Aws::CloudWatchLogs::Model::CreateLogStreamOutcome createLogStreamOutcome;
@@ -29,7 +31,7 @@ CleanUp:
     return retStatus;
 }
 
-VOID setUpLogEventVector(PCHAR logString)
+VOID CanaryLogs::setUpLogEventVector(PCHAR logString)
 {
     std::lock_guard<std::mutex> lock(gLogLock);
     if(gCloudwatchLogsObject != NULL) {
@@ -42,7 +44,7 @@ VOID setUpLogEventVector(PCHAR logString)
     }
 }
 
-VOID onPutLogEventResponseReceivedHandler(const Aws::CloudWatchLogs::CloudWatchLogsClient* cwClientLog,
+VOID CanaryLogs::onPutLogEventResponseReceivedHandler(const Aws::CloudWatchLogs::CloudWatchLogsClient* cwClientLog,
                                           const Aws::CloudWatchLogs::Model::PutLogEventsRequest& request,
                                           const Aws::CloudWatchLogs::Model::PutLogEventsOutcome& outcome,
                                           const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context)
@@ -55,7 +57,7 @@ VOID onPutLogEventResponseReceivedHandler(const Aws::CloudWatchLogs::CloudWatchL
     }
 }
 
-VOID canaryStreamSendLogs(PCloudwatchLogsObject pCloudwatchLogsObject)
+VOID CanaryLogs::canaryStreamSendLogs(PCloudwatchLogsObject pCloudwatchLogsObject)
 {
     std::unique_lock<std::recursive_mutex> lock(pCloudwatchLogsObject->mutex);
     Aws::CloudWatchLogs::Model::PutLogEventsOutcome outcome;
@@ -70,7 +72,7 @@ VOID canaryStreamSendLogs(PCloudwatchLogsObject pCloudwatchLogsObject)
     pCloudwatchLogsObject->canaryInputLogEventVec.clear();
 }
 
-VOID canaryStreamSendLogSync(PCloudwatchLogsObject pCloudwatchLogsObject)
+VOID CanaryLogs::canaryStreamSendLogSync(PCloudwatchLogsObject pCloudwatchLogsObject)
 {
     std::unique_lock<std::recursive_mutex> lock(pCloudwatchLogsObject->mutex);
     auto request = Aws::CloudWatchLogs::Model::PutLogEventsRequest()
@@ -89,7 +91,7 @@ VOID canaryStreamSendLogSync(PCloudwatchLogsObject pCloudwatchLogsObject)
     pCloudwatchLogsObject->canaryInputLogEventVec.clear();
 }
 
-VOID cloudWatchLogger(UINT32 level, PCHAR tag, PCHAR fmt, ...)
+VOID CanaryLogs::cloudWatchLogger(UINT32 level, PCHAR tag, PCHAR fmt, ...)
 {
     CHAR logFmtString[MAX_LOG_FORMAT_LENGTH + 1];
     CHAR cwLogFmtString[MAX_LOG_FORMAT_LENGTH + 1];

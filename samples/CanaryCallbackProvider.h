@@ -20,7 +20,7 @@
 #include <mutex>
 #include <iostream>
 
-#include "CanaryUtils.h"
+#include "CanaryLogs.h"
 
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {

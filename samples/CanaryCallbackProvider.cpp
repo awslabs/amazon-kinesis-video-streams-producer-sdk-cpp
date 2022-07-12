@@ -343,7 +343,7 @@ VOID CanaryCallbackProvider::logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt,
         va_start(valist, fmt);
         vprintf(logFmtString, valist);
         va_end(valist);
-        setUpLogEventVector(cwLogFmtString);
+        CanaryLogs::setUpLogEventVector(cwLogFmtString);
     }
 }
 
