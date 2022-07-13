@@ -3,7 +3,7 @@ import jenkins.model.*;
 import org.jenkinsci.plugins.scriptsecurity.scripts.*;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.*;
 
-WORKSPACE="canary/producer-c"
+WORKSPACE="."
 GROOVY_SCRIPT_DIR="$WORKSPACE/jobs"
 DAYS_TO_KEEP_LOGS=2
 NUMBER_OF_LOGS=1
