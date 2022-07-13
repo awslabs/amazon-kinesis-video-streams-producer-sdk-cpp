@@ -1,7 +1,7 @@
 #include "KinesisVideoProducer.h"
 
 #define DEFAULT_RETENTION_PERIOD          480 * HUNDREDS_OF_NANOS_IN_AN_HOUR
-#define DEFAULT_BUFFER_DURATION           120 * HUNDREDS_OF_NANOS_IN_A_SECOND
+#define DEFAULT_BUFFER_DURATION           1200 * HUNDREDS_OF_NANOS_IN_A_SECOND //120 seconds
 #define DEFAULT_CALLBACK_CHAIN_COUNT      5
 #define DEFAULT_KEY_FRAME_INTERVAL        45
 #define DEFAULT_FPS_VALUE                 25
@@ -84,10 +84,10 @@ class KvsSink: public EdgeSink {
         CLIENT_HANDLE clientHandle = INVALID_CLIENT_HANDLE_VALUE;
         STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
         PCHAR accessKey = NULL, secretKey = NULL, sessionToken = NULL;
-        PCHAR streamName = "poc-stream-3", region = "us-west-2", cacertPath = NULL;
+        PCHAR streamName = "poc-stream-9", region = "us-west-2", cacertPath = NULL;
 
     public:
-        UINT64 currentTs = 1657160059759486;
+        
 
         void authenticate() {
            
@@ -103,7 +103,7 @@ class KvsSink: public EdgeSink {
             pDeviceInfo->storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
 
             createRealtimeVideoStreamInfoProvider(streamName, DEFAULT_RETENTION_PERIOD, DEFAULT_BUFFER_DURATION, &pStreamInfo);
-            setStreamInfoBasedOnStorageSize(DEFAULT_STORAGE_SIZE, RECORDED_FRAME_AVG_BITRATE_BIT_PS, 1, pStreamInfo); 
+            // setStreamInfoBasedOnStorageSize(DEFAULT_STORAGE_SIZE, RECORDED_FRAME_AVG_BITRATE_BIT_PS, 1, pStreamInfo); 
 
             createDefaultCallbacksProviderWithAwsCredentials(accessKey, secretKey, sessionToken, MAX_UINT64, region, 
                                                             cacertPath, NULL, NULL, &pClientCallbacks);  
@@ -126,8 +126,7 @@ class KvsSink: public EdgeSink {
         }   
 };
 
-UINT64 defaultGetTime()
-{
+UINT64 defaultGetTime() {
 #if defined _WIN32 || defined _WIN64
     FILETIME fileTime;
     GetSystemTimeAsFileTime(&fileTime);
@@ -149,6 +148,28 @@ UINT64 defaultGetTime()
 #endif
 }
 
+VOID defaultThreadSleep(UINT64 time) {
+    // Time in microseconds
+    UINT64 remaining_time = time / HUNDREDS_OF_NANOS_IN_A_MICROSECOND;
+
+    // The loop will be run till the complete usleep time is reached
+    while (remaining_time != 0) {
+        // Covers the last case when there is residual time left and
+        // when the value provided is less than or equal to MAX_UINT32
+        if (remaining_time <= MAX_UINT32) {
+            usleep(remaining_time);
+            remaining_time = 0;
+        }
+
+        // Sleep maximum time supported by usleep repeatedly to cover large
+        // sleep time cases
+        else {
+            usleep(MAX_UINT32);
+            remaining_time = remaining_time - (UINT64) MAX_UINT32;
+        }
+    }
+}
+
 INT32 main(INT32 argc, CHAR* argv[]) {
 
     KvsSink kvssink;
@@ -156,22 +177,25 @@ INT32 main(INT32 argc, CHAR* argv[]) {
     Frame frame;
     BYTE frameBuffer[200000]; // Assuming this is enough
     UINT32 frameSize = SIZEOF(frameBuffer), frameIndex = 0, fileIndex = 0;
-    UINT64 streamStopTime, streamingDuration = 20 * DEFAULT_STREAM_DURATION;
+    UINT64 streamStopTime, streamingDuration = DEFAULT_STREAM_DURATION, timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+
+    UINT64 currentTs = 1657482505000 * 10000; // july 10, 2022, 12:48:25 PDT
 
     MEMSET(frameBuffer, 0x00, frameSize);
     frame.frameData = frameBuffer;
     frame.version = FRAME_CURRENT_VERSION;
     frame.trackId = DEFAULT_VIDEO_TRACK_ID;
     frame.duration = HUNDREDS_OF_NANOS_IN_A_SECOND / DEFAULT_FPS_VALUE;
-    frame.decodingTs = kvssink.currentTs; 
+    frame.decodingTs = currentTs; 
     frame.presentationTs = frame.decodingTs;
 
-    streamStopTime = defaultGetTime() + streamingDuration;
+    streamStopTime = 1657482505000 * 10000 + streamingDuration; // 
 
     filesrc.start();
     kvssink.start();
 
-    while (defaultGetTime() < streamStopTime) {
+    while (currentTs < streamStopTime) {
         frame.index = frameIndex;
         frame.flags = fileIndex % DEFAULT_KEY_FRAME_INTERVAL == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
         frame.size = SIZEOF(frameBuffer);
@@ -179,9 +203,19 @@ INT32 main(INT32 argc, CHAR* argv[]) {
         filesrc.read(&frame);
         kvssink.write(&frame);
 
-        kvssink.currentTs += frame.duration;
+        currentTs += frame.duration;
 
-        frame.decodingTs = kvssink.currentTs;
+        // // retry
+        // do {
+        //     err = kvssink.write();
+        //     if(err == buffer_full) {
+        //         sleep(100us);
+        //     }
+        // } while(error == buffer_full);
+
+        // defaultThreadSleep(40000);
+
+        frame.decodingTs = currentTs;
         frame.presentationTs = frame.decodingTs;
         frameIndex++;
         fileIndex++;
