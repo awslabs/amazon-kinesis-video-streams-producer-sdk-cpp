@@ -17,8 +17,6 @@ CREDENTIALS = [
 
 def buildProducer() {
   sh  """ 
-    chmod a+x cert_setup.sh &&
-    ./cert_setup.sh ${NODE_NAME} &&
     mkdir -p build &&
     cd build && 
     cmake .. -DBUILD_GSTREAMER_PLUGIN=ON && 
