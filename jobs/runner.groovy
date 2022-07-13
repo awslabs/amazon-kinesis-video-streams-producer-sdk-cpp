@@ -16,13 +16,12 @@ CREDENTIALS = [
 ]
 
 def buildProducer() {
-  sh  """
-    cd ./canary/producer-c && 
+  sh  """ 
     chmod a+x cert_setup.sh &&
     ./cert_setup.sh ${NODE_NAME} &&
     mkdir -p build &&
     cd build && 
-    cmake .. && 
+    cmake .. -DBUILD_GSTREAMER_PLUGIN=ON && 
     make -j4
   """
 }
@@ -32,7 +31,7 @@ def buildConsumer(envs) {
     sh '''
         PATH="$JAVA_HOME/bin:$PATH"
         export PATH="$M2_HOME/bin:$PATH"
-        cd $WORKSPACE/canary/consumer-java
+        cd $WORKSPACE/consumer-java
         make -j4
     '''
   }
@@ -102,7 +101,7 @@ def runClient(isProducer, params) {
     
     echo "Done waiting in NODE_NAME = ${env.NODE_NAME}"
 
-    def scripts_dir = "$WORKSPACE/canary/producer-c"
+    def scripts_dir = "$WORKSPACE/samples"
     def endpoint = "${scripts_dir}/iot-credential-provider.txt"
     def core_cert_file = "${scripts_dir}/p${env.NODE_NAME}_certificate.pem"
     def private_key_file = "${scripts_dir}/p${env.NODE_NAME}_private.key"
@@ -133,7 +132,7 @@ def runClient(isProducer, params) {
         // Run consumer
         withRunnerWrapper(envs) {
             sh '''
-                cd $WORKSPACE/canary/consumer-java
+                cd $WORKSPACE/consumer-java
                 java -classpath target/aws-kinesisvideo-producer-sdk-canary-consumer-1.0-SNAPSHOT.jar:$(cat tmp_jar) -Daws.accessKeyId=${AWS_ACCESS_KEY_ID} -Daws.secretKey=${AWS_SECRET_ACCESS_KEY} com.amazon.kinesis.video.canary.consumer.ProducerSdkCanaryConsumer
             '''
         }
@@ -142,9 +141,9 @@ def runClient(isProducer, params) {
         withRunnerWrapper(envs) {
             sh """
                 echo "Running producer"
-                ls ./canary/producer-c
-                cd ./canary/producer-c/build && 
-                ./kvsProducerSampleCloudwatch
+                ls ./samples
+                cd ./build && 
+                ./kvs_gstreamer_sample
             """
         }
     }
