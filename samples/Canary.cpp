@@ -69,123 +69,6 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CREDENTIAL_ROTATION_SECONDS 3600
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
-// #define DEFAULT_CANARY_DURATION_SECONDS (12 * 60 * 60)
-
-// typedef enum _StreamSource {
-//     TEST_SOURCE,
-//     FILE_SOURCE,
-//     LIVE_SOURCE,
-//     RTSP_SOURCE
-// } StreamSource;
-
-// typedef struct _CanaryConfig
-// {
-//     _CanaryConfig():
-//             testVideoFps(25),
-//             streamName("DefaultStreamName"),
-//             sourceType("TEST_SOURCE"),
-//             canaryRunType("NORMAL"), // (or intermittent)
-//             streamType("REALTIME"), 
-//             canaryLabel("DEFAULT_CANARY_LABEL"), // need to decide on a default value
-//             cpUrl(""),
-//             fragmentSize(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
-//             canaryDuration(DEFAULT_CANARY_DURATION_SECONDS),
-//             bufferDuration(DEFAULT_BUFFER_DURATION_SECONDS),
-//             storageSizeInBytes(0)
-//             {}
-
-//     string streamName;
-//     string sourceType;
-//     string canaryRunType; // normal/continuous or intermitent
-//     string streamType; // real-time or offline
-//     string canaryLabel;
-//     string cpUrl;
-//     int fragmentSize; // [milliseconds]
-//     int canaryDuration; // [seconds]
-//     int bufferDuration; // [seconds]
-//     int storageSizeInBytes;
-//     int testVideoFps;
-//     // TODO: IoT credential stuff?
-// } CanaryConfig;
-
-// typedef struct _CustomData {
-//     _CustomData(CanaryConfig canaryConfig):
-//             sleepTimeStamp(0),
-//             totalPutFrameErrorCount(0),
-//             totalErrorAckCount(0),
-//             lastKeyFrameTime(0),
-//             curKeyFrameTime(0),
-//             onFirstFrame(true),
-//             streamSource(TEST_SOURCE),
-//             h264_stream_supported(false),
-//             synthetic_dts(0),
-//             stream_status(STATUS_SUCCESS),
-//             main_loop(NULL),
-//             first_pts(GST_CLOCK_TIME_NONE),
-//             use_absolute_fragment_times(true) {
-//         producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count(); // [nanoSeconds]
-//         client_config.region = "us-west-2";
-//         pCWclient = nullptr;
-//         Pdimension_per_stream = nullptr;
-//         timeOfNextKeyFrame = new map<uint64_t, uint64_t>();
-//         timeCounter = producer_start_time / 1000000000; // [seconds]
-//         // Default first intermittent run to 1 min for testing
-//         runTill = producer_start_time / 1000000000 / 60 + 1; // [minutes]
-//         pCanaryConfig = &canaryConfig;
-//         pCloudwatchLogsObject = nullptr;
-//         pCanaryLogs = nullptr;
-//     }
-
-//     CanaryConfig* pCanaryConfig;
-
-//     Aws::Client::ClientConfiguration client_config;
-//     Aws::CloudWatch::CloudWatchClient* pCWclient;
-//     Aws::CloudWatch::Model::Dimension* Pdimension_per_stream;
-
-//     CanaryLogs* pCanaryLogs;
-//     CanaryLogs::CloudwatchLogsObject* pCloudwatchLogsObject;
-
-//     int runTill;
-//     int sleepTimeStamp;
-//     bool onFirstFrame;
-
-//     GMainLoop* main_loop;
-//     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
-//     shared_ptr<KinesisVideoStream> kinesis_video_stream;
-//     bool stream_started;
-//     bool h264_stream_supported;
-//     char *stream_name;
-
-//     map<uint64_t, uint64_t>* timeOfNextKeyFrame;
-//     UINT64 lastKeyFrameTime;
-//     UINT64 curKeyFrameTime;
-
-//     double timeCounter;
-//     double totalPutFrameErrorCount;
-//     double totalErrorAckCount;
-
-//     // stores any error status code reported by StreamErrorCallback.
-//     atomic_uint stream_status;
-
-//     // Used in file uploading only. Assuming frame timestamp are relative. Add producer_start_time to each frame's
-//     // timestamp to convert them to absolute timestamp. This way fragments dont overlap after token rotation when doing
-//     // file uploading.
-//     uint64_t producer_start_time; // [nanoSeconds]
-
-//     volatile StreamSource streamSource;
-
-//     string rtsp_url;
-
-//     unique_ptr<Credentials> credential;
-
-//     uint64_t synthetic_dts;
-
-//     bool use_absolute_fragment_times;
-
-//     // Pts of first video frame
-//     uint64_t first_pts;
-// } CustomData;
-
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 class SampleClientCallbackProvider : public ClientCallbackProvider {
@@ -322,7 +205,6 @@ VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt, UINT32 logLevel)
     SNPRINTF(buffer + offset, bufferLen - offset, "%s\n", fmt);
 }
 
-
 STATUS
 SampleClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes) {
     UNUSED_PARAM(custom_handle);
@@ -432,49 +314,6 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 }  // namespace kinesis
 }  // namespace amazonaws
 }  // namespace com;
-
-// void setEnvVarsString(string& configVar, string envVar)
-// {
-//     if (getenv(envVar.c_str()) != NULL)
-//     {
-//         configVar = getenv(envVar.c_str());
-//     }
-// }
-// void setEnvVarsInt(int& configVar, string envVar)
-// {
-//     if (getenv(envVar.c_str()) != NULL)
-//     {
-//         configVar = stoi(getenv(envVar.c_str()));
-//     }
-// }
-// void setEnvVarsBool(bool& configVar, string envVar)
-// {
-//     if (getenv(envVar.c_str()) != NULL)
-//     {
-//         if (getenv(envVar.c_str()) == "TRUE" || getenv(envVar.c_str()) == "true" || getenv(envVar.c_str()) == "True")
-//         {
-//             configVar = true;
-//         } else
-//         {
-//             configVar = false;
-//         }
-//     }
-// }
-// void initConfigWithEnvVars(CanaryConfig* pCanaryConfig)
-// {
-//     setEnvVarsString(pCanaryConfig->streamName, "CANARY_STREAM_NAME_ENV_VAR");
-//     setEnvVarsString(pCanaryConfig->sourceType, "CANARY_SOURCE_TYPE_ENV_VAR");
-//     setEnvVarsString(pCanaryConfig->canaryRunType, "CANARY_RUN_TYPE_ENV_VAR");
-//     setEnvVarsString(pCanaryConfig->streamType, "CANARY_STREAM_TYPE_ENV_VAR");
-//     setEnvVarsString(pCanaryConfig->canaryLabel, "CANARY_LABEL_ENV_VAR");
-//     setEnvVarsString(pCanaryConfig->cpUrl, "CANARY_CP_URL_ENV_VAR");
-
-//     setEnvVarsInt(pCanaryConfig->fragmentSize, "CANARY_FRAGMENT_SIZE_ENV_VAR");
-//     setEnvVarsInt(pCanaryConfig->canaryDuration, "CANARY_DURATION_ENV_VAR");
-//     setEnvVarsInt(pCanaryConfig->bufferDuration, "CANARY_BUFFER_DURATION_ENV_VAR");
-//     setEnvVarsInt(pCanaryConfig->storageSizeInBytes, "CANARY_STORAGE_SIZE_ENV_VAR");
-//     setEnvVarsInt(pCanaryConfig->testVideoFps, "CANARY_FPS_ENV_VAR");
-// }
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
                                 void *data, size_t len) {

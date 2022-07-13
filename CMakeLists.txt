@@ -206,13 +206,12 @@ if(BUILD_GSTREAMER_PLUGIN)
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
-  add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp 
+  add_executable(Canary samples/Canary.cpp 
   samples/CanaryLogs.cpp
   samples/CanaryCallbackProvider.cpp 
   samples/CanaryConfig.cpp
   samples/CustomData.cpp)
-  # add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} ${AWSSDK_LINK_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(Canary ${GST_APP_LIBRARIES} ${AWSSDK_LINK_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
   target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
