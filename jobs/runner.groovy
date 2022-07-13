@@ -6,14 +6,14 @@ HAS_ERROR = false
 
 RUNNING_NODES=0
 
-CREDENTIALS = [
-    [
-        $class: 'AmazonWebServicesCredentialsBinding', 
-        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-        credentialsId: 'CANARY_CREDENTIALS',
-        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-    ]
-]
+// CREDENTIALS = [
+//     [
+//         $class: 'AmazonWebServicesCredentialsBinding', 
+//         accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+//         credentialsId: 'CANARY_CREDENTIALS',
+//         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+//     ]
+// ]
 
 def buildProducer() {
   sh  """ 
@@ -116,14 +116,8 @@ def runClient(isProducer, params) {
         'FRAGMENT_SIZE_IN_BYTES' : params.FRAGMENT_SIZE_IN_BYTES,
         'CANARY_DURATION_IN_SECONDS': params.CANARY_DURATION_IN_SECONDS,
         'AWS_DEFAULT_REGION': params.AWS_DEFAULT_REGION,
-        'CANARY_RUN_SCENARIO': params.CANARY_RUN_SCENARIO,
-        'TRACK_TYPE': params.TRACK_TYPE,
-        'CANARY_USE_IOT_PROVIDER': params.USE_IOT,
-        'AWS_IOT_CORE_CREDENTIAL_ENDPOINT': "${endpoint}",
-        'AWS_IOT_CORE_CERT': "${core_cert_file}",
-        'AWS_IOT_CORE_PRIVATE_KEY': "${private_key_file}",
-        'AWS_IOT_CORE_ROLE_ALIAS': "${role_alias}",
-        'AWS_IOT_CORE_THING_NAME': "${thing_name}"
+        // 'CANARY_RUN_SCENARIO': params.CANARY_RUN_SCENARIO,
+        // 'TRACK_TYPE': params.TRACK_TYPE,
     ].collect({k,v -> "${k}=${v}" })
 
     if(!isProducer) {
@@ -165,9 +159,9 @@ pipeline {
         string(name: 'MIN_RETRY_DELAY_IN_SECONDS')
         string(name: 'AWS_DEFAULT_REGION')
         string(name: 'CANARY_RUN_SCENARIO')
-        string(name: 'TRACK_TYPE')
+        // string(name: 'TRACK_TYPE')
         booleanParam(name: 'FIRST_ITERATION', defaultValue: true)
-        booleanParam(name: 'USE_IOT')
+        // booleanParam(name: 'USE_IOT')
     }
 
     stages {
@@ -221,7 +215,7 @@ pipeline {
                     job: env.JOB_NAME,
                             parameters: [
                                 string(name: 'AWS_KVS_LOG_LEVEL', value: params.AWS_KVS_LOG_LEVEL),
-                                booleanParam(name: 'USE_IOT', value: params.USE_IOT),
+                                // booleanParam(name: 'USE_IOT', value: params.USE_IOT),
                                 string(name: 'PRODUCER_NODE_LABEL', value: params.PRODUCER_NODE_LABEL),
                                 string(name: 'CONSUMER_NODE_LABEL', value: params.CONSUMER_NODE_LABEL),
                                 string(name: 'GIT_URL', value: params.GIT_URL),
@@ -233,7 +227,7 @@ pipeline {
                                 string(name: 'AWS_DEFAULT_REGION', value: params.AWS_DEFAULT_REGION),
                                 string(name: 'RUNNER_LABEL', value: params.RUNNER_LABEL),
                                 string(name: 'CANARY_RUN_SCENARIO', value: params.CANARY_RUN_SCENARIO),
-                                string(name: 'TRACK_TYPE', value: params.TRACK_TYPE),
+                                //string(name: 'TRACK_TYPE', value: params.TRACK_TYPE),
                                 booleanParam(name: 'FIRST_ITERATION', value: false)
                             ],
                     wait: false

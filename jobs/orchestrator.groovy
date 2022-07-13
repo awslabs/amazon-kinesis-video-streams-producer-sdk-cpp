@@ -118,7 +118,7 @@ pipeline {
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
-                                booleanParam(name: 'USE_IOT', value: false),
+                                //booleanParam(name: 'USE_IOT', value: false),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 string(name: 'CONSUMER_NODE_LABEL', value: "consumer-uw2"),
@@ -127,7 +127,7 @@ pipeline {
                                 string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
                                 string(name: 'AWS_DEFAULT_REGION', value: AWS_DEFAULT_REGION),
                                 string(name: 'CANARY_RUN_SCENARIO', value: "Continuous"),
-                                string(name: 'TRACK_TYPE', value: "SingleTrack"),
+                                //string(name: 'TRACK_TYPE', value: "SingleTrack"),
                             ],
                             wait: false
                         )
@@ -135,7 +135,7 @@ pipeline {
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
-                                booleanParam(name: 'USE_IOT', value: true),
+                                //booleanParam(name: 'USE_IOT', value: true),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 string(name: 'CONSUMER_NODE_LABEL', value: "consumer-uw2"),
@@ -144,14 +144,14 @@ pipeline {
                                 string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
                                 string(name: 'AWS_DEFAULT_REGION', value: AWS_DEFAULT_REGION),
                                 string(name: 'CANARY_RUN_SCENARIO', value: "Continuous"),
-                                string(name: 'TRACK_TYPE', value: "SingleTrack"),
+                                //string(name: 'TRACK_TYPE', value: "SingleTrack"),
                             ],
                             wait: false
                         )
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
-                                booleanParam(name: 'USE_IOT', value: true),
+                                //booleanParam(name: 'USE_IOT', value: true),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: SHORT_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 string(name: 'CONSUMER_NODE_LABEL', value: "consumer-uw2"),
@@ -160,14 +160,14 @@ pipeline {
                                 string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
                                 string(name: 'AWS_DEFAULT_REGION', value: AWS_DEFAULT_REGION),
                                 string(name: 'CANARY_RUN_SCENARIO', value: "Continuous"),
-                                string(name: 'TRACK_TYPE', value: "SingleTrack"),
+                                //string(name: 'TRACK_TYPE', value: "SingleTrack"),
                             ],
                             wait: false
                         )
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
-                                booleanParam(name: 'USE_IOT', value: true),
+                                //booleanParam(name: 'USE_IOT', value: true),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 string(name: 'CONSUMER_NODE_LABEL', value: "consumer-uw2"),
@@ -176,14 +176,14 @@ pipeline {
                                 string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
                                 string(name: 'AWS_DEFAULT_REGION', value: AWS_DEFAULT_REGION),
                                 string(name: 'CANARY_RUN_SCENARIO', value: "Intermittent"),
-                                string(name: 'TRACK_TYPE', value: "SingleTrack"),
+                                //string(name: 'TRACK_TYPE', value: "SingleTrack"),
                             ],
                             wait: false
                         )
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
-                                booleanParam(name: 'USE_IOT', value: true),
+                                //booleanParam(name: 'USE_IOT', value: true),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 string(name: 'CONSUMER_NODE_LABEL', value: "consumer-uw2"),
@@ -192,7 +192,7 @@ pipeline {
                                 string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
                                 string(name: 'AWS_DEFAULT_REGION', value: AWS_DEFAULT_REGION),
                                 string(name: 'CANARY_RUN_SCENARIO', value: "Intermittent"),
-                                string(name: 'TRACK_TYPE', value: "MultiTrack"),
+                                //string(name: 'TRACK_TYPE', value: "MultiTrack"),
                             ],
                             wait: false
                         )
