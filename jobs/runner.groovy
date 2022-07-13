@@ -6,14 +6,14 @@ HAS_ERROR = false
 
 RUNNING_NODES=0
 
-// CREDENTIALS = [
-//     [
-//         $class: 'AmazonWebServicesCredentialsBinding', 
-//         accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-//         credentialsId: 'CANARY_CREDENTIALS',
-//         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-//     ]
-// ]
+CREDENTIALS = [
+    [
+        $class: 'AmazonWebServicesCredentialsBinding', 
+        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+        credentialsId: 'CANARY_CREDENTIALS',
+        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+    ]
+]
 
 def buildProducer() {
   sh  """ 
