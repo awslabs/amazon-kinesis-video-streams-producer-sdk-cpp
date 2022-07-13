@@ -141,7 +141,7 @@ def runClient(isProducer, params) {
                 echo "Running producer"
                 ls ./samples
                 cd ./build && 
-                ./kvs_gstreamer_sample
+                ./Canary
             """
         }
     }
