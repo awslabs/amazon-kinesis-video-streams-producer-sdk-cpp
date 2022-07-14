@@ -84,7 +84,7 @@ class KvsSink: public EdgeSink {
         CLIENT_HANDLE clientHandle = INVALID_CLIENT_HANDLE_VALUE;
         STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
         PCHAR accessKey = NULL, secretKey = NULL, sessionToken = NULL;
-        PCHAR streamName = "poc-stream-9", region = "us-west-2", cacertPath = NULL;
+        PCHAR streamName = "poc-stream-12", region = "us-west-2", cacertPath = NULL;
 
     public:
         
@@ -102,7 +102,7 @@ class KvsSink: public EdgeSink {
             createDefaultDeviceInfo(&pDeviceInfo);
             pDeviceInfo->storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
 
-            createRealtimeVideoStreamInfoProvider(streamName, DEFAULT_RETENTION_PERIOD, DEFAULT_BUFFER_DURATION, &pStreamInfo);
+            createOfflineVideoStreamInfoProvider(streamName, DEFAULT_RETENTION_PERIOD, DEFAULT_BUFFER_DURATION, &pStreamInfo);
             // setStreamInfoBasedOnStorageSize(DEFAULT_STORAGE_SIZE, RECORDED_FRAME_AVG_BITRATE_BIT_PS, 1, pStreamInfo); 
 
             createDefaultCallbacksProviderWithAwsCredentials(accessKey, secretKey, sessionToken, MAX_UINT64, region, 
@@ -176,8 +176,8 @@ INT32 main(INT32 argc, CHAR* argv[]) {
     FileSource filesrc;
     Frame frame;
     BYTE frameBuffer[200000]; // Assuming this is enough
-    UINT32 frameSize = SIZEOF(frameBuffer), frameIndex = 0, fileIndex = 0;
-    UINT64 streamStopTime, streamingDuration = DEFAULT_STREAM_DURATION, timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    UINT32 frameSize = SIZEOF(frameBuffer), frameIndex = 0, fileIndex = 0; 
+    UINT64 streamStopTime, streamingDuration = 20 * DEFAULT_STREAM_DURATION, timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
 
     UINT64 currentTs = 1657482505000 * 10000; // july 10, 2022, 12:48:25 PDT
