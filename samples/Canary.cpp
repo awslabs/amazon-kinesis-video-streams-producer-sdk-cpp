@@ -772,7 +772,7 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), data);
     
     // define the elements
-    h264enc = gst_element_factory_make("vtenc_h264_hw", "h264enc");
+    // h264enc = gst_element_factory_make("vtenc_h264_hw", "h264enc");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
 
     // define and configure video filter, we only want the specified format to pass to the sink
@@ -788,7 +788,7 @@ int gstreamer_test_source_init(CustomData *data, GstElement *pipeline) {
     caps = gst_caps_from_string(video_caps_string.c_str());
     g_object_set(G_OBJECT (video_src_filter), "caps", caps, NULL);
     gst_caps_unref(caps);
-
+    
     // check if all elements were created
     if (!pipeline || !source || !video_src_filter || !appsink || !autovidcon || !h264parse || 
         !video_filter || !h264enc)
@@ -871,9 +871,8 @@ int main(int argc, char* argv[]) {
     {
         CanaryConfig canaryConfig;
         canaryConfig.initConfigWithEnvVars();
-        CustomData data(canaryConfig);
-        // initConfigWithEnvVars(data.pCanaryConfig);
-        
+        CustomData data;
+        data.pCanaryConfig = &canaryConfig;
 
         const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
 
@@ -884,14 +883,12 @@ int main(int argc, char* argv[]) {
 
         Aws::CloudWatch::CloudWatchClient CWclient(data.client_config);
         data.pCWclient = &CWclient;
-
         STATUS retStatus = STATUS_SUCCESS;
         Aws::CloudWatchLogs::CloudWatchLogsClient CWLclient(data.client_config);
         CanaryLogs::CloudwatchLogsObject cloudwatchLogsObject;
         cloudwatchLogsObject.logGroupName = "ProducerCppSDK";
         cloudwatchLogsObject.logStreamName = data.pCanaryConfig->streamName +"-log-" + to_string(GETTIME() / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
         cloudwatchLogsObject.pCwl = &CWLclient;
-        
         if ((retStatus = canaryLogs.initializeCloudwatchLogger(&cloudwatchLogsObject)) != STATUS_SUCCESS) {
             cout << "Cloudwatch logger failed to be initialized with 0x" << retStatus << ">> error code. Fallback to file logging" << endl;
         }

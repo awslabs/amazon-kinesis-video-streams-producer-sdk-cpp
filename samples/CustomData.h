@@ -80,5 +80,5 @@ public:
     // Pts of first video frame
     uint64_t first_pts;
 
-    CustomData(CanaryConfig canaryConfig);
+    CustomData();
 };

@@ -1,6 +1,6 @@
 #include "CustomData.h"
 
-CustomData::CustomData(CanaryConfig canaryConfig)
+CustomData::CustomData()
 {
     sleepTimeStamp = 0;
     totalPutFrameErrorCount = 0;
@@ -24,7 +24,7 @@ CustomData::CustomData(CanaryConfig canaryConfig)
     timeCounter = producer_start_time / 1000000000; // [seconds]
     // Default first intermittent run to 1 min for testing
     runTill = producer_start_time / 1000000000 / 60 + 1; // [minutes]
-    pCanaryConfig = &canaryConfig;
+    pCanaryConfig = nullptr;
     pCloudwatchLogsObject = nullptr;
     pCanaryLogs = nullptr;
 }
