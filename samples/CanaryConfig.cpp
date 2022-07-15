@@ -48,7 +48,7 @@ void CanaryConfig::setEnvVarsBool(bool configVar, string envVar)
 
 void CanaryConfig::initConfigWithEnvVars()
 {
-    setEnvVarsString(streamName, "CANARY_STREAM_NAME_ENV_VAR");
+    setEnvVarsString(streamName, "CANARY_STREAM_NAME");
     setEnvVarsString(sourceType, "CANARY_SOURCE_TYPE_ENV_VAR");
     setEnvVarsString(canaryRunType, "CANARY_RUN_TYPE_ENV_VAR");
     setEnvVarsString(streamType, "CANARY_STREAM_TYPE_ENV_VAR");
