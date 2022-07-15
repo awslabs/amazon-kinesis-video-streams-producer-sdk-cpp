@@ -110,7 +110,7 @@ def runClient(isProducer, params) {
         // 'JAVA_HOME': "/opt/jdk-13.0.1",
         'M2_HOME': "/opt/apache-maven-3.6.3",
         'AWS_KVS_LOG_LEVEL': params.AWS_KVS_LOG_LEVEL,
-        'CANARY_STREAM_NAME': "JenkinsScriptName",
+        'CANARY_STREAM_NAME': "${env.JOB_NAME}",
         'CANARY_LABEL': params.RUNNER_LABEL,
         'CANARY_TYPE': params.CANARY_TYPE,
         'FRAGMENT_SIZE_IN_BYTES' : params.FRAGMENT_SIZE_IN_BYTES,
@@ -119,6 +119,7 @@ def runClient(isProducer, params) {
         // 'CANARY_RUN_SCENARIO': params.CANARY_RUN_SCENARIO,
         // 'TRACK_TYPE': params.TRACK_TYPE,
     ].collect({k,v -> "${k}=${v}" })
+    echo "${env.JOB_NAME}"
 
     // if(!isProducer) {
     //     // Run consumer
