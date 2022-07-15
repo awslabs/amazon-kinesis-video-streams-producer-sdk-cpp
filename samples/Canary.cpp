@@ -315,6 +315,29 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 }  // namespace amazonaws
 }  // namespace com;
 
+// add frame pts, frame index, original frame size, CRC to beginning of buffer
+VOID addCanaryMetadataToFrameData(PFrame pFrame)
+{
+    PBYTE pCurPtr = pFrame->frameData;
+    putUnalignedInt64BigEndian((PINT64) pCurPtr, pFrame->presentationTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    pCurPtr += SIZEOF(UINT64);
+    putUnalignedInt32BigEndian((PINT32) pCurPtr, pFrame->index);
+    pCurPtr += SIZEOF(UINT32);
+    putUnalignedInt32BigEndian((PINT32) pCurPtr, pFrame->size);
+    pCurPtr += SIZEOF(UINT32);
+    putUnalignedInt32BigEndian((PINT32) pCurPtr, COMPUTE_CRC32(pFrame->frameData, pFrame->size));
+}
+
+VOID createCanaryFrameData(PFrame pFrame)
+{
+    UINT32 i;
+
+    for (i = CANARY_METADATA_SIZE; i < pFrame->size; i++) {
+        pFrame->frameData[i] = RAND();
+    }
+    addCanaryMetadataToFrameData(pFrame);
+}
+
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
                                 void *data, size_t len) {
     frame->flags = flags;
@@ -462,6 +485,7 @@ bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &p
 
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
+    createCanaryFrameData(&frame);
     bool ret = cusData->kinesis_video_stream->putFrame(frame);
 
     // push stream metrics on key frames

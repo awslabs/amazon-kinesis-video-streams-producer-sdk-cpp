@@ -118,6 +118,7 @@ pipeline {
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
+                                string(name: 'CANARY_STREAM_NAME', value: "-01"),
                                 //booleanParam(name: 'USE_IOT', value: false),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
@@ -135,6 +136,7 @@ pipeline {
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
+                                string(name: 'CANARY_STREAM_NAME', value: "-02"),
                                 //booleanParam(name: 'USE_IOT', value: true),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
@@ -151,6 +153,7 @@ pipeline {
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
+                                string(name: 'CANARY_STREAM_NAME', value: "-03"),
                                 //booleanParam(name: 'USE_IOT', value: true),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: SHORT_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
@@ -167,6 +170,7 @@ pipeline {
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
+                                string(name: 'CANARY_STREAM_NAME', value: "-04"),
                                 //booleanParam(name: 'USE_IOT', value: true),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
@@ -183,6 +187,7 @@ pipeline {
                         build(
                             job: NEXT_AVAILABLE_RUNNER,
                             parameters: COMMON_PARAMS + [
+                                string(name: 'CANARY_STREAM_NAME', value: "-05"),
                                 //booleanParam(name: 'USE_IOT', value: true),
                                 string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
                                 string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
