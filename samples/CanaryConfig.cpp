@@ -49,16 +49,16 @@ void CanaryConfig::setEnvVarsBool(bool &configVar, string envVar)
 
 void CanaryConfig::initConfigWithEnvVars()
 {
-    setEnvVarsString(streamName, "CANARY_STREAM_NAME_ENV_VAR");
-    //setEnvVarsString(sourceType, "CANARY_SOURCE_TYPE_ENV_VAR");
-    setEnvVarsString(canaryRunType, "CANARY_RUN_TYPE_ENV_VAR");
-    setEnvVarsString(streamType, "CANARY_STREAM_TYPE_ENV_VAR");
-    setEnvVarsString(canaryLabel, "CANARY_LABEL_ENV_VAR");
-    setEnvVarsString(cpUrl, "CANARY_CP_URL_ENV_VAR");
+    setEnvVarsString(streamName, "CANARY_STREAM_NAME");
+    //setEnvVarsString(sourceType, "CANARY_SOURCE_TYPE");
+    setEnvVarsString(canaryRunType, "CANARY_RUN_TYPE");
+    setEnvVarsString(streamType, "CANARY_STREAM_TYPE");
+    setEnvVarsString(canaryLabel, "CANARY_LABEL");
+    setEnvVarsString(cpUrl, "CANARY_CP_URL");
 
-    setEnvVarsInt(fragmentSize, "CANARY_FRAGMENT_SIZE_ENV_VAR");
-    setEnvVarsInt(canaryDuration, "CANARY_DURATION_ENV_VAR");
-    setEnvVarsInt(bufferDuration, "CANARY_BUFFER_DURATION_ENV_VAR");
-    setEnvVarsInt(storageSizeInBytes, "CANARY_STORAGE_SIZE_ENV_VAR");
-    setEnvVarsInt(testVideoFps, "CANARY_FPS_ENV_VAR");
+    setEnvVarsInt(fragmentSize, "CANARY_FRAGMENT_SIZE");
+    setEnvVarsInt(canaryDuration, "CANARY_DURATION");
+    setEnvVarsInt(bufferDuration, "CANARY_BUFFER_DURATION");
+    setEnvVarsInt(storageSizeInBytes, "CANARY_STORAGE_SIZE");
+    setEnvVarsInt(testVideoFps, "CANARY_FPS");
 }
