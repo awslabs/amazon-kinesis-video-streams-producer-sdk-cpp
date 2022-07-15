@@ -17,7 +17,6 @@ CanaryConfig::CanaryConfig()
 
 void CanaryConfig::setEnvVarsString(string &configVar, string envVar)
 {
-    cout << "setting string env var: " << configVar << endl;
     if (getenv(envVar.c_str()) != NULL)
     {
         configVar = getenv(envVar.c_str());

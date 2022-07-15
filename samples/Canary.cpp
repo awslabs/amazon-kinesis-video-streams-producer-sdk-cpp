@@ -484,30 +484,6 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
 }
 
 
-VOID addCanaryMetadataToFrameData(PFrame pFrame)
-{
-    PBYTE pCurPtr = pFrame->frameData;
-    putUnalignedInt64BigEndian((PINT64) pCurPtr, pFrame->presentationTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-    pCurPtr += SIZEOF(UINT64);
-    putUnalignedInt32BigEndian((PINT32) pCurPtr, pFrame->index);
-    pCurPtr += SIZEOF(UINT32);
-    putUnalignedInt32BigEndian((PINT32) pCurPtr, pFrame->size);
-    pCurPtr += SIZEOF(UINT32);
-    putUnalignedInt32BigEndian((PINT32) pCurPtr, COMPUTE_CRC32(pFrame->frameData, pFrame->size));
-}
-
-VOID createCanaryFrameData(PFrame pFrame)
-{
-    UINT32 i;
-
-    for (i = CANARY_METADATA_SIZE; i < pFrame->size; i++) {
-        pFrame->frameData[i] = RAND();
-    }
-    addCanaryMetadataToFrameData(pFrame);
-}
-
-
-
 bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags)
 {
     Frame frame;
@@ -921,9 +897,7 @@ int main(int argc, char* argv[]) {
     Aws::InitAPI(options);
     {
         CanaryConfig canaryConfig;
-        cout << "stream name iss: " << canaryConfig.streamName << endl;
         canaryConfig.initConfigWithEnvVars();
-        cout << "stream name iss: " << canaryConfig.streamName << endl;
         CustomData data;
         data.pCanaryConfig = &canaryConfig;
 
@@ -951,11 +925,7 @@ int main(int argc, char* argv[]) {
         }
         data.pCloudwatchLogsObject = &cloudwatchLogsObject;
 
-        //cout << "stream name iss: " << data.pCanaryConfig->streamName << endl;
-        cout << "bruh" << endl;
-        cout << "helllloooo" << endl;
         data.stream_name = const_cast<char*>(data.pCanaryConfig->streamName.c_str());
-        cout << "stream name iss: " << data.stream_name << endl;
 
         // set the video stream source
         if (data.pCanaryConfig->sourceType == "TEST_SOURCE")
@@ -967,7 +937,6 @@ int main(int argc, char* argv[]) {
         dimension_per_stream.SetName("ProducerSDKCanaryStreamNameCPP");
         dimension_per_stream.SetValue(data.stream_name);
         data.Pdimension_per_stream = &dimension_per_stream;
-                cout << "helllloooo" << endl;
 
         // init Kinesis Video
         try{
