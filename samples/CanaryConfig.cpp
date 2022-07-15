@@ -15,7 +15,7 @@ CanaryConfig::CanaryConfig()
     storageSizeInBytes = 0;
 }
 
-void CanaryConfig::setEnvVarsString(string configVar, string envVar)
+void CanaryConfig::setEnvVarsString(string &configVar, string envVar)
 {
     if (getenv(envVar.c_str()) != NULL)
     {
@@ -23,7 +23,7 @@ void CanaryConfig::setEnvVarsString(string configVar, string envVar)
     }
 }
 
-void CanaryConfig::setEnvVarsInt(int configVar, string envVar)
+void CanaryConfig::setEnvVarsInt(int &configVar, string envVar)
 {
     if (getenv(envVar.c_str()) != NULL)
     {
@@ -31,7 +31,7 @@ void CanaryConfig::setEnvVarsInt(int configVar, string envVar)
     }
 }
 
-void CanaryConfig::setEnvVarsBool(bool configVar, string envVar)
+void CanaryConfig::setEnvVarsBool(bool &configVar, string envVar)
 {
     if (getenv(envVar.c_str()) != NULL)
     {
