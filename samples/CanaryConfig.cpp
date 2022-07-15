@@ -15,15 +15,16 @@ CanaryConfig::CanaryConfig()
     storageSizeInBytes = 0;
 }
 
-void CanaryConfig::setEnvVarsString(string configVar, string envVar)
+void CanaryConfig::setEnvVarsString(string &configVar, string envVar)
 {
+    cout << "setting string env var: " << configVar << endl;
     if (getenv(envVar.c_str()) != NULL)
     {
         configVar = getenv(envVar.c_str());
     }
 }
 
-void CanaryConfig::setEnvVarsInt(int configVar, string envVar)
+void CanaryConfig::setEnvVarsInt(int &configVar, string envVar)
 {
     if (getenv(envVar.c_str()) != NULL)
     {
@@ -31,7 +32,7 @@ void CanaryConfig::setEnvVarsInt(int configVar, string envVar)
     }
 }
 
-void CanaryConfig::setEnvVarsBool(bool configVar, string envVar)
+void CanaryConfig::setEnvVarsBool(bool &configVar, string envVar)
 {
     if (getenv(envVar.c_str()) != NULL)
     {
@@ -49,7 +50,7 @@ void CanaryConfig::setEnvVarsBool(bool configVar, string envVar)
 void CanaryConfig::initConfigWithEnvVars()
 {
     setEnvVarsString(streamName, "CANARY_STREAM_NAME_ENV_VAR");
-    setEnvVarsString(sourceType, "CANARY_SOURCE_TYPE_ENV_VAR");
+    //setEnvVarsString(sourceType, "CANARY_SOURCE_TYPE_ENV_VAR");
     setEnvVarsString(canaryRunType, "CANARY_RUN_TYPE_ENV_VAR");
     setEnvVarsString(streamType, "CANARY_STREAM_TYPE_ENV_VAR");
     setEnvVarsString(canaryLabel, "CANARY_LABEL_ENV_VAR");

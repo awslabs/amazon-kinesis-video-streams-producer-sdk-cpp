@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mutex>
+#include <iostream>
 
 using namespace std;
 
@@ -27,9 +28,9 @@ public:
     int testVideoFps;
 
     CanaryConfig();
-    void setEnvVarsString(string configVar, string envVar);
-    void setEnvVarsInt(int configVar, string envVar);
-    void setEnvVarsBool(bool configVar, string envVar);
+    void setEnvVarsString(string &configVar, string envVar);
+    void setEnvVarsInt(int &configVar, string envVar);
+    void setEnvVarsBool(bool &configVar, string envVar);
     void initConfigWithEnvVars();
 
 };
