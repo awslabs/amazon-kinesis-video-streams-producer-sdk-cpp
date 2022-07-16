@@ -291,7 +291,6 @@ STATUS CanaryCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
 }
 
 VOID CanaryCallbackProvider::logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt, ...) {
-    // std::cout << "Canary logPrintHandler worked" << std::endl;
     static log4cplus::LogLevel picLevelToLog4cplusLevel[] = {
             log4cplus::TRACE_LOG_LEVEL,
             log4cplus::TRACE_LOG_LEVEL,

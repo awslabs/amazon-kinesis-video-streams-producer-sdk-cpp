@@ -158,54 +158,54 @@ public:
 };
 
 
-PCHAR getLogLevelStr(UINT32 loglevel)
-{
-    switch (loglevel) {
-        case LOG_LEVEL_VERBOSE:
-            return LOG_LEVEL_VERBOSE_STR;
-        case LOG_LEVEL_DEBUG:
-            return LOG_LEVEL_DEBUG_STR;
-        case LOG_LEVEL_INFO:
-            return LOG_LEVEL_INFO_STR;
-        case LOG_LEVEL_WARN:
-            return LOG_LEVEL_WARN_STR;
-        case LOG_LEVEL_ERROR:
-            return LOG_LEVEL_ERROR_STR;
-        case LOG_LEVEL_FATAL:
-            return LOG_LEVEL_FATAL_STR;
-        default:
-            return LOG_LEVEL_SILENT_STR;
-    }
-}
+// PCHAR getLogLevelStr(UINT32 loglevel)
+// {
+//     switch (loglevel) {
+//         case LOG_LEVEL_VERBOSE:
+//             return LOG_LEVEL_VERBOSE_STR;
+//         case LOG_LEVEL_DEBUG:
+//             return LOG_LEVEL_DEBUG_STR;
+//         case LOG_LEVEL_INFO:
+//             return LOG_LEVEL_INFO_STR;
+//         case LOG_LEVEL_WARN:
+//             return LOG_LEVEL_WARN_STR;
+//         case LOG_LEVEL_ERROR:
+//             return LOG_LEVEL_ERROR_STR;
+//         case LOG_LEVEL_FATAL:
+//             return LOG_LEVEL_FATAL_STR;
+//         default:
+//             return LOG_LEVEL_SILENT_STR;
+//     }
+// }
 
-VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt, UINT32 logLevel)
-{
-    UINT32 timeStrLen = 0;
-    // space for "yyyy-mm-dd HH:MM:SS\0" + space + null
-    CHAR timeString[MAX_TIMESTAMP_FORMAT_STR_LEN + 1 + 1];
-    STATUS retStatus = STATUS_SUCCESS;
-    UINT32 offset = 0;
+// VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt, UINT32 logLevel)
+// {
+//     UINT32 timeStrLen = 0;
+//     // space for "yyyy-mm-dd HH:MM:SS\0" + space + null
+//     CHAR timeString[MAX_TIMESTAMP_FORMAT_STR_LEN + 1 + 1];
+//     STATUS retStatus = STATUS_SUCCESS;
+//     UINT32 offset = 0;
 
-#ifdef ENABLE_LOG_THREAD_ID
-    // MAX_THREAD_ID_STR_LEN + null
-    CHAR tidString[MAX_THREAD_ID_STR_LEN + 1];
-    TID threadId = GETTID();
-    SNPRINTF(tidString, ARRAY_SIZE(tidString), "(thread-0x%" PRIx64 ")", threadId);
-#endif
+// #ifdef ENABLE_LOG_THREAD_ID
+//     // MAX_THREAD_ID_STR_LEN + null
+//     CHAR tidString[MAX_THREAD_ID_STR_LEN + 1];
+//     TID threadId = GETTID();
+//     SNPRINTF(tidString, ARRAY_SIZE(tidString), "(thread-0x%" PRIx64 ")", threadId);
+// #endif
 
-    // if something fails in getting time, still print the log, just without timestamp
-    retStatus = generateTimestampStr(globalGetTime(), "%Y-%m-%d %H:%M:%S ", timeString, (UINT32) ARRAY_SIZE(timeString), &timeStrLen);
-    if (STATUS_FAILED(retStatus)) {
-        PRINTF("Fail to get time with status code is %08x\n", retStatus);
-        timeString[0] = '\0';
-    }
+//     // if something fails in getting time, still print the log, just without timestamp
+//     retStatus = generateTimestampStr(globalGetTime(), "%Y-%m-%d %H:%M:%S ", timeString, (UINT32) ARRAY_SIZE(timeString), &timeStrLen);
+//     if (STATUS_FAILED(retStatus)) {
+//         PRINTF("Fail to get time with status code is %08x\n", retStatus);
+//         timeString[0] = '\0';
+//     }
 
-    offset = (UINT32) SNPRINTF(buffer, bufferLen, "%s%-*s ", timeString, MAX_LOG_LEVEL_STRLEN, getLogLevelStr(logLevel));
-#ifdef ENABLE_LOG_THREAD_ID
-    offset += SNPRINTF(buffer + offset, bufferLen - offset, "%s ", tidString);
-#endif
-    SNPRINTF(buffer + offset, bufferLen - offset, "%s\n", fmt);
-}
+//     offset = (UINT32) SNPRINTF(buffer, bufferLen, "%s%-*s ", timeString, MAX_LOG_LEVEL_STRLEN, getLogLevelStr(logLevel));
+// #ifdef ENABLE_LOG_THREAD_ID
+//     offset += SNPRINTF(buffer + offset, bufferLen - offset, "%s ", tidString);
+// #endif
+//     SNPRINTF(buffer + offset, bufferLen - offset, "%s\n", fmt);
+// }
 
 void pushMetric(string metricName, double metricValue, Aws::CloudWatch::Model::StandardUnit unit, Aws::CloudWatch::Model::MetricDatum datum, 
                 Aws::CloudWatch::Model::Dimension *dimension, Aws::CloudWatch::Model::PutMetricDataRequest &cwRequest)
@@ -224,7 +224,8 @@ SampleClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT
     return STATUS_SUCCESS;
 }
 
-STATUS SampleStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
+STATUS
+SampleStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
                                                                   STREAM_HANDLE stream_handle,
                                                                   UINT64 last_buffering_ack) {
     LOG_WARN("Reporting stream stale. Last ACK received " << last_buffering_ack);
@@ -896,7 +897,11 @@ int main(int argc, char* argv[]) {
     Aws::InitAPI(options);
     {
         CanaryConfig canaryConfig;
-        canaryConfig.initConfigWithEnvVars();
+        bool useEnvVars = true;
+        if (useEnvVars)
+        {
+            canaryConfig.initConfigWithEnvVars();
+        }
         CustomData data;
         data.pCanaryConfig = &canaryConfig;
 
