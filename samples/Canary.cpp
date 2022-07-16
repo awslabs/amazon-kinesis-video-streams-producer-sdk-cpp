@@ -370,11 +370,21 @@ void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, 
         lastKeyFrameTime = curKeyFrameTime;
 }
 
+void pushMetric(string metricName, double metricValue, Aws::CloudWatch::Model::StandardUnit unit, Aws::CloudWatch::Model::MetricDatum datum, 
+                Aws::CloudWatch::Model::Dimension *dimension, Aws::CloudWatch::Model::PutMetricDataRequest &cwRequest)
+{
+    datum.SetMetricName(metricName);
+    datum.AddDimensions(*dimension);
+    datum.SetValue(metricValue);
+    datum.SetUnit(unit);
+    cwRequest.AddMetricData(datum);
+}
+
 void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
 {
     updateFragmentEndTimes(frame.presentationTs, cusData->lastKeyFrameTime, cusData->timeOfNextKeyFrame);
     
-    Aws::CloudWatch::Model::MetricDatum frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum,
+    Aws::CloudWatch::Model::MetricDatum metricDatum, frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum,
                                             putFrameErrorRate_datum, errorAckRate_datum, totalNumberOfErrors_datum;
     Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
@@ -383,19 +393,22 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
     auto client_metrics = cusData->kinesis_video_stream->getProducer().getMetrics();
     auto stream_metrics_raw = stream_metrics.getRawMetrics();
     
-    auto frameRate = stream_metrics.getCurrentElementaryFrameRate();
-    frameRate_datum.SetMetricName("FrameRate");
-    frameRate_datum.AddDimensions(*cusData->Pdimension_per_stream);
-    frameRate_datum.SetValue(frameRate);
-    frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
-    cwRequest.AddMetricData(frameRate_datum);
+    double frameRate = stream_metrics.getCurrentElementaryFrameRate();
+    // frameRate_datum.SetMetricName("FrameRate");
+    // frameRate_datum.AddDimensions(*cusData->Pdimension_per_stream);
+    // frameRate_datum.SetValue(frameRate);
+    // frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
+    // cwRequest.AddMetricData(frameRate_datum);
+    pushMetric("FrameRate", frameRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
     auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; // *8 makes it bytes->bits. /1024 bits->kilobits
-    transferRate_datum.SetMetricName("TransferRate");
-    transferRate_datum.AddDimensions(*cusData->Pdimension_per_stream);  
-    transferRate_datum.SetValue(transferRate);
-    transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Kilobits_Second);
-    cwRequest.AddMetricData(transferRate_datum);
+    // transferRate_datum.SetMetricName("TransferRate");
+    // transferRate_datum.AddDimensions(*cusData->Pdimension_per_stream);  
+    // transferRate_datum.SetValue(transferRate);
+    // transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Kilobits_Second);
+    // cwRequest.AddMetricData(transferRate_datum);
+    pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
+
 
     auto currentViewDuration = stream_metrics.getCurrentViewDuration().count();
     currentViewDuration_datum.SetMetricName("CurrentViewDuration");
@@ -937,6 +950,12 @@ int main(int argc, char* argv[]) {
         dimension_per_stream.SetName("ProducerSDKCanaryStreamNameCPP");
         dimension_per_stream.SetValue(data.stream_name);
         data.Pdimension_per_stream = &dimension_per_stream;
+
+        // Aws::CloudWatch::Model::Dimension aggregated_dimension;
+        // pCanaryStreamCallbacks->aggregatedDimension.SetName("ProducerSDKCanaryType");
+        // pCanaryStreamCallbacks->aggregatedDimension.SetValue(canaryConfig.canaryLabel);
+        // data.Paggregated_dimension = &aggregated_dimension;
+
 
         // init Kinesis Video
         try{

@@ -36,6 +36,7 @@ public:
     Aws::Client::ClientConfiguration client_config;
     Aws::CloudWatch::CloudWatchClient* pCWclient;
     Aws::CloudWatch::Model::Dimension* Pdimension_per_stream;
+    Aws::CloudWatch::Model::Dimension* Paggregated_dimension;
 
     CanaryLogs* pCanaryLogs;
     CanaryLogs::CloudwatchLogsObject* pCloudwatchLogsObject;

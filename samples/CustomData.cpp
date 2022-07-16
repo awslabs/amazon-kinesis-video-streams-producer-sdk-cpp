@@ -20,6 +20,7 @@ CustomData::CustomData()
     client_config.region = "us-west-2";
     pCWclient = nullptr;
     Pdimension_per_stream = nullptr;
+    Paggregated_dimension = nullptr;
     timeOfNextKeyFrame = new map<uint64_t, uint64_t>();
     timeCounter = producer_start_time / 1000000000; // [seconds]
     // Default first intermittent run to 1 min for testing
