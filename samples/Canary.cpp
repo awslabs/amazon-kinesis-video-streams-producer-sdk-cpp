@@ -384,8 +384,7 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
 {
     updateFragmentEndTimes(frame.presentationTs, cusData->lastKeyFrameTime, cusData->timeOfNextKeyFrame);
     
-    Aws::CloudWatch::Model::MetricDatum metricDatum, frameRate_datum, transferRate_datum, currentViewDuration_datum, availableStoreSize_datum,
-                                            putFrameErrorRate_datum, errorAckRate_datum, totalNumberOfErrors_datum;
+    Aws::CloudWatch::Model::MetricDatum metricDatum, putFrameErrorRate_datum, errorAckRate_datum, totalNumberOfErrors_datum;
     Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
 
@@ -394,35 +393,17 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
     auto stream_metrics_raw = stream_metrics.getRawMetrics();
     
     double frameRate = stream_metrics.getCurrentElementaryFrameRate();
-    // frameRate_datum.SetMetricName("FrameRate");
-    // frameRate_datum.AddDimensions(*cusData->Pdimension_per_stream);
-    // frameRate_datum.SetValue(frameRate);
-    // frameRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
-    // cwRequest.AddMetricData(frameRate_datum);
     pushMetric("FrameRate", frameRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
-    auto transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; // *8 makes it bytes->bits. /1024 bits->kilobits
-    // transferRate_datum.SetMetricName("TransferRate");
-    // transferRate_datum.AddDimensions(*cusData->Pdimension_per_stream);  
-    // transferRate_datum.SetValue(transferRate);
-    // transferRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Kilobits_Second);
-    // cwRequest.AddMetricData(transferRate_datum);
+    double transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; // *8 makes it bytes->bits. /1024 bits->kilobits
     pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
 
-    auto currentViewDuration = stream_metrics.getCurrentViewDuration().count();
-    currentViewDuration_datum.SetMetricName("CurrentViewDuration");
-    currentViewDuration_datum.AddDimensions(*cusData->Pdimension_per_stream);
-    currentViewDuration_datum.SetValue(currentViewDuration);
-    currentViewDuration_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
-    cwRequest.AddMetricData(currentViewDuration_datum);
+    double currentViewDuration = stream_metrics.getCurrentViewDuration().count();
+    pushMetric("CurrentViewDuration", currentViewDuration, Aws::CloudWatch::Model::StandardUnit::Milliseconds, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
-    auto availableStoreSize = client_metrics.getContentStoreSizeSize();
-    availableStoreSize_datum.SetMetricName("ContentStoreAvailableSize");
-    availableStoreSize_datum.AddDimensions(*cusData->Pdimension_per_stream);
-    availableStoreSize_datum.SetValue(availableStoreSize);
-    availableStoreSize_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Bytes);
-    cwRequest.AddMetricData(availableStoreSize_datum);
+    double availableStoreSize = client_metrics.getContentStoreSizeSize();
+    pushMetric("ContentStoreAvailableSize", availableStoreSize, Aws::CloudWatch::Model::StandardUnit::Bytes, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
     // Capture error rate metrics every 60 seconds
     double duration = duration_cast<seconds>(system_clock::now().time_since_epoch()).count() - cusData->timeCounter;
@@ -432,28 +413,16 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
 
         double newPutFrameErrors = (double)stream_metrics_raw->putFrameErrors - cusData->totalPutFrameErrorCount;
         cusData->totalPutFrameErrorCount = stream_metrics_raw->putFrameErrors;
-        auto putFrameErrorRate = newPutFrameErrors / (double)duration;
-        putFrameErrorRate_datum.SetMetricName("PutFrameErrorRate");
-        putFrameErrorRate_datum.AddDimensions(*cusData->Pdimension_per_stream);
-        putFrameErrorRate_datum.SetValue(putFrameErrorRate);
-        putFrameErrorRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
-        cwRequest.AddMetricData(putFrameErrorRate_datum);
+        double putFrameErrorRate = newPutFrameErrors / (double)duration;
+        pushMetric("PutFrameErrorRate", putFrameErrorRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
         double newErrorAcks = (double)stream_metrics_raw->errorAcks - cusData->totalErrorAckCount;
         cusData->totalErrorAckCount = stream_metrics_raw->errorAcks;
-        auto errorAckRate = newErrorAcks / (double)duration;
-        errorAckRate_datum.SetMetricName("ErrorAckRate");
-        errorAckRate_datum.AddDimensions(*cusData->Pdimension_per_stream);
-        errorAckRate_datum.SetValue(errorAckRate);
-        errorAckRate_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count_Second);
-        cwRequest.AddMetricData(errorAckRate_datum);
+        double errorAckRate = newErrorAcks / (double)duration;
+        pushMetric("ErrorAckRate", errorAckRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
-        auto totalNumberOfErrors = cusData->totalPutFrameErrorCount + cusData->totalErrorAckCount;
-        totalNumberOfErrors_datum.SetMetricName("TotalNumberOfErrors");
-        totalNumberOfErrors_datum.AddDimensions(*cusData->Pdimension_per_stream);
-        totalNumberOfErrors_datum.SetValue(totalNumberOfErrors);
-        totalNumberOfErrors_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Count);
-        cwRequest.AddMetricData(totalNumberOfErrors_datum);
+        double totalNumberOfErrors = cusData->totalPutFrameErrorCount + cusData->totalErrorAckCount;
+        pushMetric("TotalNumberOfErrors", totalNumberOfErrors, Aws::CloudWatch::Model::StandardUnit::Count, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
         cusData->pCanaryLogs->canaryStreamSendLogs(cusData->pCloudwatchLogsObject);
     }
