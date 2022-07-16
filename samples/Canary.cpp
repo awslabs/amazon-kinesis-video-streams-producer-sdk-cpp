@@ -207,6 +207,16 @@ VOID addLogMetadata(PCHAR buffer, UINT32 bufferLen, PCHAR fmt, UINT32 logLevel)
     SNPRINTF(buffer + offset, bufferLen - offset, "%s\n", fmt);
 }
 
+void pushMetric(string metricName, double metricValue, Aws::CloudWatch::Model::StandardUnit unit, Aws::CloudWatch::Model::MetricDatum datum, 
+                Aws::CloudWatch::Model::Dimension *dimension, Aws::CloudWatch::Model::PutMetricDataRequest &cwRequest)
+{
+    datum.SetMetricName(metricName);
+    datum.AddDimensions(*dimension);
+    datum.SetValue(metricValue);
+    datum.SetUnit(unit);
+    cwRequest.AddMetricData(datum);
+}
+
 STATUS
 SampleClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes) {
     UNUSED_PARAM(custom_handle);
@@ -266,12 +276,12 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 
             auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
             auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent ; // [milliseconds]
-            persistedAckLatency_datum.SetMetricName("PersistedAckLatency");
-            persistedAckLatency_datum.AddDimensions(*data->Pdimension_per_stream);
-            persistedAckLatency_datum.SetValue(persistedAckLatency);
-            persistedAckLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
-            cwRequest.AddMetricData(persistedAckLatency_datum);
+            pushMetric("PersistedAckLatency", persistedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, persistedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
+            if (data->pCanaryConfig->useAggMetrics)
+            {
+                pushMetric("PersistedAckLatency", persistedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, persistedAckLatency_datum, data->Paggregated_dimension, cwRequest);
 
+            }
             auto outcome = data->pCWclient->PutMetricData(cwRequest);
             if (!outcome.IsSuccess())
             {
@@ -289,11 +299,12 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 
                 auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
                 auto recievedAckLatency = currentTimestamp - timeOfFragmentEndSent; // [milliseconds]
-                recievedAckLatency_datum.SetMetricName("RecievedAckLatency");
-                recievedAckLatency_datum.AddDimensions(*data->Pdimension_per_stream);
-                recievedAckLatency_datum.SetValue(recievedAckLatency);
-                recievedAckLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
-                cwRequest.AddMetricData(recievedAckLatency_datum);
+                pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
+
+                if (data->pCanaryConfig->useAggMetrics)
+                {
+                    pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Paggregated_dimension, cwRequest);
+                }
 
                 auto outcome = data->pCWclient->PutMetricData(cwRequest);
                 if (!outcome.IsSuccess())
@@ -370,16 +381,6 @@ void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, 
         lastKeyFrameTime = curKeyFrameTime;
 }
 
-void pushMetric(string metricName, double metricValue, Aws::CloudWatch::Model::StandardUnit unit, Aws::CloudWatch::Model::MetricDatum datum, 
-                Aws::CloudWatch::Model::Dimension *dimension, Aws::CloudWatch::Model::PutMetricDataRequest &cwRequest)
-{
-    datum.SetMetricName(metricName);
-    datum.AddDimensions(*dimension);
-    datum.SetValue(metricValue);
-    datum.SetUnit(unit);
-    cwRequest.AddMetricData(datum);
-}
-
 void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
 {
     updateFragmentEndTimes(frame.presentationTs, cusData->lastKeyFrameTime, cusData->timeOfNextKeyFrame);
@@ -396,7 +397,7 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
     pushMetric("FrameRate", frameRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
     double transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; // *8 makes it bytes->bits. /1024 bits->kilobits
-    pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
+    pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Kilobits_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
     double currentViewDuration = stream_metrics.getCurrentViewDuration().count();
     pushMetric("CurrentViewDuration", currentViewDuration, Aws::CloudWatch::Model::StandardUnit::Milliseconds, metricDatum, cusData->Pdimension_per_stream, cwRequest);
@@ -407,7 +408,7 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
     if (cusData->pCanaryConfig->useAggMetrics)
     {
         pushMetric("FrameRate", frameRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
-        pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
+        pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Kilobits_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
         pushMetric("CurrentViewDuration", currentViewDuration, Aws::CloudWatch::Model::StandardUnit::Milliseconds, metricDatum, cusData->Paggregated_dimension, cwRequest);
         pushMetric("ContentStoreAvailableSize", availableStoreSize, Aws::CloudWatch::Model::StandardUnit::Bytes, metricDatum, cusData->Paggregated_dimension, cwRequest);
     }
@@ -936,10 +937,10 @@ int main(int argc, char* argv[]) {
         dimension_per_stream.SetValue(data.stream_name);
         data.Pdimension_per_stream = &dimension_per_stream;
 
-        // Aws::CloudWatch::Model::Dimension aggregated_dimension;
-        // pCanaryStreamCallbacks->aggregatedDimension.SetName("ProducerSDKCanaryType");
-        // pCanaryStreamCallbacks->aggregatedDimension.SetValue(canaryConfig.canaryLabel);
-        // data.Paggregated_dimension = &aggregated_dimension;
+        Aws::CloudWatch::Model::Dimension aggregated_dimension;
+        aggregated_dimension.SetName("ProducerSDKCanaryType");
+        aggregated_dimension.SetValue(canaryConfig.canaryLabel);
+        data.Paggregated_dimension = &aggregated_dimension;
 
 
         // init Kinesis Video
