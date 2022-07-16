@@ -6,6 +6,8 @@
 #include <mutex>
 #include <iostream>
 
+#include "com/amazonaws/kinesis/video/cproducer/Include.h"
+
 using namespace std;
 
 #define DEFAULT_FRAGMENT_DURATION_MILLISECONDS 2000
@@ -26,6 +28,7 @@ public:
     int bufferDuration; // [seconds]
     int storageSizeInBytes;
     int testVideoFps;
+    bool useAggMetrics;
 
     CanaryConfig();
     void setEnvVarsString(string &configVar, string envVar);

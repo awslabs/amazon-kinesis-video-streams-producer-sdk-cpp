@@ -13,6 +13,7 @@ CanaryConfig::CanaryConfig()
     canaryDuration = DEFAULT_CANARY_DURATION_SECONDS;
     bufferDuration = DEFAULT_BUFFER_DURATION_SECONDS;
     storageSizeInBytes = 0;
+    useAggMetrics = false;
 }
 
 void CanaryConfig::setEnvVarsString(string &configVar, string envVar)
@@ -45,7 +46,6 @@ void CanaryConfig::setEnvVarsBool(bool &configVar, string envVar)
     }
 }
 
-
 void CanaryConfig::initConfigWithEnvVars()
 {
     setEnvVarsString(streamName, "CANARY_STREAM_NAME");
@@ -60,4 +60,9 @@ void CanaryConfig::initConfigWithEnvVars()
     setEnvVarsInt(bufferDuration, "CANARY_BUFFER_DURATION");
     setEnvVarsInt(storageSizeInBytes, "CANARY_STORAGE_SIZE");
     setEnvVarsInt(testVideoFps, "CANARY_FPS");
+
+    if (STRCMP(canaryRunType.c_str(), "NORMAL") == 0)
+    {
+        useAggMetrics = true;
+    }
 }

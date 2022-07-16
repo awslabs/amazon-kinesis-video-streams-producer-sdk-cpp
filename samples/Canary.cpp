@@ -384,7 +384,7 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
 {
     updateFragmentEndTimes(frame.presentationTs, cusData->lastKeyFrameTime, cusData->timeOfNextKeyFrame);
     
-    Aws::CloudWatch::Model::MetricDatum metricDatum, putFrameErrorRate_datum, errorAckRate_datum, totalNumberOfErrors_datum;
+    Aws::CloudWatch::Model::MetricDatum metricDatum;
     Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");    
 
@@ -398,12 +398,19 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
     double transferRate = 8 * stream_metrics.getCurrentTransferRate() / 1024; // *8 makes it bytes->bits. /1024 bits->kilobits
     pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
-
     double currentViewDuration = stream_metrics.getCurrentViewDuration().count();
     pushMetric("CurrentViewDuration", currentViewDuration, Aws::CloudWatch::Model::StandardUnit::Milliseconds, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
     double availableStoreSize = client_metrics.getContentStoreSizeSize();
     pushMetric("ContentStoreAvailableSize", availableStoreSize, Aws::CloudWatch::Model::StandardUnit::Bytes, metricDatum, cusData->Pdimension_per_stream, cwRequest);
+
+    if (cusData->pCanaryConfig->useAggMetrics)
+    {
+        pushMetric("FrameRate", frameRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
+        pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
+        pushMetric("CurrentViewDuration", currentViewDuration, Aws::CloudWatch::Model::StandardUnit::Milliseconds, metricDatum, cusData->Paggregated_dimension, cwRequest);
+        pushMetric("ContentStoreAvailableSize", availableStoreSize, Aws::CloudWatch::Model::StandardUnit::Bytes, metricDatum, cusData->Paggregated_dimension, cwRequest);
+    }
 
     // Capture error rate metrics every 60 seconds
     double duration = duration_cast<seconds>(system_clock::now().time_since_epoch()).count() - cusData->timeCounter;
@@ -424,6 +431,13 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
         double totalNumberOfErrors = cusData->totalPutFrameErrorCount + cusData->totalErrorAckCount;
         pushMetric("TotalNumberOfErrors", totalNumberOfErrors, Aws::CloudWatch::Model::StandardUnit::Count, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
+        if (cusData->pCanaryConfig->useAggMetrics)
+        {
+            pushMetric("PutFrameErrorRate", putFrameErrorRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
+            pushMetric("ErrorAckRate", errorAckRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
+            pushMetric("TotalNumberOfErrors", totalNumberOfErrors, Aws::CloudWatch::Model::StandardUnit::Count, metricDatum, cusData->Paggregated_dimension, cwRequest);
+        }
+
         cusData->pCanaryLogs->canaryStreamSendLogs(cusData->pCloudwatchLogsObject);
     }
 
@@ -441,19 +455,21 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
 
 }
 
- void pushStartupLatencyMetric(Aws::CloudWatch::CloudWatchClient *pCWclient, double producer_start_time, Aws::CloudWatch::Model::Dimension dimension_per_stream)
+ void pushStartupLatencyMetric(CustomData *data)
 {
     double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    double startUpLatency = (double)(currentTimestamp - producer_start_time / 1000000); // [milliseconds]
+    double startUpLatency = (double)(currentTimestamp - data->producer_start_time / 1000000); // [milliseconds]
     Aws::CloudWatch::Model::MetricDatum startupLatency_datum;
     Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
-    startupLatency_datum.SetMetricName("StartupLatency");
-    startupLatency_datum.AddDimensions(dimension_per_stream);
-    startupLatency_datum.SetValue(startUpLatency);
-    startupLatency_datum.SetUnit(Aws::CloudWatch::Model::StandardUnit::Milliseconds);
-    cwRequest.AddMetricData(startupLatency_datum);
-    auto outcome = pCWclient->PutMetricData(cwRequest);
+
+    pushMetric("StartupLatency", startUpLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, startupLatency_datum, data->Pdimension_per_stream, cwRequest);
+    if (data->pCanaryConfig->useAggMetrics)
+    {
+        pushMetric("StartupLatency", startUpLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, startupLatency_datum, data->Paggregated_dimension, cwRequest);
+    }
+
+    auto outcome = data->pCWclient->PutMetricData(cwRequest);
     if (!outcome.IsSuccess())
     {
         std::cout << "Failed to put StartupLatency metric data:" <<
@@ -557,7 +573,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         // If on first frame of stream, push startup latency metric to CW
         if(data->onFirstFrame && putFrameSuccess)
         {
-            pushStartupLatencyMetric(data->pCWclient, data->producer_start_time, *data->Pdimension_per_stream);
+            pushStartupLatencyMetric(data);
             data->onFirstFrame = false;
         }
     }
