@@ -19,7 +19,7 @@ public:
     string sourceType;
     string canaryRunType; // normal/continuous or intermitent
     string streamType; // real-time or offline
-    string canaryLabel;
+    string canaryLabel; // typically: longrun or shortrun
     string cpUrl;
     int fragmentSize; // [milliseconds]
     int canaryDuration; // [seconds]
