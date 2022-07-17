@@ -52,7 +52,7 @@ public:
     bool h264_stream_supported;
     char* stream_name;
 
-    map<uint64_t, uint64_t>* timeOfNextKeyFrame;
+    map<uint64_t, uint64_t> *timeOfNextKeyFrame;
     UINT64 lastKeyFrameTime;
     UINT64 curKeyFrameTime;
 

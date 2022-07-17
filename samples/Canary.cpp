@@ -264,64 +264,73 @@ STATUS
 SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                                                          UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck) {
     CustomData *data = reinterpret_cast<CustomData *>(custom_data);
-    uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
     
-    // When Canary sleeps, timeOfFragmentEndSent become less than currentTimeStamp, don't send those metrics
-    if (timeOfFragmentEndSent > pFragmentAck->timestamp)
+    map<uint64_t, uint64_t>::iterator iter;
+    iter = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp);
+    if(iter == data->timeOfNextKeyFrame->end())
     {
-        if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED)
+        cout << "TimeOfNextKeyFrame key-value pair not present in map" ;
+    }
+    else
+    {
+        uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
+    
+        // When Canary sleeps, timeOfFragmentEndSent become less than currentTimeStamp, don't send those metrics
+        if (timeOfFragmentEndSent > pFragmentAck->timestamp)
         {
-            Aws::CloudWatch::Model::MetricDatum persistedAckLatency_datum;
-            Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
-            cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
-
-            auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-            auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent ; // [milliseconds]
-            pushMetric("PersistedAckLatency", persistedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, persistedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
-            if (data->pCanaryConfig->useAggMetrics)
+            if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED)
             {
-                pushMetric("PersistedAckLatency", persistedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, persistedAckLatency_datum, data->Paggregated_dimension, cwRequest);
-
-            }
-            auto outcome = data->pCWclient->PutMetricData(cwRequest);
-            if (!outcome.IsSuccess())
-            {
-                cout << "Failed to put PersistedAckLatency metric data:" << outcome.GetError().GetMessage() << endl;
-            }
-            else
-            {
-                cout << "Successfully put PersistedAckLatency metric data" << endl;
-            }
-        } else if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_RECEIVED)
-            {
-                Aws::CloudWatch::Model::MetricDatum recievedAckLatency_datum;
+                Aws::CloudWatch::Model::MetricDatum persistedAckLatency_datum;
                 Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
                 cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
                 auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-                auto recievedAckLatency = currentTimestamp - timeOfFragmentEndSent; // [milliseconds]
-                pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
-
+                auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent ; // [milliseconds]
+                pushMetric("PersistedAckLatency", persistedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, persistedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
                 if (data->pCanaryConfig->useAggMetrics)
                 {
-                    pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Paggregated_dimension, cwRequest);
-                }
+                    pushMetric("PersistedAckLatency", persistedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, persistedAckLatency_datum, data->Paggregated_dimension, cwRequest);
 
+                }
                 auto outcome = data->pCWclient->PutMetricData(cwRequest);
                 if (!outcome.IsSuccess())
                 {
-                    cout << "Failed to put RecievedAckLatency metric data:" << outcome.GetError().GetMessage() << endl;
+                    cout << "Failed to put PersistedAckLatency metric data:" << outcome.GetError().GetMessage() << endl;
                 }
                 else
                 {
-                    cout << "Successfully put RecievedAckLatency metric data" << endl;
+                    cout << "Successfully put PersistedAckLatency metric data" << endl;
                 }
-            }
-    } else
-    {
-        cout << "Not sending Ack Latency metric because: timeOfFragmentEndSent < pFragmentAck->timestamp" << endl;
+            } else if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_RECEIVED)
+                {
+                    Aws::CloudWatch::Model::MetricDatum recievedAckLatency_datum;
+                    Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+                    cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
+
+                    auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+                    auto recievedAckLatency = currentTimestamp - timeOfFragmentEndSent; // [milliseconds]
+                    pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
+
+                    if (data->pCanaryConfig->useAggMetrics)
+                    {
+                        pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Paggregated_dimension, cwRequest);
+                    }
+
+                    auto outcome = data->pCWclient->PutMetricData(cwRequest);
+                    if (!outcome.IsSuccess())
+                    {
+                        cout << "Failed to put RecievedAckLatency metric data:" << outcome.GetError().GetMessage() << endl;
+                    }
+                    else
+                    {
+                        cout << "Successfully put RecievedAckLatency metric data" << endl;
+                    }
+                }
+        } else
+        {
+            cout << "Not sending Ack Latency metric because: timeOfFragmentEndSent < pFragmentAck->timestamp" << endl;
+        }
     }
-    
 }
 
 }  // namespace video
@@ -372,8 +381,10 @@ void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, 
             auto iter = mapPtr->begin();
             while (iter != mapPtr->end()) {
                 // clean up map: remove timestamps older than 5 min from now
-                if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND)) / HUNDREDS_OF_NANOS_IN_A_MILLISECOND) {
+                if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300000)))
+                {
                     iter = mapPtr->erase(iter);
+                    cout << "ereasing a map key-value pair" << endl;
                 } else {
                     break;
                 }
