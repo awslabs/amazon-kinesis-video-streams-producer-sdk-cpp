@@ -120,7 +120,7 @@ pipeline {
                             parameters: COMMON_PARAMS + [
                                 string(name: 'CANARY_STREAM_NAME', value: "-01"),
                                 // string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
-                                // string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
+                                string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 // string(name: 'CANARY_TYPE', value: "RealtimeStatic"),
                                 // string(name: 'RUNNER_LABEL', value: "Longrun"),
                                 // string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
@@ -135,7 +135,7 @@ pipeline {
                             parameters: COMMON_PARAMS + [
                                 string(name: 'CANARY_STREAM_NAME', value: "-02"),
                                 // string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
-                                // string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
+                                string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 // string(name: 'CANARY_TYPE', value: "Realtime"),
                                 // string(name: 'RUNNER_LABEL', value: "Longrun"),
                                 // string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
@@ -149,7 +149,7 @@ pipeline {
                             parameters: COMMON_PARAMS + [
                                 string(name: 'CANARY_STREAM_NAME', value: "-03"),
                                 // string(name: 'CANARY_DURATION_IN_SECONDS', value: SHORT_RUN_DURATION_IN_SECONDS.toString()),
-                                // string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
+                                string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 // string(name: 'CANARY_TYPE', value: "Realtime"),
                                 // string(name: 'RUNNER_LABEL', value: "Periodic"),
                                 // string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
@@ -163,7 +163,7 @@ pipeline {
                             parameters: COMMON_PARAMS + [
                                 string(name: 'CANARY_STREAM_NAME', value: "-04"),
                                 // string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
-                                // string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
+                                string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 // string(name: 'CANARY_TYPE', value: "Realtime"),
                                 // string(name: 'RUNNER_LABEL', value: "IntermittentSingleTrack"),
                                 // string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
@@ -177,7 +177,7 @@ pipeline {
                             parameters: COMMON_PARAMS + [
                                 string(name: 'CANARY_STREAM_NAME', value: "-05"),
                                 // string(name: 'CANARY_DURATION_IN_SECONDS', value: LONG_RUN_DURATION_IN_SECONDS.toString()),
-                                // string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
+                                string(name: 'PRODUCER_NODE_LABEL', value: "producer-uw2"),
                                 // string(name: 'CANARY_TYPE', value: "Realtime"),
                                 // string(name: 'RUNNER_LABEL', value: "IntermittentMultiTrack"),
                                 // string(name: 'FRAGMENT_SIZE_IN_BYTES', value: FRAGMENT_SIZE_IN_BYTES.toString()),
