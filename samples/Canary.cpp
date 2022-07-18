@@ -265,14 +265,16 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
                                                          UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck) {
     CustomData *data = reinterpret_cast<CustomData *>(custom_data);
     
+    cout << "Map Debug: searching in map for a key of pFragmentAck->timestamp = " << pFragmentAck->timestamp << endl;
     map<uint64_t, uint64_t>::iterator iter;
     iter = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp);
     if(iter == data->timeOfNextKeyFrame->end())
     {
-        cout << "TimeOfNextKeyFrame key-value pair not present in map" ;
+        cout << "Map Debug: TimeOfNextKeyFrame key-value pair not present in map" << endl;
     }
     else
     {
+        cout << "Map Debug: Found TimeOfNextKeyFrame key-value pair in map" << endl;
         uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
     
         // When Canary sleeps, timeOfFragmentEndSent become less than currentTimeStamp, don't send those metrics
@@ -378,10 +380,12 @@ void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, 
         if (lastKeyFrameTime != 0)
         {
             (*mapPtr)[lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = curKeyFrameTime;
+            cout << "Map Debug: adding curKeyFrameTime value of " << curKeyFrameTime << endl;
             auto iter = mapPtr->begin();
             while (iter != mapPtr->end()) {
                 // clean up map: remove timestamps older than 5 min from now
-                if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300000)))
+                // if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300000)))
+                if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (3000000)))
                 {
                     iter = mapPtr->erase(iter);
                     cout << "ereasing a map key-value pair" << endl;
@@ -493,7 +497,6 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
         std::cout << "Successfully put StartupLatency metric data" << std::endl;
     }
 }
-
 
 bool put_frame(CustomData *cusData, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags)
 {
@@ -625,6 +628,7 @@ CleanUp:
 
     return ret;
 }
+
 
 // This function is called when an error message is posted on the bus
 static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
