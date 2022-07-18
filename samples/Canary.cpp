@@ -279,8 +279,8 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
     else
     {
         cout << "Map Debug: Found TimeOfNextKeyFrame key-value pair in map" << endl;
-        uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
-
+        uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second;
+        cout << "Map Debug: with value of " << timeOfFragmentEndSent << endl;
         cout << "Map Debug: latency: " << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - timeOfFragmentEndSent << endl;
 
         // When Canary sleeps, timeOfFragmentEndSent become less than currentTimeStamp, don't send those metrics
@@ -293,7 +293,7 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
                 cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
                 auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-                auto persistedAckLatency = currentTimestamp - timeOfFragmentEndSent ; // [milliseconds]
+                auto persistedAckLatency = (currentTimestamp - timeOfFragmentEndSent); // [milliseconds]
                 pushMetric("PersistedAckLatency", persistedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, persistedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
                 if (data->pCanaryConfig->useAggMetrics)
                 {
@@ -316,7 +316,7 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
                     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
                     auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-                    auto recievedAckLatency = currentTimestamp - timeOfFragmentEndSent; // [milliseconds]
+                    auto recievedAckLatency = (currentTimestamp - timeOfFragmentEndSent); // [milliseconds]
                     pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
 
                     if (data->pCanaryConfig->useAggMetrics)
@@ -385,10 +385,10 @@ void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, 
 {
         if (lastKeyFrameTime != 0)
         {
-            (*mapPtr)[lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = curKeyFrameTime;
-            cout << "Map Debug: current time is              " << duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count()/100 << endl;
-            cout << "Map Debug: adding lastKeyFrameTime key: " << lastKeyFrameTime << endl;
-            cout << "Map Debug: with curKeyFrameTime value:  " << curKeyFrameTime << endl;
+            (*mapPtr)[lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = curKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+            cout << "Map Debug: current time is              " << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() << endl;
+            cout << "Map Debug: adding lastKeyFrameTime key: " << lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND << endl;
+            cout << "Map Debug: with curKeyFrameTime value:  " << curKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND<< endl;
             auto iter = mapPtr->begin();
             while (iter != mapPtr->end()) {
                 // clean up map: remove timestamps older than 5 min from now
