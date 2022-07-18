@@ -264,8 +264,12 @@ STATUS
 SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                                                          UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck) {
     CustomData *data = reinterpret_cast<CustomData *>(custom_data);
-    
-    cout << "Map Debug: searching in map for a key of pFragmentAck->timestamp = " << pFragmentAck->timestamp << endl;
+    if (pFragmentAck->ackType != FRAGMENT_ACK_TYPE_PERSISTED && pFragmentAck->ackType != FRAGMENT_ACK_TYPE_RECEIVED)
+    {
+        return STATUS_SUCCESS;
+    }
+
+    cout << "Map Debug: searching in map for a key of pFragmentAck->timestamp: " << pFragmentAck->timestamp << endl;
     map<uint64_t, uint64_t>::iterator iter;
     iter = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp);
     if(iter == data->timeOfNextKeyFrame->end())
@@ -276,7 +280,9 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
     {
         cout << "Map Debug: Found TimeOfNextKeyFrame key-value pair in map" << endl;
         uint64_t timeOfFragmentEndSent = data->timeOfNextKeyFrame->find(pFragmentAck->timestamp)->second / 10000;
-    
+
+        cout << "Map Debug: latency: " << duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - timeOfFragmentEndSent << endl;
+
         // When Canary sleeps, timeOfFragmentEndSent become less than currentTimeStamp, don't send those metrics
         if (timeOfFragmentEndSent > pFragmentAck->timestamp)
         {
@@ -380,7 +386,9 @@ void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, 
         if (lastKeyFrameTime != 0)
         {
             (*mapPtr)[lastKeyFrameTime / HUNDREDS_OF_NANOS_IN_A_MILLISECOND] = curKeyFrameTime;
-            cout << "Map Debug: adding curKeyFrameTime value of " << curKeyFrameTime << endl;
+            cout << "Map Debug: current time is              " << duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count()/100 << endl;
+            cout << "Map Debug: adding lastKeyFrameTime key: " << lastKeyFrameTime << endl;
+            cout << "Map Debug: with curKeyFrameTime value:  " << curKeyFrameTime << endl;
             auto iter = mapPtr->begin();
             while (iter != mapPtr->end()) {
                 // clean up map: remove timestamps older than 5 min from now
@@ -388,7 +396,7 @@ void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, 
                 if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (3000000)))
                 {
                     iter = mapPtr->erase(iter);
-                    cout << "ereasing a map key-value pair" << endl;
+                    cout << "Map Debug: ereasing a map key-value pair" << endl;
                 } else {
                     break;
                 }
