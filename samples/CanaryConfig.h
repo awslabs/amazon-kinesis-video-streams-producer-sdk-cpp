@@ -19,7 +19,7 @@ class CanaryConfig{
 public: 
     string streamName;
     string sourceType;
-    string canaryRunType; // normal/continuous or intermitent
+    string canaryRunScenario; // continuous or intermitent
     string streamType; // real-time or offline
     string canaryLabel; // typically: longrun or shortrun
     string cpUrl;

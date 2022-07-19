@@ -5,7 +5,7 @@ CanaryConfig::CanaryConfig()
     testVideoFps = 25;
     streamName = "DefaultStreamName";
     sourceType = "TEST_SOURCE";
-    canaryRunType = "NORMAL"; // (or intermittent)
+    canaryRunScenario = "Continuous"; // (or intermittent)
     streamType = "REALTIME";
     canaryLabel = "DEFAULT_CANARY_LABEL"; // need to decide on a default value
     cpUrl = "";
@@ -50,7 +50,7 @@ void CanaryConfig::initConfigWithEnvVars()
 {
     setEnvVarsString(streamName, "CANARY_STREAM_NAME");
     //setEnvVarsString(sourceType, "CANARY_SOURCE_TYPE");
-    setEnvVarsString(canaryRunType, "CANARY_RUN_TYPE");
+    setEnvVarsString(canaryRunScenario, "CANARY_RUN_SCENARIO");
     setEnvVarsString(streamType, "CANARY_STREAM_TYPE");
     setEnvVarsString(canaryLabel, "CANARY_LABEL");
     setEnvVarsString(cpUrl, "CANARY_CP_URL");
