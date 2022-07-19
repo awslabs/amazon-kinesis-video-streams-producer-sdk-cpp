@@ -316,12 +316,12 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
                     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
                     auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-                    auto receivedAckLatency_datum = (currentTimestamp - timeOfFragmentEndSent); // [milliseconds]
-                    pushMetric("ReceivedAckLatency", receivedAckLatency_datum, Aws::CloudWatch::Model::StandardUnit::Milliseconds, receivedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
+                    auto receivedAckLatency = (currentTimestamp - timeOfFragmentEndSent); // [milliseconds]
+                    pushMetric("ReceivedAckLatency", receivedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, receivedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
 
                     if (data->pCanaryConfig->useAggMetrics)
                     {
-                        pushMetric("ReceivedAckLatency", receivedAckLatency_datum, Aws::CloudWatch::Model::StandardUnit::Milliseconds, receivedAckLatency_datum, data->Paggregated_dimension, cwRequest);
+                        pushMetric("ReceivedAckLatency", receivedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, receivedAckLatency_datum, data->Paggregated_dimension, cwRequest);
                     }
 
                     auto outcome = data->pCWclient->PutMetricData(cwRequest);
@@ -483,7 +483,7 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
  void pushStartupLatencyMetric(CustomData *data)
 {
     double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    double startUpLatency = (double)(currentTimestamp - data->run_start_time / 1000000); // [milliseconds]
+    double startUpLatency = (double)(currentTimestamp - data->producer_start_time / 1000000); // [milliseconds]
     Aws::CloudWatch::Model::MetricDatum startupLatency_datum;
     Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
@@ -618,8 +618,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         cout << "Intermittent sleep time is set to: " << sleepTime << " minutes" << endl;
         data->sleepTimeStamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count(); // [milliseconds]
         sleep(sleepTime * 60); // [seconds]
-        data->run_start_time = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
-        data->onFirstFrame = true;
         int runTime = (rand() % 10) + 1; // [minutes]
         cout << "Intermittent run time is set to: " << runTime << " minutes" << endl;
         // Set runTill to a new random value 1-10 minutes into the future

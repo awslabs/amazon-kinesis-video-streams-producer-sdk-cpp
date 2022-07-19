@@ -17,7 +17,6 @@ CustomData::CustomData()
     use_absolute_fragment_times = true;
 
     producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count(); // [nanoSeconds]
-    run_start_time = producer_start_time;
     client_config.region = "us-west-2";
     pCWclient = nullptr;
     Pdimension_per_stream = nullptr;

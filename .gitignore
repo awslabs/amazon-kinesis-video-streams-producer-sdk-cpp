@@ -17,5 +17,5 @@ open-source/libautoconf
 outputs
 tags
 dependency
-
+.vscode/
 .vs

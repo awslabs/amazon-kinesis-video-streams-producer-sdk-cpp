@@ -56,7 +56,7 @@ void CanaryConfig::initConfigWithEnvVars()
     setEnvVarsString(cpUrl, "CANARY_CP_URL");
 
     setEnvVarsInt(fragmentSize, "CANARY_FRAGMENT_SIZE");
-    setEnvVarsInt(canaryDuration, "CANARY_DURATION");
+    setEnvVarsInt(canaryDuration, "CANARY_DURATION_IN_SECONDS");
     setEnvVarsInt(bufferDuration, "CANARY_BUFFER_DURATION");
     setEnvVarsInt(storageSizeInBytes, "CANARY_STORAGE_SIZE");
     setEnvVarsInt(testVideoFps, "CANARY_FPS");
@@ -70,9 +70,4 @@ void CanaryConfig::initConfigWithEnvVars()
     cout << "CANARY_DURATION: " << canaryDuration << endl;
     cout << "CANARY_STORAGE_SIZE: " << storageSizeInBytes << endl;
     cout << "CANARY_FPS: " << testVideoFps << endl;
-
-    // if (STRCMP(canaryRunScenario.c_str(), "Intermittent") != 0)
-    // {
-    //     useAggMetrics = true;
-    // }
 }
