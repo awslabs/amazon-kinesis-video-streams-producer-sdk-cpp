@@ -426,15 +426,15 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
     double currentViewDuration = stream_metrics.getCurrentViewDuration().count();
     pushMetric("CurrentViewDuration", currentViewDuration, Aws::CloudWatch::Model::StandardUnit::Milliseconds, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
-    double availableStoreSize = client_metrics.getContentStoreSizeSize();
-    pushMetric("ContentStoreAvailableSize", availableStoreSize, Aws::CloudWatch::Model::StandardUnit::Bytes, metricDatum, cusData->Pdimension_per_stream, cwRequest);
+    double availableStoreSize = client_metrics.getContentStoreSizeSize() / 1000; // [kilobytes]
+    pushMetric("ContentStoreAvailableSize", availableStoreSize, Aws::CloudWatch::Model::StandardUnit::Kilobytes, metricDatum, cusData->Pdimension_per_stream, cwRequest);
 
     if (cusData->pCanaryConfig->useAggMetrics)
     {
         pushMetric("FrameRate", frameRate, Aws::CloudWatch::Model::StandardUnit::Count_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
         pushMetric("TransferRate", transferRate, Aws::CloudWatch::Model::StandardUnit::Kilobits_Second, metricDatum, cusData->Paggregated_dimension, cwRequest);
         pushMetric("CurrentViewDuration", currentViewDuration, Aws::CloudWatch::Model::StandardUnit::Milliseconds, metricDatum, cusData->Paggregated_dimension, cwRequest);
-        pushMetric("ContentStoreAvailableSize", availableStoreSize, Aws::CloudWatch::Model::StandardUnit::Bytes, metricDatum, cusData->Paggregated_dimension, cwRequest);
+        pushMetric("ContentStoreAvailableSize", availableStoreSize, Aws::CloudWatch::Model::StandardUnit::Kilobytes, metricDatum, cusData->Paggregated_dimension, cwRequest);
     }
 
     // Capture error rate metrics every 60 seconds
