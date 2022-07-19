@@ -311,27 +311,27 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
                 }
             } else if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_RECEIVED)
                 {
-                    Aws::CloudWatch::Model::MetricDatum recievedAckLatency_datum;
+                    Aws::CloudWatch::Model::MetricDatum receivedAckLatency_datum;
                     Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
                     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
 
                     auto currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-                    auto recievedAckLatency = (currentTimestamp - timeOfFragmentEndSent); // [milliseconds]
-                    pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
+                    auto receivedAckLatency_datum = (currentTimestamp - timeOfFragmentEndSent); // [milliseconds]
+                    pushMetric("ReceivedAckLatency", receivedAckLatency_datum, Aws::CloudWatch::Model::StandardUnit::Milliseconds, receivedAckLatency_datum, data->Pdimension_per_stream, cwRequest);
 
                     if (data->pCanaryConfig->useAggMetrics)
                     {
-                        pushMetric("RecievedAckLatency", recievedAckLatency, Aws::CloudWatch::Model::StandardUnit::Milliseconds, recievedAckLatency_datum, data->Paggregated_dimension, cwRequest);
+                        pushMetric("ReceivedAckLatency", receivedAckLatency_datum, Aws::CloudWatch::Model::StandardUnit::Milliseconds, receivedAckLatency_datum, data->Paggregated_dimension, cwRequest);
                     }
 
                     auto outcome = data->pCWclient->PutMetricData(cwRequest);
                     if (!outcome.IsSuccess())
                     {
-                        cout << "Failed to put RecievedAckLatency metric data:" << outcome.GetError().GetMessage() << endl;
+                        cout << "Failed to put ReceivedAckLatency metric data:" << outcome.GetError().GetMessage() << endl;
                     }
                     else
                     {
-                        cout << "Successfully put RecievedAckLatency metric data" << endl;
+                        cout << "Successfully put ReceivedAckLatency metric data" << endl;
                     }
                 }
         } else
