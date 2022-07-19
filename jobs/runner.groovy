@@ -111,13 +111,13 @@ def runClient(isProducer, params) {
         'M2_HOME': "/opt/apache-maven-3.6.3",
         'AWS_KVS_LOG_LEVEL': params.AWS_KVS_LOG_LEVEL,
         // 'CANARY_STREAM_NAME_PRE': "${env.JOB_NAME}",
-        'CANARY_STREAM_NAME' : params.CANARY_STREAM_NAME,
+        'CANARY_STREAM_NAME' : "${env.JOB_NAME}" + params.CANARY_STREAM_NAME,
         'CANARY_LABEL': params.RUNNER_LABEL,
         'CANARY_TYPE': params.CANARY_TYPE,
         'FRAGMENT_SIZE_IN_BYTES' : params.FRAGMENT_SIZE_IN_BYTES,
         'CANARY_DURATION_IN_SECONDS': params.CANARY_DURATION_IN_SECONDS,
         'AWS_DEFAULT_REGION': params.AWS_DEFAULT_REGION,
-        // 'CANARY_RUN_SCENARIO': params.CANARY_RUN_SCENARIO,
+        'CANARY_RUN_SCENARIO': params.CANARY_RUN_SCENARIO,
         // 'TRACK_TYPE': params.TRACK_TYPE,
     ].collect({k,v -> "${k}=${v}" })
 
@@ -216,7 +216,7 @@ pipeline {
                 build(
                     job: env.JOB_NAME,
                             parameters: [
-                                string(name: 'CANARY_STREAM_NAME', value: ${env.JOB_NAME} + params.CANARY_STREAM_NAME),
+                                string(name: 'CANARY_STREAM_NAME', params.CANARY_STREAM_NAME),
                                 string(name: 'AWS_KVS_LOG_LEVEL', value: params.AWS_KVS_LOG_LEVEL),
                                 //booleanParam(name: 'USE_IOT', value: params.USE_IOT),
                                 string(name: 'PRODUCER_NODE_LABEL', value: params.PRODUCER_NODE_LABEL),
