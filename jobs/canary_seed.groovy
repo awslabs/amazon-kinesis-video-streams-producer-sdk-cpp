@@ -36,7 +36,7 @@ approveSignatures([
 ])
 
 pipelineJob("${NAMESPACE}-orchestrator") {
-	description('Run producer and consumer')
+	description('Run producer')
 	logRotator {
 		daysToKeep(DAYS_TO_KEEP_LOGS)
 		numToKeep(NUMBER_OF_LOGS)
@@ -54,7 +54,7 @@ pipelineJob("${NAMESPACE}-orchestrator") {
 }
 
 pipelineJob("${NAMESPACE}-runner-0") {
-	description('Run producer and consumer')
+	description('Run producer')
 	logRotator {
 		daysToKeep(DAYS_TO_KEEP_LOGS)
 		numToKeep(NUMBER_OF_LOGS)
@@ -68,7 +68,7 @@ pipelineJob("${NAMESPACE}-runner-0") {
 }
 
 pipelineJob("${NAMESPACE}-runner-1") {
-    description('Run producer and consumer')
+    description('Run producer')
     logRotator {
         daysToKeep(DAYS_TO_KEEP_LOGS)
         numToKeep(NUMBER_OF_LOGS)
