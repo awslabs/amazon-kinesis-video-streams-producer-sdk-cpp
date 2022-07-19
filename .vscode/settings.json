@@ -80,6 +80,9 @@
         "variant": "cpp",
         "__functional_base": "cpp",
         "functional": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "codecvt": "cpp",
+        "forward_list": "cpp",
+        "regex": "cpp"
     }
 }
