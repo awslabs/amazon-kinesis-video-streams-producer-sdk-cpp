@@ -13,7 +13,7 @@ CanaryConfig::CanaryConfig()
     canaryDuration = DEFAULT_CANARY_DURATION_SECONDS;
     bufferDuration = DEFAULT_BUFFER_DURATION_SECONDS;
     storageSizeInBytes = 0;
-    useAggMetrics = false;
+    useAggMetrics = true;
 }
 
 void CanaryConfig::setEnvVarsString(string &configVar, string envVar)
@@ -61,8 +61,18 @@ void CanaryConfig::initConfigWithEnvVars()
     setEnvVarsInt(storageSizeInBytes, "CANARY_STORAGE_SIZE");
     setEnvVarsInt(testVideoFps, "CANARY_FPS");
 
-    if (STRCMP(canaryRunScenario.c_str(), "Intermittent") != 0)
-    {
-        useAggMetrics = true;
-    }
+    cout << "CANARY_STREAM_NAME: " << streamName << endl;
+    cout << "CANARY_RUN_SCENARIO: " << canaryRunScenario << endl;
+    cout << "CANARY_STREAM_TYPE: " << streamType << endl;
+    cout << "CANARY_LABEL: " << canaryLabel << endl;
+    cout << "CANARY_CP_URL: " << cpUrl << endl;
+    cout << "CANARY_FRAGMENT_SIZE: " << fragmentSize << endl;
+    cout << "CANARY_DURATION: " << canaryDuration << endl;
+    cout << "CANARY_STORAGE_SIZE: " << storageSizeInBytes << endl;
+    cout << "CANARY_FPS: " << testVideoFps << endl;
+
+    // if (STRCMP(canaryRunScenario.c_str(), "Intermittent") != 0)
+    // {
+    //     useAggMetrics = true;
+    // }
 }

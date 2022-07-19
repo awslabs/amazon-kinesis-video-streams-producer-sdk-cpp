@@ -610,7 +610,8 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     }
 
     // If intermittent run, check if Canary should be paused
-    if(data->pCanaryConfig->canaryRunScenario == "Intermittent" && duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
+    if(STRCMP(data->pCanaryConfig->canaryRunScenario.c_str(), "Intermittent") == 0 && 
+        duration_cast<minutes>(system_clock::now().time_since_epoch()).count() > data->runTill)
     {
         data->timeOfNextKeyFrame->clear();
         int sleepTime = ((rand() % 10) + 1); // [minutes]
