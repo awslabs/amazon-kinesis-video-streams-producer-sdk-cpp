@@ -216,11 +216,9 @@ pipeline {
                 build(
                     job: env.JOB_NAME,
                             parameters: [
-                                string(name: 'CANARY_STREAM_NAME', params.CANARY_STREAM_NAME),
+                                string(name: 'CANARY_STREAM_NAME', value: params.CANARY_STREAM_NAME),
                                 string(name: 'AWS_KVS_LOG_LEVEL', value: params.AWS_KVS_LOG_LEVEL),
-                                //booleanParam(name: 'USE_IOT', value: params.USE_IOT),
                                 string(name: 'PRODUCER_NODE_LABEL', value: params.PRODUCER_NODE_LABEL),
-                                //string(name: 'CONSUMER_NODE_LABEL', value: params.CONSUMER_NODE_LABEL),
                                 string(name: 'GIT_URL', value: params.GIT_URL),
                                 string(name: 'GIT_HASH', value: params.GIT_HASH),
                                 string(name: 'CANARY_TYPE', value: params.CANARY_TYPE),
@@ -230,7 +228,6 @@ pipeline {
                                 string(name: 'AWS_DEFAULT_REGION', value: params.AWS_DEFAULT_REGION),
                                 string(name: 'RUNNER_LABEL', value: params.RUNNER_LABEL),
                                 string(name: 'CANARY_RUN_SCENARIO', value: params.CANARY_RUN_SCENARIO),
-                                //string(name: 'TRACK_TYPE', value: params.TRACK_TYPE),
                                 booleanParam(name: 'FIRST_ITERATION', value: false)
                             ],
                     wait: false
