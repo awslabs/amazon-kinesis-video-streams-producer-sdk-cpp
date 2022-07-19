@@ -618,7 +618,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         cout << "Intermittent sleep time is set to: " << sleepTime << " minutes" << endl;
         data->sleepTimeStamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count(); // [milliseconds]
         sleep(sleepTime * 60); // [seconds]
-        run_start_time = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
+        data->run_start_time = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
         data->onFirstFrame = true;
         int runTime = (rand() % 10) + 1; // [minutes]
         cout << "Intermittent run time is set to: " << runTime << " minutes" << endl;
