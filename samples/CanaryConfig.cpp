@@ -61,7 +61,7 @@ void CanaryConfig::initConfigWithEnvVars()
     setEnvVarsInt(storageSizeInBytes, "CANARY_STORAGE_SIZE");
     setEnvVarsInt(testVideoFps, "CANARY_FPS");
 
-    if (STRCMP(canaryRunType.c_str(), "NORMAL") == 0)
+    if (STRCMP(canaryRunScenario.c_str(), "Intermittent") != 0)
     {
         useAggMetrics = true;
     }
