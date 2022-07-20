@@ -67,7 +67,7 @@ public:
     // timestamp to convert them to absolute timestamp. This way fragments dont overlap after token rotation when doing
     // file uploading.
     uint64_t producer_start_time; // [nanoSeconds]
-
+    uint64_t start_time;  // [nanoSeconds]
     volatile StreamSource streamSource;
 
     string rtsp_url;

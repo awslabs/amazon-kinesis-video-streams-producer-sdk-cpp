@@ -483,7 +483,7 @@ void pushKeyFrameMetrics(Frame frame, CustomData *cusData)
  void pushStartupLatencyMetric(CustomData *data)
 {
     double currentTimestamp = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    double startUpLatency = (double)(currentTimestamp - data->producer_start_time / 1000000); // [milliseconds]
+    double startUpLatency = (double)(currentTimestamp - data->start_time / 1000000); // [milliseconds]
     Aws::CloudWatch::Model::MetricDatum startupLatency_datum;
     Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
     cwRequest.SetNamespace("KinesisVideoSDKCanaryCPP");
@@ -970,7 +970,7 @@ int main(int argc, char* argv[]) {
         aggregated_dimension.SetValue(canaryConfig.canaryLabel);
         data.Paggregated_dimension = &aggregated_dimension;
 
-
+        data.start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
         // init Kinesis Video
         try{
             kinesis_video_init(&data);
