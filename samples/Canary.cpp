@@ -392,8 +392,7 @@ void updateFragmentEndTimes(UINT64 curKeyFrameTime, uint64_t &lastKeyFrameTime, 
             auto iter = mapPtr->begin();
             while (iter != mapPtr->end()) {
                 // clean up map: remove timestamps older than 5 min from now
-                // if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300000)))
-                if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (3000000)))
+                if (iter->first < (duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - (300000)))
                 {
                     iter = mapPtr->erase(iter);
                     cout << "Map Debug: ereasing a map key-value pair" << endl;
@@ -606,6 +605,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     currTime = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
     if (currTime > (data->producer_start_time / 1000000000 + data->pCanaryConfig->canaryDuration))
     {
+        cout << "Canary has reached end of run time" << endl;
         g_main_loop_quit(data->main_loop);
     }
 
