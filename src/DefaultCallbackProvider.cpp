@@ -288,7 +288,6 @@ STATUS DefaultCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
 }
 
 VOID DefaultCallbackProvider::logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt, ...) {
-    std::cout << "Default logPrintHandler worked" << std::endl;
     static log4cplus::LogLevel picLevelToLog4cplusLevel[] = {
             log4cplus::TRACE_LOG_LEVEL,
             log4cplus::TRACE_LOG_LEVEL,

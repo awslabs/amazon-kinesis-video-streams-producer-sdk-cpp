@@ -344,7 +344,10 @@ VOID CanaryCallbackProvider::logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt,
         va_end(valist);
         CanaryLogs::setUpLogEventVector(cwLogFmtString);
     }
+    
 }
+
+
 
 CanaryCallbackProvider::CanaryCallbackProvider(
         unique_ptr <ClientCallbackProvider> client_callback_provider,
@@ -625,7 +628,6 @@ TagResourceFunc CanaryCallbackProvider::getTagResourceCallback() {
 }
 
 LogPrintFunc CanaryCallbackProvider::getLogPrintCallback() {
-    std::cout << "LogPrintFunc DefaultCallbackProvider::getLogPrintCallback()" << std::endl;
     return logPrintHandler;
 }
 

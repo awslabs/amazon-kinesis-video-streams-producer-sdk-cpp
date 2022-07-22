@@ -39,7 +39,6 @@ VOID CanaryLogs::setUpLogEventVector(PCHAR logString)
         Aws::String awsCwString((Aws::String) logString);
         auto logEvent =
             Aws::CloudWatchLogs::Model::InputLogEvent().WithMessage(awsCwString).WithTimestamp(GETTIME() / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-        
         gCloudwatchLogsObject->canaryInputLogEventVec.push_back(logEvent);
     }
 }
