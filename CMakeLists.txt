@@ -180,11 +180,9 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
-message("StageNumba 1")
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
   DESTINATION .)
-message("StageNumba 2")
 
 
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
@@ -195,7 +193,6 @@ target_link_libraries(
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
          
-message("StageNumba 3")
 
 install(
     TARGETS KinesisVideoProducer
@@ -203,7 +200,6 @@ install(
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
-message("StageNumba 4")
 
 
 if(BUILD_JNI)
