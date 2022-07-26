@@ -212,12 +212,11 @@ if(BUILD_GSTREAMER_PLUGIN)
   link_directories(${GST_APP_LIBRARY_DIRS})
 
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
-  target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(gstkvssink SHARED ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  install(TARGETS gstkvssink LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0")
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(gstkvssink SHARED ${GST_APP_LIBRARIES} KinesisVideoProducer)
-  
-  install(TARGETS gstkvssink LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0")
+  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
   
   add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
   target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
