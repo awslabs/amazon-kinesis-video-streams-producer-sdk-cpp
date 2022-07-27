@@ -208,6 +208,9 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 `export JAVA_INCLUDE_PATH2='/usr/java/<JDK_VERSION>/include'` for Linux.
 * If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
 
+## Using the SDK as a Dependency
+ An example of how the SDK can be consumed as a dependency is found [here](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/blob/new-canary-producer-cpp/canary/producer-cpp/CMakeLists.txt).
+
 ## FAQ
 * Is CPP-SDK and GStreamer supported on Mac/Windows/Linux (Supported Platforms)?  
 Yes! We have FAQs and platform specific instructions for [Windows](docs/windows.md), [MacOS](docs/macos.md) and [Linux](docs/linux.md)
