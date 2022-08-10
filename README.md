@@ -70,7 +70,7 @@ Set up the desired log level. The log levels currently available with `log4cplus
 5. `ERROR`   
 6. `FATAL`   
 
-To set a log level, update the log level value [here](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/samples/kvs_log_configuration#L1)
+To set a log level, update the log level value [here](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/kvs_log_configuration#L1)
 
 Note: The default log level is `DEBUG`
 
