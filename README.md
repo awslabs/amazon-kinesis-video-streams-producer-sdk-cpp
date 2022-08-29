@@ -96,7 +96,7 @@ You can pass the following options to `cmake ..`.
 * `-DBUILD_LOG4CPLUS_HOST` Specify host-name for log4cplus for cross-compilation. Default is OFF.
 
 #### To Include JNI
-
+ 
 JNI examples are NOT built by default.  If you wish to build JNI you MUST add `-DBUILD_JNI=TRUE` when running `cmake`:
 
 ```
