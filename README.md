@@ -44,7 +44,7 @@ Prepare a build directory in the newly checked out repository:
 mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build
 cd amazon-kinesis-video-streams-producer-sdk-cpp/build
 ```
-
+ 
 If you are building on Windows you need to generate `NMake Makefiles`, you should run `cmake .. -G "NMake Makefiles"`
 
 GStreamer and JNI is NOT built by default, if you wish to build both you MUST execute `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
