@@ -5,7 +5,9 @@
 build
 cmake-build-debug/
 cmake-build-release/
+cmake-build-producecpp/
 doc/
+open-source
 open-source/libgtest
 open-source/libjsmn
 open-source/libopenssl
