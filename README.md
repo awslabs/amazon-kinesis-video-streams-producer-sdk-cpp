@@ -182,8 +182,6 @@ The kvssink element has the following required parameters:
 
 For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
 
-#### To Include Images/Events feature
-
 The images feature is available in the sample kvs_gstreamer_audio_video_sample.cpp . To enable it include the argument "-e <event_option>"
 event option is a string that can be:
 
@@ -194,7 +192,7 @@ both -- for both
 The events will start on the 2nd key frame, and will reoccur every 200 key frames. If you would to change this frequence you can edit the sample.
 
 #### To run from a file
-in the kvs_gstreamer_audio_video_sample.cpp if you would like to upload from a file, include the option flag -f <file_path>
+in the kvs_gstreamer_audio_video_sample.cpp if you would like to upload from a file, include the option flag `-f <file_path>`
 
 ## Running in offline mode
 By default, the samples run in near realtime mode. To set offline mode, set streamInfo.streamCaps.streamingType to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.
