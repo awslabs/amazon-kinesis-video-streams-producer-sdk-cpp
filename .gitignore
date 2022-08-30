@@ -15,6 +15,7 @@ open-source/libwebsockets
 open-source/local
 open-source/libautoconf
 open-source/liblog4cplus
+open-source
 outputs
 tags
 dependency
