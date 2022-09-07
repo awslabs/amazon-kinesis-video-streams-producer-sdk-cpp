@@ -14,42 +14,69 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
             return reinterpret_cast<UINT64> (data.get());
         }
 
+        StreamUnderflowReportFunc getStreamUnderflowReportCallback() override {
+            return streamUnderflowReportHandler;
+        }
+
+        BufferDurationOverflowPressureFunc getBufferDurationOverFlowCallback() override {
+            return bufferDurationOverflowPressureHandler;
+        }
+
+        StreamLatencyPressureFunc getStreamLatencyPressureCallback() override {
+            return streamLatencyPressureHandler;
+        }
+
+
         StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
             return streamConnectionStaleHandler;
-        };
-
-        StreamErrorReportFunc getStreamErrorReportCallback() override {
-            return streamErrorReportHandler;
         };
 
         DroppedFrameReportFunc getDroppedFrameReportCallback() override {
             return droppedFrameReportHandler;
         };
 
-        StreamLatencyPressureFunc getStreamLatencyPressureCallback() override {
-            return streamLatencyPressureHandler;
-        }
+
+        DroppedFragmentReportFunc getDroppedFragmentReportCallback() override {
+            return droppedFragmentReportHandler;
+        };
+
+
+        StreamErrorReportFunc getStreamErrorReportCallback() override {
+            return streamErrorReportHandler;
+        };
 
         StreamClosedFunc getStreamClosedCallback() override {
             return streamClosedHandler;
         }
 
-    private:
+    private:        
+        static STATUS
+        streamUnderflowReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle);
+
+        static STATUS 
+        bufferDurationOverflowPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 remainDuration);
+
+        static STATUS
+        streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                     UINT64 current_buffer_duration);
+
         static STATUS
         streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                                      UINT64 last_buffering_ack);
 
-        static STATUS
-        streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
-                                 STATUS status_code);
 
         static STATUS
         droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
                                   UINT64 dropped_frame_timecode);
 
         static STATUS
-        streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                  UINT64 current_buffer_duration);
+        droppedFragmentReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                     UINT64 fragment_timecode);
+
+        static STATUS
+        streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                 UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
+                                 STATUS status_code);
 
         static STATUS
         streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle);

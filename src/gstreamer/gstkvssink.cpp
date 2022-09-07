@@ -128,6 +128,21 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
+guint signalId;
+
+enum
+{
+  /* signals */
+    SIGNAL_STREAM_UNDERFLOW,
+    SIGNAL_BUFFER_DURATION_OVERFLOW,
+    SIGNAL_STREAM_LATENCY_PRESSURE,
+    SIGNAL_CONNECTION_STALE,
+    SIGNAL_DROPPED_FRAME,
+    SIGNAL_DROPPER_FRAGMENT,
+    SIGNAL_STREAM_ERROR,
+    LAST_SIGNAL
+};
+
 enum {
     PROP_0,
     PROP_STREAM_NAME,
@@ -232,12 +247,21 @@ static GstPad* gst_kvs_sink_request_new_pad (GstElement *element, GstPadTemplate
                                              const gchar* name, const GstCaps *caps);
 static void gst_kvs_sink_release_pad (GstElement *element, GstPad *pad);
 
+void closed(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle) {
+    LOG_INFO("Closed connection with stream handle "<<stream_handle<<" and upload handle "<<upload_handle);
+}
+
 void kinesis_video_producer_init(GstKvsSink *kvssink)
 {
     auto data = kvssink->data;
     unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size));
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
+
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
+
+    kvssink->data->kvsSink = kvssink;
+
+    LOG_INFO("Here signalId:"<<kvssink->data->signalId);
 
     char const *access_key;
     char const *secret_key;
@@ -309,6 +333,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     } else {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }
+
 
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
                                                                     move(client_callback_provider),
@@ -434,6 +459,7 @@ static void
 gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     GObjectClass *gobject_class;
     GstElementClass *gstelement_class;
+    GstKvsSinkClass *basesink_class = (GstKvsSinkClass *) klass;
 
     gobject_class = G_OBJECT_CLASS (klass);
     gstelement_class = GST_ELEMENT_CLASS (klass);
@@ -588,6 +614,10 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     gstelement_class->change_state = GST_DEBUG_FUNCPTR (gst_kvs_sink_change_state);
     gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
     gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
+
+    signalId = g_signal_new("error-kvssink", G_TYPE_FROM_CLASS(gobject_class), (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error), NULL, NULL, NULL, G_TYPE_NONE, 0, G_TYPE_NONE);
+    cout<<"Signal ID:"<<signalId<<"\n";
+
 }
 
 static void
@@ -637,12 +667,13 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
     kvssink->data = make_shared<KvsSinkCustomData>();
+    kvssink->data->signalId = signalId;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
 
     LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
-    LOG_CONFIGURE_STDOUT("DEBUG")
+    LOG_CONFIGURE_STDOUT("DEBUG");
 }
 
 static void
