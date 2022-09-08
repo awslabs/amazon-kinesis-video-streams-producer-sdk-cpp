@@ -1418,9 +1418,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             gst_collect_pads_stop (kvssink->collect);
             break;
-        case GST_STATE_CHANGE_READY_TO_NULL:
-            ret = GST_STATE_CHANGE_FAILURE;
-            break;
         default:
             break;
     }
