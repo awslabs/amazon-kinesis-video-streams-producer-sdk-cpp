@@ -139,7 +139,7 @@ struct _GstKvsSinkClass {
     void (*sink_stale_connection)          (STREAM_HANDLE stream_handle, UINT64 last_buffering_ack, gpointer user_data);
     void (*sink_dropped_frame)             (STREAM_HANDLE stream_handle, UINT64 dropped_frame_timecode, gpointer user_data);
     void (*sink_dropped_fragment)          (STREAM_HANDLE stream_handle, UINT64 fragment_timecode, gpointer user_data);
-    void (*sink_stream_error)              (GstKvsSink *appsink, gpointer user_data);
+    void (*sink_stream_error)              (GstKvsSink *kvssink, gpointer user_data);
 };
 
 GType gst_kvs_sink_get_type (void);

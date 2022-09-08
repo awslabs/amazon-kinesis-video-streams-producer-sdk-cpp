@@ -261,8 +261,6 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
 
     kvssink->data->kvsSink = kvssink;
 
-    LOG_INFO("Here signalId:"<<kvssink->data->signalId);
-
     char const *access_key;
     char const *secret_key;
     char const *session_token;
@@ -615,8 +613,7 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
     gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
 
-    signalId = g_signal_new("error-kvssink", G_TYPE_FROM_CLASS(gobject_class), (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error), NULL, NULL, NULL, G_TYPE_NONE, 0, G_TYPE_NONE);
-    cout<<"Signal ID:"<<signalId<<"\n";
+    signalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class), (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error), NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
 
 }
 

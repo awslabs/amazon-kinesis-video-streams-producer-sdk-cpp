@@ -37,8 +37,9 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data,
     if (!IS_RECOVERABLE_ERROR(status_code)) {
         customDataObj->stream_status = status_code;
     }
-    // g_signal_emit (G_OBJECT (customDataObj->kvsSink), customDataObj->signalId, 0, custom_data, stream_handle, upload_handle, errored_timecode, status_code);
-
+    if(customDataObj->kvsSink != NULL) {
+        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->signalId, 0, status_code);
+    }
     return STATUS_SUCCESS;
 }
 
@@ -48,6 +49,7 @@ KvsSinkStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data,
                                                          UINT64 dropped_frame_timecode) {
     UNUSED_PARAM(custom_data);
     LOG_WARN("Reported droppedFrame callback for stream handle " << stream_handle << ". Dropped frame timecode in 100ns: " << dropped_frame_timecode);
+
     return STATUS_SUCCESS; // continue streaming
 }
 
@@ -77,13 +79,6 @@ KvsSinkStreamCallbackProvider::streamClosedHandler(UINT64 custom_data,
                                                    UPLOAD_HANDLE upload_handle) {
     UNUSED_PARAM(custom_data);
     LOG_INFO("Reported streamClosed callback for stream handle " << stream_handle << ". Upload handle " << upload_handle);
-    
-    auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
-    if(customDataObj->kvsSink != NULL) {
-        LOG_INFO("Here with id: " << customDataObj->signalId);
-        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->signalId, 0);
-    }
-
     return STATUS_SUCCESS;
 }
 
