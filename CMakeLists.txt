@@ -177,6 +177,10 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
+install(
+  DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
+  DESTINATION .)
+
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 target_link_libraries(
   KinesisVideoProducer
@@ -185,6 +189,12 @@ target_link_libraries(
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
 
+install(
+    TARGETS KinesisVideoProducer
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
   include_directories(${JNI_INCLUDE_DIRS})

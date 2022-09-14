@@ -40,6 +40,7 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data,
     if(customDataObj->kvsSink != NULL) {
         g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->signalId, 0, status_code);
     }
+    gst_bus_post()
     return STATUS_SUCCESS;
 }
 
