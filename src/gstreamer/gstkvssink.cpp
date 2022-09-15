@@ -256,7 +256,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     auto data = kvssink->data;
     unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size));
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
-
+    
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
 
     kvssink->data->kvsSink = kvssink;
@@ -304,14 +304,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     }
 
     unique_ptr<CredentialProvider> credential_provider;
-
-    if (credential_is_static) {
-        kvssink->credentials_.reset(new Credentials(access_key_str,
-                secret_key_str,
-                session_token_str,
-                std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
-        credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
-    } else if (kvssink->iot_certificate) {
+    if (kvssink->iot_certificate) {
+        LOG_INFO("Using iot credential provider within KVS sink");
         std::map<std::string, std::string> iot_cert_params;
         if (!kvs_sink_util::parseIotCredentialGstructure(kvssink->iot_certificate, iot_cert_params)){
             LOG_AND_THROW("Failed to parse Iot credentials");
@@ -320,14 +314,19 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         std::map<std::string, std::string>::iterator it = iot_cert_params.find(IOT_THING_NAME); 
         if (it == iot_cert_params.end()) {
             iot_cert_params.insert( std::pair<std::string,std::string>(IOT_THING_NAME, kvssink->stream_name) );
-        }
-
+        }   
         credential_provider.reset(new IotCertCredentialProvider(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
                 iot_cert_params[CERTIFICATE_PATH],
                 iot_cert_params[PRIVATE_KEY_PATH],
                 iot_cert_params[ROLE_ALIASES],
                 iot_cert_params[CA_CERT_PATH],
                 iot_cert_params[IOT_THING_NAME] ) );
+    } else if (credential_is_static) {
+        kvssink->credentials_.reset(new Credentials(access_key_str,
+                secret_key_str,
+                session_token_str,
+                std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
+        credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
     } else {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }
