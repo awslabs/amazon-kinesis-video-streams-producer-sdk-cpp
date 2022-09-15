@@ -123,6 +123,8 @@ On Windows you should run `nmake` instead of `make`
 
 In your build directory you will now have shared objects for all the targets you have selected.
 
+### Installing the library
+If the library needs to be installed, run `make install`. This will install in default directory based on system. To install in another directory, run `cmake` with the `-DCMAKE_INSTALL_PREFIX` option with the desired directory before running `make install`
 ## Run
 ### GStreamer Plugin (kvssink)
 
