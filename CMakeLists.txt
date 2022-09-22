@@ -210,7 +210,11 @@ if(BUILD_GSTREAMER_PLUGIN)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
 
-  add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
+  if(BUILD_STATIC)
+    add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
+  else()
+    add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
+  endif()
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
