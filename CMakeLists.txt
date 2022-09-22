@@ -80,9 +80,9 @@ if(BUILD_DEPENDENCIES)
   
   if(BUILD_LOG4CPLUS_HOST)
     set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
-    build_dependency(log4cplus ${BUILD_ARGS})
+    build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
   else()
-    build_dependency(log4cplus)
+    build_dependency(log4cplus -DBUILD_STATIC=${BUILD_STATIC})
   endif()
 
   message(STATUS "Finished building dependencies.")
