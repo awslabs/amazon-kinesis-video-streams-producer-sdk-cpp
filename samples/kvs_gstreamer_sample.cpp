@@ -863,8 +863,32 @@ int gstreamer_rtsp_source_init(CustomData *data, GstElement *pipeline) {
     source = gst_element_factory_make("rtspsrc", "source");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
 
-    if (!pipeline || !source || !depay || !appsink || !filter || !h264parse) {
-        g_printerr("Not all elements could be created.\n");
+    bool returnHome = false;
+    if(!pipeline) {
+        g_printerr("pipeline failed\n");
+        returnHome = true;
+    }
+    if(!appsink) {
+        g_printerr("appsink failed\n");
+        returnHome = true;
+    }
+    if(!filter) {
+        g_printerr("filter failed\n");
+        returnHome = true;
+    }
+    if(!depay) {
+        g_printerr("depay failed\n");
+        returnHome = true;
+    }
+    if(!source) {
+        g_printerr("source failed\n");
+        returnHome = true;
+    }
+    if(!h264parse) {
+        g_printerr("h264parse failed\n");
+        returnHome = true;
+    }
+    if(returnHome) {
         return 1;
     }
 
