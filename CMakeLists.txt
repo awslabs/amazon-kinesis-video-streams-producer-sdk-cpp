@@ -34,7 +34,7 @@ get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
 
 # static settings
 if(BUILD_STATIC)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
   set(LINKAGE STATIC)
 elseif(WIN32)
   set(LINKAGE STATIC)
@@ -80,9 +80,9 @@ if(BUILD_DEPENDENCIES)
   
   if(BUILD_LOG4CPLUS_HOST)
     set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
-    build_dependency(log4cplus ${BUILD_ARGS})
+    build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
   else()
-    build_dependency(log4cplus)
+    build_dependency(log4cplus -DBUILD_STATIC=${BUILD_STATIC})
   endif()
 
   message(STATUS "Finished building dependencies.")
@@ -210,7 +210,11 @@ if(BUILD_GSTREAMER_PLUGIN)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
 
-  add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
+  if(BUILD_STATIC)
+    add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
+  else()
+    add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
+  endif()
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
