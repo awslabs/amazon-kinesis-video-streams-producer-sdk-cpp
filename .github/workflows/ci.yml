@@ -372,3 +372,17 @@ jobs:
           make install
           file libKinesisVideoProducer.so
 
+  linux-build-gcc-static:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+      - name: Build repository
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_STATIC=ON
+          make
