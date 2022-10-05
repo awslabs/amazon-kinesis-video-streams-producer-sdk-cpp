@@ -101,6 +101,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_TRACKNAME "kinesis_video"
 #define DEFAULT_ACCESS_KEY "access_key"
 #define DEFAULT_SECRET_KEY "secret_key"
+#define DEFAULT_SESSION_TOKEN "session_token"
 #define DEFAULT_REGION "us-west-2"
 #define DEFAULT_ROTATION_PERIOD_SECONDS 3600
 #define DEFAULT_LOG_FILE_PATH "../kvs_log_configuration"
@@ -166,6 +167,7 @@ enum {
     PROP_CODEC_ID,
     PROP_TRACK_NAME,
     PROP_ACCESS_KEY,
+    PROP_SESSION_TOKEN,
     PROP_SECRET_KEY,
     PROP_AWS_REGION,
     PROP_ROTATION_PERIOD,
@@ -276,7 +278,6 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         gst_collect_pads_set_clip_function(kvssink->collect,
                                            GST_DEBUG_FUNCPTR(gst_collect_pads_clip_running_time), kvssink);
     }
-
     if (0 == strcmp(kvssink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
         if (nullptr == (access_key = getenv(ACCESS_KEY_ENV_VAR))
             || nullptr == (secret_key = getenv(SECRET_KEY_ENV_VAR))) { // if no static credential is available in env var.
@@ -286,15 +287,22 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         } else {
             access_key_str = string(access_key);
             secret_key_str = string(secret_key);
-            session_token_str = "";
-            if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
-                session_token_str = string(session_token);
-            }
         }
 
     } else {
         access_key_str = string(kvssink->access_key);
         secret_key_str = string(kvssink->secret_key);
+    }
+
+    // Handle session token seperately, since this is optional with long term credentials
+    if (0 == strcmp(kvssink->session_token, DEFAULT_SESSION_TOKEN)) {
+        session_token_str = "";
+        session_token = getenv(SESSION_TOKEN_ENV_VAR);
+        if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
+            session_token_str = string(session_token);
+        }
+    } else {
+        session_token_str = string(kvssink->session_token);
     }
 
     if (nullptr == (default_region = getenv(DEFAULT_REGION_ENV_VAR))) {
@@ -559,6 +567,9 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                      g_param_spec_string ("secret-key", "Secret Key",
                                                           "AWS Secret Key", DEFAULT_SECRET_KEY, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_SESSION_TOKEN,
+                                     g_param_spec_string ("session-token", "Session token",
+                                                          "AWS Session token", DEFAULT_SESSION_TOKEN, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
     g_object_class_install_property (gobject_class, PROP_AWS_REGION,
                                      g_param_spec_string ("aws-region", "AWS Region",
                                                           "AWS Region", DEFAULT_REGION, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -652,6 +663,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->track_name = g_strdup (DEFAULT_TRACKNAME);
     kvssink->access_key = g_strdup (DEFAULT_ACCESS_KEY);
     kvssink->secret_key = g_strdup (DEFAULT_SECRET_KEY);
+    kvssink->session_token = g_strdup(DEFAULT_SESSION_TOKEN);
     kvssink->aws_region = g_strdup (DEFAULT_REGION);
     kvssink->rotation_period = DEFAULT_ROTATION_PERIOD_SECONDS;
     kvssink->log_config_path = g_strdup (DEFAULT_LOG_FILE_PATH);
@@ -684,6 +696,7 @@ gst_kvs_sink_finalize(GObject *object) {
     g_free(kvssink->track_name);
     g_free(kvssink->secret_key);
     g_free(kvssink->access_key);
+    g_free(kvssink->session_token);
     g_free(kvssink->aws_region);
     g_free(kvssink->audio_codec_id);
     g_free(kvssink->kms_key_id);
@@ -778,6 +791,10 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_SECRET_KEY:
             g_free(kvssink->secret_key);
             kvssink->secret_key = g_strdup (g_value_get_string (value));
+            break;
+        case PROP_SESSION_TOKEN:
+            g_free(kvssink->session_token);
+            kvssink->session_token = g_strdup (g_value_get_string (value));
             break;
         case PROP_AWS_REGION:
             g_free(kvssink->aws_region);
@@ -901,6 +918,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
         case PROP_SECRET_KEY:
             g_value_set_string (value, kvssink->secret_key);
             break;
+        case PROP_SESSION_TOKEN:
+            g_value_set_string (value, kvssink->session_token);
+            break;       
         case PROP_AWS_REGION:
             g_value_set_string (value, kvssink->aws_region);
             break;

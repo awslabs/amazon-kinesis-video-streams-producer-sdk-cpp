@@ -111,6 +111,7 @@ struct _GstKvsSink {
     gchar                       *track_name;
     gchar                       *access_key;
     gchar                       *secret_key;
+    gchar                       *session_token;
     gchar                       *aws_region;
     guint                       rotation_period;
     gchar                       *log_config_path;
