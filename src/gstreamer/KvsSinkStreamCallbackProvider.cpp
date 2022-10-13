@@ -33,12 +33,15 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data,
     LOG_ERROR("Reported stream error. Errored timecode: " << errored_timecode << " Status: 0x" << std::hex << status_code);
     auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
 
-    // ignore if the sdk can recover from the error
-    if (!IS_RECOVERABLE_ERROR(status_code)) {
-        customDataObj->stream_status = status_code;
-    }
-    if(customDataObj->kvsSink != NULL) {
-        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->signalId, 0, status_code);
+
+    if(customDataObj != NULL) {
+        // ignore if the sdk can recover from the error
+        if (!IS_RECOVERABLE_ERROR(status_code)) {
+            customDataObj->stream_status = status_code;
+        }
+        if(customDataObj->kvsSink != NULL) {
+            g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->errSignalId, 0, status_code);
+        }
     }
     return STATUS_SUCCESS;
 }
@@ -82,4 +85,16 @@ KvsSinkStreamCallbackProvider::streamClosedHandler(UINT64 custom_data,
     return STATUS_SUCCESS;
 }
 
+STATUS
+KvsSinkStreamCallbackProvider::fragmentAckHandler(UINT64 custom_data,
+                                                   STREAM_HANDLE stream_handle,
+                                                   UPLOAD_HANDLE upload_handle,
+                                                   PFragmentAck pFragmentAck) {
+    auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
 
+    if(customeDataObj != NULL && customDataObj->kvsSink != NULL && pFragmentAck != NULL && pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED) {
+        LOG_DEBUG("PersistedAck, timestamp " << pFragmentAck->timestamp);
+        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->ackSignalId, 0, pFragmentAck->timestamp);
+    }
+    return STATUS_SUCCESS;
+}

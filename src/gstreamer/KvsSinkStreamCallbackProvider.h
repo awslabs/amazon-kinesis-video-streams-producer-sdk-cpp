@@ -29,25 +29,30 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
         StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
             return streamConnectionStaleHandler;
-        };
+        }
 
         DroppedFrameReportFunc getDroppedFrameReportCallback() override {
             return droppedFrameReportHandler;
-        };
+        }
 
 
         DroppedFragmentReportFunc getDroppedFragmentReportCallback() override {
             return droppedFragmentReportHandler;
-        };
+        }
 
 
         StreamErrorReportFunc getStreamErrorReportCallback() override {
             return streamErrorReportHandler;
-        };
+        }
 
         StreamClosedFunc getStreamClosedCallback() override {
             return streamClosedHandler;
         }
+
+        FragmentAckReceivedFunc getFragmentAckReceivedCallback() {
+            return fragmentAckHandler;
+        }
+
 
     private:        
         static STATUS
@@ -80,6 +85,9 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
         static STATUS
         streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle);
+
+        static STATUS
+        fragmentAckHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck);
     };
 }
 }

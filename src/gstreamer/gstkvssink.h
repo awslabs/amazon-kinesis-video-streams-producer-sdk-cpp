@@ -140,6 +140,7 @@ struct _GstKvsSinkClass {
     void (*sink_stale_connection)          (STREAM_HANDLE stream_handle, UINT64 last_buffering_ack, gpointer user_data);
     void (*sink_dropped_frame)             (STREAM_HANDLE stream_handle, UINT64 dropped_frame_timecode, gpointer user_data);
     void (*sink_dropped_fragment)          (STREAM_HANDLE stream_handle, UINT64 fragment_timecode, gpointer user_data);
+    void (*sink_fragment_ack)              (STREAM_HANDLE stream_handle, UINT64 start_timestamp, gpointer user_data);
     void (*sink_stream_error)              (GstKvsSink *kvssink, gpointer user_data);
 };
 
@@ -173,7 +174,8 @@ struct _KvsSinkCustomData {
     uint64_t pts_base;
     uint64_t first_pts;
     uint64_t producer_start_time;
-    guint signalId;
+    guint errSignalId;
+    guint ackSignalId;
 };
 
 #endif /* __GST_KVS_SINK_H__ */
