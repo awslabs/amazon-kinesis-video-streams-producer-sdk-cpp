@@ -1170,8 +1170,10 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
     // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
     if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-        buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
-        buf->pts += data->pts_base;
+        if(!data->use_original_pts) {
+            buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
+            buf->pts += data->pts_base;
+        }
     } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
         buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
     }
