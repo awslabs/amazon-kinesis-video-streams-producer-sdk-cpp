@@ -115,7 +115,7 @@ typedef struct _CustomData {
     // Pts of first video frame
     uint64_t first_pts;
 
-    // Used to determine how long the stream should run
+    // Used to determine how long the stream should run (seconds)
     // Does not apply for file uploads
     int max_runtime;
 } CustomData;
@@ -265,7 +265,6 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
         g_object_set(G_OBJECT (kvssink), "credential-path", credential_path, NULL);
     }
 }
-
 
 int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
 
@@ -616,7 +615,7 @@ int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
     gst_caps_unref(h264_caps);
 
     // configure kvssink
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "streaming-type", "offline", "storage-size", 128, NULL);
+    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "streaming-type", STREAMING_TYPE_OFFLINE, "storage-size", 128, NULL);
     determine_credentials(kvssink, data);
 
     // configure filesrc
@@ -724,10 +723,10 @@ int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS -runtime runtimeInSeconds\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name rtsp-url -runtime runtimeInSeconds\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS -runtime runtimeInSeconds\n \
+           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample_app my-stream-name\n \
+           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample_app my-stream-name rtsp-url -runtime runtimeInSeconds\n \
+           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
         return 1;
     }
 
