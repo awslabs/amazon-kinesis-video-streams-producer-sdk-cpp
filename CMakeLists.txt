@@ -8,6 +8,7 @@ include(Utilities)
 project(KinesisVideoProducerCpp)
 
 set(CMAKE_CXX_STANDARD 11)
+include(GNUInstallDirs)
 
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
@@ -33,7 +34,7 @@ get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
 
 # static settings
 if(BUILD_STATIC)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
   set(LINKAGE STATIC)
 elseif(WIN32)
   set(LINKAGE STATIC)
@@ -79,9 +80,9 @@ if(BUILD_DEPENDENCIES)
   
   if(BUILD_LOG4CPLUS_HOST)
     set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
-    build_dependency(log4cplus ${BUILD_ARGS})
+    build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
   else()
-    build_dependency(log4cplus)
+    build_dependency(log4cplus -DBUILD_STATIC=${BUILD_STATIC})
   endif()
 
   message(STATUS "Finished building dependencies.")
@@ -177,6 +178,10 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
+install(
+  DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
+  DESTINATION .)
+
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 target_link_libraries(
   KinesisVideoProducer
@@ -184,6 +189,12 @@ target_link_libraries(
          cproducer
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
+
+install(
+    TARGETS KinesisVideoProducer
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
@@ -199,7 +210,11 @@ if(BUILD_GSTREAMER_PLUGIN)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
 
-  add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
+  if(BUILD_STATIC)
+    add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
+  else()
+    add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
+  endif()
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
