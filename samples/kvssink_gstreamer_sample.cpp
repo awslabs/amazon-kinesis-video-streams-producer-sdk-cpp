@@ -10,6 +10,9 @@
 #include "gstreamer/gstkvssink.h"
 #include <thread>
 #include "include.h"
+#if defined _WIN32
+  #include <windows.h>
+#endif
 
 using namespace std;
 using namespace std::chrono;
@@ -122,16 +125,6 @@ typedef struct _CustomData {
 
 // CustomData 
 CustomData data_global;
-
-namespace com {
-    namespace amazonaws {
-        namespace kinesis {
-            namespace video {
-
-            }  // namespace video
-        }  // namespace kinesis
-    }  // namespace amazonaws
-}  // namespace com;
 
 static bool format_supported_by_source(GstCaps *src_caps, GstCaps *query_caps, int width, int height, int framerate) {
     gst_caps_set_simple(query_caps,
@@ -342,9 +335,6 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     GstElement *source_filter, *filter, *kvssink, *h264parse, *encoder, *source, *video_convert;
 
     /* create the elemnents */
-    /*
-       gst-launch-1.0 v4l2src device=/dev/video0 ! video/x-raw,format=I420,width=1280,height=720,framerate=15/1 ! x264enc pass=quant bframes=0 ! video/x-h264,profile=baseline,format=I420,width=1280,height=720,framerate=15/1 ! matroskamux ! filesink location=test.mkv
-     */
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
     filter = gst_element_factory_make("capsfilter", "encoder_filter");
     kvssink = gst_element_factory_make("kvssink", "kvssink");
