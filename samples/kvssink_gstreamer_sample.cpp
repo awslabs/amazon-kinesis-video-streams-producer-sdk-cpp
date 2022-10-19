@@ -10,9 +10,6 @@
 #include "gstreamer/gstkvssink.h"
 #include <thread>
 #include "include.h"
-#if defined _WIN32
-  #include <windows.h>
-#endif
 
 using namespace std;
 using namespace std::chrono;
@@ -211,11 +208,7 @@ static void pad_added_cb(GstElement *element, GstPad *pad, GstElement *target) {
 
 /* Function will wait maxruntime before closing stream */
 void timer(CustomData *data) {
-#if defined _WIN32
-  _sleep(data->max_runtime);
-#else  	
-  sleep(data->max_runtime);
-#endif
+  THREAD_SLEEP(data->max_runtime);
   LOG_DEBUG("max runtime elapsed. exiting"); 
   g_main_loop_quit(data->main_loop);
   data->stream_status = STATUS_SUCCESS;  
