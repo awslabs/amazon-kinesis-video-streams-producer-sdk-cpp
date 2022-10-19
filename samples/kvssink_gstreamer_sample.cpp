@@ -211,7 +211,11 @@ static void pad_added_cb(GstElement *element, GstPad *pad, GstElement *target) {
 
 /* Function will wait maxruntime before closing stream */
 void timer(CustomData *data) {
+#if defined _WIN32
+  _sleep(data->max_runtime);
+#else  	
   sleep(data->max_runtime);
+#endif
   LOG_DEBUG("max runtime elapsed. exiting"); 
   g_main_loop_quit(data->main_loop);
   data->stream_status = STATUS_SUCCESS;  
