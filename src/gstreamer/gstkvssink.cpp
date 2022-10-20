@@ -302,9 +302,11 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         session_token_str = "";
         session_token = getenv(SESSION_TOKEN_ENV_VAR);
         if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
+            LOG_INFO("Setting session token from env");
             session_token_str = string(session_token);
         }
     } else {
+        LOG_INFO("Setting session token from config");
         session_token_str = string(kvssink->session_token);
     }
 
