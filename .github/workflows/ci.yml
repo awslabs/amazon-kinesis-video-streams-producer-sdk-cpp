@@ -106,7 +106,7 @@ jobs:
         run: |
           cd build
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 20m ./tst/producerTest
+          timeout --signal=SIGABRT 50m ./tst/producerTest
       - name: Code coverage
         run: |
           cd build
@@ -146,7 +146,7 @@ jobs:
         run: |
           cd build
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 20m ./tst/producerTest
+          timeout --signal=SIGABRT 50m ./tst/producerTest
 
   undefined-behavior-sanitizer:
     runs-on: ubuntu-18.04
@@ -181,7 +181,7 @@ jobs:
         run: |
           cd build
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 20m ./tst/producerTest
+          timeout --signal=SIGABRT 50m ./tst/producerTest
 
   # memory-sanitizer:
   #   runs-on: ubuntu-18.04 
@@ -272,7 +272,7 @@ jobs:
         run: |
           cd build
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 20m ./tst/producerTest
+          timeout --signal=SIGABRT 50m ./tst/producerTest
   
   windows-msvc:
     runs-on: windows-2022
