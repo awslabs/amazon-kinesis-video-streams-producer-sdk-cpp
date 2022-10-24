@@ -122,6 +122,8 @@ gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! q
             * Run the sample demo application for sending **webcam video** by executing ` kvs_gstreamer_sample.exe my-test-stream `  or
             * Run the sample application for sending **IP camera video** by executing  `kvs_gstreamer_sample.exe my-test-rtsp-stream <rtsp_url>`
             * Run the sample application for sending **MKV File** by executing  `kvs_gstreamer_sample.exe my-test-stream <path/to/file.mkv>`
+            * Can also use `kvssink_gstreamer_sample.exe` to upload video.
+               * `kvssink_gstreamer_sample.exe` uses kvssink to upload to kvs while `kvs_gstreamer_sample.exe` uses appsink
 
 4. You can also run the the sample application by executing the following command which will send audio and video to Kinesis Video Streams.
     * Change your current working directory to Release directory first.
