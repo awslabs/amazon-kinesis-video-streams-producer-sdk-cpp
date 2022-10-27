@@ -7,7 +7,8 @@ Run the following commands to install the prerequisite libraries to get started:
 
 `sudo apt-get install cmake m4 git build-essential`
 
-`sudo apt-get install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-tools`
+`sudo apt-get install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-tools gstreamer1.0-omx-rpi
+gstreamer1.0-plugins-base-apps`
 
 Also, install the gstreamer1.0-omx package to get the omxh264enc hardware encoder:
 
