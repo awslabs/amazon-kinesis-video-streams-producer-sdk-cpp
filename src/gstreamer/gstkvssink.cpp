@@ -1176,6 +1176,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
             buf->pts += data->pts_base;
         }
+        else {
+            buf->pts = buf->dts;
+        }
     } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
         buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
     }
@@ -1216,6 +1219,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
         if(!data->use_original_pts) {
             buf->pts += data->producer_start_time - data->first_pts;
+        }
+        else {
+            buf->pts = buf->dts;
         }
     }
 
