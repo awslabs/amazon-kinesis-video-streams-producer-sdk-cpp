@@ -270,10 +270,12 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     char const *secret_key;
     char const *session_token;
     char const *default_region;
+    char const *control_plane_uri;
     string access_key_str;
     string secret_key_str;
     string session_token_str;
     string region_str;
+    string control_plane_uri_str = "";
     bool credential_is_static = true;
 
     // This needs to happen after we've read in ALL of the properties
@@ -295,6 +297,12 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     } else {
         access_key_str = string(kvssink->access_key);
         secret_key_str = string(kvssink->secret_key);
+    }
+
+    // Handle env for providing CP URL
+    if(nullptr != (control_plane_uri = getenv(CONTROL_PLANE_URI_ENV_VAR))) {
+        LOG_INFO("Getting URL from env");
+        control_plane_uri_str = string(control_plane_uri);
     }
 
     // Handle session token seperately, since this is optional with long term credentials
@@ -350,7 +358,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                                     move(stream_callback_provider),
                                                                     move(credential_provider),
                                                                     region_str,
-                                                                    "",
+                                                                    control_plane_uri_str,
                                                                     KVS_CLIENT_USER_AGENT_NAME);
 }
 
@@ -1128,6 +1136,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
 
     // eos reached
     if (buf == NULL && track_data == NULL) {
+        LOG_INFO("Received event");
         data->kinesis_video_stream->stopSync();
         LOG_INFO("Sending eos");
 

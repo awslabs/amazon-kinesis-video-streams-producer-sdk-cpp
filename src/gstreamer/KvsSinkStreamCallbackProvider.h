@@ -49,7 +49,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
             return streamClosedHandler;
         }
 
-        FragmentAckReceivedFunc getFragmentAckReceivedCallback() {
+        FragmentAckReceivedFunc getFragmentAckReceivedCallback() override {
             return fragmentAckHandler;
         }
 
