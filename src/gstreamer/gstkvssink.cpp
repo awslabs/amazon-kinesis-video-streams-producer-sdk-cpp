@@ -88,6 +88,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
+#define DEFAULT_ALLOW_CREATE_STREAM TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
 #define DEFAULT_DISABLE_BUFFER_CLIPPING FALSE
 #define DEFAULT_USE_ORIGINAL_PTS FALSE
@@ -180,7 +181,8 @@ enum {
     PROP_STREAM_TAGS,
     PROP_FILE_START_TIME,
     PROP_DISABLE_BUFFER_CLIPPING,
-    PROP_USE_ORIGINAL_PTS
+    PROP_USE_ORIGINAL_PTS,
+    PROP_ALLOW_CREATE_STREAM,
 };
 
 #define GST_TYPE_KVS_SINK_STREAMING_TYPE (gst_kvs_sink_streaming_type_get_type())
@@ -352,7 +354,6 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }
 
-
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
                                                                     move(client_callback_provider),
                                                                     move(stream_callback_provider),
@@ -413,12 +414,13 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
             duration_cast<milliseconds> (seconds(kvssink->max_latency_seconds)),
             milliseconds(kvssink->fragment_duration_miliseconds),
             milliseconds(kvssink->timecode_scale_milliseconds),
-            kvssink->key_frame_fragmentation,//Construct a fragment at each key frame
-            kvssink->frame_timecodes,//Use provided frame timecode
-            kvssink->absolute_fragment_times,//Relative timecode
-            kvssink->fragment_acks,//Ack on fragment is enabled
-            kvssink->restart_on_error,//SDK will restart when error happens
-            kvssink->recalculate_metrics,//recalculate_metrics
+            kvssink->key_frame_fragmentation,// Construct a fragment at each key frame
+            kvssink->frame_timecodes,// Use provided frame timecode
+            kvssink->absolute_fragment_times,// Relative timecode
+            kvssink->fragment_acks,// Ack on fragment is enabled
+            kvssink->restart_on_error,// SDK will restart when error happens
+            kvssink->recalculate_metrics,// recalculate_metrics
+            kvssink->allow_create_stream, // allow stream creation if stream does not exist
             0,
             kvssink->framerate,
             kvssink->avg_bandwidth_bps,
@@ -628,6 +630,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                            "Set to true only if you want to use the original presentation time stamp on the buffer and that timestamp is expected to be a valid epoch value in nanoseconds. Most encoders will not have a valid PTS", DEFAULT_USE_ORIGINAL_PTS,
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_ALLOW_CREATE_STREAM,
+                                     g_param_spec_boolean ("allow-create-stream", "Allow creating stream if stream does not exist",
+                                                           "Set to true if allowing create stream call, false otherwise", DEFAULT_ALLOW_CREATE_STREAM,
+                                                           (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     gst_element_class_set_static_metadata(gstelement_class,
                                           "KVS Sink",
                                           "Sink/Video/Network",
@@ -672,6 +679,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->fragment_acks = DEFAULT_FRAGMENT_ACKS;
     kvssink->restart_on_error = DEFAULT_RESTART_ON_ERROR;
     kvssink->recalculate_metrics = DEFAULT_RECALCULATE_METRICS;
+    kvssink->allow_create_stream = DEFAULT_ALLOW_CREATE_STREAM;
     kvssink->framerate = DEFAULT_STREAM_FRAMERATE;
     kvssink->avg_bandwidth_bps = DEFAULT_AVG_BANDWIDTH_BPS;
     kvssink->buffer_duration_seconds = DEFAULT_BUFFER_DURATION_SECONDS;
@@ -864,6 +872,9 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_USE_ORIGINAL_PTS:
             kvssink->data->use_original_pts = g_value_get_boolean(value);
             break;
+        case PROP_ALLOW_CREATE_STREAM:
+            kvssink->allow_create_stream = g_value_get_boolean(value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -976,6 +987,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
             break;
         case PROP_USE_ORIGINAL_PTS:
             g_value_set_boolean (value, kvssink->data->use_original_pts);
+            break;
+        case PROP_ALLOW_CREATE_STREAM:
+            g_value_set_boolean (value, kvssink->allow_create_stream);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);

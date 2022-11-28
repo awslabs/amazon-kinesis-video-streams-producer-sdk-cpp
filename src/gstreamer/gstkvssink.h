@@ -101,6 +101,7 @@ struct _GstKvsSink {
     gboolean                    fragment_acks;
     gboolean                    restart_on_error;
     gboolean                    recalculate_metrics;
+    gboolean                    allow_create_stream;
     gboolean                    disable_buffer_clipping;
     guint                       framerate;
     guint                       avg_bandwidth_bps;
