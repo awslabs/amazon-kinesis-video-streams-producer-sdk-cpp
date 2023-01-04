@@ -116,6 +116,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define KVS_ADD_METADATA_VALUE "value"
 #define KVS_ADD_METADATA_PERSISTENT "persist"
 #define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CLIENT"
+#define KVS_CLIENT_EDGE_USER_AGENT_NAME "AWS-EDGE-SDK-KVS-CLIENT"
+
 
 #define DEFAULT_AUDIO_TRACK_NAME "audio"
 #define DEFAULT_AUDIO_CODEC_ID_AAC "A_AAC"
@@ -360,7 +362,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                                     move(credential_provider),
                                                                     region_str,
                                                                     control_plane_uri_str,
-                                                                    KVS_CLIENT_USER_AGENT_NAME);
+                                                                    KVS_CLIENT_EDGE_USER_AGENT_NAME);
 }
 
 void create_kinesis_video_stream(GstKvsSink *kvssink) {
