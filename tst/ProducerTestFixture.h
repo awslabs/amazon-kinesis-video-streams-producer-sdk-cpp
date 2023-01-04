@@ -373,6 +373,7 @@ protected:
                 true,
                 true,
                 true,
+                true,
                 0,
                 25,
                 4 * 1024 * 1024,
