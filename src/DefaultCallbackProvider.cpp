@@ -421,6 +421,10 @@ DefaultCallbackProvider::DefaultCallbackProvider(
                              + "."
                              + region_
                              + CONTROL_PLANE_URI_POSTFIX;
+        // If region is in CN, add CN region uri postfix
+        if(region_.rfind("cn-", 0) == 0) {
+            control_plane_uri_ += ".cn";
+        }
     }
 
     getStreamCallbacks();
