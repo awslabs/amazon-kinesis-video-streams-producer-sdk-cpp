@@ -38,8 +38,6 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data,
         // ignore if the sdk can recover from the error
         if (!IS_RECOVERABLE_ERROR(status_code)) {
             customDataObj->stream_status = status_code;
-        }
-        if(customDataObj->kvsSink != NULL) {
             g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->errSignalId, 0, status_code);
         }
     }
