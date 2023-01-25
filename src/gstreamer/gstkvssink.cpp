@@ -1181,79 +1181,82 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
     }
 
-    isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
-                    GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
-                    (GST_BUFFER_FLAGS(buf) == GST_BUFFER_FLAG_DISCONT) ||
-                    (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DISCONT) && GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT)) ||
-                    // drop if buffer contains header and has invalid timestamp
-                    (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
+    if(buf != NULL) {
+        isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
+                        GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
+                        (GST_BUFFER_FLAGS(buf) == GST_BUFFER_FLAG_DISCONT) ||
+                        (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DISCONT) && GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT)) ||
+                        // drop if buffer contains header and has invalid timestamp
+                        (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
 
-    if (isDroppable) {
-        LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf));
-        goto CleanUp;
-    }
-
-    // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
-    // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
-    // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
-    if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-        if(!data->use_original_pts) {
-            buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
-            buf->pts += data->pts_base;
+        if (isDroppable) {
+            LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf));
+            goto CleanUp;
         }
-        else {
-            buf->pts = buf->dts;
-        }
-    } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
-        buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
-    }
 
-    data->last_dts = buf->dts;
-    track_id = kvs_sink_track_data->track_id;
-
-    if (!gst_buffer_map(buf, &info, GST_MAP_READ)){
-        goto CleanUp;
-    }
-
-    delta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
-
-    switch (data->media_type) {
-        case AUDIO_ONLY:
-        case VIDEO_ONLY:
-            if (!delta) {
-                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+        // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
+        // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
+        // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
+        if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
+            if(!data->use_original_pts) {
+                buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
+                buf->pts += data->pts_base;
             }
-            break;
-        case AUDIO_VIDEO:
-            if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
-                if (data->first_video_frame) {
-                    data->first_video_frame = false;
+            else {
+                buf->pts = buf->dts;
+            }
+        } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
+            buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
+        }
+
+        data->last_dts = buf->dts;
+        track_id = kvs_sink_track_data->track_id;
+
+        if (!gst_buffer_map(buf, &info, GST_MAP_READ)){
+            goto CleanUp;
+        }
+
+        delta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
+
+        switch (data->media_type) {
+            case AUDIO_ONLY:
+            case VIDEO_ONLY:
+                if (!delta) {
+                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
                 }
-                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+                break;
+            case AUDIO_VIDEO:
+                if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
+                    if (data->first_video_frame) {
+                        data->first_video_frame = false;
+                    }
+                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+                }
+                break;
+        }
+
+        if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
+            if (data->first_pts == GST_CLOCK_TIME_NONE) {
+                data->first_pts = buf->pts;
             }
-            break;
+            if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
+                data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+                        systemCurrentTime().time_since_epoch()).count();
+            }
+            if(!data->use_original_pts) {
+                buf->pts += data->producer_start_time - data->first_pts;
+            }
+            else {
+                buf->pts = buf->dts;
+            }
+        }
+
+        put_frame(data->kinesis_video_stream, info.data, info.size,
+                  std::chrono::nanoseconds(buf->pts),
+                  std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+        data->frame_count++;  
     }
 
-    if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-        if (data->first_pts == GST_CLOCK_TIME_NONE) {
-            data->first_pts = buf->pts;
-        }
-        if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
-            data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
-                    systemCurrentTime().time_since_epoch()).count();
-        }
-        if(!data->use_original_pts) {
-            buf->pts += data->producer_start_time - data->first_pts;
-        }
-        else {
-            buf->pts = buf->dts;
-        }
-    }
-
-    put_frame(data->kinesis_video_stream, info.data, info.size,
-              std::chrono::nanoseconds(buf->pts),
-              std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
-    data->frame_count++;
 
 CleanUp:
     if (info.data != NULL) {
@@ -1440,13 +1443,20 @@ init_track_data(GstKvsSink *kvssink) {
 
     switch (kvssink->data->media_type) {
         case AUDIO_VIDEO:
-            kvssink->content_type = g_strjoin(",", video_content_type, audio_content_type, NULL);
+            if(video_content_type != NULL && audio_content_type != NULL) {
+                kvssink->content_type = g_strjoin(",", video_content_type, audio_content_type, NULL);                
+            }
+
             break;
         case AUDIO_ONLY:
-            kvssink->content_type = g_strdup(audio_content_type);
+            if(audio_content_type != NULL) {
+                kvssink->content_type = g_strdup(audio_content_type);                
+            }
             break;
         case VIDEO_ONLY:
-            kvssink->content_type = g_strdup(video_content_type);
+            if(video_content_type != NULL) {
+                kvssink->content_type = g_strdup(video_content_type);
+            }
             break;
     }
 
