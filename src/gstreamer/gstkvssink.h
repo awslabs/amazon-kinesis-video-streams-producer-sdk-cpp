@@ -133,6 +133,8 @@ struct _GstKvsSink {
 
 struct _GstKvsSinkClass {
     GstElementClass parent_class;
+    void (*sink_fragment_ack)              (GstKvsSink *kvssink, gpointer user_data);
+    void (*sink_stream_error)              (GstKvsSink *kvssink, gpointer user_data);
 };
 
 GType gst_kvs_sink_get_type (void);
@@ -165,6 +167,8 @@ struct _KvsSinkCustomData {
     uint64_t pts_base;
     uint64_t first_pts;
     uint64_t producer_start_time;
+    guint errSignalId;
+    guint ackSignalId;
 };
 
 #endif /* __GST_KVS_SINK_H__ */

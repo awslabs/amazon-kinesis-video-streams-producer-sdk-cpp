@@ -128,6 +128,11 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
+namespace KVSSinkSignals {
+    guint errSignalId;
+    guint ackSignalId;
+};
+
 enum {
     PROP_0,
     PROP_STREAM_NAME,
@@ -588,6 +593,13 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     gstelement_class->change_state = GST_DEBUG_FUNCPTR (gst_kvs_sink_change_state);
     gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
     gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
+
+    KVSSinkSignals::errSignalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class),
+                                               (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error),
+                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
+    KVSSinkSignals::ackSignalId = g_signal_new("persisted-ack", G_TYPE_FROM_CLASS(gobject_class),
+                                               (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack),
+                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
 }
 
 static void
@@ -637,6 +649,9 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
     kvssink->data = make_shared<KvsSinkCustomData>();
+
+    kvssink->data->errSignalId = KVSSinkSignals::errSignalId;
+    kvssink->data->ackSignalId = KVSSinkSignals::ackSignalId;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
