@@ -3,7 +3,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
