@@ -156,7 +156,7 @@ struct _KvsSinkCustomData {
     std::shared_ptr<KinesisVideoStream> kinesis_video_stream;
 
     std::unordered_set<uint64_t> track_cpd_received;
-    GstKvsSink *kvsSink;
+    GstKvsSink *kvsSink = nullptr;
     MediaType media_type;
     bool first_video_frame;
     uint32_t frame_count;
