@@ -167,8 +167,8 @@ struct _KvsSinkCustomData {
     uint64_t pts_base;
     uint64_t first_pts;
     uint64_t producer_start_time;
-    guint errSignalId;
-    guint ackSignalId;
+    guint errSignalId = 0;
+    guint ackSignalId = 0;
 };
 
 #endif /* __GST_KVS_SINK_H__ */
