@@ -18,6 +18,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
         const std::string &control_plane_uri,
         const std::string &user_agent_name) {
 
+    std::cout<<"HERE in sync 5\n";
     unique_ptr<DefaultCallbackProvider> callback_provider(new DefaultCallbackProvider(move(client_callback_provider),
             move(stream_callback_provider),
             move(credential_provider),
@@ -36,6 +37,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
         unique_ptr<DeviceInfoProvider> device_info_provider,
         unique_ptr<CallbackProvider> callback_provider) {
 
+    std::cout<<"HERE in sync 4\n";
     CLIENT_HANDLE client_handle;
     DeviceInfo device_info = device_info_provider->getDeviceInfo();
 
@@ -68,6 +70,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
         bool is_caching_endpoint,
         uint64_t caching_update_period) {
 
+    std::cout<<"HERE in sync 2\n";
     unique_ptr<DefaultCallbackProvider> callback_provider(new DefaultCallbackProvider(move(client_callback_provider),
             move(stream_callback_provider),
             move(credential_provider),
@@ -86,9 +89,11 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
         unique_ptr<DeviceInfoProvider> device_info_provider,
         unique_ptr<CallbackProvider> callback_provider) {
 
+    std::cout<<"HERE in sync 3\n";
     CLIENT_HANDLE client_handle;
     DeviceInfo device_info = device_info_provider->getDeviceInfo();
 
+    LOG_INFO("Device info timeout:" << device_info.clientInfo.stopStreamTimeout);
     // Create the producer object
     std::unique_ptr<KinesisVideoProducer> kinesis_video_producer(new KinesisVideoProducer());
 

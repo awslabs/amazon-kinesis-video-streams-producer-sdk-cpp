@@ -108,6 +108,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_ROTATION_PERIOD_SECONDS 3600
 #define DEFAULT_LOG_FILE_PATH "../kvs_log_configuration"
 #define DEFAULT_STORAGE_SIZE_MB 128
+#define DEFAULT_STOP_STREAM_TIMEOUT_SEC 120
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 #define DEFAULT_FRAME_DURATION_MS 2
 
@@ -178,6 +179,7 @@ enum {
     PROP_ROTATION_PERIOD,
     PROP_LOG_CONFIG_PATH,
     PROP_STORAGE_SIZE,
+    PROP_STOP_STREAM_TIMEOUT,
     PROP_CREDENTIAL_FILE_PATH,
     PROP_IOT_CERTIFICATE,
     PROP_STREAM_TAGS,
@@ -263,7 +265,7 @@ void closed(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE uploa
 void kinesis_video_producer_init(GstKvsSink *kvssink)
 {
     auto data = kvssink->data;
-    unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size));
+    unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size, kvssink->stop_stream_timeout));
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
     
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
@@ -356,6 +358,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }
 
+    LOG_INFO("Timeout here:" << kvssink->stop_stream_timeout);
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
                                                                     move(client_callback_provider),
                                                                     move(stream_callback_provider),
@@ -363,6 +366,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                                     region_str,
                                                                     control_plane_uri_str,
                                                                     KVS_CLIENT_EDGE_USER_AGENT_NAME);
+    LOG_INFO("Timeout after:" << kvssink->stop_stream_timeout);
 }
 
 void create_kinesis_video_stream(GstKvsSink *kvssink) {
@@ -603,6 +607,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                      g_param_spec_uint ("storage-size", "Storage Size",
                                                         "Storage Size. Unit: MB", 0, G_MAXUINT, DEFAULT_STORAGE_SIZE_MB, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_STOP_STREAM_TIMEOUT,
+                                     g_param_spec_uint ("stop-stream-timeout", "Stop stream timeout",
+                                                        "Stop stream timeout: seconds", 0, G_MAXUINT, DEFAULT_STOP_STREAM_TIMEOUT_SEC, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    
     g_object_class_install_property (gobject_class, PROP_CREDENTIAL_FILE_PATH,
                                      g_param_spec_string ("credential-path", "Credential File Path",
                                                           "Credential File Path", DEFAULT_CREDENTIAL_FILE_PATH, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -697,6 +706,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->rotation_period = DEFAULT_ROTATION_PERIOD_SECONDS;
     kvssink->log_config_path = g_strdup (DEFAULT_LOG_FILE_PATH);
     kvssink->storage_size = DEFAULT_STORAGE_SIZE_MB;
+    kvssink->stop_stream_timeout = DEFAULT_STOP_STREAM_TIMEOUT_SEC;
     kvssink->credential_file_path = g_strdup (DEFAULT_CREDENTIAL_FILE_PATH);
     kvssink->file_start_time = (uint64_t) chrono::duration_cast<seconds>(
             systemCurrentTime().time_since_epoch()).count();
@@ -843,6 +853,9 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_STORAGE_SIZE:
             kvssink->storage_size = g_value_get_uint (value);
             break;
+        case PROP_STOP_STREAM_TIMEOUT:
+            kvssink->stop_stream_timeout = g_value_get_uint (value);
+            break;
         case PROP_CREDENTIAL_FILE_PATH:
             g_free(kvssink->credential_file_path);
             kvssink->credential_file_path = g_strdup (g_value_get_string (value));
@@ -971,6 +984,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
             break;
         case PROP_STORAGE_SIZE:
             g_value_set_uint (value, kvssink->storage_size);
+            break;
+        case PROP_STOP_STREAM_TIMEOUT:
+            g_value_set_uint (value, kvssink->stop_stream_timeout);
             break;
         case PROP_CREDENTIAL_FILE_PATH:
             g_value_set_string (value, kvssink->credential_file_path);
@@ -1474,8 +1490,14 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
-            log4cplus::initialize();
-            log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
+            if(kvssink->log_config_path != NULL) {
+                LOG_DEBUG("Logger initializing...");
+                log4cplus::initialize();
+                log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
+            }
+            else {
+                LOG_DEBUG("Logger already initialized");
+            }
             try {
                 kinesis_video_producer_init(kvssink);
                 init_track_data(kvssink);
