@@ -117,6 +117,7 @@ struct _GstKvsSink {
     guint                       rotation_period;
     gchar                       *log_config_path;
     guint                       storage_size;
+    guint                       stop_stream_timeout;  
     gchar                       *credential_file_path;
     GstStructure                *iot_certificate;
     GstStructure                *stream_tags;
