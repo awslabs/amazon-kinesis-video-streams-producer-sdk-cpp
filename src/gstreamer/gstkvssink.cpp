@@ -244,6 +244,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
 
+    kvssink->data->kvsSink = kvssink;
+
     char const *access_key;
     char const *secret_key;
     char const *session_token;
