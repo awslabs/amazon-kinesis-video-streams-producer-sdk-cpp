@@ -604,6 +604,8 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
 }
 
+CloudwatchLogsObject::CloudwatchLogsObject(){};
+
 PCloudwatchLogsObject gCloudwatchLogsObject = NULL;
 
 STATUS _KvsSinkCustomData::initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject)
