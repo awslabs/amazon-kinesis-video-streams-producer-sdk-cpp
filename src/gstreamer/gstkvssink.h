@@ -38,6 +38,15 @@
 #include <atomic>
 #include <gst/base/gstcollectpads.h>
 #include <unordered_set>
+#include <aws/core/Aws.h>
+#include <aws/monitoring/CloudWatchClient.h>
+#include <aws/monitoring/model/PutMetricDataRequest.h>
+#include <aws/logs/CloudWatchLogsClient.h>
+#include <aws/logs/model/CreateLogGroupRequest.h>
+#include <aws/logs/model/CreateLogStreamRequest.h>
+#include <aws/logs/model/PutLogEventsRequest.h>
+#include <aws/logs/model/DeleteLogStreamRequest.h>
+#include <aws/logs/model/DescribeLogStreamsRequest.h>
 
 using namespace com::amazonaws::kinesis::video;
 
@@ -61,6 +70,7 @@ G_BEGIN_DECLS
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
 typedef struct _KvsSinkCustomData KvsSinkCustomData;
+typedef class CloudwatchLogsObject* PCloudwatchLogsObject;
 
 /* all information needed for one track */
 typedef struct _GstKvsSinkTrackData {
@@ -141,6 +151,21 @@ GType gst_kvs_sink_get_type (void);
 
 G_END_DECLS
 
+class CloudwatchLogsObject {
+public:
+    Aws::CloudWatchLogs::CloudWatchLogsClient* pCwl;
+    Aws::CloudWatchLogs::Model::CreateLogGroupRequest canaryLogGroupRequest;
+    Aws::CloudWatchLogs::Model::CreateLogStreamRequest canaryLogStreamRequest;
+    Aws::CloudWatchLogs::Model::PutLogEventsRequest canaryPutLogEventRequest;
+    Aws::CloudWatchLogs::Model::PutLogEventsResult canaryPutLogEventresult;
+    Aws::Vector<Aws::CloudWatchLogs::Model::InputLogEvent> canaryInputLogEventVec;
+    Aws::String token;
+    std::string logGroupName;
+    std::string logStreamName;
+    std::recursive_mutex mutex;
+    CloudwatchLogsObject();
+};
+
 struct _KvsSinkCustomData {
 
     _KvsSinkCustomData():
@@ -169,6 +194,15 @@ struct _KvsSinkCustomData {
     uint64_t producer_start_time;
     guint errSignalId = 0;
     guint ackSignalId = 0;
+
+    Aws::Client::ClientConfiguration clientConfig;
+    Aws::CloudWatch::CloudWatchClient* pCWclient;
+    Aws::CloudWatch::Model::Dimension* pDimensionPerStream;
+    Aws::CloudWatch::Model::Dimension* pAggregatedDimension;
+
+    CloudwatchLogsObject* pCloudwatchLogsObject;
+    STATUS initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject);
+
 };
 
 #endif /* __GST_KVS_SINK_H__ */

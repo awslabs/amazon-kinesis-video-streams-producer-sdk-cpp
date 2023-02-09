@@ -1,4 +1,10 @@
 #include "KvsSinkStreamCallbackProvider.h"
+#include <string.h>
+#include <chrono>
+#include <aws/core/Aws.h>
+#include <aws/monitoring/CloudWatchClient.h>
+#include <aws/monitoring/model/PutMetricDataRequest.h>
+#include <aws/logs/CloudWatchLogsClient.h>
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
@@ -57,15 +63,57 @@ KvsSinkStreamCallbackProvider::streamClosedHandler(UINT64 custom_data,
     return STATUS_SUCCESS;
 }
 
+VOID pushMetric(std::string metricName, double metricValue, Aws::CloudWatch::Model::StandardUnit unit, Aws::CloudWatch::Model::MetricDatum datum,
+                Aws::CloudWatch::Model::Dimension *dimension, Aws::CloudWatch::Model::PutMetricDataRequest &cwRequest)
+{
+    datum.SetMetricName(metricName);
+    datum.AddDimensions(*dimension);
+    datum.SetValue(metricValue);
+    datum.SetUnit(unit);
+
+    // Pushes back the data array, can include no more than 20 metrics per call
+    cwRequest.AddMetricData(datum);
+}
+
+VOID onPutMetricDataResponseReceivedHandler(const Aws::CloudWatch::CloudWatchClient* cwClient,
+                                            const Aws::CloudWatch::Model::PutMetricDataRequest& request,
+                                            const Aws::CloudWatch::Model::PutMetricDataOutcome& outcome,
+                                            const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context)
+{
+    if (!outcome.IsSuccess()) {
+        LOG_ERROR("Failed to put sample metric data: " << outcome.GetError().GetMessage().c_str());
+    } else {
+        LOG_DEBUG("Successfully put sample metric data");
+    }
+}
+
 STATUS
 KvsSinkStreamCallbackProvider::fragmentAckHandler(UINT64 custom_data,
                                                   STREAM_HANDLE stream_handle,
                                                   UPLOAD_HANDLE upload_handle,
                                                   PFragmentAck pFragmentAck) {
     auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
+//    std::string canaryLabel = "DEFAULT_CANARY_LABEL";
+//    Aws::CloudWatch::Model::Dimension aggregated_dimension;
+//    aggregated_dimension.SetName("ProducerCppCanaryType");
+//    aggregated_dimension.SetValue(canaryLabel);
+//
+//    Aws::CloudWatch::Model::Dimension DimensionPerStream;
+//    DimensionPerStream.SetName("ProducerCppCanaryStreamName");
+//    DimensionPerStream.SetValue(customDataObj->kvsSink->stream_name);
 
     if(customDataObj != NULL && customDataObj->kvsSink != NULL && pFragmentAck != NULL && pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED) {
         LOG_DEBUG("PersistedAck, timestamp " << pFragmentAck->timestamp);
+        Aws::CloudWatch::Model::MetricDatum persistedAckLatencyDatum;
+        Aws::CloudWatch::Model::PutMetricDataRequest cwRequest;
+        cwRequest.SetNamespace("YourStreamName");
+
+        auto currentTimestamp = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        pushMetric("PersistedAckLatency", customDataObj->kvsSink->max_latency_seconds, Aws::CloudWatch::Model::StandardUnit::Milliseconds,
+                   persistedAckLatencyDatum, customDataObj->pDimensionPerStream, cwRequest);
+        LOG_DEBUG("Persisted Ack Latency: " << customDataObj->kvsSink->max_latency_seconds);
+        pushMetric("PersistedAckLatency", customDataObj->kvsSink->max_latency_seconds, Aws::CloudWatch::Model::StandardUnit::Milliseconds,
+            persistedAckLatencyDatum, customDataObj->pAggregatedDimension, cwRequest);
         g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->ackSignalId, 0, pFragmentAck->timestamp);
     }
     return STATUS_SUCCESS;

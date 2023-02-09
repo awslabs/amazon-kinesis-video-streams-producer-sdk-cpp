@@ -604,6 +604,26 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
 }
 
+PCloudwatchLogsObject gCloudwatchLogsObject = NULL;
+
+STATUS _KvsSinkCustomData::initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    Aws::CloudWatchLogs::Model::CreateLogStreamOutcome createLogStreamOutcome;
+    CHK(pCloudwatchLogsObject != NULL, STATUS_NULL_ARG);
+    pCloudwatchLogsObject->canaryLogGroupRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
+    pCloudwatchLogsObject->pCwl->CreateLogGroup(pCloudwatchLogsObject->canaryLogGroupRequest);
+
+    pCloudwatchLogsObject->canaryLogStreamRequest.SetLogStreamName(pCloudwatchLogsObject->logStreamName);
+    pCloudwatchLogsObject->canaryLogStreamRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
+    createLogStreamOutcome = pCloudwatchLogsObject->pCwl->CreateLogStream(pCloudwatchLogsObject->canaryLogStreamRequest);
+    CHK_ERR(createLogStreamOutcome.IsSuccess(), STATUS_INVALID_OPERATION, "Failed to create \"%s\" log stream: %s",
+            pCloudwatchLogsObject->logStreamName.c_str(), createLogStreamOutcome.GetError().GetMessage().c_str());
+    gCloudwatchLogsObject = pCloudwatchLogsObject;
+    CleanUp:
+    return retStatus;
+}
+
 static void
 gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->collect = gst_collect_pads_new();
@@ -654,6 +674,40 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 
     kvssink->data->errSignalId = KVSSinkSignals::errSignalId;
     kvssink->data->ackSignalId = KVSSinkSignals::ackSignalId;
+
+    Aws::CloudWatch::CloudWatchClient CWclient(kvssink->data->clientConfig);
+    kvssink->data->pCWclient = &CWclient;
+    STATUS retStatus = STATUS_SUCCESS;
+    Aws::CloudWatchLogs::CloudWatchLogsClient CWLclient(kvssink->data->clientConfig);
+
+    string streamName = kvssink->stream_name;
+    CloudwatchLogsObject cloudwatchLogsObject;
+    cloudwatchLogsObject.logGroupName = "ProducerCppSDK";
+    cloudwatchLogsObject.logStreamName = streamName +"-log-" + to_string(GETTIME() / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    cloudwatchLogsObject.pCwl = &CWLclient;
+
+    if ((retStatus = kvssink->data->initializeCloudwatchLogger(&cloudwatchLogsObject)) != STATUS_SUCCESS) {
+        LOG_DEBUG("Cloudwatch logger failed to be initialized with 0x" << retStatus << ">> error code.");
+    }
+    else
+    {
+        LOG_DEBUG("Cloudwatch logger initialization success");
+    }
+
+    kvssink->data->pCloudwatchLogsObject = &cloudwatchLogsObject;
+
+    // Non-aggregate CW dimension
+    Aws::CloudWatch::Model::Dimension DimensionPerStream;
+    DimensionPerStream.SetName("ProducerCppCanaryStreamName");
+    DimensionPerStream.SetValue(kvssink->stream_name);
+    kvssink->data->pDimensionPerStream = &DimensionPerStream;
+
+    string canaryLabel = "DEFAULT_CANARY_LABEL";
+    // Aggregate CW dimension
+    Aws::CloudWatch::Model::Dimension aggregated_dimension;
+    aggregated_dimension.SetName("ProducerCppCanaryType");
+    aggregated_dimension.SetValue(canaryLabel);
+    kvssink->data->pAggregatedDimension = &aggregated_dimension;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
@@ -1051,11 +1105,15 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
 }
 
 bool
-put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *frame_data, size_t len, const nanoseconds &pts,
+put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    return kinesis_video_stream->putFrame(frame);
+    bool ret = data->kinesis_video_stream->putFrame(frame);
+//    auto *customData = reinterpret_cast<CustomData *>(data);
+
+//    put_frame(customData, frame_data, len, pts, dts, flags);
+    return ret;
 }
 
 static GstFlowReturn
@@ -1165,7 +1223,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         buf->pts += data->producer_start_time - data->first_pts;
     }
 
-    put_frame(data->kinesis_video_stream, info.data, info.size,
+    put_frame(data, info.data, info.size,
               std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
     data->frame_count++;
