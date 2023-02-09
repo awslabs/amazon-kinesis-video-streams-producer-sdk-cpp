@@ -240,3 +240,9 @@ The projects depend on the following open source components. Running `CMake` wil
 * gst-plugins-bad
 * gst-plugins-ugly
 * [x264]( https://www.videolan.org/developers/x264.html)
+
+
+###### GStreamer version 1.20 on MacOS
+
+* While running the sample application, if you encounter an error similar to: `Not all elements could be created.` for RTSP source, set the following:
+`export GST_PLUGIN_PATH=<homebrew-path>/lib/gstreamer-1.0`
