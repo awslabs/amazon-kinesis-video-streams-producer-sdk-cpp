@@ -160,7 +160,7 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
     return 0;
 }
 
-string build_kvssink_str(string stream_name, unsigned long file_start_time) {
+string build_kvssink_str(string stream_name, unsigned long long file_start_time) {
     const char** property;
     stringstream ss;
     const char *key_raw, *value;
@@ -259,7 +259,7 @@ int main(int argc, char* argv[]) {
     }
     fclose(file);
 
-    unsigned long file_start_time = strtoul(argv[3], &ptr, 10);
+    unsigned long long file_start_time = strtoull(argv[3], &ptr, 10);
     if (*ptr != '\0') {
         LOG_ERROR("File start time is not a valid number");
         return 1;
