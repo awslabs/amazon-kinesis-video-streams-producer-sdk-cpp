@@ -163,7 +163,7 @@ public:
     std::string logGroupName;
     std::string logStreamName;
     std::recursive_mutex mutex;
-    CloudwatchLogsObject();
+    CloudwatchLogsObject() = default;
 };
 
 struct _KvsSinkCustomData {
@@ -192,6 +192,7 @@ struct _KvsSinkCustomData {
     uint64_t pts_base;
     uint64_t first_pts;
     uint64_t producer_start_time;
+    uint64_t startTime;  // [nanoSeconds]
     guint errSignalId = 0;
     guint ackSignalId = 0;
 
@@ -202,6 +203,15 @@ struct _KvsSinkCustomData {
 
     CloudwatchLogsObject* pCloudwatchLogsObject;
     STATUS initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject);
+    static VOID setUpLogEventVector(PCHAR logString);
+
+    static VOID onPutLogEventResponseReceivedHandler(const Aws::CloudWatchLogs::CloudWatchLogsClient* cwClientLog,
+                                                     const Aws::CloudWatchLogs::Model::PutLogEventsRequest& request,
+                                                     const Aws::CloudWatchLogs::Model::PutLogEventsOutcome& outcome,
+                                                     const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context);
+
+    VOID canaryStreamSendLogs(PCloudwatchLogsObject pCloudwatchLogsObject);
+    VOID canaryStreamSendLogSync(PCloudwatchLogsObject pCloudwatchLogsObject);
 
 };
 
