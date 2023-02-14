@@ -1,10 +1,4 @@
 #include "KvsSinkStreamCallbackProvider.h"
-#include <string.h>
-#include <chrono>
-#include <aws/core/Aws.h>
-#include <aws/monitoring/CloudWatchClient.h>
-#include <aws/monitoring/model/PutMetricDataRequest.h>
-#include <aws/logs/CloudWatchLogsClient.h>
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
