@@ -151,21 +151,6 @@ GType gst_kvs_sink_get_type (void);
 
 G_END_DECLS
 
-class CloudwatchLogsObject {
-public:
-    Aws::CloudWatchLogs::CloudWatchLogsClient* pCwl;
-    Aws::CloudWatchLogs::Model::CreateLogGroupRequest canaryLogGroupRequest;
-    Aws::CloudWatchLogs::Model::CreateLogStreamRequest canaryLogStreamRequest;
-    Aws::CloudWatchLogs::Model::PutLogEventsRequest canaryPutLogEventRequest;
-    Aws::CloudWatchLogs::Model::PutLogEventsResult canaryPutLogEventresult;
-    Aws::Vector<Aws::CloudWatchLogs::Model::InputLogEvent> canaryInputLogEventVec;
-    Aws::String token;
-    std::string logGroupName;
-    std::string logStreamName;
-    std::recursive_mutex mutex;
-    CloudwatchLogsObject() = default;
-};
-
 struct _KvsSinkCustomData {
 
     _KvsSinkCustomData():
@@ -195,23 +180,6 @@ struct _KvsSinkCustomData {
     uint64_t startTime;  // [nanoSeconds]
     guint errSignalId = 0;
     guint ackSignalId = 0;
-
-    Aws::Client::ClientConfiguration clientConfig;
-    Aws::CloudWatch::CloudWatchClient* pCWclient;
-    Aws::CloudWatch::Model::Dimension* pDimensionPerStream;
-    Aws::CloudWatch::Model::Dimension* pAggregatedDimension;
-
-    CloudwatchLogsObject* pCloudwatchLogsObject;
-    STATUS initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject);
-    static VOID setUpLogEventVector(PCHAR logString);
-
-    static VOID onPutLogEventResponseReceivedHandler(const Aws::CloudWatchLogs::CloudWatchLogsClient* cwClientLog,
-                                                     const Aws::CloudWatchLogs::Model::PutLogEventsRequest& request,
-                                                     const Aws::CloudWatchLogs::Model::PutLogEventsOutcome& outcome,
-                                                     const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context);
-
-    VOID canaryStreamSendLogs(PCloudwatchLogsObject pCloudwatchLogsObject);
-    VOID canaryStreamSendLogSync(PCloudwatchLogsObject pCloudwatchLogsObject);
 
 };
 
