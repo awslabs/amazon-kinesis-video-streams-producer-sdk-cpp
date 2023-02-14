@@ -604,86 +604,6 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
 }
 
-PCloudwatchLogsObject gCloudwatchLogsObject = NULL;
-std::mutex gLogLock; // Protect access to gCloudwatchLogsObject
-
-STATUS _KvsSinkCustomData::initializeCloudwatchLogger(PCloudwatchLogsObject pCloudwatchLogsObject)
-{
-    STATUS retStatus = STATUS_SUCCESS;
-    Aws::CloudWatchLogs::Model::CreateLogStreamOutcome createLogStreamOutcome;
-    CHK(pCloudwatchLogsObject != NULL, STATUS_NULL_ARG);
-    pCloudwatchLogsObject->canaryLogGroupRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
-    pCloudwatchLogsObject->pCwl->CreateLogGroup(pCloudwatchLogsObject->canaryLogGroupRequest);
-
-    pCloudwatchLogsObject->canaryLogStreamRequest.SetLogStreamName(pCloudwatchLogsObject->logStreamName);
-    pCloudwatchLogsObject->canaryLogStreamRequest.SetLogGroupName(pCloudwatchLogsObject->logGroupName);
-    createLogStreamOutcome = pCloudwatchLogsObject->pCwl->CreateLogStream(pCloudwatchLogsObject->canaryLogStreamRequest);
-    CHK_ERR(createLogStreamOutcome.IsSuccess(), STATUS_INVALID_OPERATION, "Failed to create \"%s\" log stream: %s",
-            pCloudwatchLogsObject->logStreamName.c_str(), createLogStreamOutcome.GetError().GetMessage().c_str());
-    gCloudwatchLogsObject = pCloudwatchLogsObject;
-    CleanUp:
-    return retStatus;
-}
-
-VOID _KvsSinkCustomData::setUpLogEventVector(PCHAR logString)
-{
-    std::lock_guard<std::mutex> lock(gLogLock);
-    if(gCloudwatchLogsObject != NULL) {
-        std::unique_lock<std::recursive_mutex> lock(gCloudwatchLogsObject->mutex);
-        Aws::String awsCwString((Aws::String) logString);
-        auto logEvent =
-                Aws::CloudWatchLogs::Model::InputLogEvent().WithMessage(awsCwString).WithTimestamp(GETTIME() / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-        gCloudwatchLogsObject->canaryInputLogEventVec.push_back(logEvent);
-    }
-}
-
-VOID _KvsSinkCustomData::onPutLogEventResponseReceivedHandler(const Aws::CloudWatchLogs::CloudWatchLogsClient* cwClientLog,
-                                                      const Aws::CloudWatchLogs::Model::PutLogEventsRequest& request,
-                                                      const Aws::CloudWatchLogs::Model::PutLogEventsOutcome& outcome,
-                                                      const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context)
-{
-    if (!outcome.IsSuccess()) {
-        LOG_ERROR("Failed to push logs: " << outcome.GetError().GetMessage().c_str());
-    } else {
-        LOG_DEBUG("Successfully pushed logs to cloudwatch");
-        gCloudwatchLogsObject->token = outcome.GetResult().GetNextSequenceToken();
-    }
-}
-
-VOID _KvsSinkCustomData::canaryStreamSendLogs(PCloudwatchLogsObject pCloudwatchLogsObject)
-{
-    std::unique_lock<std::recursive_mutex> lock(pCloudwatchLogsObject->mutex);
-    Aws::CloudWatchLogs::Model::PutLogEventsOutcome outcome;
-    auto request = Aws::CloudWatchLogs::Model::PutLogEventsRequest()
-            .WithLogGroupName(pCloudwatchLogsObject->logGroupName)
-            .WithLogStreamName(pCloudwatchLogsObject->logStreamName)
-            .WithLogEvents(pCloudwatchLogsObject->canaryInputLogEventVec);
-    if (pCloudwatchLogsObject->token != "") {
-        request.SetSequenceToken(pCloudwatchLogsObject->token);
-    }
-    pCloudwatchLogsObject->pCwl->PutLogEventsAsync(request, onPutLogEventResponseReceivedHandler);
-    pCloudwatchLogsObject->canaryInputLogEventVec.clear();
-}
-
-VOID _KvsSinkCustomData::canaryStreamSendLogSync(PCloudwatchLogsObject pCloudwatchLogsObject)
-{
-    std::unique_lock<std::recursive_mutex> lock(pCloudwatchLogsObject->mutex);
-    auto request = Aws::CloudWatchLogs::Model::PutLogEventsRequest()
-            .WithLogGroupName(pCloudwatchLogsObject->logGroupName)
-            .WithLogStreamName(pCloudwatchLogsObject->logStreamName)
-            .WithLogEvents(pCloudwatchLogsObject->canaryInputLogEventVec);
-    if (pCloudwatchLogsObject->token != "") {
-        request.SetSequenceToken(pCloudwatchLogsObject->token);
-    }
-    auto outcome = pCloudwatchLogsObject->pCwl->PutLogEvents(request);
-    if (!outcome.IsSuccess()) {
-        LOG_ERROR("Failed to push logs: " << outcome.GetError().GetMessage().c_str());
-    } else {
-        LOG_DEBUG("Successfully pushed logs to cloudwatch");
-    }
-    pCloudwatchLogsObject->canaryInputLogEventVec.clear();
-}
-
 static void
 gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->collect = gst_collect_pads_new();
@@ -734,48 +654,6 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 
     kvssink->data->errSignalId = KVSSinkSignals::errSignalId;
     kvssink->data->ackSignalId = KVSSinkSignals::ackSignalId;
-
-    initializeEndianness();
-    srand(time(0));
-    Aws::SDKOptions options;
-    Aws::InitAPI(options);
-    {
-        Aws::CloudWatch::CloudWatchClient CWclient(kvssink->data->clientConfig);
-        kvssink->data->pCWclient = &CWclient;
-        STATUS retStatus = STATUS_SUCCESS;
-        Aws::CloudWatchLogs::CloudWatchLogsClient CWLclient(kvssink->data->clientConfig);
-
-        string streamName = kvssink->stream_name;
-        CloudwatchLogsObject cloudwatchLogsObject;
-        cloudwatchLogsObject.logGroupName = "ProducerCppSDK";
-        cloudwatchLogsObject.logStreamName =
-                streamName + "-log-" + to_string(GETTIME() / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
-        cloudwatchLogsObject.pCwl = &CWLclient;
-
-        if ((retStatus = kvssink->data->initializeCloudwatchLogger(&cloudwatchLogsObject)) != STATUS_SUCCESS) {
-            LOG_DEBUG("Cloudwatch logger failed to be initialized with 0x" << retStatus << ">> error code.");
-        } else {
-            LOG_DEBUG("Cloudwatch logger initialization success");
-        }
-
-        kvssink->data->pCloudwatchLogsObject = &cloudwatchLogsObject;
-
-        // Non-aggregate CW dimension
-        Aws::CloudWatch::Model::Dimension DimensionPerStream;
-        DimensionPerStream.SetName("ProducerCppCanaryStreamName");
-        DimensionPerStream.SetValue(kvssink->stream_name);
-        kvssink->data->pDimensionPerStream = &DimensionPerStream;
-
-        string canaryLabel = "DEFAULT_CANARY_LABEL";
-        // Aggregate CW dimension
-        Aws::CloudWatch::Model::Dimension aggregated_dimension;
-        aggregated_dimension.SetName("ProducerCppCanaryType");
-        aggregated_dimension.SetValue(canaryLabel);
-        kvssink->data->pAggregatedDimension = &aggregated_dimension;
-
-        kvssink->data->startTime = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
-
-    }
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
