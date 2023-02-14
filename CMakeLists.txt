@@ -1,10 +1,9 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.6.3)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
 set(CMAKE_CXX_STANDARD 11)
-set(BUILD_ONLY "monitoring;logs" CACHE STRING "Tell AWS SDK to only build monitoring and logs" FORCE)
 
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
@@ -169,11 +168,6 @@ file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credenti
 file(GLOB GST_PLUGIN_SOURCE_FILES "src/gstreamer/*.cpp" "src/gstreamer/Util/*.cpp")
 file(GLOB_RECURSE JNI_SOURCE_FILES "src/JNI/*.cpp")
 file(GLOB PIC_HEADERS "${pic_project_SOURCE_DIR}/src/*/include")
-
-include_directories(${cloudwatch_SOURCE_DIR}/aws-cpp-sdk-core/include)
-include_directories(${cloudwatch_SOURCE_DIR}/aws-cpp-sdk-monitoring/include)
-include_directories(${cloudwatch_SOURCE_DIR}/aws-cpp-sdk-logs/include)
-#endif()
 
 include_directories(${PIC_HEADERS})
 include_directories(${KinesisVideoProducerC_SOURCE_DIR}/src/include)

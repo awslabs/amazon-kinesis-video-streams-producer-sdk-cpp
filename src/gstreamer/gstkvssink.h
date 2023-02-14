@@ -38,15 +38,6 @@
 #include <atomic>
 #include <gst/base/gstcollectpads.h>
 #include <unordered_set>
-#include <aws/core/Aws.h>
-#include <aws/monitoring/CloudWatchClient.h>
-#include <aws/monitoring/model/PutMetricDataRequest.h>
-#include <aws/logs/CloudWatchLogsClient.h>
-#include <aws/logs/model/CreateLogGroupRequest.h>
-#include <aws/logs/model/CreateLogStreamRequest.h>
-#include <aws/logs/model/PutLogEventsRequest.h>
-#include <aws/logs/model/DeleteLogStreamRequest.h>
-#include <aws/logs/model/DescribeLogStreamsRequest.h>
 
 using namespace com::amazonaws::kinesis::video;
 
@@ -70,7 +61,6 @@ G_BEGIN_DECLS
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
 typedef struct _KvsSinkCustomData KvsSinkCustomData;
-typedef class CloudwatchLogsObject* PCloudwatchLogsObject;
 
 /* all information needed for one track */
 typedef struct _GstKvsSinkTrackData {
