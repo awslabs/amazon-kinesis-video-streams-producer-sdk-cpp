@@ -1058,12 +1058,12 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
 }
 
 bool
-put_frame(shared_ptr<KinesisVideoStream> Kinesis_video_stream, void *frame_data, size_t len, const nanoseconds &pts,
+put_frame(GstKvsSink *kvssink, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    bool ret = Kinesis_video_stream->putFrame(frame);
-    g_signal_emit(G_OBJECT(Kinesis_video_stream), customDataObj->metricSignalId, 0, pFragmentAck->timestamp);
+    bool ret = kvssink->data->kinesis_video_stream->putFrame(frame);
+    g_signal_emit(G_OBJECT(kvssink), kvssink->data->metricSignalId, 0, kvssink);
     return ret;
 }
 
@@ -1174,7 +1174,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         buf->pts += data->producer_start_time - data->first_pts;
     }
 
-    put_frame(data->kinesis_video_stream, info.data, info.size,
+    put_frame(kvssink, info.data, info.size,
               std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
     data->frame_count++;
