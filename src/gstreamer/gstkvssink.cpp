@@ -1056,12 +1056,12 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
 }
 
 bool
-put_frame(GstKvsSink *kvssink, void *frame_data, size_t len, const nanoseconds &pts,
+put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    bool ret = kvssink->data->kinesis_video_stream->putFrame(frame);
-    g_signal_emit(G_OBJECT(kvssink), kvssink->data->metricSignalId, 0, kvssink);
+    bool ret = kvsSink->data->kinesis_video_stream->putFrame(frame);
+    g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSink->data->kinesis_video_stream->getMetrics());
     return ret;
 }
 
