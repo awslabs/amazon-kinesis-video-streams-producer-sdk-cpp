@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
-include(FetchContent)
 project(KinesisVideoProducerCpp)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -164,19 +163,6 @@ if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_WARNINGS -D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
 endif()
 
-#if(BUILD_ONLY)
-FetchContent_Declare(
-        cloudwatch
-        GIT_REPOSITORY https://github.com/aws/aws-sdk-cpp
-        GIT_TAG        1.10.9
-)
-
-FetchContent_GetProperties(cloudwatch)
-if(NOT cloudwatch_POPULATED)
-  FetchContent_Populate(cloudwatch)
-  add_subdirectory(${cloudwatch_SOURCE_DIR} ${cloudwatch_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
-
 
 ############# Build Targets ############
 file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credential-providers/*.cpp")
@@ -231,10 +217,7 @@ if(BUILD_GSTREAMER_PLUGIN)
   link_directories(${GST_APP_LIBRARY_DIRS})
 
   add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
-  target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer
-          aws-cpp-sdk-core
-          aws-cpp-sdk-monitoring
-          aws-cpp-sdk-logs)
+  target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
   target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
