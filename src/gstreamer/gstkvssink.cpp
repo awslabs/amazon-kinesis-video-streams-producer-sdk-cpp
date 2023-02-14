@@ -131,6 +131,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 namespace KVSSinkSignals {
     guint errSignalId;
     guint ackSignalId;
+    guint metricSignalId;
 };
 
 enum {
@@ -602,6 +603,9 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     KVSSinkSignals::ackSignalId = g_signal_new("persisted-ack", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
+    KVSSinkSignals::metricSignalId = g_signal_new("stream-metric", G_TYPE_FROM_CLASS(gobject_class),
+                                               (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_metric),
+                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
 }
 
 static void
@@ -654,6 +658,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 
     kvssink->data->errSignalId = KVSSinkSignals::errSignalId;
     kvssink->data->ackSignalId = KVSSinkSignals::ackSignalId;
+    kvssink->data->metricSignalId = KVSSinkSignals::metricSignalId;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
@@ -1056,6 +1061,7 @@ put_frame(shared_ptr<KinesisVideoStream> Kinesis_video_stream, void *frame_data,
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
     bool ret = Kinesis_video_stream->putFrame(frame);
+    g_signal_emit(G_OBJECT(Kinesis_video_stream), customDataObj->metricSignalId, 0, pFragmentAck->timestamp);
     return ret;
 }
 
