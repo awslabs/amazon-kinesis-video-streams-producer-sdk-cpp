@@ -175,4 +175,11 @@ struct _KvsSinkCustomData {
 
 };
 
+struct _KvsSinkMetric{
+    _KvsSinkMetric():
+        framePTS(0){}
+    KinesisVideoStreamMetrics metrics;
+    UINT64 framePTS;
+};
+
 #endif /* __GST_KVS_SINK_H__ */
