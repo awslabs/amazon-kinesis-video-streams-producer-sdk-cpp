@@ -605,7 +605,7 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
     KVSSinkSignals::metricSignalId = g_signal_new("stream-metric", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_metric),
-                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_OBJECT);
+                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 static void
@@ -1061,7 +1061,10 @@ put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseconds &
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
     bool ret = kvsSink->data->kinesis_video_stream->putFrame(frame);
-    g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSink->data->kinesis_video_stream->getMetrics());
+    _KvsSinkMetric *kvsSinkMetric;
+    kvsSinkMetric->metrics = kvsSink->data->kinesis_video_stream->getMetrics();
+    kvsSinkMetric->framePTS = frame.presentationTs;
+    g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
     return ret;
 }
 
