@@ -9,7 +9,7 @@ using std::mutex;
 
 CredentialProvider::CredentialProvider()
     :   next_rotation_time_(0),
-        security_token_(NULL) 
+        security_token_(NULL) {
 }
 
 void CredentialProvider::getCredentials(Credentials& credentials) {
