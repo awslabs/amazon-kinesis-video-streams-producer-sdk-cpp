@@ -3,8 +3,7 @@ name: "Producer CPP SDK CI"
 on:
   workflow_run:
     workflows: ["CodeQLScan"]
-    types:
-      - completed
+    types: [completed]
 
 jobs:
   mac-os-build-clang:
