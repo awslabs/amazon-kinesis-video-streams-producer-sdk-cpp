@@ -13,8 +13,7 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
     steps:
       if: >
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success'
+        github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     steps:
       - name: 'Download artifact'
         uses: actions/github-script@v6
