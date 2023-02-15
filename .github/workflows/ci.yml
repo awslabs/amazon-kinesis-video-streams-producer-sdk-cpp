@@ -1,4 +1,4 @@
-name: "Producer CPP SDK CI"
+name: "Producer CPP SDK CI v2"
 
 on:
   workflow_run:
