@@ -602,10 +602,10 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
     KVSSinkSignals::ackSignalId = g_signal_new("persisted-ack", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack),
-                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
+                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
     KVSSinkSignals::metricSignalId = g_signal_new("stream-metric", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_metric),
-                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
+                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_OBJECT);
 }
 
 static void
