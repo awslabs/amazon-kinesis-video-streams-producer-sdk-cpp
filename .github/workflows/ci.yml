@@ -2,7 +2,7 @@ name: "Producer CPP SDK CI v2"
 
 on:
   workflow_run:
-    workflows: ["CodeQLScan"]
+    workflows: ["CodeQL"]
     types: [completed]
 
 jobs:
