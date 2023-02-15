@@ -65,9 +65,9 @@ jobs:
       uses: github/codeql-action/analyze@v2
 
     - name: Save PR number
-        run: |
-          mkdir -p ./pr
-          echo ${{ github.event.number }} > ./pr/NR
+      run: |
+        mkdir -p ./pr
+        echo ${{ github.event.number }} > ./pr/NR
     - uses: actions/upload-artifact@v3
       with:
         name: pr
