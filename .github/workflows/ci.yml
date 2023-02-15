@@ -1,39 +1,18 @@
 name: "Producer CPP SDK CI v2"
 
 on:
-  push:
-    branches: [ master, develop ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ master, develop ]
+  workflow_run:
+    workflows: ["CodeQLScan"]
+    types: [completed]
 
 jobs:
   mac-os-build-clang:
     runs-on: macos-latest
     env:
       AWS_KVS_LOG_LEVEL: 2
+    if: >
+      github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: 'Download artifact'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            var artifacts = await github.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: ${{github.event.workflow_run.id }},
-            });
-            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "pr"
-            })[0];
-            var download = await github.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            var fs = require('fs');
-            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
-      - run: unzip pr.zip
       - name: Install dependencies
         run: |
           brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
