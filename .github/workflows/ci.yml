@@ -1,4 +1,4 @@
-name: Producer CPP SDK CI
+name: "Producer CPP SDK CI"
 
 on:
   workflow_run:
@@ -11,9 +11,9 @@ jobs:
     runs-on: macos-latest
     env:
       AWS_KVS_LOG_LEVEL: 2
+    if: >
+      github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     steps:
-      if: >
-        github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
       - name: 'Download artifact'
         uses: actions/github-script@v6
         with:
