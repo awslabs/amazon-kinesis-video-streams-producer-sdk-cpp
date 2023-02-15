@@ -4,7 +4,7 @@ on:
     branches:
       - develop
       - master
-  pull_request_target:
+  pull_request:
     branches:
       - develop
       - master
@@ -14,9 +14,6 @@ jobs:
     runs-on: macos-latest
     env:
       AWS_KVS_LOG_LEVEL: 2
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
@@ -43,9 +40,6 @@ jobs:
 
   mac-os-build-gcc:
     runs-on: macos-11
-    permissions:
-      id-token: write
-      contents: read
     env:
       CC: gcc
       CXX: g++
@@ -243,9 +237,6 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
       CC: gcc
       CXX: g++
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
