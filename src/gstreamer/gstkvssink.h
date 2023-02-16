@@ -61,6 +61,7 @@ G_BEGIN_DECLS
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
 typedef struct _KvsSinkCustomData KvsSinkCustomData;
+typedef struct _KvsSinkMetric KvsSinkMetric;
 
 /* all information needed for one track */
 typedef struct _GstKvsSinkTrackData {
@@ -129,6 +130,7 @@ struct _GstKvsSink {
 
     std::unique_ptr<Credentials> credentials_;
     std::shared_ptr<KvsSinkCustomData> data;
+    std::shared_ptr<KvsSinkMetric> kvsMetric;
 };
 
 struct _GstKvsSinkClass {
@@ -175,10 +177,10 @@ struct _KvsSinkCustomData {
 
 };
 
-struct _KvsSinkMetric{
+struct _KvsSinkMetric {
     _KvsSinkMetric():
-        framePTS(0){}
-    KinesisVideoStreamMetrics metrics;
+        framePTS(0) {}
+    KinesisVideoStreamMetrics metrics = KinesisVideoStreamMetrics();
     UINT64 framePTS;
 };
 
