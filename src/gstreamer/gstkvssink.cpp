@@ -655,7 +655,6 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
     kvssink->data = make_shared<KvsSinkCustomData>();
-    kvssink->kvsMetric = make_shared<KvsSinkMetric>();
 
     kvssink->data->errSignalId = KVSSinkSignals::errSignalId;
     kvssink->data->ackSignalId = KVSSinkSignals::ackSignalId;
@@ -1064,10 +1063,11 @@ put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseconds &
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
     bool ret = kvsSink->data->kinesis_video_stream->putFrame(frame);
-    KvsSinkMetric *kvsSinkMetric;
+    KvsSinkMetric *kvsSinkMetric = new KvsSinkMetric();
     kvsSinkMetric->metrics = kvsSink->data->kinesis_video_stream->getMetrics();
     kvsSinkMetric->framePTS = frame.presentationTs;
     g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
+    delete kvsSinkMetric;
     return ret;
 }
 

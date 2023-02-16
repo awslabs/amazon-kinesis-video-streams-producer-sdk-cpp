@@ -130,7 +130,6 @@ struct _GstKvsSink {
 
     std::unique_ptr<Credentials> credentials_;
     std::shared_ptr<KvsSinkCustomData> data;
-    std::shared_ptr<KvsSinkMetric> kvsMetric;
 };
 
 struct _GstKvsSinkClass {
