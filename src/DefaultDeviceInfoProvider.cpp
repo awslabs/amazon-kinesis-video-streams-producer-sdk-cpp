@@ -5,7 +5,7 @@
 
 #include <string>
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video 
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
   
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
