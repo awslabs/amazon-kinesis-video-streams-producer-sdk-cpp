@@ -35,7 +35,7 @@ jobs:
           cd build  
           ./tst/producerTest
 
-mac-os-build-gcc:
+  mac-os-build-gcc:
     runs-on: macos-11
     env:
       CC: gcc
