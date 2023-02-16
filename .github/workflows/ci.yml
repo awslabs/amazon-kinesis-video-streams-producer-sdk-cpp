@@ -13,6 +13,8 @@ jobs:
     if: >
       github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: |
           brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
