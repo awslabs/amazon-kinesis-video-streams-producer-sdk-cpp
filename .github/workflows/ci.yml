@@ -8,6 +8,9 @@ on:
 jobs:
   mac-os-build-clang:
     runs-on: macos-latest
+    permissions:
+      id-token: write
+      contents: read
     env:
       AWS_KVS_LOG_LEVEL: 2
     if: >
@@ -39,6 +42,9 @@ jobs:
 
   mac-os-build-gcc:
     runs-on: macos-11
+    permissions:
+      id-token: write
+      contents: read
     env:
       CC: gcc
       CXX: g++
@@ -71,6 +77,9 @@ jobs:
   
   linux-gcc-code-coverage:
     runs-on: ubuntu-20.04
+    permissions:
+      id-token: write
+      contents: read
     env:
       AWS_KVS_LOG_LEVEL: 2
     if: >
@@ -109,6 +118,9 @@ jobs:
   
   address-sanitizer:
     runs-on: ubuntu-20.04
+    permissions:
+      id-token: write
+      contents: read
     env:
       CC: clang
       CXX: clang++
@@ -143,6 +155,9 @@ jobs:
           timeout --signal=SIGABRT 60m ./tst/producerTest
   undefined-behavior-sanitizer:
     runs-on: ubuntu-20.04
+    permissions:
+      id-token: write
+      contents: read
     env:
       CC: clang
       CXX: clang++
@@ -229,6 +244,9 @@ jobs:
   
   ubuntu-gcc:
     runs-on: ubuntu-20.04
+    permissions:
+      id-token: write
+      contents: read
     env:
       AWS_KVS_LOG_LEVEL: 2
       CC: gcc
