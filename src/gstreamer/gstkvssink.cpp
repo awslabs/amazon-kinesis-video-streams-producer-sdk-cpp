@@ -600,10 +600,10 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     KVSSinkSignals::errSignalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
-    KVSSinkSignals::ackSignalId = g_signal_new("persisted-ack", G_TYPE_FROM_CLASS(gobject_class),
+    KVSSinkSignals::ackSignalId = g_signal_new("fragment-ack", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
-    KVSSinkSignals::metricSignalId = g_signal_new("stream-metric", G_TYPE_FROM_CLASS(gobject_class),
+    KVSSinkSignals::metricSignalId = g_signal_new("stream-client-metric", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_metric),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
@@ -1066,7 +1066,7 @@ put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseconds &
     if(CHECK_FRAME_FLAG_KEY_FRAME(flags)){
         KvsSinkMetric *kvsSinkMetric = new KvsSinkMetric();
         kvsSinkMetric->streamMetrics = kvsSink->data->kinesis_video_stream->getMetrics();
-        kvsSinkMetric->clientMetrics= kvsSink->data->kinesis_video_producer->getMetrics();
+        kvsSinkMetric->clientMetrics = kvsSink->data->kinesis_video_producer->getMetrics();
         kvsSinkMetric->framePTS = frame.presentationTs;
         g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
         delete kvsSinkMetric;
