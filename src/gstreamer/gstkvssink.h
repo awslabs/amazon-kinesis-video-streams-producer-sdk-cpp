@@ -182,6 +182,7 @@ struct _KvsSinkMetric {
     KinesisVideoStreamMetrics streamMetrics = KinesisVideoStreamMetrics();
     KinesisVideoProducerMetrics clientMetrics = KinesisVideoProducerMetrics();
     UINT64 framePTS;
+    bool putFrameSuccess = false;
 };
 
 #endif /* __GST_KVS_SINK_H__ */
