@@ -136,6 +136,7 @@ namespace KvsSinkSignals {
     guint errSignalId;
     guint ack_signal_id;
     guint metric_signal_id;
+    guint errSignalId;
 };
 
 enum {
@@ -658,6 +659,7 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     KvsSinkSignals::metric_signal_id = g_signal_new("stream-client-metric", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_metric),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
+    KvsSinkSignals::errSignalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class), (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error), NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
 }
 
 static void
