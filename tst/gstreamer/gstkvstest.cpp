@@ -2,11 +2,7 @@
 #include <gst/check/gstcheck.h>
 #include <string>
 
-#define ACCESS_KEY_ENV_VAR "AWS_ACCESS_KEY_ID"
-#define SECRET_KEY_ENV_VAR "AWS_SECRET_ACCESS_KEY"
-
 using namespace std;
-
 
 static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
                                                                    GST_PAD_SRC,

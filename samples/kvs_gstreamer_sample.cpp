@@ -569,6 +569,7 @@ void kinesis_video_stream_init(CustomData *data) {
         DEFAULT_FRAGMENT_ACKS,
         DEFAULT_RESTART_ON_ERROR,
         DEFAULT_RECALCULATE_METRICS,
+        true,
         0,
         DEFAULT_STREAM_FRAMERATE,
         DEFAULT_AVG_BANDWIDTH_BPS,

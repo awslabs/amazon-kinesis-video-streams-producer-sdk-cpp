@@ -88,8 +88,10 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_ABSOLUTE_FRAGMENT_TIMES TRUE
 #define DEFAULT_FRAGMENT_ACKS TRUE
 #define DEFAULT_RESTART_ON_ERROR TRUE
+#define DEFAULT_ALLOW_CREATE_STREAM TRUE
 #define DEFAULT_RECALCULATE_METRICS TRUE
 #define DEFAULT_DISABLE_BUFFER_CLIPPING FALSE
+#define DEFAULT_USE_ORIGINAL_PTS FALSE
 #define DEFAULT_STREAM_FRAMERATE 25
 #define DEFAULT_STREAM_FRAMERATE_HIGH_DENSITY 100
 #define DEFAULT_AVG_BANDWIDTH_BPS (4 * 1024 * 1024)
@@ -101,10 +103,12 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_TRACKNAME "kinesis_video"
 #define DEFAULT_ACCESS_KEY "access_key"
 #define DEFAULT_SECRET_KEY "secret_key"
+#define DEFAULT_SESSION_TOKEN "session_token"
 #define DEFAULT_REGION "us-west-2"
 #define DEFAULT_ROTATION_PERIOD_SECONDS 3600
 #define DEFAULT_LOG_FILE_PATH "../kvs_log_configuration"
 #define DEFAULT_STORAGE_SIZE_MB 128
+#define DEFAULT_STOP_STREAM_TIMEOUT_SEC 120
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 #define DEFAULT_FRAME_DURATION_MS 2
 
@@ -127,6 +131,11 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define GSTREAMER_MEDIA_TYPE_ALAW       "audio/x-alaw"
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
+
+namespace KvsSinkSignals {
+    guint errSignalId;
+    guint ackSignalId;
+};
 
 enum {
     PROP_0,
@@ -152,15 +161,20 @@ enum {
     PROP_TRACK_NAME,
     PROP_ACCESS_KEY,
     PROP_SECRET_KEY,
+    PROP_SESSION_TOKEN,
     PROP_AWS_REGION,
     PROP_ROTATION_PERIOD,
     PROP_LOG_CONFIG_PATH,
     PROP_STORAGE_SIZE,
+    PROP_STOP_STREAM_TIMEOUT,
     PROP_CREDENTIAL_FILE_PATH,
     PROP_IOT_CERTIFICATE,
     PROP_STREAM_TAGS,
     PROP_FILE_START_TIME,
-    PROP_DISABLE_BUFFER_CLIPPING
+    PROP_DISABLE_BUFFER_CLIPPING,
+    PROP_USE_ORIGINAL_PTS,
+    PROP_ALLOW_CREATE_STREAM,
+    PROP_USER_AGENT_NAME
 };
 
 #define GST_TYPE_KVS_SINK_STREAMING_TYPE (gst_kvs_sink_streaming_type_get_type())
@@ -232,10 +246,13 @@ static GstPad* gst_kvs_sink_request_new_pad (GstElement *element, GstPadTemplate
                                              const gchar* name, const GstCaps *caps);
 static void gst_kvs_sink_release_pad (GstElement *element, GstPad *pad);
 
+void closed(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle) {
+    LOG_INFO("Closed connection with stream handle "<<stream_handle<<" and upload handle "<<upload_handle);
+}
 void kinesis_video_producer_init(GstKvsSink *kvssink)
 {
     auto data = kvssink->data;
-    unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size));
+    unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size, kvssink->stop_stream_timeout));
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
 
@@ -243,10 +260,12 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     char const *secret_key;
     char const *session_token;
     char const *default_region;
+    char const *control_plane_uri;
     string access_key_str;
     string secret_key_str;
     string session_token_str;
     string region_str;
+    string control_plane_uri_str = "";
     bool credential_is_static = true;
 
     // This needs to happen after we've read in ALL of the properties
@@ -254,6 +273,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         gst_collect_pads_set_clip_function(kvssink->collect,
                                            GST_DEBUG_FUNCPTR(gst_collect_pads_clip_running_time), kvssink);
     }
+
+    kvssink->data->kvsSink = kvssink;
 
     if (0 == strcmp(kvssink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
         if (nullptr == (access_key = getenv(ACCESS_KEY_ENV_VAR))
@@ -264,15 +285,23 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         } else {
             access_key_str = string(access_key);
             secret_key_str = string(secret_key);
-            session_token_str = "";
-            if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
-                session_token_str = string(session_token);
-            }
         }
 
     } else {
         access_key_str = string(kvssink->access_key);
         secret_key_str = string(kvssink->secret_key);
+    }
+
+    // Handle session token seperately, since this is optional with long term credentials
+    if (0 == strcmp(kvssink->session_token, DEFAULT_SESSION_TOKEN)) {
+        session_token_str = "";
+        if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
+            LOG_INFO("Setting session token from env");
+            session_token_str = string(session_token);
+        }
+    } else {
+        LOG_INFO("Setting session token from config");
+        session_token_str = string(kvssink->session_token);
     }
 
     if (nullptr == (default_region = getenv(DEFAULT_REGION_ENV_VAR))) {
@@ -283,31 +312,37 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
 
     unique_ptr<CredentialProvider> credential_provider;
 
-    if (credential_is_static) {
-        kvssink->credentials_.reset(new Credentials(access_key_str,
-                secret_key_str,
-                session_token_str,
-                std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
-        credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
-    } else if (kvssink->iot_certificate) {
+    if (kvssink->iot_certificate) {
+        LOG_INFO("Using iot credential provider within KVS sink");
         std::map<std::string, std::string> iot_cert_params;
         if (!kvs_sink_util::parseIotCredentialGstructure(kvssink->iot_certificate, iot_cert_params)){
             LOG_AND_THROW("Failed to parse Iot credentials");
         }
-
-        std::map<std::string, std::string>::iterator it = iot_cert_params.find(IOT_THING_NAME); 
+        std::map<std::string, std::string>::iterator it = iot_cert_params.find(IOT_THING_NAME);
         if (it == iot_cert_params.end()) {
             iot_cert_params.insert( std::pair<std::string,std::string>(IOT_THING_NAME, kvssink->stream_name) );
         }
 
         credential_provider.reset(new IotCertCredentialProvider(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
-                iot_cert_params[CERTIFICATE_PATH],
-                iot_cert_params[PRIVATE_KEY_PATH],
-                iot_cert_params[ROLE_ALIASES],
-                iot_cert_params[CA_CERT_PATH],
-                iot_cert_params[IOT_THING_NAME] ) );
+                                                                iot_cert_params[CERTIFICATE_PATH],
+                                                                iot_cert_params[PRIVATE_KEY_PATH],
+                                                                iot_cert_params[ROLE_ALIASES],
+                                                                iot_cert_params[CA_CERT_PATH],
+                                                                iot_cert_params[IOT_THING_NAME] ) );
+    } else if (credential_is_static) {
+        kvssink->credentials_.reset(new Credentials(access_key_str,
+                                                    secret_key_str,
+                                                    session_token_str,
+                                                    std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
+        credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
     } else {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
+    }
+
+    // Handle env for providing CP URL
+    if(nullptr != (control_plane_uri = getenv(CONTROL_PLANE_URI_ENV_VAR))) {
+        LOG_INFO("Getting URL from env");
+        control_plane_uri_str = string(control_plane_uri);
     }
 
     data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
@@ -315,8 +350,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                                     move(stream_callback_provider),
                                                                     move(credential_provider),
                                                                     region_str,
-                                                                    "",
-                                                                    KVS_CLIENT_USER_AGENT_NAME);
+                                                                    control_plane_uri_str,
+                                                                    kvssink->user_agent);
 }
 
 void create_kinesis_video_stream(GstKvsSink *kvssink) {
@@ -370,12 +405,13 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
             duration_cast<milliseconds> (seconds(kvssink->max_latency_seconds)),
             milliseconds(kvssink->fragment_duration_miliseconds),
             milliseconds(kvssink->timecode_scale_milliseconds),
-            kvssink->key_frame_fragmentation,//Construct a fragment at each key frame
-            kvssink->frame_timecodes,//Use provided frame timecode
-            kvssink->absolute_fragment_times,//Relative timecode
-            kvssink->fragment_acks,//Ack on fragment is enabled
-            kvssink->restart_on_error,//SDK will restart when error happens
-            kvssink->recalculate_metrics,//recalculate_metrics
+            kvssink->key_frame_fragmentation,// Construct a fragment at each key frame
+            kvssink->frame_timecodes,// Use provided frame timecode
+            kvssink->absolute_fragment_times,// Relative timecode
+            kvssink->fragment_acks,// Ack on fragment is enabled
+            kvssink->restart_on_error,// SDK will restart when error happens
+            kvssink->recalculate_metrics,// recalculate_metrics
+            kvssink->allow_create_stream, // allow stream creation if stream does not exist
             0,
             kvssink->framerate,
             kvssink->avg_bandwidth_bps,
@@ -434,6 +470,7 @@ static void
 gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     GObjectClass *gobject_class;
     GstElementClass *gstelement_class;
+    GstKvsSinkClass *basesink_class = (GstKvsSinkClass *) klass;
 
     gobject_class = G_OBJECT_CLASS (klass);
     gstelement_class = GST_ELEMENT_CLASS (klass);
@@ -445,6 +482,10 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     g_object_class_install_property (gobject_class, PROP_STREAM_NAME,
                                      g_param_spec_string ("stream-name", "Stream Name",
                                                           "Name of the destination stream", DEFAULT_STREAM_NAME, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property (gobject_class, PROP_USER_AGENT_NAME,
+                                     g_param_spec_string ("user-agent", "Custom user agent name",
+                                                          "Name of the user agent", KVS_CLIENT_USER_AGENT_NAME, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_RETENTION_PERIOD,
                                      g_param_spec_uint ("retention-period", "Retention Period",
@@ -536,6 +577,10 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                      g_param_spec_string ("secret-key", "Secret Key",
                                                           "AWS Secret Key", DEFAULT_SECRET_KEY, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_SESSION_TOKEN,
+                                     g_param_spec_string ("session-token", "Session token",
+                                                          "AWS Session token", DEFAULT_SESSION_TOKEN, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     g_object_class_install_property (gobject_class, PROP_AWS_REGION,
                                      g_param_spec_string ("aws-region", "AWS Region",
                                                           "AWS Region", DEFAULT_REGION, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -551,6 +596,10 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     g_object_class_install_property (gobject_class, PROP_STORAGE_SIZE,
                                      g_param_spec_uint ("storage-size", "Storage Size",
                                                         "Storage Size. Unit: MB", 0, G_MAXUINT, DEFAULT_STORAGE_SIZE_MB, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property (gobject_class, PROP_STOP_STREAM_TIMEOUT,
+                                     g_param_spec_uint ("stop-stream-timeout", "Stop stream timeout",
+                                                        "Stop stream timeout: seconds", 0, G_MAXUINT, DEFAULT_STOP_STREAM_TIMEOUT_SEC, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_CREDENTIAL_FILE_PATH,
                                      g_param_spec_string ("credential-path", "Credential File Path",
@@ -576,6 +625,16 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                            "Set to true only if your src/mux elements produce GST_CLOCK_TIME_NONE for segment start times.  It is non-standard behavior to set this to true, only use if there are known issues with your src/mux segment start/stop times.", DEFAULT_DISABLE_BUFFER_CLIPPING,
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_USE_ORIGINAL_PTS,
+                                     g_param_spec_boolean ("use-original-pts", "Use Original PTS",
+                                                           "Set to true only if you want to use the original presentation time stamp on the buffer and that timestamp is expected to be a valid epoch value in nanoseconds. Most encoders will not have a valid PTS", DEFAULT_USE_ORIGINAL_PTS,
+                                                           (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property (gobject_class, PROP_ALLOW_CREATE_STREAM,
+                                     g_param_spec_boolean ("allow-create-stream", "Allow creating stream if stream does not exist",
+                                                           "Set to true if allowing create stream call, false otherwise", DEFAULT_ALLOW_CREATE_STREAM,
+                                                           (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     gst_element_class_set_static_metadata(gstelement_class,
                                           "KVS Sink",
                                           "Sink/Video/Network",
@@ -588,6 +647,9 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     gstelement_class->change_state = GST_DEBUG_FUNCPTR (gst_kvs_sink_change_state);
     gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
     gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
+
+    KvsSinkSignals::errSignalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class), (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error), NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
+    KvsSinkSignals::ackSignalId = g_signal_new("persisted-ack", G_TYPE_FROM_CLASS(gobject_class), (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack), NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
 }
 
 static void
@@ -604,6 +666,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 
     // Stream definition
     kvssink->stream_name = g_strdup (DEFAULT_STREAM_NAME);
+    kvssink->user_agent = g_strdup(KVS_CLIENT_USER_AGENT_NAME);
     kvssink->retention_period_hours = DEFAULT_RETENTION_PERIOD_HOURS;
     kvssink->kms_key_id = g_strdup (DEFAULT_KMS_KEY_ID);
     kvssink->streaming_type = DEFAULT_STREAMING_TYPE;
@@ -616,6 +679,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->fragment_acks = DEFAULT_FRAGMENT_ACKS;
     kvssink->restart_on_error = DEFAULT_RESTART_ON_ERROR;
     kvssink->recalculate_metrics = DEFAULT_RECALCULATE_METRICS;
+    kvssink->allow_create_stream = DEFAULT_ALLOW_CREATE_STREAM;
     kvssink->framerate = DEFAULT_STREAM_FRAMERATE;
     kvssink->avg_bandwidth_bps = DEFAULT_AVG_BANDWIDTH_BPS;
     kvssink->buffer_duration_seconds = DEFAULT_BUFFER_DURATION_SECONDS;
@@ -626,10 +690,12 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->track_name = g_strdup (DEFAULT_TRACKNAME);
     kvssink->access_key = g_strdup (DEFAULT_ACCESS_KEY);
     kvssink->secret_key = g_strdup (DEFAULT_SECRET_KEY);
+    kvssink->session_token = g_strdup(DEFAULT_SESSION_TOKEN);
     kvssink->aws_region = g_strdup (DEFAULT_REGION);
     kvssink->rotation_period = DEFAULT_ROTATION_PERIOD_SECONDS;
     kvssink->log_config_path = g_strdup (DEFAULT_LOG_FILE_PATH);
     kvssink->storage_size = DEFAULT_STORAGE_SIZE_MB;
+    kvssink->stop_stream_timeout = DEFAULT_STOP_STREAM_TIMEOUT_SEC;
     kvssink->credential_file_path = g_strdup (DEFAULT_CREDENTIAL_FILE_PATH);
     kvssink->file_start_time = (uint64_t) chrono::duration_cast<milliseconds>(
             systemCurrentTime().time_since_epoch()).count();
@@ -637,6 +703,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
     kvssink->data = make_shared<KvsSinkCustomData>();
+    kvssink->data->errSignalId = KvsSinkSignals::errSignalId;
+    kvssink->data->ackSignalId = KvsSinkSignals::ackSignalId;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
@@ -652,11 +720,13 @@ gst_kvs_sink_finalize(GObject *object) {
 
     gst_object_unref(kvssink->collect);
     g_free(kvssink->stream_name);
+    g_free(kvssink->user_agent);
     g_free(kvssink->content_type);
     g_free(kvssink->codec_id);
     g_free(kvssink->track_name);
     g_free(kvssink->secret_key);
     g_free(kvssink->access_key);
+    g_free(kvssink->session_token);
     g_free(kvssink->aws_region);
     g_free(kvssink->audio_codec_id);
     g_free(kvssink->kms_key_id);
@@ -686,6 +756,10 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_STREAM_NAME:
             g_free(kvssink->stream_name);
             kvssink->stream_name = g_strdup (g_value_get_string (value));
+            break;
+        case PROP_USER_AGENT_NAME:
+            g_free(kvssink->user_agent);
+            kvssink->user_agent = g_strdup (g_value_get_string (value));
             break;
         case PROP_RETENTION_PERIOD:
             kvssink->retention_period_hours = g_value_get_uint (value);
@@ -752,6 +826,10 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             g_free(kvssink->secret_key);
             kvssink->secret_key = g_strdup (g_value_get_string (value));
             break;
+        case PROP_SESSION_TOKEN:
+            g_free(kvssink->session_token);
+            kvssink->session_token = g_strdup (g_value_get_string (value));
+            break;
         case PROP_AWS_REGION:
             g_free(kvssink->aws_region);
             kvssink->aws_region = g_strdup (g_value_get_string (value));
@@ -767,6 +845,9 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             break;
         case PROP_STORAGE_SIZE:
             kvssink->storage_size = g_value_get_uint (value);
+            break;
+        case PROP_STOP_STREAM_TIMEOUT:
+            kvssink->stop_stream_timeout = g_value_get_uint (value);
             break;
         case PROP_CREDENTIAL_FILE_PATH:
             kvssink->credential_file_path = g_strdup (g_value_get_string (value));
@@ -795,6 +876,12 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_DISABLE_BUFFER_CLIPPING:
             kvssink->disable_buffer_clipping = g_value_get_boolean(value);
             break;
+        case PROP_USE_ORIGINAL_PTS:
+            kvssink->data->use_original_pts = g_value_get_boolean(value);
+            break;
+        case PROP_ALLOW_CREATE_STREAM:
+            kvssink->allow_create_stream = g_value_get_boolean(value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -811,6 +898,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
     switch (prop_id) {
         case PROP_STREAM_NAME:
             g_value_set_string (value, kvssink->stream_name);
+            break;
+        case PROP_USER_AGENT_NAME:
+            g_value_set_string (value, kvssink->user_agent);
             break;
         case PROP_RETENTION_PERIOD:
             g_value_set_uint (value, kvssink->retention_period_hours);
@@ -872,6 +962,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
         case PROP_SECRET_KEY:
             g_value_set_string (value, kvssink->secret_key);
             break;
+        case PROP_SESSION_TOKEN:
+            g_value_set_string (value, kvssink->session_token);
+            break;
         case PROP_AWS_REGION:
             g_value_set_string (value, kvssink->aws_region);
             break;
@@ -887,6 +980,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
         case PROP_STORAGE_SIZE:
             g_value_set_uint (value, kvssink->storage_size);
             break;
+        case PROP_STOP_STREAM_TIMEOUT:
+            g_value_set_uint (value, kvssink->stop_stream_timeout);
+            break;
         case PROP_CREDENTIAL_FILE_PATH:
             g_value_set_string (value, kvssink->credential_file_path);
             break;
@@ -901,6 +997,12 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
             break;
         case PROP_DISABLE_BUFFER_CLIPPING:
             g_value_set_boolean (value, kvssink->disable_buffer_clipping);
+            break;
+        case PROP_USE_ORIGINAL_PTS:
+            g_value_set_boolean (value, kvssink->data->use_original_pts);
+            break;
+        case PROP_ALLOW_CREATE_STREAM:
+            g_value_set_boolean (value, kvssink->allow_create_stream);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1061,6 +1163,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
 
     // eos reached
     if (buf == NULL && track_data == NULL) {
+        LOG_INFO("Received event");
         data->kinesis_video_stream->stopSync();
         LOG_INFO("Sending eos");
 
@@ -1089,69 +1192,72 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
     }
 
-    isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
-                    GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
-                    (GST_BUFFER_FLAGS(buf) == GST_BUFFER_FLAG_DISCONT) ||
-                    (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DISCONT) && GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT)) ||
-                    // drop if buffer contains header and has invalid timestamp
-                    (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
+    if(buf != NULL) {
+        isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
+                        GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
+                        (GST_BUFFER_FLAGS(buf) == GST_BUFFER_FLAG_DISCONT) ||
+                        (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DISCONT) && GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT)) ||
+                        // drop if buffer contains header and has invalid timestamp
+                        (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
+        if (isDroppable) {
+            LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf));
+            goto CleanUp;
+        }
 
-    if (isDroppable) {
-        LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf));
-        goto CleanUp;
-    }
+        // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
+        // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
+        // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
+        if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
+            buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
+            buf->pts += data->pts_base;
+        } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
+            buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
+        }
 
-    // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
-    // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
-    // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
-    if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-        buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
-        buf->pts += data->pts_base;
-    } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
-        buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
-    }
+        data->last_dts = buf->dts;
+        track_id = kvs_sink_track_data->track_id;
 
-    data->last_dts = buf->dts;
-    track_id = kvs_sink_track_data->track_id;
+        if (!gst_buffer_map(buf, &info, GST_MAP_READ)){
+            goto CleanUp;
+        }
 
-    if (!gst_buffer_map(buf, &info, GST_MAP_READ)){
-        goto CleanUp;
-    }
+        delta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
 
-    delta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
-
-    switch (data->media_type) {
-        case AUDIO_ONLY:
-        case VIDEO_ONLY:
-            if (!delta) {
-                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
-            }
-            break;
-        case AUDIO_VIDEO:
-            if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
-                if (data->first_video_frame) {
-                    data->first_video_frame = false;
+        switch (data->media_type) {
+            case AUDIO_ONLY:
+            case VIDEO_ONLY:
+                if (!delta) {
+                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
                 }
-                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+                break;
+            case AUDIO_VIDEO:
+                if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
+                    if (data->first_video_frame) {
+                        data->first_video_frame = false;
+                    }
+                    kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+                }
+                break;
+        }
+        if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
+            if (data->first_pts == GST_CLOCK_TIME_NONE) {
+                data->first_pts = buf->pts;
             }
-            break;
-    }
-
-    if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-        if (data->first_pts == GST_CLOCK_TIME_NONE) {
-            data->first_pts = buf->pts;
+            if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
+                data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+                        systemCurrentTime().time_since_epoch()).count();
+            }
         }
-        if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
-            data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
-                    systemCurrentTime().time_since_epoch()).count();
-        }
-        buf->pts += data->producer_start_time - data->first_pts;
-    }
 
-    put_frame(data->kinesis_video_stream, info.data, info.size,
-              std::chrono::nanoseconds(buf->pts),
-              std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
-    data->frame_count++;
+        put_frame(data->kinesis_video_stream, info.data, info.size,
+                  std::chrono::nanoseconds(buf->pts),
+                  std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+        data->frame_count++;
+
+    }
+    else {
+        LOG_WARN("GStreamer buffer is invalid");
+    }
 
 CleanUp:
     if (info.data != NULL) {
@@ -1338,13 +1444,19 @@ init_track_data(GstKvsSink *kvssink) {
 
     switch (kvssink->data->media_type) {
         case AUDIO_VIDEO:
-            kvssink->content_type = g_strjoin(",", video_content_type, audio_content_type, NULL);
+            if(video_content_type != NULL && audio_content_type != NULL) {
+                kvssink->content_type = g_strjoin(",", video_content_type, audio_content_type, NULL);
+            }
             break;
         case AUDIO_ONLY:
-            kvssink->content_type = g_strdup(audio_content_type);
+            if(audio_content_type != NULL) {
+                kvssink->content_type = g_strdup(audio_content_type);
+            }
             break;
         case VIDEO_ONLY:
-            kvssink->content_type = g_strdup(video_content_type);
+            if(video_content_type != NULL) {
+                kvssink->content_type = g_strdup(video_content_type);
+            }
             break;
     }
 
@@ -1364,6 +1476,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
             log4cplus::initialize();
             log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
+
             try {
                 kinesis_video_producer_init(kvssink);
                 init_track_data(kvssink);

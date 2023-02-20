@@ -30,6 +30,7 @@ StreamDefinition::StreamDefinition(
         bool fragment_acks,
         bool restart_on_error,
         bool recalculate_metrics,
+        bool allowStreamCreation,
         uint32_t nal_adaptation_flags,
         uint32_t frame_rate,
         uint32_t avg_bandwidth_bps,
@@ -71,6 +72,7 @@ StreamDefinition::StreamDefinition(
     stream_info_.streamCaps.fragmentAcks = fragment_acks;
     stream_info_.streamCaps.recoverOnError = restart_on_error;
     stream_info_.streamCaps.recalculateMetrics = recalculate_metrics;
+    stream_info_.streamCaps.allowStreamCreation = allowStreamCreation;
     stream_info_.streamCaps.nalAdaptationFlags = nal_adaptation_flags;
     stream_info_.streamCaps.frameRate = frame_rate;
     stream_info_.streamCaps.avgBandwidthBps = avg_bandwidth_bps;

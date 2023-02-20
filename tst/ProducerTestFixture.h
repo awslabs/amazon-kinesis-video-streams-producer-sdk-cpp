@@ -347,38 +347,39 @@ protected:
                                                     uint32_t max_stream_latency_ms = TEST_MAX_STREAM_LATENCY_IN_MILLIS,
                                                     int buffer_duration_seconds = 120) {
         char stream_name[MAX_STREAM_NAME_LEN];
-        sprintf(stream_name, "ScaryTestStream_%d", index);
+        snprintf(stream_name, MAX_STREAM_NAME_LEN, "ScaryTestStream_%d", index);
         std::map<std::string, std::string> tags;
         char tag_name[MAX_TAG_NAME_LEN];
         char tag_val[MAX_TAG_VALUE_LEN];
         for (int i = 0; i < 5; i++) {
-            sprintf(tag_name, "testTag_%d_%d", index, i);
-            sprintf(tag_val, "testTag_%d_%d_Value", index, i);
+            snprintf(tag_name, MAX_TAG_NAME_LEN, "testTag_%d_%d", index, i);
+            snprintf(tag_val, MAX_TAG_VALUE_LEN, "testTag_%d_%d_Value", index, i);
 
             tags.emplace(std::make_pair(tag_name, tag_val));
         }
 
         std::unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(stream_name,
-                std::chrono::hours(2),
-                &tags,
-                "",
-                streaming_type,
-                "video/h264",
-                std::chrono::milliseconds(max_stream_latency_ms),
-                std::chrono::seconds(2),
-                std::chrono::milliseconds(1),
-                true,
-                true,
-                true,
-                true,
-                true,
-                true,
-                0,
-                25,
-                4 * 1024 * 1024,
-                std::chrono::seconds(buffer_duration_seconds),
-                std::chrono::seconds(buffer_duration_seconds),
-                std::chrono::seconds(50)));
+            std::chrono::hours(2),
+            &tags,
+            "",
+            streaming_type,
+            "video/h264",
+            std::chrono::milliseconds(max_stream_latency_ms),
+            std::chrono::seconds(2),
+            std::chrono::milliseconds(1),
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            0,
+            25,
+            4 * 1024 * 1024,
+            std::chrono::seconds(buffer_duration_seconds),
+            std::chrono::seconds(buffer_duration_seconds),
+            std::chrono::seconds(50)));
         return kinesis_video_producer_->createStreamSync(move(stream_definition));
     };
 
