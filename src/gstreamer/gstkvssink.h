@@ -152,7 +152,6 @@ struct _KvsSinkCustomData {
             media_type(VIDEO_ONLY),
             first_video_frame(true),
             frame_count(0),
-            onFirstFrame(true),
             first_pts(GST_CLOCK_TIME_NONE),
             producer_start_time(GST_CLOCK_TIME_NONE) {}
     std::unique_ptr<KinesisVideoProducer> kinesis_video_producer;
@@ -163,7 +162,6 @@ struct _KvsSinkCustomData {
     MediaType media_type;
     bool first_video_frame;
     uint32_t frame_count;
-    bool onFirstFrame;
 
     std::atomic_uint stream_status;
 
@@ -184,7 +182,6 @@ struct _KvsSinkMetric {
     KinesisVideoStreamMetrics streamMetrics = KinesisVideoStreamMetrics();
     KinesisVideoProducerMetrics clientMetrics = KinesisVideoProducerMetrics();
     UINT64 framePTS;
-    bool putFrameSuccess = false;
 };
 
 #endif /* __GST_KVS_SINK_H__ */
