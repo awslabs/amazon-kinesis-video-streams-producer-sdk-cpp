@@ -1057,8 +1057,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = static_cast<UINT64>(track_id);
 }
 
-bool
-put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseconds &pts,
+bool put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
@@ -1089,6 +1088,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     uint64_t track_id;
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
+    bool putFrameSuccess;
 
     info.data = NULL;
 
@@ -1181,12 +1181,12 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         buf->pts += data->producer_start_time - data->first_pts;
     }
 
-    bool ret = put_frame(kvssink, info.data, info.size,
+    putFrameSuccess = put_frame(kvssink, info.data, info.size,
               std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
 
-    if(kvssink->data->onFirstFrame && ret){
-        g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, nullptr);
+    if(kvssink->data->onFirstFrame && putFrameSuccess){
+        g_signal_emit(G_OBJECT(kvssink), kvssink->data->metricSignalId, 0, nullptr);
         kvssink->data->onFirstFrame = false;
     }
 
