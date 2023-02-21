@@ -1065,6 +1065,7 @@ bool put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseco
         kvsSinkMetric->streamMetrics = kvsSink->data->kinesis_video_stream->getMetrics();
         kvsSinkMetric->clientMetrics = kvsSink->data->kinesis_video_producer->getMetrics();
         kvsSinkMetric->framePTS = frame.presentationTs;
+        kvsSinkMetric->onFirstFrame = kvsSink->data->onFirstFrame ? true : false;
         g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
         delete kvsSinkMetric;
     }
@@ -1184,7 +1185,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
 
     if(kvssink->data->onFirstFrame && putFrameSuccess){
-        g_signal_emit(G_OBJECT(kvssink), kvssink->data->metricSignalId, 0, nullptr);
         kvssink->data->onFirstFrame = false;
     }
 
