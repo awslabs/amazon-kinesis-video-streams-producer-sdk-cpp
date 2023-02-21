@@ -151,6 +151,7 @@ struct _KvsSinkCustomData {
             pts_base(0),
             media_type(VIDEO_ONLY),
             first_video_frame(true),
+            onFirstFrame(true),
             frame_count(0),
             first_pts(GST_CLOCK_TIME_NONE),
             producer_start_time(GST_CLOCK_TIME_NONE) {}
@@ -162,6 +163,7 @@ struct _KvsSinkCustomData {
     MediaType media_type;
     bool first_video_frame;
     uint32_t frame_count;
+    bool onFirstFrame;
 
     std::atomic_uint stream_status;
 
