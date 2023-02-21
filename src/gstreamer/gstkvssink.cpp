@@ -1069,7 +1069,6 @@ put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseconds &
         kvsSinkMetric->clientMetrics = kvsSink->data->kinesis_video_producer->getMetrics();
         kvsSinkMetric->framePTS = frame.presentationTs;
         g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
-        kvsSink->data->onFirstFrame = false;
         delete kvsSinkMetric;
     }
     return ret;
