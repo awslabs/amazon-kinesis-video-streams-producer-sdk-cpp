@@ -181,12 +181,14 @@ struct _KvsSinkCustomData {
 struct _KvsSinkMetric {
     _KvsSinkMetric():
         framePTS(0),
-        onFirstFrame(false)
+        onFirstFrame(true),
+        putFrameSuccess(true)
         {}
     KinesisVideoStreamMetrics streamMetrics = KinesisVideoStreamMetrics();
     KinesisVideoProducerMetrics clientMetrics = KinesisVideoProducerMetrics();
     UINT64 framePTS;
     bool onFirstFrame;
+    bool putFrameSuccess;
 };
 
 #endif /* __GST_KVS_SINK_H__ */
