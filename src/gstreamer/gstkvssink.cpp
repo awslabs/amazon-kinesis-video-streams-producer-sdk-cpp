@@ -62,7 +62,7 @@
 #include <IotCertCredentialProvider.h>
 #include "Util/KvsSinkUtil.h"
 
-LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
+LOGGER_TAG("test.test.test.test.gstkvs");
 
 using namespace std;
 using namespace std::chrono;
@@ -717,8 +717,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
 
-    LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
-    LOG_CONFIGURE_STDOUT("DEBUG");
+    // LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
+    // LOG_CONFIGURE_STDOUT("DEBUG");
 }
 
 static void
@@ -1490,6 +1490,10 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             if(kvssink->log_config_path != NULL) {
                 log4cplus::initialize();
                 log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
+                LOG_INFO("Logger config being used: " << kvssink->log_config_path);
+            }
+            else {
+                LOG_INFO("Logger already configured...skipping");
             }
             try {
                 kinesis_video_producer_init(kvssink);
