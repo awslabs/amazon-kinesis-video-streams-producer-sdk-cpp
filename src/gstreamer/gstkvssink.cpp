@@ -62,7 +62,7 @@
 #include <IotCertCredentialProvider.h>
 #include "Util/KvsSinkUtil.h"
 
-LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
+LOGGER_TAG("gstkvs");
 
 using namespace std;
 using namespace std::chrono;
