@@ -1,6 +1,6 @@
 #include "KvsSinkStreamCallbackProvider.h"
 
-LOGGER_TAG("gstkvs");
+LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
 using namespace com::amazonaws::kinesis::video;
 
