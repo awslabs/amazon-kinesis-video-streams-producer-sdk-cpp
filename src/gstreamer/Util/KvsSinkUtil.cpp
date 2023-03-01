@@ -2,7 +2,7 @@
 #include <iterator>
 #include <iomanip>
 
-LOGGER_TAG("test.test.test.test.gstkvs");
+LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
 
 static const std::set<std::string> iot_param_set = {IOT_GET_CREDENTIAL_ENDPOINT,
                                                     CERTIFICATE_PATH,
