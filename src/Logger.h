@@ -9,6 +9,7 @@
 #include <sstream>
 #include <stdexcept>
 
+
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 // configure the logger by loading configuration from specific properties file.

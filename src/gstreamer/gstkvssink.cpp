@@ -1487,10 +1487,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
-            if(kvssink->log_config_path != NULL) {
                 log4cplus::initialize();
                 log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
-            }
             try {
                 kinesis_video_producer_init(kvssink);
                 init_track_data(kvssink);
