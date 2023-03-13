@@ -58,14 +58,14 @@ KvsSinkStreamCallbackProvider::streamClosedHandler(UINT64 custom_data,
 }
 
 STATUS
-KvsSinkStreamCallbackProvider::fragmentAckHandler(UINT64 custom_data,
+KvsSinkStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
                                                   STREAM_HANDLE stream_handle,
                                                   UPLOAD_HANDLE upload_handle,
                                                   PFragmentAck pFragmentAck) {
     auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
 
     if(customDataObj != NULL && customDataObj->kvsSink != NULL && pFragmentAck != NULL) {
-        LOG_DEBUG("fragment Ack invoked, timestamp " << pFragmentAck->timestamp);
+        LOG_DEBUG("fragment Ack invoked with timestamp " << pFragmentAck->timestamp);
         g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->ackSignalId, 0, pFragmentAck);
     }
     return STATUS_SUCCESS;
