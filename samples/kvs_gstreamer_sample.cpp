@@ -77,6 +77,7 @@ typedef struct _CustomData {
             key_frame_pts(0),
             main_loop(NULL),
             first_pts(GST_CLOCK_TIME_NONE),
+            first_key_frame(true),
             use_absolute_fragment_times(true) {
         producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
     }
@@ -134,6 +135,9 @@ typedef struct _CustomData {
 
     // Pts of first video frame
     uint64_t first_pts;
+
+    //true until we receive the first key frame
+    bool first_key_frame;
 } CustomData;
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
@@ -402,7 +406,12 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
             goto CleanUp;
         }
         if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
-            data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
+            if(data->first_key_frame) {
+                data->first_key_frame = false;
+            }
+            else {
+                data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
+            }
         }
 
         put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
