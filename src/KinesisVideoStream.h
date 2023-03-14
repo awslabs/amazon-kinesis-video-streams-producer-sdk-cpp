@@ -60,7 +60,7 @@ public:
      * @param frame The frame to be packaged and streamed.
      * @return true if the encoder accepted the frame and false otherwise.
      */
-    bool putFrame(KinesisVideoFrame frame) const;
+    bool putFrame(KinesisVideoFrame& frame) const;
 
     /**
      * Gets the stream metrics.

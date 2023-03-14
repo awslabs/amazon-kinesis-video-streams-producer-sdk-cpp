@@ -225,6 +225,14 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         CHK_JVM_EXCEPTION(env);
     }
 
+    methodId = env->GetMethodID(cls, "getAutomaticStreamingFlags", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getAutomaticStreamingFlags");
+    } else {
+        pClientInfo->automaticStreamingFlags = (AUTOMATIC_STREAMING_FLAGS) env->CallIntMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
 CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
@@ -710,6 +718,14 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
         DLOGW("Couldn't find method id getFrameOrderMode");
     } else {
         pStreamInfo->streamCaps.frameOrderingMode = (FRAME_ORDER_MODE) env->CallIntMethod(streamInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getStorePressurePolicy", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getStorePressurePolicy");
+    } else {
+        pStreamInfo->streamCaps.storePressurePolicy = (CONTENT_STORE_PRESSURE_POLICY) env->CallIntMethod(streamInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 

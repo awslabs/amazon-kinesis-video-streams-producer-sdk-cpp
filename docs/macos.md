@@ -25,14 +25,13 @@ Device found:
 ###### Running the `gst-launch-1.0` command to start streaming from RTSP camera source.
 
 ```
-$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au ! h264parse ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
+$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! h264parse ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
 ```
 
 **Note:** If you are using **IoT credentials** then you can pass them as parameters to the gst-launch-1.0 command
 
 ```
-$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
- h264parse ! kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
+$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! h264parse ! kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
 ```
 You can find the RTSP URL from your IP camera manual or manufacturers product page.
 
@@ -93,6 +92,15 @@ Change your current working directory to `build`. Launch the sample application 
 ```
 AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_sample <my-stream> </path/to/file>
 ```
+
+##### Running the GStreamer sample application to upload h264 *video* with kvssink
+
+`kvssink_gstreamer_sample` is functionally identical to `kvs_gstreamer_sample` except it uses kvssink instead of appsink.
+
+```
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvssink_gstreamer_sample <my-stream> <my_rtsp_url OR /path/to/file>
+```
+
 
 ###### Running the `gst-launch-1.0` command to upload [MKV](https://www.matroska.org/) file that contains both *audio and video* in **Mac-OS**. Note that video should be H264 encoded and audio should be AAC encoded.
 
@@ -232,3 +240,9 @@ The projects depend on the following open source components. Running `CMake` wil
 * gst-plugins-bad
 * gst-plugins-ugly
 * [x264]( https://www.videolan.org/developers/x264.html)
+
+
+###### GStreamer version 1.20 on MacOS
+
+* While running the sample application, if you encounter an error similar to: `Not all elements could be created.` for RTSP source, set the following:
+`export GST_PLUGIN_PATH=<homebrew-path>/lib/gstreamer-1.0`

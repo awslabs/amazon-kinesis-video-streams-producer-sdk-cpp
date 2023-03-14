@@ -61,9 +61,22 @@ On Ubuntu and Raspberry Pi OS you can get the libraries by running
 ```
 $ sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
 ```
+### Setup desired log level:
+Set up the desired log level. The log levels currently available with `log4cplus` are:
+1. `TRACE`
+2. `DEBUG` 
+3. `INFO`   
+4. `WARN`   
+5. `ERROR`   
+6. `FATAL`   
+
+To set a log level, update the log level value [here](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/samples/kvs_log_configuration#L1)
+
+Note: The default log level is `DEBUG`
 
 #### Cross-Compilation
-If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [.travis.yml](.travis.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
+If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [ci.yml](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/develop/.github/workflows/ci.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
+Please note that GStreamer is not cross-compiled as a part of the cross-compilation of the KVS-SDK, customers will have to cross-compile it separately.
 
 
 #### CMake Arguments
@@ -80,6 +93,7 @@ You can pass the following options to `cmake ..`.
 * `-DTHREAD_SANITIZER` -- Build with ThreadSanitizer
 * `-DUNDEFINED_BEHAVIOR_SANITIZER` Build with UndefinedBehaviorSanitizer
 * `-DALIGNED_MEMORY_MODEL` Build for aligned memory model only devices. Default is OFF.
+* `-DBUILD_LOG4CPLUS_HOST` Specify host-name for log4cplus for cross-compilation. Default is OFF.
 
 #### To Include JNI
 
@@ -108,6 +122,8 @@ On Windows you should run `nmake` instead of `make`
 
 In your build directory you will now have shared objects for all the targets you have selected.
 
+### Installing the library
+If the library needs to be installed, run `make install`. This will install in default directory based on system. To install in another directory, run `cmake` with the `-DCMAKE_INSTALL_PREFIX` option with the desired directory before running `make install`
 ## Run
 ### GStreamer Plugin (kvssink)
 
@@ -194,6 +210,11 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 `export JAVA_INCLUDE_PATH2=/Library/Java/JavaVirtualMachines/<YOUR_JDK_VERSION>/Contents/Home/include` or `export JAVA_INCLUDE_PATH2=$JAVA_HOME/include` for Mac OS.  
 `export JAVA_INCLUDE_PATH2='/usr/java/<JDK_VERSION>/include'` for Linux.
 * If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
+* If you would like to visualize the GStreamer pipeline being constructed in a GStreamer application, include the following after the elements have been linked:
+`GST_DEBUG_BIN_TO_DOT_FILE(<gst-bin-object>, GST_DEBUG_GRAPH_SHOW_ALL, <file-name>);`
+For example, if the application created a pipeline object `GstPipeline* pipeline = gst_pipeline_new("test-pipeline")`, and you would like to see the visualized pipeline with filename pipeline, add:
+`GST_DEBUG_BIN_TO_DOT_FILE((GstBin*) pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline");`. Also ensure to set the path to where you would like the file to be stored. `export GST_DEBUG_DUMP_DOT_DIR=.`. The file generated would be a `.dot` format. Convert to PDF to check the visualized pipeline. Also, this requires `graphviz` to be installed. So make sure to install that.
+
 
 ## FAQ
 * Is CPP-SDK and GStreamer supported on Mac/Windows/Linux (Supported Platforms)?  
