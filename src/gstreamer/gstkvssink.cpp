@@ -1075,6 +1075,9 @@ bool put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseco
         g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
         delete kvsSinkMetric;
     }
+    if(kvsSink->data->onFirstFrame && ret){
+        kvsSink->data->onFirstFrame = false;
+    }
     return ret;
 }
 
@@ -1093,7 +1096,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     uint64_t track_id;
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
-    bool putFrameSuccess;
 
     info.data = NULL;
 
@@ -1186,13 +1188,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         buf->pts += data->producer_start_time - data->first_pts;
     }
 
-    putFrameSuccess = put_frame(kvssink, info.data, info.size,
-              std::chrono::nanoseconds(buf->pts),
+    put_frame(kvssink, info.data, info.size,std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
-
-    if(kvssink->data->onFirstFrame && putFrameSuccess){
-        kvssink->data->onFirstFrame = false;
-    }
 
     data->frame_count++;
 
