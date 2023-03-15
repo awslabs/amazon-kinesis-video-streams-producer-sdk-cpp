@@ -21,13 +21,14 @@ KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video
 
 bool KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
     if (debug_dump_frame_info_) {
-        LOG_DEBUG("pts: " << frame.presentationTs << ", dts: " << frame.decodingTs << ", duration: " << frame.duration << ", size: " << frame.size << ", trackId: " << frame.trackId
+        LOG_DEBUG("[" << this->stream_name_ << "] pts: " << frame.presentationTs << ", dts: " << frame.decodingTs << ", duration: " << frame.duration << ", size: " << frame.size << ", trackId: " << frame.trackId
                           << ", isKey: " << CHECK_FRAME_FLAG_KEY_FRAME(frame.flags));
     }
 
     assert(0 != stream_handle_);
     STATUS status = putKinesisVideoFrame(stream_handle_, &frame);
     if (STATUS_FAILED(status)) {
+        LOG_ERROR("Put frame for " << this->stream_name_ << "failed with 0x" << std::hex << status);
         return false;
     }
 
@@ -40,7 +41,8 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
         auto total_transfer_tate = 8 * client_metrics.getTotalTransferRate();
         auto transfer_rate = 8 * stream_metrics.getCurrentTransferRate();
 
-        LOG_DEBUG("Kinesis Video client and stream metrics"
+        LOG_DEBUG("Kinesis Video client and stream metrics for "
+                          << this->stream_name_
                           << "\n\t>> Overall storage byte size: " << client_metrics.getContentStoreSizeSize()
                           << "\n\t>> Available storage byte size: " << client_metrics.getContentStoreAvailableSize()
                           << "\n\t>> Allocated storage byte size: " << client_metrics.getContentStoreAllocatedSize()
@@ -66,19 +68,19 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, ui
     STATUS status;
 
     if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, 0, NULL, &size))) {
-        LOG_ERROR("Failed to get the size of the buffer for hex decoding the codec private data with: " << status);
+        LOG_ERROR("Failed to get the size of the buffer for hex decoding the codec private data with: " << status << " for " << this->stream_name_);
         return false;
     }
 
     // Allocate the buffer needed
     pBuffer = reinterpret_cast<PBYTE>(malloc(size));
     if (nullptr == pBuffer) {
-        LOG_ERROR("Failed to allocate enough buffer for hex decoding. Size: " << size);
+        LOG_ERROR("Failed to allocate enough buffer for hex decoding. Size: " << size << " for " << this->stream_name_);
         return false;
     }
 
     if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, 0, pBuffer, &size))) {
-        LOG_ERROR("Failed to hex decode the codec private data with: " << status);
+        LOG_ERROR("Failed to hex decode the codec private data with: " << status << " for " << this->stream_name_);
         ::free(pBuffer);
         return false;
     }
@@ -97,7 +99,7 @@ bool KinesisVideoStream::start(const unsigned char* codecPrivateData, size_t cod
 
     if (STATUS_FAILED(status = kinesisVideoStreamFormatChanged(stream_handle_, (UINT32) codecPrivateDataSize,
                                                                (PBYTE) codecPrivateData, (UINT64) trackId))) {
-        LOG_ERROR("Failed to set the codec private data with: " << status);
+        LOG_ERROR("Failed to set the codec private data with: " << status << " for " << this->stream_name_);
         return false;
     }
 
@@ -115,7 +117,7 @@ bool KinesisVideoStream::resetConnection() {
     STATUS status = STATUS_SUCCESS;
 
     if (STATUS_FAILED(status = kinesisVideoStreamResetConnection(stream_handle_))) {
-        LOG_ERROR("Failed to reset the connection with: " << status);
+        LOG_ERROR("Failed to reset the connection with: " << status << " for " << this->stream_name_);
         return false;
     }
 
@@ -126,7 +128,7 @@ bool KinesisVideoStream::resetStream() {
     STATUS status = STATUS_SUCCESS;
 
     if (STATUS_FAILED(status = kinesisVideoStreamResetStream(stream_handle_))) {
-        LOG_ERROR("Failed to reset the stream with: " << status);
+        LOG_ERROR("Failed to reset the stream with: " << status << " for " << this->stream_name_);
         return false;
     }
 
@@ -134,7 +136,7 @@ bool KinesisVideoStream::resetStream() {
 }
 
 void KinesisVideoStream::free() {
-    LOG_INFO("Freeing Kinesis Video Stream " << stream_name_);
+    LOG_INFO("Freeing Kinesis Video Stream for " << this->stream_name_);
 
     // Free the underlying stream
     std::call_once(free_kinesis_video_stream_flag_, freeKinesisVideoStream, getStreamHandle());
@@ -144,7 +146,7 @@ bool KinesisVideoStream::stop() {
     STATUS status;
 
     if (STATUS_FAILED(status = stopKinesisVideoStream(stream_handle_))) {
-        LOG_ERROR("Failed to stop the stream with: " << status);
+        LOG_ERROR("Failed to stop the stream with: " << status << " for " << this->stream_name_);
         return false;
     }
 
@@ -155,7 +157,7 @@ bool KinesisVideoStream::stopSync() {
     STATUS status;
 
     if (STATUS_FAILED(status = stopKinesisVideoStreamSync(stream_handle_))) {
-        LOG_ERROR("Failed to stop the stream with: " << status);
+        LOG_ERROR("Failed to stop the stream with: " << status << " for " << this->stream_name_);
         return false;
     }
 
@@ -164,7 +166,7 @@ bool KinesisVideoStream::stopSync() {
 
 KinesisVideoStreamMetrics KinesisVideoStream::getMetrics() const {
     STATUS status = ::getKinesisVideoStreamMetrics(stream_handle_, (PStreamMetrics) stream_metrics_.getRawMetrics());
-    LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get stream metrics with: " << status);
+    LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get stream metrics with: " << status << " for " << this->stream_name_);
 
     return stream_metrics_;
 }
@@ -174,7 +176,7 @@ bool KinesisVideoStream::putFragmentMetadata(const std::string &name, const std:
     const char* pMetadataValue = value.c_str();
     STATUS status = ::putKinesisVideoFragmentMetadata(stream_handle_, (PCHAR) pMetadataName, (PCHAR) pMetadataValue, persistent);
     if (STATUS_FAILED(status)) {
-        LOG_ERROR("Failed to insert fragment metadata with: " << status);
+        LOG_ERROR("Failed to insert fragment metadata with: " << status << " for " << this->stream_name_);
         return false;
     }
 
