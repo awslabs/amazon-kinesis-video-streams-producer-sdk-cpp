@@ -40,7 +40,8 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame frame) const {
         auto total_transfer_tate = 8 * client_metrics.getTotalTransferRate();
         auto transfer_rate = 8 * stream_metrics.getCurrentTransferRate();
 
-        LOG_DEBUG("Kinesis Video client and stream metrics"
+        LOG_DEBUG("Kinesis Video client and stream metrics for "
+                          << this->stream_name_
                           << "\n\t>> Overall storage byte size: " << client_metrics.getContentStoreSizeSize()
                           << "\n\t>> Available storage byte size: " << client_metrics.getContentStoreAvailableSize()
                           << "\n\t>> Allocated storage byte size: " << client_metrics.getContentStoreAllocatedSize()

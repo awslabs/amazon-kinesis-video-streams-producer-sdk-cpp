@@ -307,7 +307,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
 
     // Handle env for providing CP URL
     if(nullptr != (control_plane_uri = getenv(CONTROL_PLANE_URI_ENV_VAR))) {
-        LOG_INFO("Getting URL from env");
+        LOG_INFO("Getting URL from env for " << kvssink->stream_name);
         control_plane_uri_str = string(control_plane_uri);
     }
 
@@ -316,11 +316,11 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         session_token_str = "";
         session_token = getenv(SESSION_TOKEN_ENV_VAR);
         if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
-            LOG_INFO("Setting session token from env");
+            LOG_INFO("Setting session token from env for " << kvssink->stream_name);
             session_token_str = string(session_token);
         }
     } else {
-        LOG_INFO("Setting session token from config");
+        LOG_INFO("Setting session token from config for " << kvssink->stream_name);
         session_token_str = string(kvssink->session_token);
     }
 
@@ -332,10 +332,10 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
 
     unique_ptr<CredentialProvider> credential_provider;
     if (kvssink->iot_certificate) {
-        LOG_INFO("Using iot credential provider within KVS sink");
+        LOG_INFO("Using iot credential provider within KVS sink for " << kvssink->stream_name);
         std::map<std::string, std::string> iot_cert_params;
         if (!kvs_sink_util::parseIotCredentialGstructure(kvssink->iot_certificate, iot_cert_params)){
-            LOG_AND_THROW("Failed to parse Iot credentials");
+            LOG_AND_THROW("Failed to parse Iot credentials for " << kvssink->stream_name);
         }
 
         std::map<std::string, std::string>::iterator it = iot_cert_params.find(IOT_THING_NAME); 
@@ -376,7 +376,7 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
         gboolean ret;
         ret = kvs_sink_util::gstructToMap(kvssink->stream_tags, &stream_tags);
         if (!ret) {
-            LOG_WARN("Failed to parse stream tags");
+            LOG_WARN("Failed to parse stream tags for " << kvssink->stream_name);
         } else {
             p_stream_tags = &stream_tags;
         }
@@ -457,7 +457,7 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
     bool do_retry = true;
     while(do_retry) {
         try {
-            LOG_INFO("try creating stream");
+            LOG_INFO("try creating stream for " << kvssink->stream_name);
             // stream is freed when createStreamSync fails
             create_kinesis_video_stream(kvssink);
             break;
@@ -1165,9 +1165,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
 
     // eos reached
     if (buf == NULL && track_data == NULL) {
-        LOG_INFO("Received event");
+        LOG_INFO("Received event for " << kvssink->stream_name);
         data->kinesis_video_stream->stopSync();
-        LOG_INFO("Sending eos");
+        LOG_INFO("Sending eos for " << kvssink->stream_name);
 
         // send out eos message to gstreamer bus
         message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
@@ -1183,7 +1183,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type) || !IS_RETRIABLE_ERROR(stream_status)) {
             // fatal cases
             GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL),
-                           ("Stream error occurred. Status: 0x%08x", stream_status));
+                           ("[%s] Stream error occurred. Status: 0x%08x", kvssink->stream_name, stream_status));
             ret = GST_FLOW_ERROR;
             goto CleanUp;
         } else {
@@ -1203,7 +1203,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                         (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_HEADER) && (!GST_BUFFER_PTS_IS_VALID(buf) || !GST_BUFFER_DTS_IS_VALID(buf)));
 
         if (isDroppable) {
-            LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf));
+            LOG_DEBUG("Dropping frame with flag: " << GST_BUFFER_FLAGS(buf) << " for " << kvssink->stream_name);
             goto CleanUp;
         }
 
@@ -1420,7 +1420,7 @@ init_track_data(GstKvsSink *kvssink) {
                 video_content_type = g_strdup(MKV_H265_CONTENT_TYPE);
             } else {
                 // no-op, should result in a caps negotiation error before getting here.
-                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink");
+                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink" << " for " << kvssink->stream_name);
             }
             gst_caps_unref(caps);
 
@@ -1448,7 +1448,7 @@ init_track_data(GstKvsSink *kvssink) {
                 audio_content_type = g_strdup(MKV_MULAW_CONTENT_TYPE);
             } else {
                 // no-op, should result in a caps negotiation error before getting here.
-                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink");
+                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink" << " for " << kvssink->stream_name);
             }
             gst_caps_unref(caps);
         }
