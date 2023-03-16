@@ -128,7 +128,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
-namespace KVSSinkSignals {
+namespace KvsSinkSignals {
     guint errSignalId;
     guint ackSignalId;
     guint metricSignalId;
@@ -597,13 +597,13 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
     gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
 
-    KVSSinkSignals::errSignalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class),
+    KvsSinkSignals::errSignalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
-    KVSSinkSignals::ackSignalId = g_signal_new("fragment-ack", G_TYPE_FROM_CLASS(gobject_class),
+    KvsSinkSignals::ackSignalId = g_signal_new("fragment-ack", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
-    KVSSinkSignals::metricSignalId = g_signal_new("stream-client-metric", G_TYPE_FROM_CLASS(gobject_class),
+    KvsSinkSignals::metricSignalId = g_signal_new("stream-client-metric", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_metric),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
@@ -656,9 +656,9 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 
     kvssink->data = make_shared<KvsSinkCustomData>();
 
-    kvssink->data->errSignalId = KVSSinkSignals::errSignalId;
-    kvssink->data->ackSignalId = KVSSinkSignals::ackSignalId;
-    kvssink->data->metricSignalId = KVSSinkSignals::metricSignalId;
+    kvssink->data->errSignalId = KvsSinkSignals::errSignalId;
+    kvssink->data->ackSignalId = KvsSinkSignals::ackSignalId;
+    kvssink->data->metricSignalId = KvsSinkSignals::metricSignalId;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
@@ -1059,9 +1059,17 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
 
 bool put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
+
+    if(kvsSink == nullptr){
+        GST_ERROR_OBJECT (kvsSink, "Missing User Data");
+        LOG_INFO("Missing User Data");
+        return FALSE;
+    }
+
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
     bool ret = kvsSink->data->kinesis_video_stream->putFrame(frame);
+
     if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || (kvsSink->data->onFirstFrame && ret)){
         KvsSinkMetric *kvsSinkMetric = new KvsSinkMetric();
         kvsSinkMetric->streamMetrics = kvsSink->data->kinesis_video_stream->getMetrics();
@@ -1071,6 +1079,10 @@ bool put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseco
         kvsSinkMetric->putFrameSuccess = ret;
         g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
         delete kvsSinkMetric;
+    }
+
+    if(kvsSink->data->onFirstFrame && ret){
+        kvsSink->data->onFirstFrame = false;
     }
     return ret;
 }
@@ -1090,7 +1102,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     uint64_t track_id;
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
-    bool putFrameSuccess;
 
     info.data = NULL;
 
@@ -1183,13 +1194,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         buf->pts += data->producer_start_time - data->first_pts;
     }
 
-    putFrameSuccess = put_frame(kvssink, info.data, info.size,
+    put_frame(kvssink, info.data, info.size,
               std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
-
-    if(kvssink->data->onFirstFrame && putFrameSuccess){
-        kvssink->data->onFirstFrame = false;
-    }
 
     data->frame_count++;
 
