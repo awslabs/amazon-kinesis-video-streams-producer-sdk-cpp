@@ -141,7 +141,7 @@ AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kv
 Change your current working directory to `build`. Launch the sample application with a stream name and a path to the file and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_audio_video_sample <my-stream> </path/to/file>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_audio_video_sample <my-stream> -f </path/to/file>
 ```
 
 ##### Running the GStreamer sample application to stream audio and video from live source
