@@ -129,7 +129,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
 namespace KvsSinkSignals {
-    guint errSignalId;
     guint ackSignalId;
     guint metricSignalId;
 };
@@ -597,9 +596,6 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
     gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
 
-    KvsSinkSignals::errSignalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class),
-                                               (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error),
-                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
     KvsSinkSignals::ackSignalId = g_signal_new("fragment-ack", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
@@ -656,7 +652,6 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 
     kvssink->data = make_shared<KvsSinkCustomData>();
 
-    kvssink->data->errSignalId = KvsSinkSignals::errSignalId;
     kvssink->data->ackSignalId = KvsSinkSignals::ackSignalId;
     kvssink->data->metricSignalId = KvsSinkSignals::metricSignalId;
 

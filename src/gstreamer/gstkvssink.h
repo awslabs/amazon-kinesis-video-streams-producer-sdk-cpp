@@ -135,7 +135,6 @@ struct _GstKvsSink {
 struct _GstKvsSinkClass {
     GstElementClass parent_class;
     void (*sink_fragment_ack)              (GstKvsSink *kvssink, gpointer user_data);
-    void (*sink_stream_error)              (GstKvsSink *kvssink, gpointer user_data);
     void (*sink_stream_metric)             (GstKvsSink *kvssink, gpointer user_data);
 };
 
@@ -172,7 +171,6 @@ struct _KvsSinkCustomData {
     uint64_t first_pts;
     uint64_t producer_start_time;
     uint64_t startTime;  // [nanoSeconds]
-    guint errSignalId = 0;
     guint ackSignalId = 0;
     guint metricSignalId = 0;
 
