@@ -1065,19 +1065,22 @@ bool put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseco
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
     bool ret = kvsSink->data->kinesis_video_stream->putFrame(frame);
 
-    if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || (kvsSink->data->onFirstFrame && ret)){
-        KvsSinkMetric *kvsSinkMetric = new KvsSinkMetric();
-        kvsSinkMetric->streamMetrics = kvsSink->data->kinesis_video_stream->getMetrics();
-        kvsSinkMetric->clientMetrics = kvsSink->data->kinesis_video_producer->getMetrics();
-        kvsSinkMetric->framePTS = frame.presentationTs;
-        kvsSinkMetric->onFirstFrame = kvsSink->data->onFirstFrame;
-        kvsSinkMetric->putFrameSuccess = ret;
-        g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
-        delete kvsSinkMetric;
+    if(ret){
+        if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || kvsSink->data->onFirstFrame){
+            KvsSinkMetric *kvsSinkMetric = new KvsSinkMetric();
+            kvsSinkMetric->streamMetrics = kvsSink->data->kinesis_video_stream->getMetrics();
+            kvsSinkMetric->clientMetrics = kvsSink->data->kinesis_video_producer->getMetrics();
+            kvsSinkMetric->framePTS = frame.presentationTs;
+            kvsSinkMetric->onFirstFrame = kvsSink->data->onFirstFrame;
+            g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
+            delete kvsSinkMetric;
+        }
+        if(kvsSink->data->onFirstFrame){
+            kvsSink->data->onFirstFrame = false;
+        }
     }
-
-    if(kvsSink->data->onFirstFrame && ret){
-        kvsSink->data->onFirstFrame = false;
+    else {
+        LOG_DEBUG("Failed to put the frame");
     }
     return ret;
 }
