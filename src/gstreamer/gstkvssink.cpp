@@ -1064,12 +1064,12 @@ bool put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseco
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
     bool ret = kvsSink->data->kinesis_video_stream->putFrame(frame);
-
     if(ret){
         if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || kvsSink->data->onFirstFrame){
             KvsSinkMetric *kvsSinkMetric = new KvsSinkMetric();
             kvsSinkMetric->streamMetrics = kvsSink->data->kinesis_video_stream->getMetrics();
             kvsSinkMetric->clientMetrics = kvsSink->data->kinesis_video_producer->getMetrics();
+            LOG_DEBUG("Frame presentation time stamp: "<<frame.presentationTs);
             kvsSinkMetric->framePTS = frame.presentationTs;
             kvsSinkMetric->onFirstFrame = kvsSink->data->onFirstFrame;
             g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
