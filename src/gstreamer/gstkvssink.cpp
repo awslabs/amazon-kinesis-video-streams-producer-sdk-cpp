@@ -1072,12 +1072,12 @@ bool put_frame(GstKvsSink *kvsSink, void *frame_data, size_t len, const nanoseco
             LOG_DEBUG("Frame presentation time stamp kvs sink: "<<frame.presentationTs);
             kvsSinkMetric->framePTS = frame.presentationTs;
             kvsSinkMetric->onFirstFrame = kvsSink->data->onFirstFrame;
+//            if(kvsSink->data->onFirstFrame){
+//            LOG_DEBUG("The first frame through kvs sink: "<<frame.presentationTs)
+//            }
+            kvsSink->data->onFirstFrame = false;
             g_signal_emit(G_OBJECT(kvsSink), kvsSink->data->metricSignalId, 0, kvsSinkMetric);
             delete kvsSinkMetric;
-        }
-        if(kvsSink->data->onFirstFrame){
-            LOG_DEBUG("The first frame through kvs sink: "<<frame.presentationTs)
-            kvsSink->data->onFirstFrame = false;
         }
     }
     else {
