@@ -1067,11 +1067,9 @@ bool put_frame(GstKvsSink *kvssink, void *frame_data, size_t len, const nanoseco
             kvs_sink_metric->client_metrics = kvssink->data->kinesis_video_producer->getMetrics();
             kvs_sink_metric->frame_pts = frame.presentationTs;
             kvs_sink_metric->on_first_frame = kvssink->data->onFirstFrame;
+            kvssink->data->onFirstFrame = false;
             g_signal_emit(G_OBJECT(kvssink), kvssink->data->metric_signal_id, 0, kvs_sink_metric);
             delete kvs_sink_metric;
-        }
-        if(kvssink->data->onFirstFrame){
-            kvssink->data->onFirstFrame = false;
         }
     }
     else {
