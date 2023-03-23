@@ -128,6 +128,11 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
+namespace KvsSinkSignals {
+    guint ack_signal_id;
+    guint metric_signal_id;
+};
+
 enum {
     PROP_0,
     PROP_STREAM_NAME,
@@ -238,6 +243,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size));
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
+
+    kvssink->data->kvsSink = kvssink;
 
     char const *access_key;
     char const *secret_key;
@@ -588,6 +595,13 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     gstelement_class->change_state = GST_DEBUG_FUNCPTR (gst_kvs_sink_change_state);
     gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
     gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
+
+    KvsSinkSignals::ack_signal_id = g_signal_new("fragment-ack", G_TYPE_FROM_CLASS(gobject_class),
+                                               (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack),
+                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
+    KvsSinkSignals::metric_signal_id = g_signal_new("stream-client-metric", G_TYPE_FROM_CLASS(gobject_class),
+                                               (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_metric),
+                                               NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 static void
@@ -637,6 +651,9 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
     kvssink->data = make_shared<KvsSinkCustomData>();
+
+    kvssink->data->ack_signal_id = KvsSinkSignals::ack_signal_id;
+    kvssink->data->metric_signal_id = KvsSinkSignals::metric_signal_id;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
@@ -1033,12 +1050,32 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = static_cast<UINT64>(track_id);
 }
 
-bool
-put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *frame_data, size_t len, const nanoseconds &pts,
+bool put_frame(GstKvsSink *kvssink, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
+    if(kvssink == nullptr){
+        GST_ERROR_OBJECT (kvssink, "Missing User Data");
+        LOG_INFO("Missing User Data");
+        return FALSE;
+    }
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    return kinesis_video_stream->putFrame(frame);
+    bool ret = kvssink->data->kinesis_video_stream->putFrame(frame);
+    if(ret){
+        if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || kvssink->data->onFirstFrame){
+            KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
+            kvs_sink_metric->stream_metrics = kvssink->data->kinesis_video_stream->getMetrics();
+            kvs_sink_metric->client_metrics = kvssink->data->kinesis_video_producer->getMetrics();
+            kvs_sink_metric->frame_pts = frame.presentationTs;
+            kvs_sink_metric->on_first_frame = kvssink->data->onFirstFrame;
+            kvssink->data->onFirstFrame = false;
+            g_signal_emit(G_OBJECT(kvssink), kvssink->data->metric_signal_id, 0, kvs_sink_metric);
+            delete kvs_sink_metric;
+        }
+    }
+    else {
+        LOG_DEBUG("Failed to put the frame");
+    }
+    return ret;
 }
 
 static GstFlowReturn
@@ -1148,9 +1185,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         buf->pts += data->producer_start_time - data->first_pts;
     }
 
-    put_frame(data->kinesis_video_stream, info.data, info.size,
-              std::chrono::nanoseconds(buf->pts),
+    put_frame(kvssink, info.data, info.size,std::chrono::nanoseconds(buf->pts),
               std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+
     data->frame_count++;
 
 CleanUp:

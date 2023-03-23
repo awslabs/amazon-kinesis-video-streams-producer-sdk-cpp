@@ -34,6 +34,10 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
             return streamClosedHandler;
         }
 
+        FragmentAckReceivedFunc getFragmentAckReceivedCallback() override{
+            return fragmentAckReceivedHandler;
+        }
+
     private:
         static STATUS
         streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
@@ -53,6 +57,9 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
         static STATUS
         streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle);
+
+        static STATUS
+        fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck);
     };
 }
 }
