@@ -61,6 +61,7 @@ G_BEGIN_DECLS
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
 typedef struct _KvsSinkCustomData KvsSinkCustomData;
+typedef struct _KvsSinkMetric KvsSinkMetric;
 
 /* all information needed for one track */
 typedef struct _GstKvsSinkTrackData {
@@ -139,6 +140,7 @@ struct _GstKvsSinkClass {
     GstElementClass parent_class;
     void (*sink_fragment_ack)              (GstKvsSink *kvssink, gpointer user_data);
     void (*sink_stream_error)              (GstKvsSink *kvssink, gpointer user_data);
+    void (*sink_stream_metric)             (GstKvsSink *kvssink, gpointer user_data);
 };
 
 GType gst_kvs_sink_get_type (void);
@@ -154,6 +156,7 @@ struct _KvsSinkCustomData {
             media_type(VIDEO_ONLY),
             first_video_frame(true),
             use_original_pts(false),
+            onFirstFrame(true),
             frame_count(0),
             first_pts(GST_CLOCK_TIME_NONE),
             producer_start_time(GST_CLOCK_TIME_NONE) {}
@@ -166,6 +169,7 @@ struct _KvsSinkCustomData {
     bool first_video_frame;
     bool use_original_pts;
     uint32_t frame_count;
+    bool onFirstFrame;
 
     std::atomic_uint stream_status;
 
@@ -174,7 +178,21 @@ struct _KvsSinkCustomData {
     uint64_t first_pts;
     uint64_t producer_start_time;
     guint errSignalId = 0;
-    guint ackSignalId = 0;
+    uint64_t startTime;  // [nanoSeconds]
+    guint ack_signal_id = 0;
+    guint metric_signal_id = 0;
+
+};
+
+struct _KvsSinkMetric {
+    _KvsSinkMetric():
+        frame_pts(0),
+        on_first_frame(true)
+        {}
+    KinesisVideoStreamMetrics stream_metrics = KinesisVideoStreamMetrics();
+    KinesisVideoProducerMetrics client_metrics = KinesisVideoProducerMetrics();
+    uint64_t frame_pts;
+    bool on_first_frame;
 };
 
 #endif /* __GST_KVS_SINK_H__ */
