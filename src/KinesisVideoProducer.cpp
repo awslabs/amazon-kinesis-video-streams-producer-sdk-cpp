@@ -156,8 +156,7 @@ shared_ptr<KinesisVideoStream> KinesisVideoProducer::createStreamSync(unique_ptr
 
 void KinesisVideoProducer::freeStream(std::shared_ptr<KinesisVideoStream> kinesis_video_stream) {
     if (nullptr == kinesis_video_stream) {
-        LOG_ERROR("Kinesis Video stream can't be null");
-        return;
+        LOG_AND_THROW("Kinesis Video stream can't be null");
     }
 
     // Get and save the stream handle
@@ -180,8 +179,13 @@ void KinesisVideoProducer::freeStreams() {
 
         for (auto i = 0; i < num_streams; i++) {
             auto stream = active_streams_.getAt(0);
-            LOG_INFO("Completed freeing stream " << stream->stream_name_);
-            freeStream(stream);
+            try {
+                freeStream(stream);
+                LOG_INFO("Completed freeing stream " << stream->stream_name_);
+            } catch (std::runtime_error &err) {
+                LOG_ERROR("Failed to free stream " << stream->stream_name_ << ". Error: " << err.what());
+            }
+
         }
     }
 }
@@ -197,10 +201,7 @@ KinesisVideoProducer::~KinesisVideoProducer() {
 
 KinesisVideoProducerMetrics KinesisVideoProducer::getMetrics() const {
     STATUS status = ::getKinesisVideoMetrics(client_handle_, (PClientMetrics) client_metrics_.getRawMetrics());
-    if(STATUS_FAILED(status)) {
-        LOG_ERROR("Failed to get producer metrics with: " << status);
-    }
-
+    LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get producer client metrics with: " << status);
     return client_metrics_;
 }
 
