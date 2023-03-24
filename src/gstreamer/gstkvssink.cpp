@@ -92,6 +92,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_RECALCULATE_METRICS TRUE
 #define DEFAULT_DISABLE_BUFFER_CLIPPING FALSE
 #define DEFAULT_USE_ORIGINAL_PTS FALSE
+#define DEFAULT_ENABLE_METRICS FALSE
 #define DEFAULT_STREAM_FRAMERATE 25
 #define DEFAULT_STREAM_FRAMERATE_HIGH_DENSITY 100
 #define DEFAULT_AVG_BANDWIDTH_BPS (4 * 1024 * 1024)
@@ -133,9 +134,9 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
 namespace KvsSinkSignals {
-    guint errSignalId;
-    guint ackSignalId;
-    guint metricSignalId;
+    guint err_signal_id;
+    guint ack_signal_id;
+    guint metric_signal_id;
 };
 
 enum {
@@ -174,6 +175,7 @@ enum {
     PROP_FILE_START_TIME,
     PROP_DISABLE_BUFFER_CLIPPING,
     PROP_USE_ORIGINAL_PTS,
+    PROP_GET_METRICS,
     PROP_ALLOW_CREATE_STREAM,
     PROP_USER_AGENT_NAME
 };
@@ -257,7 +259,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
 
-    kvssink->data->kvsSink = kvssink;
+    kvssink->data->kvs_sink = kvssink;
 
     char const *access_key;
     char const *secret_key;
@@ -277,7 +279,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                            GST_DEBUG_FUNCPTR(gst_collect_pads_clip_running_time), kvssink);
     }
 
-    kvssink->data->kvsSink = kvssink;
+    kvssink->data->kvs_sink = kvssink;
 
     if (0 == strcmp(kvssink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
         if (nullptr == (access_key = getenv(ACCESS_KEY_ENV_VAR))
@@ -447,7 +449,7 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
     bool do_retry = true;
     while(do_retry) {
         try {
-            LOG_INFO("try creating stream for " << kvssink->stream_name);
+            LOG_INFO("Try creating stream for " << kvssink->stream_name);
             // stream is freed when createStreamSync fails
             create_kinesis_video_stream(kvssink);
             break;
@@ -633,6 +635,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                            "Set to true only if you want to use the original presentation time stamp on the buffer and that timestamp is expected to be a valid epoch value in nanoseconds. Most encoders will not have a valid PTS", DEFAULT_USE_ORIGINAL_PTS,
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_GET_METRICS,
+                                     g_param_spec_boolean ("get-kvs-metrics", "Get client and stream level metrics on every key frame",
+                                                           "Set to true if you want to read on the producer streamMetrics and clientMetrics object every key frame. Disabled by default", DEFAULT_ENABLE_METRICS,
+                                                           (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     g_object_class_install_property (gobject_class, PROP_ALLOW_CREATE_STREAM,
                                      g_param_spec_boolean ("allow-create-stream", "Allow creating stream if stream does not exist",
                                                            "Set to true if allowing create stream call, false otherwise", DEFAULT_ALLOW_CREATE_STREAM,
@@ -651,11 +658,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
     gstelement_class->request_new_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_request_new_pad);
     gstelement_class->release_pad = GST_DEBUG_FUNCPTR (gst_kvs_sink_release_pad);
 
-    KvsSinkSignals::errSignalId = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class), (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error), NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
-    KvsSinkSignals::ackSignalId = g_signal_new("fragment-ack", G_TYPE_FROM_CLASS(gobject_class),
+    KvsSinkSignals::err_signal_id = g_signal_new("stream-error", G_TYPE_FROM_CLASS(gobject_class), (GSignalFlags)(G_SIGNAL_RUN_LAST), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_error), NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_UINT64);
+    KvsSinkSignals::ack_signal_id = g_signal_new("fragment-ack", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_fragment_ack),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
-    KvsSinkSignals::metricSignalId = g_signal_new("stream-client-metric", G_TYPE_FROM_CLASS(gobject_class),
+    KvsSinkSignals::metric_signal_id = g_signal_new("stream-client-metric", G_TYPE_FROM_CLASS(gobject_class),
                                                (GSignalFlags)(G_SIGNAL_ACTION), G_STRUCT_OFFSET (GstKvsSinkClass, sink_stream_metric),
                                                NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
@@ -711,9 +718,9 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->audio_codec_id = g_strdup (DEFAULT_AUDIO_CODEC_ID_AAC);
 
     kvssink->data = make_shared<KvsSinkCustomData>();
-    kvssink->data->errSignalId = KvsSinkSignals::errSignalId;
-    kvssink->data->ackSignalId = KvsSinkSignals::ackSignalId;
-    kvssink->data->metricSignalId = KvsSinkSignals::metricSignalId;
+    kvssink->data->err_signal_id = KvsSinkSignals::err_signal_id;
+    kvssink->data->ack_signal_id = KvsSinkSignals::ack_signal_id;
+    kvssink->data->metric_signal_id = KvsSinkSignals::metric_signal_id;
 
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
@@ -888,6 +895,9 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_USE_ORIGINAL_PTS:
             kvssink->data->use_original_pts = g_value_get_boolean(value);
             break;
+        case PROP_GET_METRICS:
+            kvssink->data->get_metrics = g_value_get_boolean(value);
+            break;
         case PROP_ALLOW_CREATE_STREAM:
             kvssink->allow_create_stream = g_value_get_boolean(value);
             break;
@@ -1009,6 +1019,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
             break;
         case PROP_USE_ORIGINAL_PTS:
             g_value_set_boolean (value, kvssink->data->use_original_pts);
+            break;
+        case PROP_GET_METRICS:
+            g_value_set_boolean (value, kvssink->data->get_metrics);
             break;
         case PROP_ALLOW_CREATE_STREAM:
             g_value_set_boolean (value, kvssink->allow_create_stream);
@@ -1144,25 +1157,21 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = static_cast<UINT64>(track_id);
 }
 
-bool put_frame(GstKvsSink *kvssink, void *frame_data, size_t len, const nanoseconds &pts,
+bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
-    if(kvssink == nullptr){
-        GST_ERROR_OBJECT (kvssink, "Missing User Data");
-        LOG_INFO("Missing User Data");
-        return FALSE;
-    }
+
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    bool ret = kvssink->data->kinesis_video_stream->putFrame(frame);
-    if(ret){
-        if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || kvssink->data->onFirstFrame){
+    bool ret = data->kinesis_video_stream->putFrame(frame);
+    if(data->get_metrics && ret) {
+        if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame){
             KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
-            kvs_sink_metric->stream_metrics = kvssink->data->kinesis_video_stream->getMetrics();
-            kvs_sink_metric->client_metrics = kvssink->data->kinesis_video_producer->getMetrics();
+            kvs_sink_metric->stream_metrics = data->kinesis_video_stream->getMetrics();
+            kvs_sink_metric->client_metrics = data->kinesis_video_producer->getMetrics();
             kvs_sink_metric->frame_pts = frame.presentationTs;
-            kvs_sink_metric->on_first_frame = kvssink->data->onFirstFrame;
-            kvssink->data->onFirstFrame = false;
-            g_signal_emit(G_OBJECT(kvssink), kvssink->data->metricSignalId, 0, kvs_sink_metric);
+            kvs_sink_metric->on_first_frame = data->on_first_frame;
+            data->on_first_frame = false;
+            g_signal_emit(G_OBJECT(data->kvs_sink), data->metric_signal_id, 0, kvs_sink_metric);
             delete kvs_sink_metric;
         }
     }
@@ -1278,7 +1287,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             }
         }
 
-        put_frame(kvssink, info.data, info.size,
+        put_frame(kvssink->data, info.data, info.size,
                   std::chrono::nanoseconds(buf->pts),
                   std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
@@ -1436,7 +1445,7 @@ init_track_data(GstKvsSink *kvssink) {
                 video_content_type = g_strdup(MKV_H265_CONTENT_TYPE);
             } else {
                 // no-op, should result in a caps negotiation error before getting here.
-                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink");
+                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink" << " for " << kvssink->stream_name);
             }
             gst_caps_unref(caps);
 
@@ -1502,8 +1511,13 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
-            log4cplus::initialize();
-            log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
+            if(kvssink->log_config_path != NULL) {
+                log4cplus::initialize();
+                log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
+                LOG_INFO("Logger config being used: " << kvssink->log_config_path);
+            } else {
+                LOG_INFO("Logger already configured...skipping");
+            }
 
             try {
                 kinesis_video_producer_init(kvssink);

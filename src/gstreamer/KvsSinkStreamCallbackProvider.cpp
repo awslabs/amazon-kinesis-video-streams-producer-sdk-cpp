@@ -30,12 +30,11 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data,
                                                         UPLOAD_HANDLE upload_handle,
                                                         UINT64 errored_timecode,
                                                         STATUS status_code) {
-    LOG_ERROR("Reported stream error. Errored timecode: " << errored_timecode << " Status: 0x" << std::hex << status_code);
     auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
-
+    LOG_ERROR("Reported stream error. Errored timecode: " << errored_timecode << " Status: 0x" << std::hex << status_code << " for " << customDataObj->kvs_sink->stream_name);
     if(customDataObj != NULL && (!IS_RECOVERABLE_ERROR(status_code))) {
         customDataObj->stream_status = status_code;
-        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->errSignalId, 0, status_code);
+        g_signal_emit(G_OBJECT(customDataObj->kvs_sink), customDataObj->err_signal_id, 0, status_code);
     }
 
     return STATUS_SUCCESS;
@@ -84,9 +83,9 @@ KvsSinkStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
                                                   PFragmentAck pFragmentAck) {
     auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
 
-    if(customDataObj != NULL && customDataObj->kvsSink != NULL && pFragmentAck != NULL) {
-        LOG_TRACE("[" << customDataObj->kvsSink->stream_name << "] Ack timestamp for " <<  pFragmentAck->ackType << " is " << pFragmentAck->timestamp);
-        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->ackSignalId, 0, pFragmentAck);
+    if(customDataObj != NULL && customDataObj->kvs_sink != NULL && pFragmentAck != NULL) {
+        LOG_TRACE("[" << customDataObj->kvs_sink->stream_name << "] Ack timestamp for " <<  pFragmentAck->ackType << " is " << pFragmentAck->timestamp);
+        g_signal_emit(G_OBJECT(customDataObj->kvs_sink), customDataObj->ack_signal_id, 0, pFragmentAck);
     }
 
     return STATUS_SUCCESS;

@@ -180,6 +180,7 @@ void KinesisVideoProducer::freeStreams() {
 
         for (auto i = 0; i < num_streams; i++) {
             auto stream = active_streams_.getAt(0);
+            LOG_INFO("Completed freeing stream " << stream->stream_name_);
             freeStream(stream);
         }
     }
@@ -191,6 +192,7 @@ KinesisVideoProducer::~KinesisVideoProducer() {
 
     // Freeing the underlying client object
     freeKinesisVideoClient();
+    LOG_INFO("Completed freeing client");
 }
 
 KinesisVideoProducerMetrics KinesisVideoProducer::getMetrics() const {

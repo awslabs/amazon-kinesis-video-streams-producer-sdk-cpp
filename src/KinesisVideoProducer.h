@@ -40,7 +40,6 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
  * We will add extra 10 milliseconds to account for thread scheduling to ensure the callback is complete.
  */
 #define CLIENT_STREAM_CLOSED_CALLBACK_AWAIT_TIME_MILLIS (10 + TIMEOUT_AFTER_STREAM_STOPPED + TIMEOUT_WAIT_FOR_CURL_BUFFER)
-
 #define CONTROL_PLANE_URI_ENV_VAR ((PCHAR) "CONTROL_PLANE_URI")
 /**
 * Kinesis Video client interface for real time streaming. The structure of this class is that each instance of type <T,U>
