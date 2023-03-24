@@ -715,6 +715,9 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->data->ackSignalId = KvsSinkSignals::ackSignalId;
     kvssink->data->metricSignalId = KvsSinkSignals::metricSignalId;
 
+    kvssink->data->ack_signal_id = KvsSinkSignals::ack_signal_id;
+    kvssink->data->metric_signal_id = KvsSinkSignals::metric_signal_id;
+
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
 

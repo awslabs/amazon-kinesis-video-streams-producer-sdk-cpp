@@ -178,10 +178,9 @@ struct _KvsSinkCustomData {
     uint64_t first_pts;
     uint64_t producer_start_time;
     guint errSignalId = 0;
-    uint64_t startTime;  // [nanoSeconds]
     guint ackSignalId = 0;
     guint metricSignalId = 0;
-
+    uint64_t startTime;  // [nanoSeconds]
 };
 
 struct _KvsSinkMetric {
