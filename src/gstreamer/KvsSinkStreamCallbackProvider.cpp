@@ -33,12 +33,9 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data,
     LOG_ERROR("Reported stream error. Errored timecode: " << errored_timecode << " Status: 0x" << std::hex << status_code);
     auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
 
-    if(customDataObj != NULL) {
-        // ignore if the sdk can recover from the error
-        if (!IS_RECOVERABLE_ERROR(status_code)) {
-            customDataObj->stream_status = status_code;
-            g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->errSignalId, 0, status_code);
-        }
+    if(customDataObj != NULL && (!IS_RECOVERABLE_ERROR(status_code))) {
+        customDataObj->stream_status = status_code;
+        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->errSignalId, 0, status_code);
     }
 
     return STATUS_SUCCESS;
@@ -67,7 +64,7 @@ KvsSinkStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data,
                                                             STREAM_HANDLE stream_handle,
                                                             UINT64 current_buffer_duration) {
     UNUSED_PARAM(custom_data);
-    LOG_INFO("Reported streamLatencyPressure callback for stream handle " << stream_handle << ". Current buffer duration in 100ns: " << current_buffer_duration);
+    LOG_WARN("Reported streamLatencyPressure callback for stream handle " << stream_handle << ". Current buffer duration in 100ns: " << current_buffer_duration);
     return STATUS_SUCCESS;
 }
 
@@ -89,7 +86,7 @@ KvsSinkStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data,
 
     if(customDataObj != NULL && customDataObj->kvsSink != NULL && pFragmentAck != NULL) {
         LOG_TRACE("[" << customDataObj->kvsSink->stream_name << "] Ack timestamp for " <<  pFragmentAck->ackType << " is " << pFragmentAck->timestamp);
-        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->ack_signal_id, 0, pFragmentAck);
+        g_signal_emit(G_OBJECT(customDataObj->kvsSink), customDataObj->ackSignalId, 0, pFragmentAck);
     }
 
     return STATUS_SUCCESS;

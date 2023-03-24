@@ -139,7 +139,6 @@ struct _GstKvsSink {
 struct _GstKvsSinkClass {
     GstElementClass parent_class;
     void (*sink_fragment_ack)              (GstKvsSink *kvssink, gpointer user_data);
-    void (*sink_stream_error)              (GstKvsSink *kvssink, gpointer user_data);
     void (*sink_stream_metric)             (GstKvsSink *kvssink, gpointer user_data);
     void (*sink_stream_error)              (GstKvsSink *kvssink, gpointer user_data);
 };
@@ -158,7 +157,6 @@ struct _KvsSinkCustomData {
             first_video_frame(true),
             use_original_pts(false),
             onFirstFrame(true),
-            use_original_pts(false),
             frame_count(0),
             first_pts(GST_CLOCK_TIME_NONE),
             producer_start_time(GST_CLOCK_TIME_NONE) {}
@@ -181,9 +179,8 @@ struct _KvsSinkCustomData {
     uint64_t producer_start_time;
     guint errSignalId = 0;
     uint64_t startTime;  // [nanoSeconds]
-    guint errSignalId = 0;
-    guint ack_signal_id = 0;
-    guint metric_signal_id = 0;
+    guint ackSignalId = 0;
+    guint metricSignalId = 0;
 
 };
 
