@@ -197,7 +197,7 @@ protected:
     /**
      * Whether the stream is closed
      */
-    volatile bool stream_closed_;
+    volatile bool stream_closed_ = false;
 
     /**
      * Stream metrics

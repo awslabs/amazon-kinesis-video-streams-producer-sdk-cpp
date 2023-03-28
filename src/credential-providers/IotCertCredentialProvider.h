@@ -6,7 +6,7 @@
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
     class IotCertCredentialProvider : public CredentialProvider {
-        PAuthCallbacks iot_callbacks;
+        PAuthCallbacks iot_callbacks = nullptr;
         const std::string iot_get_credential_endpoint_, cert_path_, private_key_path_, ca_cert_path_,
 	                  role_alias_,stream_name_;
 

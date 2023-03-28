@@ -179,7 +179,13 @@ void KinesisVideoProducer::freeStreams() {
 
         for (auto i = 0; i < num_streams; i++) {
             auto stream = active_streams_.getAt(0);
-            freeStream(stream);
+            try {
+                freeStream(stream);
+                LOG_INFO("Completed freeing stream " << stream->stream_name_);
+            } catch (std::runtime_error &err) {
+                LOG_ERROR("Failed to free stream " << stream->stream_name_ << ". Error: " << err.what());
+            }
+
         }
     }
 }
@@ -190,12 +196,12 @@ KinesisVideoProducer::~KinesisVideoProducer() {
 
     // Freeing the underlying client object
     freeKinesisVideoClient();
+    LOG_INFO("Completed freeing client");
 }
 
 KinesisVideoProducerMetrics KinesisVideoProducer::getMetrics() const {
     STATUS status = ::getKinesisVideoMetrics(client_handle_, (PClientMetrics) client_metrics_.getRawMetrics());
-    LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get producer metrics with: " << status);
-
+    LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get producer client metrics with: " << status);
     return client_metrics_;
 }
 

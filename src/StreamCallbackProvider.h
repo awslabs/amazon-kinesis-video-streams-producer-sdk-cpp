@@ -32,6 +32,10 @@ public:
      */
     virtual UINT64 getCallbackCustomData() = 0;
 
+    virtual BufferDurationOverflowPressureFunc getBufferDurationOverFlowCallback() {
+        return nullptr;
+    }
+
     /**
      * The function returned by this callback takes two arguments:
      * - UINT64 custom_data: Custom handle passed by the caller.

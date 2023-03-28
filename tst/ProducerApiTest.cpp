@@ -673,8 +673,7 @@ TEST_F(ProducerApiTest, create_caching_endpoing_produce_stream)
 TEST_F(ProducerApiTest, exceed_max_track_count)
 {
     CreateProducer();
-    char stream_name[MAX_STREAM_NAME_LEN];
-    sprintf(stream_name, "ScaryTestStream");
+    std::string stream_name = "ScaryTestStream";
     const string testTrackName = "testTrackName", testCodecId = "testCodecId";
 
     // add 4 tracks
@@ -699,8 +698,7 @@ TEST_F(ProducerApiTest, exceed_max_track_count)
 TEST_F(ProducerApiTest, segment_uuid_variations)
 {
     CreateProducer();
-    char stream_name[MAX_STREAM_NAME_LEN];
-    sprintf(stream_name, "ScaryTestStream");
+    std::string stream_name = "ScaryTestStream";
     const string testTrackName = "testTrackName", testCodecId = "testCodecId";
 
     // Empty
@@ -713,6 +711,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
             milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
             seconds(2),
             milliseconds(1),
+            true,
             true,
             true,
             true,
@@ -754,6 +753,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
             true,
             true,
             true,
+            true,
             NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
             25,
             4 * 1024 * 1024,
@@ -789,6 +789,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
             true,
             true,
             true,
+            true,
             NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
             25,
             4 * 1024 * 1024,
@@ -817,6 +818,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
             milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
             seconds(2),
             milliseconds(1),
+            true,
             true,
             true,
             true,

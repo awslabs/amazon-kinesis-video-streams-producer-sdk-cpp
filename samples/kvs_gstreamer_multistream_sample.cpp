@@ -349,6 +349,7 @@ void kinesis_stream_init(string stream_name, CustomData *data, string stream_han
         DEFAULT_FRAGMENT_ACKS,
         DEFAULT_RESTART_ON_ERROR,
         DEFAULT_RECALCULATE_METRICS,
+        true,
         NAL_ADAPTATION_FLAG_NONE,
         DEFAULT_STREAM_FRAMERATE,
         DEFAULT_AVG_BANDWIDTH_BPS,
