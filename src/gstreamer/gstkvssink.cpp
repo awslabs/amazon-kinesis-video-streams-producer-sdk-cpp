@@ -1046,8 +1046,6 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(frame_data);
     frame->trackId = static_cast<UINT64>(track_id);
-
-    g_printerr("PTS %lu\n", frame->presentationTs);
 }
 
 bool
