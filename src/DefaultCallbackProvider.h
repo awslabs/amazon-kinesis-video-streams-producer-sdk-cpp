@@ -33,7 +33,7 @@ public:
             const std::string &user_agent_name = EMPTY_STRING,
             const std::string &custom_user_agent = EMPTY_STRING,
             const std::string &cert_path = EMPTY_STRING,
-            bool is_caching_endpoint = false,
+            bool is_caching_endpoint = true,
             uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
 
     explicit DefaultCallbackProvider(
@@ -45,7 +45,7 @@ public:
             const std::string &user_agent_name = EMPTY_STRING,
             const std::string &custom_user_agent = EMPTY_STRING,
             const std::string &cert_path = EMPTY_STRING,
-            bool is_caching_endpoint = false,
+            bool is_caching_endpoint = true,
             std::chrono::duration<uint64_t> caching_update_period = std::chrono::seconds(DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD / HUNDREDS_OF_NANOS_IN_A_SECOND));
 
     explicit DefaultCallbackProvider(

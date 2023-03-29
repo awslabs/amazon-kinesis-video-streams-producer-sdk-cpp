@@ -81,7 +81,7 @@ public:
             const std::string &region = DEFAULT_AWS_REGION,
             const std::string &control_plane_uri = "",
             const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
-            bool is_caching_endpoint = false,
+            bool is_caching_endpoint = true,
             uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
 
     static std::unique_ptr<KinesisVideoProducer> createSync(

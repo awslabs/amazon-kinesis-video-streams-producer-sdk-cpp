@@ -542,8 +542,8 @@ void kinesis_video_stream_init(CustomData *data) {
     map<string, string> tags;
     char tag_name[MAX_TAG_NAME_LEN];
     char tag_val[MAX_TAG_VALUE_LEN];
-    SPRINTF(tag_name, "piTag");
-    SPRINTF(tag_val, "piValue");
+    SNPRINTF(tag_name, MAX_TAG_NAME_LEN, "piTag");
+    SNPRINTF(tag_val, MAX_TAG_VALUE_LEN, "piValue");
 
     STREAMING_TYPE streaming_type = DEFAULT_STREAMING_TYPE;
     data->use_absolute_fragment_times = DEFAULT_ABSOLUTE_FRAGMENT_TIMES;

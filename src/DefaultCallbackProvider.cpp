@@ -433,7 +433,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
             STRING_TO_PCHAR(region),
             STRING_TO_PCHAR(control_plane_uri),
             STRING_TO_PCHAR(cert_path),
-            (PCHAR) DEFAULT_USER_AGENT_NAME,
+            STRING_TO_PCHAR (user_agent_name),
             STRING_TO_PCHAR(custom_user_agent_),
             &client_callbacks_))) {
         std::stringstream status_strstrm;
