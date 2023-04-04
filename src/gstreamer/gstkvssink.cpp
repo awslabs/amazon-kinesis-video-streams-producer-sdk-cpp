@@ -110,6 +110,10 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_LOG_FILE_PATH "../kvs_log_configuration"
 #define DEFAULT_STORAGE_SIZE_MB 128
 #define DEFAULT_STOP_STREAM_TIMEOUT_SEC 120
+#define DEFAULT_SERVICE_CONNECTION_TIMEOUT_SEC 5
+#define DEFAULT_SERVICE_COMPLETION_TIMEOUT_SEC 10
+#define DEFAULT_IOT_CONNECTION_TIMEOUT_SEC 3
+#define DEFAULT_IOT_COMPLETION_TIMEOUT_SEC 5
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 #define DEFAULT_FRAME_DURATION_MS 2
 
@@ -117,7 +121,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define KVS_ADD_METADATA_NAME "name"
 #define KVS_ADD_METADATA_VALUE "value"
 #define KVS_ADD_METADATA_PERSISTENT "persist"
-#define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CLIENT"
+#define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CPP-CLIENT"
 
 #define DEFAULT_AUDIO_TRACK_NAME "audio"
 #define DEFAULT_AUDIO_CODEC_ID_AAC "A_AAC"
@@ -169,6 +173,8 @@ enum {
     PROP_LOG_CONFIG_PATH,
     PROP_STORAGE_SIZE,
     PROP_STOP_STREAM_TIMEOUT,
+    PROP_SERVICE_CONNECTION_TIMEOUT,
+    PROP_SERVICE_COMPLETION_TIMEOUT,
     PROP_CREDENTIAL_FILE_PATH,
     PROP_IOT_CERTIFICATE,
     PROP_STREAM_TAGS,
@@ -255,7 +261,10 @@ void closed(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE uploa
 void kinesis_video_producer_init(GstKvsSink *kvssink)
 {
     auto data = kvssink->data;
-    unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size, kvssink->stop_stream_timeout));
+    unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size,
+                                                        kvssink->stop_stream_timeout,
+                                                        kvssink->service_connection_timeout,
+                                                        kvssink->service_completion_timeout));
     unique_ptr<ClientCallbackProvider> client_callback_provider(new KvsSinkClientCallbackProvider());
     unique_ptr<StreamCallbackProvider> stream_callback_provider(new KvsSinkStreamCallbackProvider(data));
 
@@ -320,6 +329,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     if (kvssink->iot_certificate) {
         LOG_INFO("Using iot credential provider within KVS sink for " << kvssink->stream_name);
         std::map<std::string, std::string> iot_cert_params;
+        uint64_t iot_connection_timeout = DEFAULT_IOT_CONNECTION_TIMEOUT_SEC * HUNDREDS_OF_NANOS_IN_A_SECOND;
+        uint64_t iot_completion_timeout = DEFAULT_IOT_COMPLETION_TIMEOUT_SEC * HUNDREDS_OF_NANOS_IN_A_SECOND;
         if (!kvs_sink_util::parseIotCredentialGstructure(kvssink->iot_certificate, iot_cert_params)){
             LOG_AND_THROW("Failed to parse Iot credentials for " << kvssink->stream_name);
         }
@@ -328,12 +339,22 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
             iot_cert_params.insert( std::pair<std::string,std::string>(IOT_THING_NAME, kvssink->stream_name) );
         }
 
+        if(!iot_cert_params[IOT_CONNECTION_TIMEOUT].empty()) {
+            iot_connection_timeout = std::stoull(iot_cert_params[IOT_CONNECTION_TIMEOUT]) * HUNDREDS_OF_NANOS_IN_A_SECOND;
+        }
+
+        if(!iot_cert_params[IOT_COMPLETION_TIMEOUT].empty()) {
+            iot_completion_timeout = std::stoull(iot_cert_params[IOT_COMPLETION_TIMEOUT]) * HUNDREDS_OF_NANOS_IN_A_SECOND;
+        }
+
         credential_provider.reset(new IotCertCredentialProvider(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
                                                                 iot_cert_params[CERTIFICATE_PATH],
                                                                 iot_cert_params[PRIVATE_KEY_PATH],
                                                                 iot_cert_params[ROLE_ALIASES],
                                                                 iot_cert_params[CA_CERT_PATH],
-                                                                iot_cert_params[IOT_THING_NAME] ) );
+                                                                iot_cert_params[IOT_THING_NAME],
+                                                                iot_connection_timeout,
+                                                                iot_completion_timeout));
     } else if (credential_is_static) {
         kvssink->credentials_.reset(new Credentials(access_key_str,
                                                     secret_key_str,
@@ -606,6 +627,14 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                      g_param_spec_uint ("stop-stream-timeout", "Stop stream timeout",
                                                         "Stop stream timeout: seconds", 0, G_MAXUINT, DEFAULT_STOP_STREAM_TIMEOUT_SEC, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_SERVICE_CONNECTION_TIMEOUT,
+                                     g_param_spec_uint ("connection-timeout", "Service call connection timeout",
+                                                        "Service call connection timeout: seconds", 0, G_MAXUINT, DEFAULT_SERVICE_CONNECTION_TIMEOUT_SEC, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property (gobject_class, PROP_SERVICE_COMPLETION_TIMEOUT,
+                                     g_param_spec_uint ("completion-timeout", "Service call completion timeout",
+                                                        "Service call completion timeout: seconds. Should be more than connection timeout. If it isnt, SDK will override with defaults", 0, G_MAXUINT, DEFAULT_SERVICE_COMPLETION_TIMEOUT_SEC, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     g_object_class_install_property (gobject_class, PROP_CREDENTIAL_FILE_PATH,
                                      g_param_spec_string ("credential-path", "Credential File Path",
                                                           "Credential File Path", DEFAULT_CREDENTIAL_FILE_PATH, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -711,6 +740,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->log_config_path = g_strdup (DEFAULT_LOG_FILE_PATH);
     kvssink->storage_size = DEFAULT_STORAGE_SIZE_MB;
     kvssink->stop_stream_timeout = DEFAULT_STOP_STREAM_TIMEOUT_SEC;
+    kvssink->service_connection_timeout = DEFAULT_SERVICE_CONNECTION_TIMEOUT_SEC;
+    kvssink->service_completion_timeout = DEFAULT_SERVICE_COMPLETION_TIMEOUT_SEC;
     kvssink->credential_file_path = g_strdup (DEFAULT_CREDENTIAL_FILE_PATH);
     kvssink->file_start_time = (uint64_t) chrono::duration_cast<milliseconds>(
             systemCurrentTime().time_since_epoch()).count();
@@ -865,6 +896,15 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_STOP_STREAM_TIMEOUT:
             kvssink->stop_stream_timeout = g_value_get_uint (value);
             break;
+
+        case PROP_SERVICE_CONNECTION_TIMEOUT:
+            kvssink->service_connection_timeout = g_value_get_uint (value);
+            break;
+
+        case PROP_SERVICE_COMPLETION_TIMEOUT:
+            kvssink->service_completion_timeout = g_value_get_uint (value);
+            break;
+
         case PROP_CREDENTIAL_FILE_PATH:
             kvssink->credential_file_path = g_strdup (g_value_get_string (value));
             break;
@@ -1002,6 +1042,15 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
         case PROP_STOP_STREAM_TIMEOUT:
             g_value_set_uint (value, kvssink->stop_stream_timeout);
             break;
+
+        case PROP_SERVICE_CONNECTION_TIMEOUT:
+            g_value_set_uint (value, kvssink->service_connection_timeout);
+            break;
+
+        case PROP_SERVICE_COMPLETION_TIMEOUT:
+            g_value_set_uint (value, kvssink->service_completion_timeout);
+            break;
+
         case PROP_CREDENTIAL_FILE_PATH:
             g_value_set_string (value, kvssink->credential_file_path);
             break;
@@ -1175,7 +1224,7 @@ bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
             delete kvs_sink_metric;
         }
     }
-    else {
+    else if(!ret) {
         LOG_DEBUG("Failed to put the frame");
     }
     return ret;
