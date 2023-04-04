@@ -1044,11 +1044,11 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
             break;
 
         case PROP_SERVICE_CONNECTION_TIMEOUT:
-            g_value_set_uint (value, kvssink->stop_stream_timeout);
+            g_value_set_uint (value, kvssink->service_connection_timeout);
             break;
 
         case PROP_SERVICE_COMPLETION_TIMEOUT:
-            g_value_set_uint (value, kvssink->stop_stream_timeout);
+            g_value_set_uint (value, kvssink->service_completion_timeout);
             break;
 
         case PROP_CREDENTIAL_FILE_PATH:
