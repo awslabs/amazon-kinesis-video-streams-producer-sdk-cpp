@@ -18,9 +18,9 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
         const std::string &control_plane_uri,
         const std::string &user_agent_name) {
 
-    unique_ptr<DefaultCallbackProvider> callback_provider(new DefaultCallbackProvider(move(client_callback_provider),
-            move(stream_callback_provider),
-            move(credential_provider),
+    unique_ptr<DefaultCallbackProvider> callback_provider(new DefaultCallbackProvider(std::move(client_callback_provider),
+            std::move(stream_callback_provider),
+            std::move(credential_provider),
             region,
             control_plane_uri,
             user_agent_name,
@@ -29,7 +29,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
             false,
             DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
 
-    return KinesisVideoProducer::create(move(device_info_provider), move(callback_provider));
+    return KinesisVideoProducer::create(std::move(device_info_provider), std::move(callback_provider));
 }
 
 unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
@@ -68,9 +68,9 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
         bool is_caching_endpoint,
         uint64_t caching_update_period) {
 
-    unique_ptr<DefaultCallbackProvider> callback_provider(new DefaultCallbackProvider(move(client_callback_provider),
-            move(stream_callback_provider),
-            move(credential_provider),
+    unique_ptr<DefaultCallbackProvider> callback_provider(new DefaultCallbackProvider(std::move(client_callback_provider),
+            std::move(stream_callback_provider),
+            std::move(credential_provider),
             region,
             control_plane_uri,
             user_agent_name,
@@ -79,7 +79,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
             is_caching_endpoint,
             caching_update_period));
 
-    return KinesisVideoProducer::createSync(move(device_info_provider), move(callback_provider));
+    return KinesisVideoProducer::createSync(std::move(device_info_provider), std::move(callback_provider));
 }
 
 unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
@@ -102,7 +102,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
     }
 
     kinesis_video_producer->client_handle_ = client_handle;
-    kinesis_video_producer->callback_provider_ = move(callback_provider);
+    kinesis_video_producer->callback_provider_ = std::move(callback_provider);
 
     return kinesis_video_producer;
 }
