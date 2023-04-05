@@ -31,7 +31,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 #else
   #define _LOG_CONFIGURE_CONSOLE(level, logToStdErr) \
     log4cplus::helpers::SharedObjectPtr<log4cplus::Appender> _appender(new log4cplus::ConsoleAppender()); \
-    _appender->setLayout(move(std::unique_ptr<log4cplus::PatternLayout>(new log4cplus::PatternLayout("%D [%t] ")))); \
+    _appender->setLayout(std::move(std::unique_ptr<log4cplus::PatternLayout>(new log4cplus::PatternLayout("%D [%t] ")))); \
     log4cplus::BasicConfigurator::doConfigure(log4cplus::Logger::getDefaultHierarchy(), logToStdErr); \
     log4cplus::Logger::getRoot().addAppender(_appender); \
     log4cplus::Logger::getRoot().setLogLevel(log4cplus::getLogLevelManager().fromString(level));

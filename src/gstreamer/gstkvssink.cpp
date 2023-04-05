@@ -371,10 +371,10 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         control_plane_uri_str = string(control_plane_uri);
     }
 
-    data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
-                                                                    move(client_callback_provider),
-                                                                    move(stream_callback_provider),
-                                                                    move(credential_provider),
+    data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
+                                                                    std::move(client_callback_provider),
+                                                                    std::move(stream_callback_provider),
+                                                                    std::move(credential_provider),
                                                                     region_str,
                                                                     control_plane_uri_str,
                                                                     kvssink->user_agent);
