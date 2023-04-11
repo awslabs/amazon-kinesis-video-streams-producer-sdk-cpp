@@ -403,5 +403,5 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_DEPENDENCIES=OFF -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_STATIC=OFF -DSHARED_LIBARY=ON
+          cmake .. -DBUILD_DEPENDENCIES=OFF -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_STATIC=OFF -DBUILD_SHARED_LIBS=ON
           make
