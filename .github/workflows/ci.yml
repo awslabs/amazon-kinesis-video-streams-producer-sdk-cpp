@@ -28,7 +28,7 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.'
+          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
           make install
       - name: Configure AWS Credentials
