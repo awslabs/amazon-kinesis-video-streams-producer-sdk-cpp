@@ -160,7 +160,8 @@ enum {
     PROP_IOT_CERTIFICATE,
     PROP_STREAM_TAGS,
     PROP_FILE_START_TIME,
-    PROP_DISABLE_BUFFER_CLIPPING
+    PROP_DISABLE_BUFFER_CLIPPING,
+    PROP_METADATA_TAGS
 };
 
 #define GST_TYPE_KVS_SINK_STREAMING_TYPE (gst_kvs_sink_streaming_type_get_type())
@@ -576,6 +577,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                            "Set to true only if your src/mux elements produce GST_CLOCK_TIME_NONE for segment start times.  It is non-standard behavior to set this to true, only use if there are known issues with your src/mux segment start/stop times.", DEFAULT_DISABLE_BUFFER_CLIPPING,
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_METADATA_TAGS,
+                                     g_param_spec_boxed ("metadata-tags", "Metadata Tags",
+                                                         "key-value pair that you can define inject as frame metadata",
+                                                         GST_TYPE_STRUCTURE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     gst_element_class_set_static_metadata(gstelement_class,
                                           "KVS Sink",
                                           "Sink/Video/Network",
@@ -797,6 +803,14 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_DISABLE_BUFFER_CLIPPING:
             kvssink->disable_buffer_clipping = g_value_get_boolean(value);
             break;
+        case PROP_METADATA_TAGS: {
+            const GstStructure *s = gst_value_get_structure(value);
+
+            if (kvssink->metadata_tags) {
+                gst_structure_free(kvssink->metadata_tags);
+            }
+            kvssink->metadata_tags = s ? gst_structure_copy(s) : NULL;
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -904,6 +918,9 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
         case PROP_DISABLE_BUFFER_CLIPPING:
             g_value_set_boolean (value, kvssink->disable_buffer_clipping);
             break;
+        case PROP_METADATA_TAGS:
+            gst_value_set_structure (value, kvssink->metadata_tags);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -959,6 +976,28 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 // Send cpd to kinesis video stream
                 ret = data->kinesis_video_stream->start(codec_private_data, KVS_PCM_CPD_SIZE_BYTE, track_id);
 
+                // Write metadata
+                std::string metadata_name, metadata_value;
+                gboolean persistent;
+                bool is_persist;
+
+                metadata_name = "AWS_KINESISVIDEO_NOTIFICATION";
+                metadata_value = "";
+                is_persist = true;
+
+                bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
+                if (!result) {
+                    LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+                }
+
+                metadata_name = "Id";
+                metadata_value = "79e3afc2-6236-4e8d-9abb-92fe7821cf2f";
+                is_persist = true;
+
+                result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
+                if (!result) {
+                    LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+                }
             } else if (data->track_cpd_received.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
                 const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
                 gchar *cpd = gst_value_serialize(gstStreamFormat);
@@ -968,6 +1007,29 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
                 // Send cpd to kinesis video stream
                 ret = data->kinesis_video_stream->start(cpd_str, track_id);
+                
+                // Write metadata
+                std::string metadata_name, metadata_value;
+                gboolean persistent;
+                bool is_persist;
+
+                metadata_name = "AWS_KINESISVIDEO_NOTIFICATION";
+                metadata_value = "";
+                is_persist = true;
+
+                bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
+                if (!result) {
+                    LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+                }
+
+                metadata_name = "Id";
+                metadata_value = "79e3afc2-6236-4e8d-9abb-92fe7821cf2f";
+                is_persist = true;
+
+                result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
+                if (!result) {
+                    LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+                }
             }
 
             gst_event_unref (event);

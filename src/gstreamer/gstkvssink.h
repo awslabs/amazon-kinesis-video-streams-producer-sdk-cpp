@@ -118,6 +118,7 @@ struct _GstKvsSink {
     gchar                       *credential_file_path;
     GstStructure                *iot_certificate;
     GstStructure                *stream_tags;
+    GstStructure                *metadata_tags;
     guint64                     file_start_time;
     MKV_TRACK_INFO_TYPE         track_info_type;
     gchar                       *audio_codec_id;
