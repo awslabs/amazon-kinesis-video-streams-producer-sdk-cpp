@@ -977,26 +977,30 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 ret = data->kinesis_video_stream->start(codec_private_data, KVS_PCM_CPD_SIZE_BYTE, track_id);
 
                 // Write metadata
-                std::string metadata_name, metadata_value;
-                gboolean persistent;
-                bool is_persist;
-
-                metadata_name = "AWS_KINESISVIDEO_NOTIFICATION";
-                metadata_value = "";
-                is_persist = true;
-
-                bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
-                if (!result) {
-                    LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+                // Write metadata
+                map<string, string> *p_metadata_tags = nullptr;
+                map<string, string> metadata_tags;
+                if (kvssink->metadata_tags) {
+                    gboolean ret;
+                    ret = kvs_sink_util::gstructToMap(kvssink->metadata_tags, &metadata_tags);
+                    if (!ret) {
+                        LOG_WARN("Failed to parse stream tags");
+                    } else {
+                        p_metadata_tags = &metadata_tags;
+                    }
                 }
 
-                metadata_name = "Id";
-                metadata_value = "79e3afc2-6236-4e8d-9abb-92fe7821cf2f";
-                is_persist = true;
-
-                result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
-                if (!result) {
-                    LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+                bool result;
+                bool is_persist = true;
+                for (auto const& tag : metadata_tags)
+                {
+                    result = data->kinesis_video_stream->putFragmentMetadata(tag.first, tag.second, is_persist);
+                    if (!result) {
+                        LOG_WARN("Failed to putFragmentMetadata. name: " << tag.first << ", value: " << tag.second << ", persistent: " << is_persist);
+                    }
+                    else {
+                        LOG_WARN("Succeeded to putFragmentMetadata. name: " << tag.first << ", value: " << tag.second << ", persistent: " << is_persist);
+                    }
                 }
             } else if (data->track_cpd_received.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
                 const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
@@ -1007,28 +1011,31 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
                 // Send cpd to kinesis video stream
                 ret = data->kinesis_video_stream->start(cpd_str, track_id);
-                
+
                 // Write metadata
-                std::string metadata_name, metadata_value;
-                gboolean persistent;
-                bool is_persist;
-
-                metadata_name = "AWS_KINESISVIDEO_NOTIFICATION";
-                metadata_value = "";
-                is_persist = true;
-
-                bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
-                if (!result) {
-                    LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+                map<string, string> *p_metadata_tags = nullptr;
+                map<string, string> metadata_tags;
+                if (kvssink->metadata_tags) {
+                    gboolean ret;
+                    ret = kvs_sink_util::gstructToMap(kvssink->metadata_tags, &metadata_tags);
+                    if (!ret) {
+                        LOG_WARN("Failed to parse stream tags");
+                    } else {
+                        p_metadata_tags = &metadata_tags;
+                    }
                 }
 
-                metadata_name = "Id";
-                metadata_value = "79e3afc2-6236-4e8d-9abb-92fe7821cf2f";
-                is_persist = true;
-
-                result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
-                if (!result) {
-                    LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist);
+                bool result;
+                bool is_persist = true;
+                for (auto const& tag : metadata_tags)
+                {
+                    result = data->kinesis_video_stream->putFragmentMetadata(tag.first, tag.second, is_persist);
+                    if (!result) {
+                        LOG_WARN("Failed to putFragmentMetadata. name: " << tag.first << ", value: " << tag.second << ", persistent: " << is_persist);
+                    }
+                    else {
+                        LOG_WARN("Succeeded to putFragmentMetadata. name: " << tag.first << ", value: " << tag.second << ", persistent: " << is_persist);
+                    }
                 }
             }
 
