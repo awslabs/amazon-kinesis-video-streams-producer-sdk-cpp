@@ -958,6 +958,7 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             }
             kvssink->metadata_tags = s ? gst_structure_copy(s) : NULL;
             break;
+        }
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
