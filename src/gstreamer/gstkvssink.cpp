@@ -1118,16 +1118,20 @@ gst_kvs_sink_put_metadata_tags (GstKvsSink *kvssink) {
         }
     }
 
-    bool result;
+    LOG_DEBUG("Sending fragment metadata to stream");
+
     bool is_persist = true;
-    for (auto const& tag : metadata_tags)
+    for (const auto &pair : *p_metadata_tags)
     {
-        result = data->kinesis_video_stream->putFragmentMetadata(tag.first, tag.second, is_persist);
+        auto &name = get<0>(pair);
+        auto &val = get<1>(pair);
+        
+        bool result = data->kinesis_video_stream->putFragmentMetadata(name, val, is_persist);
         if (!result) {
-            LOG_WARN("Failed to putFragmentMetadata. name: " << tag.first << ", value: " << tag.second << ", persistent: " << is_persist);
+            LOG_WARN("Failed to putFragmentMetadata. name: " << name << ", value: " << val << ", persistent: " << is_persist);
         }
         else {
-            LOG_WARN("Succeeded to putFragmentMetadata. name: " << tag.first << ", value: " << tag.second << ", persistent: " << is_persist);
+            LOG_INFO("Succeeded to putFragmentMetadata. name: " << name << ", value: " << val << ", persistent: " << is_persist);
         }
     }
 }
@@ -1180,7 +1184,6 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
                 // Send cpd to kinesis video stream
                 ret = data->kinesis_video_stream->start(codec_private_data, KVS_PCM_CPD_SIZE_BYTE, track_id);
-                gst_kvs_sink_put_metadata_tags(kvssink);
 
             } else if (data->track_cpd_received.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
                 const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
@@ -1191,7 +1194,6 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
                 // Send cpd to kinesis video stream
                 ret = data->kinesis_video_stream->start(cpd_str, track_id);
-                gst_kvs_sink_put_metadata_tags(kvssink);
             }
 
             gst_event_unref (event);
@@ -1200,6 +1202,8 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             if (!ret) {
                 GST_ELEMENT_ERROR(kvssink, STREAM, FAILED, (NULL), ("Failed to start stream"));
             }
+
+            gst_kvs_sink_put_metadata_tags(kvssink);
 
             break;
         }
