@@ -128,7 +128,7 @@ struct _GstKvsSink {
     guint64                     file_start_time;
     MKV_TRACK_INFO_TYPE         track_info_type;
     gchar                       *audio_codec_id;
-
+    GstStructure                *metadata_tags;
 
     guint                       num_streams;
     guint                       num_audio_streams;

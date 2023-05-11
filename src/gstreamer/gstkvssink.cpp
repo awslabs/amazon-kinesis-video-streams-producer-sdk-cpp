@@ -183,7 +183,8 @@ enum {
     PROP_USE_ORIGINAL_PTS,
     PROP_GET_METRICS,
     PROP_ALLOW_CREATE_STREAM,
-    PROP_USER_AGENT_NAME
+    PROP_USER_AGENT_NAME,
+    PROP_METADATA_TAGS
 };
 
 #define GST_TYPE_KVS_SINK_STREAMING_TYPE (gst_kvs_sink_streaming_type_get_type())
@@ -674,6 +675,11 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                            "Set to true if allowing create stream call, false otherwise", DEFAULT_ALLOW_CREATE_STREAM,
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_METADATA_TAGS,
+                                     g_param_spec_boxed ("metadata-tags", "Metadata Tags",
+                                                         "key-value pair that you can define inject as frame metadata",
+                                                         GST_TYPE_STRUCTURE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                                                         
     gst_element_class_set_static_metadata(gstelement_class,
                                           "KVS Sink",
                                           "Sink/Video/Network",
@@ -786,6 +792,9 @@ gst_kvs_sink_finalize(GObject *object) {
     if (kvssink->stream_tags) {
         gst_structure_free (kvssink->stream_tags);
     }
+    if (kvssink->metadata_tags) {
+        gst_structure_free (kvssink->metadata_tags);
+    }        
     if (data->kinesis_video_producer) {
         data->kinesis_video_producer.reset();
     }
@@ -941,6 +950,14 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_ALLOW_CREATE_STREAM:
             kvssink->allow_create_stream = g_value_get_boolean(value);
             break;
+        case PROP_METADATA_TAGS: {
+            const GstStructure *s = gst_value_get_structure(value);
+
+            if (kvssink->metadata_tags) {
+                gst_structure_free(kvssink->metadata_tags);
+            }
+            kvssink->metadata_tags = s ? gst_structure_copy(s) : NULL;
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
@@ -1075,9 +1092,42 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
         case PROP_ALLOW_CREATE_STREAM:
             g_value_set_boolean (value, kvssink->allow_create_stream);
             break;
+        case PROP_METADATA_TAGS:
+            gst_value_set_structure (value, kvssink->metadata_tags);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
             break;
+    }
+}
+
+static gboolean
+gst_kvs_sink_put_metadata_tags (GstKvsSink *kvssink) {
+    auto data = kvssink->data;
+
+    map<string, string> *p_metadata_tags = nullptr;
+    map<string, string> metadata_tags;
+    if (kvssink->metadata_tags) {
+        gboolean ret;
+        ret = kvs_sink_util::gstructToMap(kvssink->metadata_tags, &metadata_tags);
+        if (!ret) {
+            LOG_WARN("Failed to parse stream tags");
+        } else {
+            p_metadata_tags = &metadata_tags;
+        }
+    }
+
+    bool result;
+    bool is_persist = true;
+    for (auto const& tag : metadata_tags)
+    {
+        result = data->kinesis_video_stream->putFragmentMetadata(tag.first, tag.second, is_persist);
+        if (!result) {
+            LOG_WARN("Failed to putFragmentMetadata. name: " << tag.first << ", value: " << tag.second << ", persistent: " << is_persist);
+        }
+        else {
+            LOG_WARN("Succeeded to putFragmentMetadata. name: " << tag.first << ", value: " << tag.second << ", persistent: " << is_persist);
+        }
     }
 }
 
@@ -1129,6 +1179,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
                 // Send cpd to kinesis video stream
                 ret = data->kinesis_video_stream->start(codec_private_data, KVS_PCM_CPD_SIZE_BYTE, track_id);
+                gst_kvs_sink_put_metadata_tags(kvssink);
 
             } else if (data->track_cpd_received.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
                 const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
@@ -1139,6 +1190,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
                 // Send cpd to kinesis video stream
                 ret = data->kinesis_video_stream->start(cpd_str, track_id);
+                gst_kvs_sink_put_metadata_tags(kvssink);
             }
 
             gst_event_unref (event);
