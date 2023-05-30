@@ -66,7 +66,7 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, ui
     STATUS status;
 
     if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, 0, NULL, &size))) {
-        LOG_ERROR("Failed to get the size of the buffer for hex decoding the codec private data with: " << status);
+        LOG_ERROR("Failed to get the size of the buffer for hex decoding the codec private data with: 0x" << std::hex << status);
         return false;
     }
 
@@ -78,7 +78,7 @@ bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, ui
     }
 
     if (STATUS_FAILED(status = hexDecode((PCHAR) pStrCpd, 0, pBuffer, &size))) {
-        LOG_ERROR("Failed to hex decode the codec private data with: " << status);
+        LOG_ERROR("Failed to hex decode the codec private data with: 0x" << std::hex << status);
         ::free(pBuffer);
         return false;
     }
@@ -97,7 +97,7 @@ bool KinesisVideoStream::start(const unsigned char* codecPrivateData, size_t cod
 
     if (STATUS_FAILED(status = kinesisVideoStreamFormatChanged(stream_handle_, (UINT32) codecPrivateDataSize,
                                                                (PBYTE) codecPrivateData, (UINT64) trackId))) {
-        LOG_ERROR("Failed to set the codec private data with: " << status);
+        LOG_ERROR("Failed to set the codec private data with: 0x" << std::hex << status);
         return false;
     }
 
@@ -115,7 +115,7 @@ bool KinesisVideoStream::resetConnection() {
     STATUS status = STATUS_SUCCESS;
 
     if (STATUS_FAILED(status = kinesisVideoStreamResetConnection(stream_handle_))) {
-        LOG_ERROR("Failed to reset the connection with: " << status);
+        LOG_ERROR("Failed to reset the connection with: 0x" << std::hex << status);
         return false;
     }
 
@@ -126,7 +126,7 @@ bool KinesisVideoStream::resetStream() {
     STATUS status = STATUS_SUCCESS;
 
     if (STATUS_FAILED(status = kinesisVideoStreamResetStream(stream_handle_))) {
-        LOG_ERROR("Failed to reset the stream with: " << status);
+        LOG_ERROR("Failed to reset the stream with: 0x" << std::hex << status);
         return false;
     }
 
@@ -144,7 +144,7 @@ bool KinesisVideoStream::stop() {
     STATUS status;
 
     if (STATUS_FAILED(status = stopKinesisVideoStream(stream_handle_))) {
-        LOG_ERROR("Failed to stop the stream with: " << status);
+        LOG_ERROR("Failed to stop the stream with: 0x" << std::hex << status);
         return false;
     }
 
@@ -155,7 +155,7 @@ bool KinesisVideoStream::stopSync() {
     STATUS status;
 
     if (STATUS_FAILED(status = stopKinesisVideoStreamSync(stream_handle_))) {
-        LOG_ERROR("Failed to stop the stream with: " << status);
+        LOG_ERROR("Failed to stop the stream with: 0x" << std::hex << status);
         return false;
     }
 
@@ -164,31 +164,31 @@ bool KinesisVideoStream::stopSync() {
 
 KinesisVideoStreamMetrics KinesisVideoStream::getMetrics() const {
     STATUS status = ::getKinesisVideoStreamMetrics(stream_handle_, (PStreamMetrics) stream_metrics_.getRawMetrics());
-    LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get stream metrics with: " << status);
+    LOG_AND_THROW_IF(STATUS_FAILED(status), "Failed to get stream metrics with: 0x" << std::hex << status);
 
     return stream_metrics_;
 }
 
-bool KinesisVideoStream::putFragmentMetadata(const std::string &name, const std::string &value, bool persistent){
+bool KinesisVideoStream::putFragmentMetadata(const std::string &name, const std::string &value, bool persistent) {
     const char* pMetadataName = name.c_str();
     const char* pMetadataValue = value.c_str();
     STATUS status = ::putKinesisVideoFragmentMetadata(stream_handle_, (PCHAR) pMetadataName, (PCHAR) pMetadataValue, persistent);
     if (STATUS_FAILED(status)) {
-        LOG_ERROR("Failed to insert fragment metadata with: " << status);
+        LOG_ERROR("Failed to insert fragment metadata with: 0x" << std::hex << status);
         return false;
     }
 
     return true;
 }
 
-bool KinesisVideoStream::putEventMetadata(uint32_t event, PStreamEventMetadata pStreamEventMetadata)
-{
-
+bool KinesisVideoStream::putEventMetadata(uint32_t event, PStreamEventMetadata pStreamEventMetadata) {
     STATUS status = ::putKinesisVideoEventMetadata(stream_handle_, event, pStreamEventMetadata);
+
     if (STATUS_FAILED(status)) {
-        LOG_ERROR("Failed to insert event metadata with: " << status);
+        LOG_ERROR("Failed to insert event metadata with: 0x" << std::hex << status);
         return false;
     }
+
     return true;
 }
 
