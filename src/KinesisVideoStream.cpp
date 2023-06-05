@@ -28,7 +28,7 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
     assert(0 != stream_handle_);
     STATUS status = putKinesisVideoFrame(stream_handle_, &frame);
     if (STATUS_FAILED(status)) {
-        LOG_ERROR("Put frame for " << this->stream_name_ << "failed with 0x" << std::hex << status);
+        LOG_ERROR("Put frame for " << this->stream_name_ << " failed with 0x" << std::hex << status);
         return false;
     }
 

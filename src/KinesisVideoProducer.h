@@ -86,6 +86,17 @@ public:
 
     static std::unique_ptr<KinesisVideoProducer> createSync(
             std::unique_ptr<DeviceInfoProvider> device_info_provider,
+            std::unique_ptr<ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr<CredentialProvider> credential_provider,
+            API_CALL_CACHE_TYPE api_call_caching = API_CALL_CACHE_TYPE_ALL,
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
+            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
+
+    static std::unique_ptr<KinesisVideoProducer> createSync(
+            std::unique_ptr<DeviceInfoProvider> device_info_provider,
             std::unique_ptr<CallbackProvider> callback_provider);
 
     virtual ~KinesisVideoProducer();

@@ -52,7 +52,7 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::create(
     }
 
     kinesis_video_producer->client_handle_ = client_handle;
-    kinesis_video_producer->callback_provider_ = move(callback_provider);
+    kinesis_video_producer->callback_provider_ = std::move(callback_provider);
 
     return kinesis_video_producer;
 }
@@ -77,6 +77,31 @@ unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
             device_info_provider->getCustomUserAgent(),
             device_info_provider->getCertPath(),
             is_caching_endpoint,
+            caching_update_period));
+
+    return KinesisVideoProducer::createSync(std::move(device_info_provider), std::move(callback_provider));
+}
+
+unique_ptr<KinesisVideoProducer> KinesisVideoProducer::createSync(
+        unique_ptr<DeviceInfoProvider> device_info_provider,
+        unique_ptr<ClientCallbackProvider> client_callback_provider,
+        unique_ptr<StreamCallbackProvider> stream_callback_provider,
+        unique_ptr<CredentialProvider> credential_provider,
+        API_CALL_CACHE_TYPE api_call_caching,
+        const std::string &region,
+        const std::string &control_plane_uri,
+        const std::string &user_agent_name,
+        uint64_t caching_update_period) {
+
+    unique_ptr<DefaultCallbackProvider> callback_provider(new DefaultCallbackProvider(std::move(client_callback_provider),
+            std::move(stream_callback_provider),
+            std::move(credential_provider),
+            region,
+            control_plane_uri,
+            user_agent_name,
+            device_info_provider->getCustomUserAgent(),
+            device_info_provider->getCertPath(),
+            api_call_caching,
             caching_update_period));
 
     return KinesisVideoProducer::createSync(std::move(device_info_provider), std::move(callback_provider));
