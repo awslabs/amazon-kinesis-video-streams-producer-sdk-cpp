@@ -71,8 +71,13 @@ STATUS
 KvsSinkStreamCallbackProvider::streamClosedHandler(UINT64 custom_data,
                                                    STREAM_HANDLE stream_handle,
                                                    UPLOAD_HANDLE upload_handle) {
-    UNUSED_PARAM(custom_data);
-    LOG_DEBUG("Reported streamClosed callback for stream handle " << stream_handle << ". Upload handle " << upload_handle);
+    auto streamName = "";
+    auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
+    if(customDataObj != NULL && customDataObj->kvs_sink != NULL) {
+        streamName = customDataObj->kvs_sink->stream_name;
+    }
+    LOG_DEBUG("[" << customDataObj->kvs_sink->stream_name << "]Reported streamClosed callback");
+
     return STATUS_SUCCESS;
 }
 

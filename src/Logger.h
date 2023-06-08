@@ -23,7 +23,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 #if LOG4CPLUS_VERSION < LOG4CPLUS_MAKE_VERSION(2,0,0)
   #define _LOG_CONFIGURE_CONSOLE(level, logToStdErr) \
     log4cplus::helpers::SharedObjectPtr<log4cplus::Appender> _appender(new log4cplus::ConsoleAppender()); \
-    std::auto_ptr<log4cplus::Layout> _layout(new log4cplus::PatternLayout("%D [%t] ")); \
+    std::auto_ptr<log4cplus::Layout> _layout(new log4cplus::PatternLayout("[%-5p] [%d{%d-%m-%Y %H:%M:%S:%Q %Z}] [%-l][%t] %m%n")); \
     _appender->setLayout(_layout); \
     log4cplus::BasicConfigurator::doConfigure(log4cplus::Logger::getDefaultHierarchy(), logToStdErr); \
     log4cplus::Logger::getRoot().addAppender(_appender); \
@@ -31,7 +31,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 #else
   #define _LOG_CONFIGURE_CONSOLE(level, logToStdErr) \
     log4cplus::helpers::SharedObjectPtr<log4cplus::Appender> _appender(new log4cplus::ConsoleAppender()); \
-    _appender->setLayout(std::move(std::unique_ptr<log4cplus::PatternLayout>(new log4cplus::PatternLayout("%D [%t] ")))); \
+    _appender->setLayout(std::move(std::unique_ptr<log4cplus::PatternLayout>(new log4cplus::PatternLayout("[%-5p] [%d{%d-%m-%Y %H:%M:%S:%Q %Z}] [%-l][%t] %m%n")))); \
     log4cplus::BasicConfigurator::doConfigure(log4cplus::Logger::getDefaultHierarchy(), logToStdErr); \
     log4cplus::Logger::getRoot().addAppender(_appender); \
     log4cplus::Logger::getRoot().setLogLevel(log4cplus::getLogLevelManager().fromString(level));

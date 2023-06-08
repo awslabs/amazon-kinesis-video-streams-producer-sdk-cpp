@@ -757,7 +757,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
 
     LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
-    LOG_CONFIGURE_STDOUT("DEBUG");
+    char const *logLevel = getenv("AWS_EDGE_LOG_LEVEL");
+    LOG_CONFIGURE_STDOUT(logLevel);
 }
 
 static void
@@ -1181,6 +1182,10 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             event = NULL;
             break;
         }
+        case GST_EVENT_EOS: {
+            LOG_INFO("EOS Event received in sink");
+            break;
+        }
         default:
             break;
     }
@@ -1571,13 +1576,14 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
-            if(kvssink->log_config_path != NULL) {
-                log4cplus::initialize();
-                log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
-                LOG_INFO("Logger config being used: " << kvssink->log_config_path);
-            } else {
-                LOG_INFO("Logger already configured...skipping");
-            }
+            LOG_INFO("Moving pipeline to ready state");
+//            if(kvssink->log_config_path != NULL) {
+//                log4cplus::initialize();
+//                log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
+//                LOG_INFO("Logger config being used: " << kvssink->log_config_path);
+//            } else {
+//                LOG_INFO("Logger already configured...skipping");
+//            }
 
             try {
                 kinesis_video_producer_init(kvssink);
@@ -1598,10 +1604,14 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             }
             break;
         case GST_STATE_CHANGE_READY_TO_PAUSED:
+            LOG_INFO("Collecting pads");
             gst_collect_pads_start (kvssink->collect);
+            LOG_INFO("Collected pads");
             break;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
+            LOG_INFO("Stopping collect pads");
             gst_collect_pads_stop (kvssink->collect);
+            LOG_INFO("Stopped collect pads");
             break;
         default:
             break;
