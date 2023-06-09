@@ -1182,6 +1182,13 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             event = NULL;
             break;
         }
+        case GST_EVENT_EOS: {
+            LOG_INFO("EOS Event received in sink");
+            if(kvs_sink_track_data == NULL) {
+                LOG_INFO("Null track data");
+            }
+            break;
+        }
         default:
             break;
     }
