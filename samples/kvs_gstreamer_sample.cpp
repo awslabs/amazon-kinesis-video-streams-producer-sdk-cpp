@@ -528,10 +528,11 @@ void kinesis_video_init(CustomData *data) {
         LOG_AND_THROW("No valid credential method was found");
     }
 
-    data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
-                                                                    move(client_callback_provider),
-                                                                    move(stream_callback_provider),
-                                                                    move(credential_provider),
+    data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
+                                                                    std::move(client_callback_provider),
+                                                                    std::move(stream_callback_provider),
+                                                                    std::move(credential_provider),
+                                                                    API_CALL_CACHE_TYPE_ALL,
                                                                     defaultRegionStr);
 
     LOG_DEBUG("Client is ready");
@@ -580,7 +581,7 @@ void kinesis_video_stream_init(CustomData *data) {
         DEFAULT_TRACKNAME,
         nullptr,
         0));
-    data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
+    data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(std::move(stream_definition));
 
     // reset state
     data->stream_status = STATUS_SUCCESS;

@@ -375,6 +375,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                                     std::move(client_callback_provider),
                                                                     std::move(stream_callback_provider),
                                                                     std::move(credential_provider),
+                                                                    API_CALL_CACHE_TYPE_ALL,
                                                                     region_str,
                                                                     control_plane_uri_str,
                                                                     kvssink->user_agent);
@@ -458,7 +459,7 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
         stream_definition->setFrameOrderMode(FRAME_ORDERING_MODE_MULTI_TRACK_AV_COMPARE_PTS_ONE_MS_COMPENSATE_EOFR);
     }
 
-    data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
+    data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(std::move(stream_definition));
     data->frame_count = 0;
     cout << "Stream is ready" << endl;
 }
@@ -1223,9 +1224,6 @@ bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
             g_signal_emit(G_OBJECT(data->kvs_sink), data->metric_signal_id, 0, kvs_sink_metric);
             delete kvs_sink_metric;
         }
-    }
-    else if(!ret) {
-        LOG_DEBUG("Failed to put the frame");
     }
     return ret;
 }
