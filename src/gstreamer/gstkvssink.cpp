@@ -756,7 +756,6 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
 
-    LOGGER_TAG("com.amazonaws.kinesis.video.gstkvs");
     char const *logLevel = getenv("AWS_EDGE_LOG_LEVEL");
     LOG_CONFIGURE_STDOUT(logLevel);
 }
