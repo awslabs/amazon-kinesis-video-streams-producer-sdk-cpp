@@ -756,8 +756,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     // Mark plugin as sink
     GST_OBJECT_FLAG_SET (kvssink, GST_ELEMENT_FLAG_SINK);
 
-    char const *logLevel = getenv("AWS_EDGE_LOG_LEVEL");
-    LOG_CONFIGURE_STDOUT(logLevel);
+//    char const *logLevel = getenv("AWS_EDGE_LOG_LEVEL");
+//    LOG_CONFIGURE_STDOUT(logLevel);
 }
 
 static void
