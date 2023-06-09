@@ -38,7 +38,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 #endif
 
 #define _LOG_ROLLING_FILE(level, fileName, fileSize, backupIndex, createDirs) \
-    log4cplus::helpers::SharedObjectPtr<log4cplus::Appender> _appender(new log4cplus::RollingFileAppender(fileName, fileSize, backupIndex, createDirs)); \
+    log4cplus::helpers::SharedObjectPtr<log4cplus::Appender> _appender(new log4cplus::RollingFileAppender(fileName, fileSize, backupIndex, true, createDirs)); \
     _appender->setLayout(std::move(std::unique_ptr<log4cplus::PatternLayout>(new log4cplus::PatternLayout("[%-5p] [%d{%d-%m-%Y %H:%M:%S:%Q %Z}] [%-l][%t]")))); \
     log4cplus::BasicConfigurator::doConfigure(log4cplus::Logger::getDefaultHierarchy(), logToStdErr);                                                    \
     log4cplus::Logger::getRoot().addAppender(_appender); \
