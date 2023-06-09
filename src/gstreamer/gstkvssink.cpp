@@ -1352,9 +1352,10 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             }
         }
 
-        put_frame(kvssink->data, info.data, info.size,
+        bool ret = put_frame(kvssink->data, info.data, info.size,
                   std::chrono::nanoseconds(buf->pts),
                   std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+        LOG_INFO("Put frame returned..." << ret);
         data->frame_count++;
     }
     else {
