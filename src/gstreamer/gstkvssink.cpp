@@ -1252,7 +1252,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     GstMapInfo info;
 
     info.data = NULL;
-
+    LOG_INFO("Here");
     // eos reached
     if (buf == NULL && track_data == NULL) {
         LOG_INFO("Received event for " << kvssink->stream_name);
