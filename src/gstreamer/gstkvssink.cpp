@@ -1613,6 +1613,9 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             gst_collect_pads_stop (kvssink->collect);
             LOG_INFO("Stopped pads");
             break;
+        case GST_STATE_CHANGE_READY_TO_NULL:
+            LOG_INFO("Pipeline state changed to NULL");
+            break;
         default:
             break;
     }
