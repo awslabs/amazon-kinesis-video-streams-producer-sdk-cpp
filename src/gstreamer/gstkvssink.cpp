@@ -1615,6 +1615,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:
             LOG_INFO("Pipeline state changed to NULL");
+            data->kinesis_video_stream->stopSync();
             break;
         default:
             break;
