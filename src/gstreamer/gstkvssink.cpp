@@ -1604,10 +1604,14 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             }
             break;
         case GST_STATE_CHANGE_READY_TO_PAUSED:
+            LOG_INFO("Collecting pads");
             gst_collect_pads_start (kvssink->collect);
+            LOG_INFO("Collected pads");
             break;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
+            LOG_INFO("Stopping pads");
             gst_collect_pads_stop (kvssink->collect);
+            LOG_INFO("Stopped pads");
             break;
         default:
             break;
