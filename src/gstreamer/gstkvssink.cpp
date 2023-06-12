@@ -1611,11 +1611,11 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             LOG_INFO("Stopping pads");
             gst_collect_pads_stop (kvssink->collect);
+            data->kinesis_video_stream->stopSync();
             LOG_INFO("Stopped pads");
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:
             LOG_INFO("Pipeline state changed to NULL");
-            data->kinesis_video_stream->stopSync();
             break;
         default:
             break;
