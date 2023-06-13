@@ -176,7 +176,7 @@ struct _KvsSinkCustomData {
     bool get_metrics;
     uint32_t frame_count;
     bool on_first_frame;
-    bool streamingStopped;
+    std::atomic<bool> streamingStopped;
     uint64_t frame_pts;
 
     std::atomic_uint stream_status;

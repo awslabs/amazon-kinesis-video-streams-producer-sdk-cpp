@@ -160,7 +160,6 @@ bool KinesisVideoStream::stop() {
 
 bool KinesisVideoStream::stopSync() {
     STATUS status;
-    LOG_INFO("Stopping streaming");
     if (STATUS_FAILED(status = stopKinesisVideoStreamSync(stream_handle_))) {
         LOG_ERROR("Failed to stop the stream with: " << status << " for " << this->stream_name_);
         return false;
