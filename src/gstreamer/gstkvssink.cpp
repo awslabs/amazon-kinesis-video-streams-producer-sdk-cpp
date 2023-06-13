@@ -1252,12 +1252,14 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     GstMapInfo info;
 
     info.data = NULL;
-    LOG_INFO("Here");
     // eos reached
     if (buf == NULL && track_data == NULL) {
         LOG_INFO("Received event for " << kvssink->stream_name);
-        data->kinesis_video_stream->stopSync();
-        LOG_INFO("Sending eos for " << kvssink->stream_name);
+        if(!data->streamingStopped) {
+            data->kinesis_video_stream->stopSync();
+            data->streamingStopped = true;
+            LOG_INFO("Sending eos for " << kvssink->stream_name);
+        }
 
         // send out eos message to gstreamer bus
         message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
@@ -1355,7 +1357,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         bool ret = put_frame(kvssink->data, info.data, info.size,
                   std::chrono::nanoseconds(buf->pts),
                   std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
-        LOG_INFO("Put frame returned..." << ret);
         data->frame_count++;
     }
     else {
@@ -1604,15 +1605,18 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             }
             break;
         case GST_STATE_CHANGE_READY_TO_PAUSED:
-            LOG_INFO("Collecting pads");
             gst_collect_pads_start (kvssink->collect);
-            LOG_INFO("Collected pads");
             break;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-            LOG_INFO("Stopping pads");
+            LOG_INFO("Stopping kvssink");
             gst_collect_pads_stop (kvssink->collect);
-            data->kinesis_video_stream->stopSync();
-            LOG_INFO("Stopped pads");
+            if(!data->streamingStopped) {
+                data->kinesis_video_stream->stopSync();
+                data->streamingStopped = true;
+            } else {
+                LOG_INFO("Streaming already stopped for " << kvssink->stream_name);
+            }
+            LOG_INFO("Stopped kvssink");
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:
             LOG_INFO("Pipeline state changed to NULL");

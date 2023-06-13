@@ -134,6 +134,7 @@ struct _GstKvsSink {
     guint                       num_audio_streams;
     guint                       num_video_streams;
 
+
     std::unique_ptr<Credentials> credentials_;
     std::shared_ptr<KvsSinkCustomData> data;
 };
@@ -162,7 +163,8 @@ struct _KvsSinkCustomData {
             on_first_frame(true),
             frame_count(0),
             first_pts(GST_CLOCK_TIME_NONE),
-            producer_start_time(GST_CLOCK_TIME_NONE) {}
+            producer_start_time(GST_CLOCK_TIME_NONE),
+            streamingStopped(false) {}
     std::unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     std::shared_ptr<KinesisVideoStream> kinesis_video_stream;
 
@@ -174,6 +176,7 @@ struct _KvsSinkCustomData {
     bool get_metrics;
     uint32_t frame_count;
     bool on_first_frame;
+    bool streamingStopped;
     uint64_t frame_pts;
 
     std::atomic_uint stream_status;
