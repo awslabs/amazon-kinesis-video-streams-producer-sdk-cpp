@@ -57,6 +57,11 @@ G_BEGIN_DECLS
   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_KVS_SINK))
 #define GST_KVS_SINK_CAST(obj) ((GstKvsSink *)obj)
 
+#ifdef VERSION_STRING
+#define KVSSINK_USER_AGENT_POSTFIX_VERSION VERSION_STRING
+#else
+#define KVSSINK_USER_AGENT_POSTFIX_VERSION "UNKNOWN"
+#endif
 
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
