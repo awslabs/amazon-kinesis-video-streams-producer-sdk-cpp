@@ -370,7 +370,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         LOG_INFO("Getting URL from env for " << kvssink->stream_name);
         control_plane_uri_str = string(control_plane_uri);
     }
-
+    LOG_INFO("User agent string: " << kvssink->user_agent);
     data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
                                                                     std::move(client_callback_provider),
                                                                     std::move(stream_callback_provider),
@@ -711,7 +711,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 
     // Stream definition
     kvssink->stream_name = g_strdup (DEFAULT_STREAM_NAME);
-    kvssink->user_agent = g_strdup(KVS_CLIENT_USER_AGENT_NAME);
+    kvssink->user_agent = g_strdup(KVS_CLIENT_USER_AGENT_NAME "/" KVSSINK_USER_AGENT_POSTFIX_VERSION);
     kvssink->retention_period_hours = DEFAULT_RETENTION_PERIOD_HOURS;
     kvssink->kms_key_id = g_strdup (DEFAULT_KMS_KEY_ID);
     kvssink->streaming_type = DEFAULT_STREAMING_TYPE;
