@@ -334,9 +334,9 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const std::string &cert_path,
         bool is_caching_endpoint,
         std::chrono::duration<uint64_t> caching_update_period) : DefaultCallbackProvider (
-                move(client_callback_provider),
-                move(stream_callback_provider),
-                move(credentials_provider),
+                std::move(client_callback_provider),
+                std::move(stream_callback_provider),
+                std::move(credentials_provider),
                 region,
                 control_plane_uri,
                 user_agent_name,
@@ -357,9 +357,9 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const std::string &cert_path,
         API_CALL_CACHE_TYPE api_call_caching,
         std::chrono::duration<uint64_t> caching_update_period) : DefaultCallbackProvider (
-                move(client_callback_provider),
-                move(stream_callback_provider),
-                move(credentials_provider),
+                std::move(client_callback_provider),
+                std::move(stream_callback_provider),
+                std::move(credentials_provider),
                 region,
                 control_plane_uri,
                 user_agent_name,
@@ -380,9 +380,9 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         const std::string &cert_path,
         bool is_caching_endpoint,
         uint64_t caching_update_period) : DefaultCallbackProvider (
-                move(client_callback_provider),
-                move(stream_callback_provider),
-                move(credentials_provider),
+                std::move(client_callback_provider),
+                std::move(stream_callback_provider),
+                std::move(credentials_provider),
                 region,
                 control_plane_uri,
                 user_agent_name,
@@ -408,9 +408,9 @@ DefaultCallbackProvider::DefaultCallbackProvider(
           control_plane_uri_(control_plane_uri),
           cert_path_(cert_path) {
     STATUS retStatus = STATUS_SUCCESS;
-    client_callback_provider_ = move(client_callback_provider);
-    stream_callback_provider_ = move(stream_callback_provider);
-    credentials_provider_ = move(credentials_provider);
+    client_callback_provider_ = std::move(client_callback_provider);
+    stream_callback_provider_ = std::move(stream_callback_provider);
+    credentials_provider_ = std::move(credentials_provider);
     PStreamCallbacks pContinuoutsRetryStreamCallbacks = NULL;
     std::string custom_user_agent_ = CPP_SDK_CUSTOM_USERAGENT + custom_user_agent;
 
@@ -437,7 +437,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
             STRING_TO_PCHAR(region),
             STRING_TO_PCHAR(control_plane_uri),
             STRING_TO_PCHAR(cert_path),
-            (PCHAR) DEFAULT_USER_AGENT_NAME,
+            STRING_TO_PCHAR (user_agent_name),
             STRING_TO_PCHAR(custom_user_agent_),
             &client_callbacks_))) {
         std::stringstream status_strstrm;

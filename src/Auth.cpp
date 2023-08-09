@@ -10,6 +10,7 @@ using std::mutex;
 CredentialProvider::CredentialProvider()
     :   next_rotation_time_(0),
         security_token_(NULL) {
+    MEMSET(&callbacks_, 0, SIZEOF(callbacks_));
 }
 
 void CredentialProvider::getCredentials(Credentials& credentials) {

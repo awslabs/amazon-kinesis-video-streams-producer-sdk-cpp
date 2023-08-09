@@ -532,10 +532,11 @@ void kinesis_video_init(CustomData *data) {
         LOG_AND_THROW("No valid credential method was found");
     }
 
-    data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
-                                                                    move(client_callback_provider),
-                                                                    move(stream_callback_provider),
-                                                                    move(credential_provider),
+    data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
+                                                                    std::move(client_callback_provider),
+                                                                    std::move(stream_callback_provider),
+                                                                    std::move(credential_provider),
+                                                                    API_CALL_CACHE_TYPE_ALL,
                                                                     defaultRegionStr);
 
     LOG_DEBUG("Client is ready");
@@ -546,8 +547,8 @@ void kinesis_video_stream_init(CustomData *data) {
     map<string, string> tags;
     char tag_name[MAX_TAG_NAME_LEN];
     char tag_val[MAX_TAG_VALUE_LEN];
-    SPRINTF(tag_name, "piTag");
-    SPRINTF(tag_val, "piValue");
+    SNPRINTF(tag_name, MAX_TAG_NAME_LEN, "piTag");
+    SNPRINTF(tag_val, MAX_TAG_VALUE_LEN, "piValue");
 
     STREAMING_TYPE streaming_type = DEFAULT_STREAMING_TYPE;
     data->use_absolute_fragment_times = DEFAULT_ABSOLUTE_FRAGMENT_TIMES;
@@ -573,6 +574,7 @@ void kinesis_video_stream_init(CustomData *data) {
         DEFAULT_FRAGMENT_ACKS,
         DEFAULT_RESTART_ON_ERROR,
         DEFAULT_RECALCULATE_METRICS,
+        true,
         0,
         DEFAULT_STREAM_FRAMERATE,
         DEFAULT_AVG_BANDWIDTH_BPS,
@@ -583,7 +585,7 @@ void kinesis_video_stream_init(CustomData *data) {
         DEFAULT_TRACKNAME,
         nullptr,
         0));
-    data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
+    data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(std::move(stream_definition));
 
     // reset state
     data->stream_status = STATUS_SUCCESS;
