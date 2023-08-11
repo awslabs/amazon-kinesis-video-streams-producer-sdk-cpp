@@ -353,13 +353,6 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         }
 
         credential_provider.reset(new IotCertCredentialProvider(iot_cert_params[IOT_GET_CREDENTIAL_ENDPOINT],
-<<<<<<< HEAD
-                iot_cert_params[CERTIFICATE_PATH],
-                iot_cert_params[PRIVATE_KEY_PATH],
-                iot_cert_params[ROLE_ALIASES],
-                iot_cert_params[CA_CERT_PATH],
-                iot_cert_params[IOT_THING_NAME] ) );
-=======
                                                                 iot_cert_params[CERTIFICATE_PATH],
                                                                 iot_cert_params[PRIVATE_KEY_PATH],
                                                                 iot_cert_params[ROLE_ALIASES],
@@ -373,7 +366,6 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                     session_token_str,
                                                     std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
         credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
->>>>>>> 1d01bbde2a0f2916a55e2099aa06872e7e624c59
     } else {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
     }
@@ -787,10 +779,7 @@ gst_kvs_sink_finalize(GObject *object) {
     g_free(kvssink->track_name);
     g_free(kvssink->secret_key);
     g_free(kvssink->access_key);
-<<<<<<< HEAD
-=======
     g_free(kvssink->session_token);
->>>>>>> 1d01bbde2a0f2916a55e2099aa06872e7e624c59
     g_free(kvssink->aws_region);
     g_free(kvssink->audio_codec_id);
     g_free(kvssink->kms_key_id);
@@ -1342,28 +1331,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
 
         delta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
 
-<<<<<<< HEAD
-    switch (data->media_type) {
-        case AUDIO_ONLY:
-        case VIDEO_ONLY:
-            if (!delta) {
-                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
-            }
-            break;
-        case AUDIO_VIDEO:
-            if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
-                if (data->first_video_frame) {
-                    data->first_video_frame = false;
-                }
-                kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
-            }
-            break;
-    }
-
-    if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-        if (data->first_pts == GST_CLOCK_TIME_NONE) {
-            data->first_pts = buf->pts;
-=======
         switch (data->media_type) {
             case AUDIO_ONLY:
             case VIDEO_ONLY:
@@ -1379,7 +1346,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                     kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
                 }
                 break;
->>>>>>> 1d01bbde2a0f2916a55e2099aa06872e7e624c59
         }
         if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
             if (data->first_pts == GST_CLOCK_TIME_NONE) {
