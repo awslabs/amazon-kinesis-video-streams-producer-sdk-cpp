@@ -144,6 +144,7 @@ TEST_F(ProducerApiTest, create_free_stream)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -181,6 +182,7 @@ TEST_F(ProducerApiTest, DISABLED_create_produce_offline_stream)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -224,6 +226,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -289,6 +292,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_endpoint_cached)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -354,6 +358,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_all_cached)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -419,6 +424,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_endpoint_cached)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -486,6 +492,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_all_cached)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -553,6 +560,7 @@ TEST_F(ProducerApiTest, create_produce_stream)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -631,6 +639,7 @@ TEST_F(ProducerApiTest, create_caching_endpoing_produce_stream)
 {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 

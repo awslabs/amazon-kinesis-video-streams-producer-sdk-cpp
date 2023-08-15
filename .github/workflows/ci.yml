@@ -11,7 +11,7 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-13
+    runs-on: macos-11
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -23,6 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install pkg-config openssl cmake gstreamer log4cplus
+          brew unlink openssl
       - name: Build repository
         run: |
           mkdir build && cd build
@@ -42,7 +43,7 @@ jobs:
           ./tst/producerTest
 
   mac-os-build-gcc:
-    runs-on: macos-13
+    runs-on: macos-12
     permissions:
       id-token: write
       contents: read
@@ -56,6 +57,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install pkg-config openssl cmake gstreamer log4cplus
+          brew unlink openssl
       - name: Build repository
         run: |
           mkdir build && cd build
