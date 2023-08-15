@@ -11,6 +11,7 @@ class ProducerFunctionalityTest : public ProducerTestBase {
 TEST_F(ProducerFunctionalityTest, start_stopsync_terminate) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -27,6 +28,7 @@ TEST_F(ProducerFunctionalityTest, start_stopsync_terminate) {
 TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -83,6 +85,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration) {
 TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -142,6 +145,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage) {
 TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -212,6 +216,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
 TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -270,6 +275,7 @@ TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload) {
 TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -338,6 +344,7 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space) {
 TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -425,6 +432,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
 TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pressure_auto) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -509,6 +517,7 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
 TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 
@@ -596,6 +605,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
 TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
+        LOG_WARN("Creds not set");
         return;
     }
 

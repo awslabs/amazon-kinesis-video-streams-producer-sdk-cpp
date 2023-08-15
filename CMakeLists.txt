@@ -27,7 +27,7 @@ option(MEMORY_SANITIZER "Build with MemorySanitizer" OFF)
 option(THREAD_SANITIZER "Build with ThreadSanitizer" OFF)
 option(UNDEFINED_BEHAVIOR_SANITIZER "Build with UndefinedBehaviorSanitizer" OFF)
 
-add_definitions(-DVERSION_STRING=\"${PROJECT_VERSION}\")
+add_definitions(-DCPP_VERSION_STRING=\"${PROJECT_VERSION}\")
 
 set(CMAKE_MACOSX_RPATH TRUE)
 get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
