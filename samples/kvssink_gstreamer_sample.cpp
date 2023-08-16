@@ -145,8 +145,10 @@ static bool format_supported_by_source(GstCaps *src_caps, GstCaps *query_caps, i
 static bool resolution_supported(GstCaps *src_caps, GstCaps *query_caps_raw, GstCaps *query_caps_h264,
                                  CustomData &data, int width, int height, int framerate) {
     if (query_caps_h264 && format_supported_by_source(src_caps, query_caps_h264, width, height, framerate)) {
+        LOG_DEBUG("src supports h264")
         data.h264_stream_supported = true;
     } else if (query_caps_raw && format_supported_by_source(src_caps, query_caps_raw, width, height, framerate)) {
+        LOG_DEBUG("src supports raw")
         data.h264_stream_supported = false;
     } else {
         return false;
@@ -340,20 +342,26 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     // Attempt to create vtenc encoder
     encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
     if (encoder) {
-        source = gst_element_factory_make("autovideosrc", "source");
+        LOG_DEBUG("Using videotestsrc")
+        source = gst_element_factory_make("videotestsrc", "source");
         vtenc = true;
     } else {
         // Failed creating vtenc - check pi hardware encoder
         encoder = gst_element_factory_make("omxh264enc", "encoder");
         if (encoder) {
+            LOG_DEBUG("Using omxh264enc")
             isOnRpi = true;
         } else {
             // - attempt x264enc
+            LOG_DEBUG("Using x264enc")
             encoder = gst_element_factory_make("x264enc", "encoder");
             isOnRpi = false;
         }
         source = gst_element_factory_make("v4l2src", "source");
-        if (!source) {
+        if (source) {
+            LOG_DEBUG("Using v4l2src");
+        } else {
+            LOG_DEBUG("Using ksvideosrc");
             source = gst_element_factory_make("ksvideosrc", "source");
         }
         vtenc = false;
@@ -365,7 +373,9 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     }
 
     /* configure source */
-    if (!vtenc) {
+    if (vtenc) {
+        g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
+    } else {
         g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
     }
 
@@ -482,12 +492,14 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     if (!data->h264_stream_supported) {
         gst_bin_add_many(GST_BIN(pipeline), source, video_convert, source_filter, encoder, h264parse, filter,
                          kvssink, NULL);
+        LOG_DEBUG("Constructing pipeline with encoding element")
         if (!gst_element_link_many(source, video_convert, source_filter, encoder, h264parse, filter, kvssink, NULL)) {
             g_printerr("Elements could not be linked.\n");
             gst_object_unref(pipeline);
             return 1;
         }
     } else {
+        LOG_DEBUG("Constructing pipeline without encoding element")
         gst_bin_add_many(GST_BIN(pipeline), source, source_filter, h264parse, filter, kvssink, NULL);
         if (!gst_element_link_many(source, source_filter, h264parse, filter, kvssink, NULL)) {
             g_printerr("Elements could not be linked.\n");
