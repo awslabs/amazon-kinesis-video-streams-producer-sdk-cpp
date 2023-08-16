@@ -140,6 +140,40 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
     return NULL;
 }
 
+TEST_F(ProducerApiTest, invalid_credentials)
+{
+    std::unique_ptr<Credentials> credentials;
+    std::unique_ptr<CredentialProvider> credential_provider;
+    credentials.reset(new Credentials("",
+                                      "SecretKey",
+                                      "SessionToken",
+                                      std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+
+    credential_provider.reset(new TestCredentialProvider(*credentials.get(), TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
+    EXPECT_THROW(CreateProducer(std::move(credential_provider)), std::runtime_error);
+
+    credentials.reset(new Credentials("AccessKey",
+                                      "",
+                                      "SessionToken",
+                                      std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+    credential_provider.reset(new TestCredentialProvider(*credentials.get(), TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
+    EXPECT_THROW(CreateProducer(std::move(credential_provider)), std::runtime_error);
+
+    credentials.reset(new Credentials("",
+                                      "",
+                                      "SessionToken",
+                                      std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+    credential_provider.reset(new TestCredentialProvider(*credentials.get(), TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
+    EXPECT_THROW(CreateProducer(std::move(credential_provider)), std::runtime_error);
+
+    credentials.reset(new Credentials("AccessKey",
+                                      "SecretKey",
+                                      "",
+                                      std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+    credential_provider.reset(new TestCredentialProvider(*credentials.get(), TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
+    CreateProducer(std::move(credential_provider)); // expect no exception thrown since empty session token is allowed
+}
+
 TEST_F(ProducerApiTest, create_free_stream)
 {
     // Check if it's run with the env vars set if not bail out
@@ -283,7 +317,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream)
         EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
         EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
 
-        kinesis_video_producer_->freeStream(move(streams_[0]));
+        kinesis_video_producer_->freeStream(std::move(streams_[0]));
         streams_[0] = nullptr;
     }
 }
@@ -349,7 +383,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_endpoint_cached)
         EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
         EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
 
-        kinesis_video_producer_->freeStream(move(streams_[0]));
+        kinesis_video_producer_->freeStream(std::move(streams_[0]));
         streams_[0] = nullptr;
     }
 }
@@ -415,7 +449,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_all_cached)
         EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
         EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
 
-        kinesis_video_producer_->freeStream(move(streams_[0]));
+        kinesis_video_producer_->freeStream(std::move(streams_[0]));
         streams_[0] = nullptr;
     }
 }
@@ -484,7 +518,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_endpoint_cached)
         kinesis_video_stream->resetStream();
     }
 
-    kinesis_video_producer_->freeStream(move(streams_[0]));
+    kinesis_video_producer_->freeStream(std::move(streams_[0]));
     streams_[0] = nullptr;
 }
 
@@ -552,7 +586,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_all_cached)
         kinesis_video_stream->resetStream();
     }
 
-    kinesis_video_producer_->freeStream(move(streams_[0]));
+    kinesis_video_producer_->freeStream(std::move(streams_[0]));
     streams_[0] = nullptr;
 }
 
@@ -701,7 +735,7 @@ TEST_F(ProducerApiTest, exceed_max_track_count)
     stream_definition->addTrack(1, testTrackName, testCodecId, MKV_TRACK_INFO_TYPE_VIDEO);
     stream_definition->addTrack(2, testTrackName, testCodecId, MKV_TRACK_INFO_TYPE_AUDIO);
     stream_definition->addTrack(3, testTrackName, testCodecId, MKV_TRACK_INFO_TYPE_VIDEO);
-    EXPECT_ANY_THROW(kinesis_video_producer_->createStream(move(stream_definition)));
+    EXPECT_ANY_THROW(kinesis_video_producer_->createStream(std::move(stream_definition)));
 }
 
 TEST_F(ProducerApiTest, segment_uuid_variations)
@@ -741,7 +775,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
             vector<uint8_t>(),
             DEFAULT_TRACK_ID));
 
-    EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(move(stream_definition)));
+    EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(std::move(stream_definition)));
     kinesis_video_producer_->freeStreams();
 
     // Valid
@@ -777,7 +811,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
             vector<uint8_t>(),
             DEFAULT_TRACK_ID));
 
-    EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(move(stream_definition)));
+    EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(std::move(stream_definition)));
     kinesis_video_producer_->freeStreams();
 
     // invalid - larger
@@ -813,7 +847,7 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
             vector<uint8_t>(),
             DEFAULT_TRACK_ID));
 
-    EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(move(stream_definition)));
+    EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(std::move(stream_definition)));
     kinesis_video_producer_->freeStreams();
 
     // shorter length
