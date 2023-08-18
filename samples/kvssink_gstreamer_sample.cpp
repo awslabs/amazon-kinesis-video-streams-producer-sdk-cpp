@@ -335,9 +335,25 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
 
     /* create the elemnents */
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
+    if (!source_filter) {
+        LOG_ERROR("Failed to create capsfilter (1)");
+        return 1;
+    }
     filter = gst_element_factory_make("capsfilter", "encoder_filter");
+    if (!filter) {
+        LOG_ERROR("Failed to create capsfilter (2)");
+        return 1;
+    }
     kvssink = gst_element_factory_make("kvssink", "kvssink");
+    if (!kvssink) {
+        LOG_ERROR("Failed to create kvssink");
+        return 1;
+    }
     h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
+    if (!h264parse) {
+        LOG_ERROR("Failed to create h264parse");
+        return 1;
+    }
 
     // Attempt to create vtenc encoder
     encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");

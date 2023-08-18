@@ -689,9 +689,25 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
        gst-launch-1.0 v4l2src device=/dev/video0 ! video/x-raw,format=I420,width=1280,height=720,framerate=15/1 ! x264enc pass=quant bframes=0 ! video/x-h264,profile=baseline,format=I420,width=1280,height=720,framerate=15/1 ! matroskamux ! filesink location=test.mkv
      */
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
+    if (!source_filter) {
+        LOG_ERROR("Failed to create capsfilter (1)");
+        return 1;
+    }
     filter = gst_element_factory_make("capsfilter", "encoder_filter");
+    if (!filter) {
+        LOG_ERROR("Failed to create capsfilter (2)");
+        return 1;
+    }
     appsink = gst_element_factory_make("appsink", "appsink");
+    if (!appsink) {
+        LOG_ERROR("Failed to create appsink");
+        return 1;
+    }
     h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
+    if (!h264parse) {
+        LOG_ERROR("Failed to create h264parse");
+        return 1;
+    }
 
     // Attempt to create vtenc encoder
     encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
