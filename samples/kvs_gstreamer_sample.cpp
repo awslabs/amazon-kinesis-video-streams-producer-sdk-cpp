@@ -702,6 +702,7 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
             LOG_DEBUG("Using videotestsrc");
         } else {
             LOG_ERROR("Failed to create videotestsrc");
+            return 1;
         }
     } else {
         // Failed creating vtenc - check pi hardware encoder
@@ -717,17 +718,20 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
                 LOG_DEBUG("Using x264enc");
             } else {
                 LOG_ERROR("Failed to create x264enc");
+                return 1;
             }
         }
         source = gst_element_factory_make("v4l2src", "source");
         if (source) {
             LOG_DEBUG("Using v4l2src");
         } else {
+            LOG_DEBUG("Failed to create v4l2src, trying ksvideosrc")
             source = gst_element_factory_make("ksvideosrc", "source");
             if (source) {
                 LOG_DEBUG("Using ksvideosrc");
             } else {
-                LOG_ERROR("Unable to create src element. Tried v4l2src and ksvideosrc");
+                LOG_ERROR("Failed to create ksvideosrc");
+                return 1;
             }
         }
         vtenc = false;
