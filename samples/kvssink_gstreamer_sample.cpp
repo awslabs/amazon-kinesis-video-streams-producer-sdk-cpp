@@ -816,7 +816,9 @@ int main(int argc, char *argv[]) {
                 LOG_DEBUG("Attempt to upload file: " << data_global.file_list[i].path);
 
                 // control will return after gstreamer_init after file eos or any GST_ERROR was put on the bus.
-                gstreamer_init(argc, argv, &data_global);
+                if (gstreamer_init(argc, argv, &data_global) != 0) {
+                    return 1;
+                }
 
                 // check if any stream error occurred.
                 stream_status = data_global.stream_status.load();
@@ -860,7 +862,9 @@ int main(int argc, char *argv[]) {
 
     } else {
         // non file uploading scenario
-        gstreamer_init(argc, argv, &data_global);
+        if (gstreamer_init(argc, argv, &data_global) != 0) {
+            return 1;
+        }
 	stream_status = data_global.stream_status.load();
         if (STATUS_SUCCEEDED(stream_status)) {
             LOG_INFO("Stream succeeded");

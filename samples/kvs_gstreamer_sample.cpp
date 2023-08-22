@@ -1158,7 +1158,10 @@ int main(int argc, char* argv[]) {
                 LOG_DEBUG("Attempt to upload file: " << data.file_list[i].path);
 
                 // control will return after gstreamer_init after file eos or any GST_ERROR was put on the bus.
-                gstreamer_init(argc, argv, &data);
+                if (gstreamer_init(argc, argv, &data) != 0) {
+                    LOG_ERROR("Failed to initialize gstreamer");
+                    return 1;
+                }
 
                 // check if any stream error occurred.
                 stream_status = data.stream_status.load();
@@ -1208,7 +1211,10 @@ int main(int argc, char* argv[]) {
 
     } else {
         // non file uploading scenario
-        gstreamer_init(argc, argv, &data);
+        if (gstreamer_init(argc, argv, &data) != 0) {
+            LOG_ERROR("Failed to initialize gstreamer");
+            return 1;
+        }
         if (STATUS_SUCCEEDED(stream_status)) {
             // if stream_status is success after eos, send out remaining frames.
             data.kinesis_video_stream->stopSync();
