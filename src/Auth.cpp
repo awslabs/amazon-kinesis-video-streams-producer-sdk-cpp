@@ -10,6 +10,7 @@ using std::mutex;
 CredentialProvider::CredentialProvider()
     :   next_rotation_time_(0),
         security_token_(NULL) {
+    MEMSET(&callbacks_, 0, SIZEOF(callbacks_));
 }
 
 void CredentialProvider::getCredentials(Credentials& credentials) {
@@ -89,6 +90,7 @@ DeviceCertToTokenFunc CredentialProvider::deviceCertToTokenCallback() {
 
 STATUS CredentialProvider::getStreamingTokenHandler(UINT64 custom_data, PCHAR stream_name, STREAM_ACCESS_MODE access_mode, PServiceCallContext p_service_call_context) {
     LOG_DEBUG("getStreamingTokenHandler invoked");
+    STATUS status = STATUS_SUCCESS;
     UNUSED_PARAM(stream_name);
     UNUSED_PARAM(access_mode);
 
@@ -110,14 +112,25 @@ STATUS CredentialProvider::getStreamingTokenHandler(UINT64 custom_data, PCHAR st
     freeAwsCredentials(&this_obj->security_token_);
 
     // Store the buffer so we can release it at the end
-    createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
-                         (PCHAR) session_token.c_str(), session_token_len, expiration, &this_obj->security_token_);
+    if(IS_EMPTY_STRING(session_token.c_str())) {
+        status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
+                             nullptr, 0, expiration, &this_obj->security_token_);
 
-    STATUS status = getStreamingTokenResultEvent(
-            p_service_call_context->customData, SERVICE_CALL_RESULT_OK,
-            reinterpret_cast<PBYTE>(this_obj->security_token_),
-            this_obj->security_token_->size,
-            expiration);
+    } else {
+        status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
+                             (PCHAR) session_token.c_str(), session_token_len, expiration, &this_obj->security_token_);
+
+    }
+
+    if(STATUS_SUCCEEDED(status)) {
+        status = getStreamingTokenResultEvent(
+                p_service_call_context->customData, SERVICE_CALL_RESULT_OK,
+                reinterpret_cast<PBYTE>(this_obj->security_token_),
+                this_obj->security_token_->size,
+                expiration);
+    } else {
+        LOG_ERROR("getStreamingTokenHandler failed with code " << std::hex << status);
+    }
 
     return status;
 }
@@ -126,9 +139,10 @@ STATUS CredentialProvider::getSecurityTokenHandler(UINT64 custom_data, PBYTE* pp
     LOG_DEBUG("getSecurityTokenHandler invoked");
 
     auto this_obj = reinterpret_cast<CredentialProvider*>(custom_data);
-
+    STATUS status = STATUS_SUCCESS;
     Credentials credentials;
     this_obj->getCredentials(credentials);
+
 
     auto access_key = credentials.getAccessKey();
     auto access_key_len = access_key.length();
@@ -144,13 +158,26 @@ STATUS CredentialProvider::getSecurityTokenHandler(UINT64 custom_data, PBYTE* pp
     *p_expiration = credentials.getExpiration().count() * HUNDREDS_OF_NANOS_IN_A_SECOND;
 
     // Store the buffer so we can release it at the end
-    createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
-            (PCHAR) session_token.c_str(), session_token_len, *p_expiration, &this_obj->security_token_);
+    if(IS_EMPTY_STRING(session_token.c_str())) {
+        // Store the buffer so we can release it at the end
+        status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
+                             nullptr, 0, *p_expiration, &this_obj->security_token_);
 
-    *pp_token = (PBYTE) (this_obj->security_token_);
-    *p_size = this_obj->security_token_->size;
+    } else {
+        // Store the buffer so we can release it at the end
+        status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
+                             (PCHAR) session_token.c_str(), session_token_len, *p_expiration, &this_obj->security_token_);
 
-    return STATUS_SUCCESS;
+    }
+
+    if(STATUS_SUCCEEDED(status)) {
+        *pp_token = (PBYTE) (this_obj->security_token_);
+        *p_size = this_obj->security_token_->size;
+    } else {
+        LOG_ERROR("getSecurityTokenHandler failed with code " << std::hex << status);
+    }
+
+    return status;
 }
 
 } // namespace video

@@ -7,7 +7,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
     class RotatingCredentialProvider : public CredentialProvider {
         std::string credential_file_path_;
-        PAuthCallbacks rotating_callbacks;
+        PAuthCallbacks rotating_callbacks = nullptr;
     public:
         RotatingCredentialProvider(std::string credential_file_path): credential_file_path_(credential_file_path) {}
         void updateCredentials(Credentials& credentials) override {

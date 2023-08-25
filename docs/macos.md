@@ -93,6 +93,15 @@ Change your current working directory to `build`. Launch the sample application 
 AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_sample <my-stream> </path/to/file>
 ```
 
+##### Running the GStreamer sample application to upload h264 *video* with kvssink
+
+`kvssink_gstreamer_sample` is functionally identical to `kvs_gstreamer_sample` except it uses kvssink instead of appsink.
+
+```
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvssink_gstreamer_sample <my-stream> <my_rtsp_url OR /path/to/file>
+```
+
+
 ###### Running the `gst-launch-1.0` command to upload [MKV](https://www.matroska.org/) file that contains both *audio and video* in **Mac-OS**. Note that video should be H264 encoded and audio should be AAC encoded.
 
 ```
@@ -231,3 +240,9 @@ The projects depend on the following open source components. Running `CMake` wil
 * gst-plugins-bad
 * gst-plugins-ugly
 * [x264]( https://www.videolan.org/developers/x264.html)
+
+
+###### GStreamer version 1.20 on MacOS
+
+* While running the sample application, if you encounter an error similar to: `Not all elements could be created.` for RTSP source, set the following:
+`export GST_PLUGIN_PATH=<homebrew-path>/lib/gstreamer-1.0`

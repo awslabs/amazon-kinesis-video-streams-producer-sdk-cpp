@@ -201,6 +201,22 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         CHK_JVM_EXCEPTION(env);
     }
 
+    methodId = env->GetMethodID(cls, "getServiceConnectionTimeout", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getServiceConnectionTimeout");
+    } else {
+        pClientInfo->serviceCallConnectionTimeout = env->CallLongMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getServiceCompletionTimeout", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getServiceCompletionTimeout");
+    } else {
+        pClientInfo->serviceCallCompletionTimeout = env->CallLongMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
     methodId = env->GetMethodID(cls, "getOfflineBufferAvailabilityTimeout", "()J");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getOfflineBufferAvailabilityTimeout");
@@ -436,6 +452,15 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
         pStreamInfo->streamCaps.adaptive = env->CallBooleanMethod(streamInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
+
+    methodId = env->GetMethodID(cls, "isAllowStreamCreation", "()Z");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id isAllowStreamCreation");
+    } else {
+        pStreamInfo->streamCaps.allowStreamCreation = env->CallBooleanMethod(streamInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
 
     methodId = env->GetMethodID(cls, "getMaxLatency", "()J");
     if (methodId == NULL) {

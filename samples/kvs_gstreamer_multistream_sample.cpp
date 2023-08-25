@@ -322,10 +322,11 @@ void kinesis_video_init(CustomData *data) {
                                        std::chrono::seconds(180)));
     unique_ptr<CredentialProvider> credential_provider(new SampleCredentialProvider(*credentials_.get()));
 
-    data->kinesis_video_producer = KinesisVideoProducer::createSync(move(device_info_provider),
-                                                                    move(client_callback_provider),
-                                                                    move(stream_callback_provider),
-                                                                    move(credential_provider),
+    data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
+                                                                    std::move(client_callback_provider),
+                                                                    std::move(stream_callback_provider),
+                                                                    std::move(credential_provider),
+                                                                    API_CALL_CACHE_TYPE_ALL,
                                                                     defaultRegionStr);
 
     LOG_DEBUG("Client is ready");
@@ -349,6 +350,7 @@ void kinesis_stream_init(string stream_name, CustomData *data, string stream_han
         DEFAULT_FRAGMENT_ACKS,
         DEFAULT_RESTART_ON_ERROR,
         DEFAULT_RECALCULATE_METRICS,
+        true,
         NAL_ADAPTATION_FLAG_NONE,
         DEFAULT_STREAM_FRAMERATE,
         DEFAULT_AVG_BANDWIDTH_BPS,
@@ -359,7 +361,7 @@ void kinesis_stream_init(string stream_name, CustomData *data, string stream_han
         DEFAULT_TRACKNAME,
         nullptr,
         0));
-    auto kvs_stream = data->kinesis_video_producer->createStreamSync(move(stream_definition));
+    auto kvs_stream = data->kinesis_video_producer->createStreamSync(std::move(stream_definition));
     data->kinesis_video_stream_handles[stream_handle_key] = kvs_stream;
     data->frame_data_size_map[stream_handle_key] = DEFAULT_BUFFER_SIZE;
     data->frame_data_map[stream_handle_key] = new uint8_t[DEFAULT_BUFFER_SIZE];

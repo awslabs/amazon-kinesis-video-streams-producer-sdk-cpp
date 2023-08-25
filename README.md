@@ -122,6 +122,8 @@ On Windows you should run `nmake` instead of `make`
 
 In your build directory you will now have shared objects for all the targets you have selected.
 
+### Installing the library
+If the library needs to be installed, run `make install`. This will install in default directory based on system. To install in another directory, run `cmake` with the `-DCMAKE_INSTALL_PREFIX` option with the desired directory before running `make install`
 ## Run
 ### GStreamer Plugin (kvssink)
 
@@ -207,6 +209,11 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 `export JAVA_INCLUDE_PATH2=/Library/Java/JavaVirtualMachines/<YOUR_JDK_VERSION>/Contents/Home/include` or `export JAVA_INCLUDE_PATH2=$JAVA_HOME/include` for Mac OS.  
 `export JAVA_INCLUDE_PATH2='/usr/java/<JDK_VERSION>/include'` for Linux.
 * If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
+* If you would like to visualize the GStreamer pipeline being constructed in a GStreamer application, include the following after the elements have been linked:
+`GST_DEBUG_BIN_TO_DOT_FILE(<gst-bin-object>, GST_DEBUG_GRAPH_SHOW_ALL, <file-name>);`
+For example, if the application created a pipeline object `GstPipeline* pipeline = gst_pipeline_new("test-pipeline")`, and you would like to see the visualized pipeline with filename pipeline, add:
+`GST_DEBUG_BIN_TO_DOT_FILE((GstBin*) pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline");`. Also ensure to set the path to where you would like the file to be stored. `export GST_DEBUG_DUMP_DOT_DIR=.`. The file generated would be a `.dot` format. Convert to PDF to check the visualized pipeline. Also, this requires `graphviz` to be installed. So make sure to install that.
+
 
 ## FAQ
 * Is CPP-SDK and GStreamer supported on Mac/Windows/Linux (Supported Platforms)?  

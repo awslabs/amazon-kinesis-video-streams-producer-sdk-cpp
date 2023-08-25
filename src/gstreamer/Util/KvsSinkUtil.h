@@ -14,6 +14,8 @@
 #define CA_CERT_PATH "ca-path"
 #define ROLE_ALIASES "role-aliases"
 #define IOT_THING_NAME "iot-thing-name"
+#define IOT_CONNECTION_TIMEOUT "connection-timeout"
+#define IOT_COMPLETION_TIMEOUT "completion-timeout"
 
 namespace kvs_sink_util{
 

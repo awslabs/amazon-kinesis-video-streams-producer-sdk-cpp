@@ -57,6 +57,7 @@ public:
             bool fragment_acks = true,
             bool restart_on_error = true,
             bool recalculate_metrics = true,
+            bool allow_stream_creation = true,
             uint32_t nal_adaptation_flags = NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
             uint32_t frame_rate = 25,
             uint32_t avg_bandwidth_bps = 4 * 1024 * 1024,

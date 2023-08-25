@@ -208,7 +208,7 @@ public:
             LOG_DEBUG("Freeing stream " << streams_[i]->getStreamName());
 
             // Freeing the stream
-            kinesis_video_producer_->freeStream(move(streams_[i]));
+            kinesis_video_producer_->freeStream(std::move(streams_[i]));
             streams_[i] = nullptr;
         }
     }
@@ -308,6 +308,31 @@ protected:
         credential_provider_.reset(new TestCredentialProvider(*credentials_.get(), token_rotation_seconds_));
     }
 
+    void CreateProducer(std::unique_ptr<CredentialProvider> credential_provider, bool cachingEndpointProvider = false, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER) {
+        device_provider_.reset(new TestDeviceInfoProvider(device_storage_size_, automaticStreamingFlags));
+        client_callback_provider_.reset(new TestClientCallbackProvider(this));
+        stream_callback_provider_.reset(new TestStreamCallbackProvider(this));
+
+        try {
+            std::unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
+            defaultCallbackProvider.reset(new DefaultCallbackProvider(
+                    std::move(client_callback_provider_),
+                    std::move(stream_callback_provider_),
+                    std::move(credential_provider),
+                    defaultRegion_,
+                    EMPTY_STRING,
+                    EMPTY_STRING,
+                    EMPTY_STRING,
+                    caCertPath_,
+                    cachingEndpointProvider ? API_CALL_CACHE_TYPE_ENDPOINT_ONLY : API_CALL_CACHE_TYPE_NONE,
+                    DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
+
+            kinesis_video_producer_ = KinesisVideoProducer::createSync(std::move(device_provider_),
+                                                                       std::move(defaultCallbackProvider));
+        } catch (std::runtime_error) {
+            throw std::runtime_error("Failed");
+        }
+    }
 
     void CreateProducer(bool cachingEndpointProvider = false, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags = AUTOMATIC_STREAMING_INTERMITTENT_PRODUCER) {
         CreateProducer(cachingEndpointProvider ? API_CALL_CACHE_TYPE_ENDPOINT_ONLY : API_CALL_CACHE_TYPE_NONE,automaticStreamingFlags);
@@ -316,6 +341,7 @@ protected:
     void CreateProducer(API_CALL_CACHE_TYPE api_call_caching, AUTOMATIC_STREAMING_FLAGS automaticStreamingFlags) {
         // Create the producer client
         CreateCredentialProvider();
+
         device_provider_.reset(new TestDeviceInfoProvider(device_storage_size_, automaticStreamingFlags));
         client_callback_provider_.reset(new TestClientCallbackProvider(this));
         stream_callback_provider_.reset(new TestStreamCallbackProvider(this));
@@ -323,9 +349,9 @@ protected:
         try {
           std::unique_ptr<DefaultCallbackProvider> defaultCallbackProvider;
           defaultCallbackProvider.reset(new DefaultCallbackProvider(
-                  move(client_callback_provider_),
-                  move(stream_callback_provider_),
-                  move(credential_provider_),
+                  std::move(client_callback_provider_),
+                  std::move(stream_callback_provider_),
+                  std::move(credential_provider_),
                   defaultRegion_,
                   EMPTY_STRING,
                   EMPTY_STRING,
@@ -335,8 +361,8 @@ protected:
                   DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD));
 
             // testDefaultCallbackProvider = reinterpret_cast<TestDefaultCallbackProvider *>(defaultCallbackProvider.get());
-            kinesis_video_producer_ = KinesisVideoProducer::createSync(move(device_provider_),
-                                                                       move(defaultCallbackProvider));
+            kinesis_video_producer_ = KinesisVideoProducer::createSync(std::move(device_provider_),
+                                                                       std::move(defaultCallbackProvider));
         } catch (std::runtime_error) {
             ASSERT_TRUE(false) << "Failed creating kinesis video producer";
         }
@@ -347,39 +373,40 @@ protected:
                                                     uint32_t max_stream_latency_ms = TEST_MAX_STREAM_LATENCY_IN_MILLIS,
                                                     int buffer_duration_seconds = 120) {
         char stream_name[MAX_STREAM_NAME_LEN];
-        sprintf(stream_name, "ScaryTestStream_%d", index);
+        snprintf(stream_name, MAX_STREAM_NAME_LEN, "ScaryTestStream_%d", index);
         std::map<std::string, std::string> tags;
         char tag_name[MAX_TAG_NAME_LEN];
         char tag_val[MAX_TAG_VALUE_LEN];
         for (int i = 0; i < 5; i++) {
-            sprintf(tag_name, "testTag_%d_%d", index, i);
-            sprintf(tag_val, "testTag_%d_%d_Value", index, i);
+            snprintf(tag_name, MAX_TAG_NAME_LEN, "testTag_%d_%d", index, i);
+            snprintf(tag_val, MAX_TAG_VALUE_LEN, "testTag_%d_%d_Value", index, i);
 
             tags.emplace(std::make_pair(tag_name, tag_val));
         }
 
         std::unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(stream_name,
-                std::chrono::hours(2),
-                &tags,
-                "",
-                streaming_type,
-                "video/h264",
-                std::chrono::milliseconds(max_stream_latency_ms),
-                std::chrono::seconds(2),
-                std::chrono::milliseconds(1),
-                true,
-                true,
-                true,
-                true,
-                true,
-                true,
-                0,
-                25,
-                4 * 1024 * 1024,
-                std::chrono::seconds(buffer_duration_seconds),
-                std::chrono::seconds(buffer_duration_seconds),
-                std::chrono::seconds(50)));
-        return kinesis_video_producer_->createStreamSync(move(stream_definition));
+            std::chrono::hours(2),
+            &tags,
+            "",
+            streaming_type,
+            "video/h264",
+            std::chrono::milliseconds(max_stream_latency_ms),
+            std::chrono::seconds(2),
+            std::chrono::milliseconds(1),
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            0,
+            25,
+            4 * 1024 * 1024,
+            std::chrono::seconds(buffer_duration_seconds),
+            std::chrono::seconds(buffer_duration_seconds),
+            std::chrono::seconds(50)));
+        return kinesis_video_producer_->createStreamSync(std::move(stream_definition));
     };
 
     virtual void SetUp() {

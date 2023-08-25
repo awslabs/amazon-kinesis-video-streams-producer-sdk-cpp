@@ -12,7 +12,7 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-latest
+    runs-on: macos-11
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -20,17 +20,19 @@ jobs:
       contents: read
     steps:
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: |
-          brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
+          brew install pkg-config openssl cmake gstreamer log4cplus
+          brew unlink openssl
       - name: Build repository
         run: |
           mkdir build && cd build
-          sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE'
+          sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.'
           make
+          make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -42,7 +44,7 @@ jobs:
           ./tst/producerTest
 
   mac-os-build-gcc:
-    runs-on: macos-10.15
+    runs-on: macos-12
     permissions:
       id-token: write
       contents: read
@@ -52,17 +54,19 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: |
-          brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
+          brew install pkg-config openssl cmake gstreamer log4cplus
+          brew unlink openssl
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE
+          cmake .. -DBUILD_TEST=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
+          make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -74,7 +78,7 @@ jobs:
           ./tst/producerTest
   
   linux-gcc-code-coverage:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -82,18 +86,20 @@ jobs:
       contents: read
     steps:
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: |  
-          sudo apt-get update
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
+          make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -103,7 +109,7 @@ jobs:
         run: |
           cd build
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 20m ./tst/producerTest
+          timeout --signal=SIGABRT 60m ./tst/producerTest
       - name: Code coverage
         run: |
           cd build
@@ -111,7 +117,7 @@ jobs:
           bash <(curl -s https://codecov.io/bash)
   
   address-sanitizer:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     permissions:
       id-token: write
       contents: read
@@ -121,18 +127,20 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: |
-          sudo apt-get update
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DADDRESS_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          cmake .. -DBUILD_TEST=TRUE -DADDRESS_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
+          make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -142,10 +150,10 @@ jobs:
         run: |
           cd build
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 20m ./tst/producerTest
+          timeout --signal=SIGABRT 60m ./tst/producerTest
 
   undefined-behavior-sanitizer:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     permissions:
       id-token: write
       contents: read
@@ -155,18 +163,20 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: |
-          sudo apt-get update
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
+          make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -176,10 +186,10 @@ jobs:
         run: |
           cd build
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 20m ./tst/producerTest
+          timeout --signal=SIGABRT 60m ./tst/producerTest
 
   # memory-sanitizer:
-  #   runs-on: ubuntu-18.04 
+  #   runs-on: ubuntu-20.04 
   #   permissions:
   #     id-token: write
   #     contents: read
@@ -189,9 +199,9 @@ jobs:
   #     AWS_KVS_LOG_LEVEL: 2
   #   steps:
   #     - name: Clone repository
-  #       uses: actions/checkout@v2
+  #       uses: actions/checkout@v3
   #     - name: Configure AWS Credentials
-  #       uses: aws-actions/configure-aws-credentials@v1
+  #       uses: aws-actions/configure-aws-credentials@v1-node16
   #       with:
   #         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
   #         role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -204,7 +214,7 @@ jobs:
   #         ulimit -c unlimited -S
   #         timeout --signal=SIGABRT 150m ./tst/producerTest --gtest_break_on_failure
   # thread-sanitizer:
-  #   runs-on: ubuntu-18.04
+  #   runs-on: ubuntu-20.04
   #   permissions:
   #     id-token: write
   #     contents: read
@@ -214,9 +224,9 @@ jobs:
   #     AWS_KVS_LOG_LEVEL: 2
   #   steps:
   #     - name: Clone repository
-  #       uses: actions/checkout@v2
+  #       uses: actions/checkout@v3
   #     - name: Configure AWS Credentials
-  #       uses: aws-actions/configure-aws-credentials@v1
+  #       uses: aws-actions/configure-aws-credentials@v1-node16
   #       with:
   #         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
   #         role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -230,33 +240,31 @@ jobs:
   #         ulimit -c unlimited -S 
   #         timeout --signal=SIGABRT 20m ./tst/producerTest
   
-  linux-gcc-4_4:
-    runs-on: ubuntu-latest
+  ubuntu-gcc:
+    runs-on: ubuntu-20.04
     env:
       AWS_KVS_LOG_LEVEL: 2
-      CC: gcc-4.4
+      CC: gcc
+      CXX: g++
     permissions:
       id-token: write
       contents: read
     steps:
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-          sudo add-apt-repository 'deb http://archive.ubuntu.com/ubuntu/ trusty main'
-          sudo add-apt-repository 'deb http://archive.ubuntu.com/ubuntu/ trusty universe'
-          sudo apt-get -q update
-          sudo apt-get -y install gcc-4.4
-          sudo apt-get -y install gdb
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
+          make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -266,8 +274,8 @@ jobs:
         run: |
           cd build
           ulimit -c unlimited -S
-          timeout --signal=SIGABRT 20m ./tst/producerTest
-  
+          timeout --signal=SIGABRT 60m ./tst/producerTest
+
   windows-msvc:
     runs-on: windows-2022
     env:
@@ -277,7 +285,7 @@ jobs:
       contents: read
     steps:
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
@@ -289,7 +297,7 @@ jobs:
           git config --system core.longpaths true
           .github/build_windows.bat
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
@@ -301,65 +309,102 @@ jobs:
           & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
 
   arm64-cross-compilation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       CC: aarch64-linux-gnu-gcc
       CXX: aarch64-linux-gnu-g++
     steps:
       - name: Install dependencies
         run: |
-          sudo apt update
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
           sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build Repository
         run: |
           sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic64 -DBUILD_LOG4CPLUS_HOST=arm-linux
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic64 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
           make
+          make install
           file libKinesisVideoProducer.so
 
   linux-aarch64-cross-compilation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       CC: aarch64-linux-gnu-gcc
       CXX: aarch64-linux-gnu-g++
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
           sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build Repository
         run: |
           sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-aarch64 -DBUILD_LOG4CPLUS_HOST=arm-linux
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-aarch64 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
           make
+          make install
           file libKinesisVideoProducer.so
 
   arm32-cross-compilation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       CC: arm-linux-gnueabi-gcc
       CXX: arm-linux-gnueabi-g++
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
           sudo apt-get -y install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi binutils-arm-linux-gnueabi
           sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build Repository
         run: |
           sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic32 -DBUILD_LOG4CPLUS_HOST=arm-linux
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic32 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
           make
+          make install
           file libKinesisVideoProducer.so
 
+  linux-build-gcc-static:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
+          sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+      - name: Build repository
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_STATIC=ON
+          make
+
+  linux-build-gcc-shared:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
+          sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+      - name: Build repository
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_DEPENDENCIES=OFF -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_STATIC=OFF -DBUILD_SHARED_LIBS=ON
+          make

@@ -40,7 +40,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
  * We will add extra 10 milliseconds to account for thread scheduling to ensure the callback is complete.
  */
 #define CLIENT_STREAM_CLOSED_CALLBACK_AWAIT_TIME_MILLIS (10 + TIMEOUT_AFTER_STREAM_STOPPED + TIMEOUT_WAIT_FOR_CURL_BUFFER)
-
+#define CONTROL_PLANE_URI_ENV_VAR ((PCHAR) "CONTROL_PLANE_URI")
 /**
 * Kinesis Video client interface for real time streaming. The structure of this class is that each instance of type <T,U>
 * is a singleton where T is the implementation of the DeviceInfoProvider interface and U is the implementation of the
@@ -82,6 +82,17 @@ public:
             const std::string &control_plane_uri = "",
             const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
             bool is_caching_endpoint = false,
+            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
+
+    static std::unique_ptr<KinesisVideoProducer> createSync(
+            std::unique_ptr<DeviceInfoProvider> device_info_provider,
+            std::unique_ptr<ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr<CredentialProvider> credential_provider,
+            API_CALL_CACHE_TYPE api_call_caching = API_CALL_CACHE_TYPE_ALL,
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
             uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
 
     static std::unique_ptr<KinesisVideoProducer> createSync(
