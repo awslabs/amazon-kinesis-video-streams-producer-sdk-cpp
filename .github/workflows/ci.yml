@@ -14,7 +14,9 @@ jobs:
     runs-on: macos-11
     env:
       AWS_KVS_LOG_LEVEL: 2
-      LDFLAGS: /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/lib
+      CC: /usr/bin/clang
+      CXX: /usr/bin/clang++
+      LDFLAGS: /Applications/Xcode_13.2.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld
       CPATH: /Applications/Xcode_13.2.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/
     permissions:
       id-token: write
