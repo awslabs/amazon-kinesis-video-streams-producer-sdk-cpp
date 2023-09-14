@@ -31,7 +31,7 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE
+          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DBUILD_LOG4CPLUS_HOST=x86_64-apple-darwin20.6.0
           make
           make install
       - name: Configure AWS Credentials
