@@ -11,13 +11,13 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       AWS_KVS_LOG_LEVEL: 2
       CC: /usr/bin/clang
       CXX: /usr/bin/clang++
-      LDFLAGS: -L/Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/lib/
-      CPATH: /Applications/Xcode_13.2.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/
+      LDFLAGS: -L/Applications/Xcode_14.2.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld
+      CPATH: /Applications/Xcode_14.2.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/
     permissions:
       id-token: write
       contents: read
