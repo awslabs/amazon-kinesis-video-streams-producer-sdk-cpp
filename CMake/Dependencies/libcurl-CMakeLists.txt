@@ -5,7 +5,7 @@ project(libcurl-download NONE)
 find_program(MAKE_EXE NAMES make)
 
 if (DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot${CMAKE_OSX_SYSROOT}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot ${CMAKE_OSX_SYSROOT}")
 endif()
 
 include(ExternalProject)
