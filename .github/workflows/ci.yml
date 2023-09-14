@@ -26,12 +26,12 @@ jobs:
         uses: actions/checkout@v3
       - name: Install dependencies
         run: |
-          brew install pkg-config openssl cmake gstreamer log4cplus
+          brew install pkg-config openssl cmake gstreamer
           brew unlink openssl
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DBUILD_LOG4CPLUS_HOST=x86_64-apple-darwin20.6.0
+          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE
           make
           make install
       - name: Configure AWS Credentials
