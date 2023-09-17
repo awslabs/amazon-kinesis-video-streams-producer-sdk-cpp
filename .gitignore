@@ -14,6 +14,7 @@ open-source/libusrsctp
 open-source/libwebsockets
 open-source/local
 open-source/libautoconf
+open-source/liblog4cplus
 outputs
 tags
 dependency
