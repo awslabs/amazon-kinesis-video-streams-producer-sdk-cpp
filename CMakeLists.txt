@@ -180,7 +180,7 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
-  DESTINATION ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/build)
+  DESTINATION .)
 
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 target_link_libraries(
