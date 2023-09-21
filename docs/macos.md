@@ -120,6 +120,18 @@ gst-launch-1.0 -v  filesrc location="YourAudioVideo.mp4" ! qtdemux name=demux ! 
 gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! queue ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! kvssink name=sink stream-name="audio-video-file" access-key="YourAccessKeyId" secret-key="YourSecretAccessKey" streaming-type=offline demux. ! queue ! aacparse ! sink.
 ```
 
+###### Running the `gst-launch-1.0` command to upload video from HLS .m3u8 playlist.
+
+```
+gst-launch-1.0 -v  souphttpsrc location="https://.../playlist.m3u8" ! hlsdemux ! tsdemux ! video/x-h264,format=avc,alignment=au ! h264parse ! kvssink stream-name="YourStreamName"
+```
+
+###### Running the `gst-launch-1.0` command to upload audio and video from HLS .m3u8 playlist.
+
+```
+gst-launch-1.0 -v  souphttpsrc location="https://.../playlist.m3u8" ! hlsdemux name=mux ! tsdemux ! video/x-h264,format=avc,alignment=au ! h264parse ! kvssink stream-name="YourStreamName" streaming-type=offline name=sink mux. ! queue ! aacparse ! sink.
+```
+
 ##### Running the GStreamer sample application to upload a *audio and video* file
 
 `kvs_gstreamer_audio_video_sample` supports uploading a video that is either MKV, MPEGTS, or MP4. The sample application expects the video is encoded in H264 and audio is encoded in AAC format. Note: If your media uses a different format, then you can revise the pipeline elements in the sample application to suit your media format.
