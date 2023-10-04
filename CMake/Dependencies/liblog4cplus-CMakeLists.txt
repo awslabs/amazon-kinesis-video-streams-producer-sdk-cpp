@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 3.6.3)
 find_program(MAKE_EXE NAMES make)
 
-project(log4cplus-download NONE)
+project(log4cplus-download LANGUAGES CXX)
 
 set(BUILD_SHARED_LIBS 1)
 if (BUILD_STATIC)
     set(BUILD_SHARED_LIBS 0)
     set(CONFIGURE_STATIC --disable-shared --enable-static)
+endif()
+
+if (DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "") 
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot ${CMAKE_OSX_SYSROOT}")
 endif()
 
 if (DEFINED BUILD_LOG4CPLUS_HOST AND NOT BUILD_LOG4CPLUS_HOST STREQUAL OFF)
@@ -15,10 +19,8 @@ else()
   SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_log4cplus/configure "CFLAGS=${CMAKE_C_FLAGS}" --prefix=${OPEN_SRC_INSTALL_PREFIX} ${CONFIGURE_STATIC})
 endif()
 
-if (APPLE AND ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
+if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   SET(CONFIGURE_COMMAND ${CONFIGURE_STATIC})
-elseif (DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "") 
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot${CMAKE_OSX_SYSROOT}")
 endif()
 
 include(ExternalProject)
