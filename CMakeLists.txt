@@ -16,6 +16,7 @@ option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
 option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
+option(CONSTRAINED_DEVICE "Set thread stack size to 0.5MB" OFF)
 
 
 # Developer Flags
@@ -40,6 +41,10 @@ elseif(WIN32)
   set(LINKAGE STATIC)
 else()
   set(LINKAGE SHARED)
+endif()
+
+if(CONSTRAINED_DEVICE)
+    add_definitions(-DCONSTRAINED_DEVICE)
 endif()
 
 set(KINESIS_VIDEO_PRODUCER_CPP_SRC ${CMAKE_CURRENT_SOURCE_DIR})

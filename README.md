@@ -94,6 +94,7 @@ You can pass the following options to `cmake ..`.
 * `-DUNDEFINED_BEHAVIOR_SANITIZER` Build with UndefinedBehaviorSanitizer
 * `-DALIGNED_MEMORY_MODEL` Build for aligned memory model only devices. Default is OFF.
 * `-DBUILD_LOG4CPLUS_HOST` Specify host-name for log4cplus for cross-compilation. Default is OFF.
+* `-DCONSTRAINED_DEVICE` Set the thread stack size to 0.5MB, needed for Alpine builds
 
 #### To Include JNI
 
