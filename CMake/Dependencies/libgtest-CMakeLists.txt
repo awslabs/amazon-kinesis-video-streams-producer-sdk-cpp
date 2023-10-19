@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6.3)
 
-project(libgtest-download LANGUAGES CPP)
+project(libgtest-download LANGUAGES C)
 
 include(ExternalProject)
    

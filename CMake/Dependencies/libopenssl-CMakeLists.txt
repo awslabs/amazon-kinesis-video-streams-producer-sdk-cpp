@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6.3)
 
-project(libopenssl-download LANGUAGES CPP)
+project(libopenssl-download LANGUAGES C)
 
 if (WIN32)
   find_program(MAKE_EXE NAMES nmake)
