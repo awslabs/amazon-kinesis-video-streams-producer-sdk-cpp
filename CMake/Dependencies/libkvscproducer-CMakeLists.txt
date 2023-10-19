@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6.3)
 
-project(libkvscproducer-download NONE)
+project(libkvscproducer-download LANGUAGES CPP)
 
 include(ExternalProject)
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6.3)
 find_program(MAKE_EXE NAMES make)
 
-project(log4cplus-download NONE)
+project(log4cplus-download LANGUAGES CPP)
 
 set(BUILD_SHARED_LIBS 1)
 if (BUILD_STATIC)

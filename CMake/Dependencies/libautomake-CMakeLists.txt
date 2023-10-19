@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6.3)
 
-project(libautomake-download NONE)
+project(libautomake-download LANGUAGES CPP)
 
 find_program(MAKE_EXE NAMES make)
 
