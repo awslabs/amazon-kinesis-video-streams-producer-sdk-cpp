@@ -247,8 +247,6 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       AWS_KVS_LOG_LEVEL: 2
-      CC: gcc
-      CXX: g++
     permissions:
       id-token: write
       contents: read
