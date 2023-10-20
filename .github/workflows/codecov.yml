@@ -1,0 +1,9 @@
+comment:
+    layout: "reach,diff,flags,tree"
+    behavior: default
+
+coverage:
+    status:
+        project:
+        default:
+            target: 75%
