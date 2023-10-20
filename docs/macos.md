@@ -3,8 +3,8 @@
 Define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables with the AWS access key id and secret key:
 
 ```
-$ export AWS_ACCESS_KEY_ID=YourAccessKeyId
-$ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
+export AWS_ACCESS_KEY_ID=YourAccessKeyId
+export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
 ```
 optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS_DEFAULT_REGION` for the region other than `us-west-2`
 
@@ -25,20 +25,20 @@ Device found:
 ###### Running the `gst-launch-1.0` command to start streaming from RTSP camera source.
 
 ```
-$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! h264parse ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
+gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! h264parse ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
 ```
 
 **Note:** If you are using **IoT credentials** then you can pass them as parameters to the gst-launch-1.0 command
 
 ```
-$ gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! h264parse ! kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
+gst-launch-1.0 rtspsrc location=rtsp://YourCameraRtspUrl short-header=TRUE ! rtph264depay ! h264parse ! kvssink stream-name="iot-stream" iot-certificate="iot-certificate,endpoint=endpoint,cert-path=/path/to/certificate,key-path=/path/to/private/key,ca-path=/path/to/ca-cert,role-aliases=role-aliases"
 ```
 You can find the RTSP URL from your IP camera manual or manufacturers product page.
 
 ###### Running the `gst-launch-1.0` command to start streaming from camera source in **Mac-OS**.
 
 ```
-$ gst-launch-1.0 autovideosrc ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! vtenc_h264_hw allow-frame-reordering=FALSE realtime=TRUE max-keyframe-interval=45 bitrate=500 ! h264parse ! video/x-h264,stream-format=avc,alignment=au,profile=baseline ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
+gst-launch-1.0 autovideosrc ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! vtenc_h264_hw allow-frame-reordering=FALSE realtime=TRUE max-keyframe-interval=45 bitrate=500 ! h264parse ! video/x-h264,stream-format=avc,alignment=au,profile=baseline ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
 ```
 
 ###### Running the `gst-launch-1.0` command to start streaming both audio and raw video in **Mac-OS**.
@@ -63,7 +63,7 @@ gst-launch-1.0 -v avfvideosrc device-index=1 ! videoconvert ! vtenc_h264_hw allo
 
 **Note:** Supply a the matching iot-thing-name (that the certificate points to) and we can stream to multiple stream-names (without the stream-name needing to be the same as the thing-name) using the same certificate credentials. iot-thing-name and stream-name can be completely different as long as there is a policy that allows the thing to write to the kinesis stream
 ```
-$ gst-launch-1.0 -v rtspsrc location="rtsp://YourCameraRtspUrl" short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
+gst-launch-1.0 -v rtspsrc location="rtsp://YourCameraRtspUrl" short-header=TRUE ! rtph264depay ! video/x-h264, format=avc,alignment=au !
  h264parse ! kvssink name=aname storage-size=512 iot-certificate="iot-certificate,endpoint=xxxxx.credentials.iot.ap-southeast-2.amazonaws.com,cert-path=/greengrass/v2/thingCert.crt,key-path=/greengrass/v2/privKey.key,ca-path=/greengrass/v2/rootCA.pem,role-aliases=KvsCameraIoTRoleAlias,iot-thing-name=myThingName123" aws-region="ap-southeast-2" log-config="/etc/mtdata/kvssink-log.config" stream-name=myThingName123-video1
 ```
 
@@ -171,8 +171,8 @@ For additional examples on using Kinesis Video Streams Java SDK and  Kinesis Vid
 **Note:** Please set the credentials before running the unit tests:
 
 ```
-$ export AWS_ACCESS_KEY_ID=YourAccessKeyId
-$ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
+export AWS_ACCESS_KEY_ID=YourAccessKeyId
+export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
 optionally, set AWS_SESSION_TOKEN if integrating with temporary token and AWS_DEFAULT_REGION for the region other than us-west-2
 ```
 
@@ -183,8 +183,8 @@ The executable for **unit tests** will be built as `./tst/producer_test` inside 
 **Note:** Please set the credentials before running the unit tests:
 
 ```
-$ export AWS_ACCESS_KEY_ID=YourAccessKeyId
-$ export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
+export AWS_ACCESS_KEY_ID=YourAccessKeyId
+export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
 optionally, set AWS_SESSION_TOKEN if integrating with temporary token and AWS_DEFAULT_REGION for the region other than us-west-2
 ```
 
