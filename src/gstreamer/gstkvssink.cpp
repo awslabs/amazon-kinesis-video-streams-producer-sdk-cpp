@@ -1330,6 +1330,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             case VIDEO_ONLY:
                 if (!delta) {
                     kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+                    data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
                 }
                 break;
             case AUDIO_VIDEO:
@@ -1338,6 +1339,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                         data->first_video_frame = false;
                     }
                     kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
+                    data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
                 }
                 break;
         }
