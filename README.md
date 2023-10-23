@@ -74,6 +74,10 @@ To set a log level, update the log level value [here](https://github.com/awslabs
 
 Note: The default log level is `DEBUG`
 
+The SDK also tracks entry and exit of functions which increases the verbosity of the logs. This will be useful when you want to track the transitions within the codebase. To do so, you need to set log level to TRACE and add the following to the cmake file:
+`add_definitions(-DLOG_STREAMING)`
+Note: This log level is extremely VERBOSE and could flood the files if using file based logging strategy.
+
 #### Cross-Compilation
 If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [ci.yml](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/develop/.github/workflows/ci.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
 Please note that GStreamer is not cross-compiled as a part of the cross-compilation of the KVS-SDK, customers will have to cross-compile it separately.
