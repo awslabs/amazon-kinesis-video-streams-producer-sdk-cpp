@@ -18,7 +18,6 @@ option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" O
 option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
 option(CONSTRAINED_DEVICE "Set thread stack size to 0.5MB" OFF)
 
-
 # Developer Flags
 option(BUILD_TEST "Build the testing tree" OFF)
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
