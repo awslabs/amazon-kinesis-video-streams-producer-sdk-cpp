@@ -4,78 +4,81 @@
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
+namespace com {
+namespace amazonaws {
+namespace kinesis {
+namespace video {
 
 /**
-* Interface extracted from the callbacks that the Kinesis Video SDK exposes for implementation by clients.
-* Some of the callbacks are optional and if left null will have defaults from the SDK used. Other callbacks must be
-* implemented by the user of the SDK.
-* The key to understanding the Kinesis Video SDK is that it is at its heart a state machine. The calls from the
-* application drive the state machine and move it via public API calls from one state to the next.
-* In order for the state machine to transition from one state to the next, it often needs the client to do work
-* because the SDK itself has no threads and no place to do any meaningful work (i.e. network IO).
-* This is where the callbacks defined in this class come in. They do the heavy lifting for calls that are OS
-* dependant or might require a thread to handle a RPC call that may block. Most of the callbacks fall into this
-* category; however there are others, that are notification callbacks which provide feedback to the application
-* about a stream in the running state. These callbacks must be defined but the aren't strictly required to do anything
-* interesting, but your application can take advantage of them to implement smarter congestion avoidance.
-*
-* The break down is as follows
-*
-* Required callbacks:
-*
-*   Authentication callback (you must implement *one* out of this group depending on your auth method):
-*     getDeviceCertificateCallback();
-*     getSecurityTokenCallback();
-*     getDeviceFingerprintCallback();
-*
-*   Stream notification callbacks (you must define them, but you are not required to do anything to run):
-*    getStreamUnderflowReportCallback();
-*    getStorageOverflowPressureCallback();
-*    getStreamLatencyPressureCallback();
-*    getStreamConnectionStaleCallback();
-*    getDroppedFrameReportCallback();
-*    getDroppedFragmentReportCallback();
-*    getStreamErrorReportCallback();
-*    getStreamReadyCallback();
-*    getStreamDataAvailableCallback();
-*
-*   State Machine Driven Callbacks (you must implement all of them and they must do the right thing):
-*     getCreateStreamCallback();
-*     getDescribeStreamCallback();
-*     getStreamingEndpointCallback();
-*     getStreamingTokenCallback();
-*     getPutStreamCallback();
-*     getTagResourceCallback();
-*
-*    Device/Client level Callbacks
-*
-*     getCreateDeviceCallback();
-*     getDeviceCertToTokenCallback();
-*     getClientReadyCallback();
-*
-* Optional callbacks:
-*
-*   OS dependent implementations (you don't have to define these):
-*     getCreateMutexCallback();
-*     getLockMutexCallback();
-*     getUnlockMutexCallback();
-*     getTryLockMutexCallback();
-*     getFreeMutexCallback();
-*     getCreateConditionVariableCallback();
-*     getSignalConditionVariableCallback();
-*     getBroadcastConditionVariableCallback();
-*     getWaitConditionVariableCallback();
-*     getFreeConditionVariableCallback();
-*     getCurrentTimeCallback();
-*     getRandomNumberCallback();
-*     getLogPrintCallback();
-*
-* The optional callbacks are virtual, but there are default implementations defined for them that return nullptr,
-* which will therefore use the defaults provided by the Kinesis Video SDK.
-*/
+ * Interface extracted from the callbacks that the Kinesis Video SDK exposes for implementation by clients.
+ * Some of the callbacks are optional and if left null will have defaults from the SDK used. Other callbacks must be
+ * implemented by the user of the SDK.
+ * The key to understanding the Kinesis Video SDK is that it is at its heart a state machine. The calls from the
+ * application drive the state machine and move it via public API calls from one state to the next.
+ * In order for the state machine to transition from one state to the next, it often needs the client to do work
+ * because the SDK itself has no threads and no place to do any meaningful work (i.e. network IO).
+ * This is where the callbacks defined in this class come in. They do the heavy lifting for calls that are OS
+ * dependant or might require a thread to handle a RPC call that may block. Most of the callbacks fall into this
+ * category; however there are others, that are notification callbacks which provide feedback to the application
+ * about a stream in the running state. These callbacks must be defined but the aren't strictly required to do anything
+ * interesting, but your application can take advantage of them to implement smarter congestion avoidance.
+ *
+ * The break down is as follows
+ *
+ * Required callbacks:
+ *
+ *   Authentication callback (you must implement *one* out of this group depending on your auth method):
+ *     getDeviceCertificateCallback();
+ *     getSecurityTokenCallback();
+ *     getDeviceFingerprintCallback();
+ *
+ *   Stream notification callbacks (you must define them, but you are not required to do anything to run):
+ *    getStreamUnderflowReportCallback();
+ *    getStorageOverflowPressureCallback();
+ *    getStreamLatencyPressureCallback();
+ *    getStreamConnectionStaleCallback();
+ *    getDroppedFrameReportCallback();
+ *    getDroppedFragmentReportCallback();
+ *    getStreamErrorReportCallback();
+ *    getStreamReadyCallback();
+ *    getStreamDataAvailableCallback();
+ *
+ *   State Machine Driven Callbacks (you must implement all of them and they must do the right thing):
+ *     getCreateStreamCallback();
+ *     getDescribeStreamCallback();
+ *     getStreamingEndpointCallback();
+ *     getStreamingTokenCallback();
+ *     getPutStreamCallback();
+ *     getTagResourceCallback();
+ *
+ *    Device/Client level Callbacks
+ *
+ *     getCreateDeviceCallback();
+ *     getDeviceCertToTokenCallback();
+ *     getClientReadyCallback();
+ *
+ * Optional callbacks:
+ *
+ *   OS dependent implementations (you don't have to define these):
+ *     getCreateMutexCallback();
+ *     getLockMutexCallback();
+ *     getUnlockMutexCallback();
+ *     getTryLockMutexCallback();
+ *     getFreeMutexCallback();
+ *     getCreateConditionVariableCallback();
+ *     getSignalConditionVariableCallback();
+ *     getBroadcastConditionVariableCallback();
+ *     getWaitConditionVariableCallback();
+ *     getFreeConditionVariableCallback();
+ *     getCurrentTimeCallback();
+ *     getRandomNumberCallback();
+ *     getLogPrintCallback();
+ *
+ * The optional callbacks are virtual, but there are default implementations defined for them that return nullptr,
+ * which will therefore use the defaults provided by the Kinesis Video SDK.
+ */
 class CallbackProvider {
-public:
+  public:
     using callback_t = ClientCallbacks;
 
     /**
@@ -307,17 +310,17 @@ public:
     virtual StreamErrorReportFunc getStreamErrorReportCallback();
 
     /**
-    * The function returned by this callback takes three arguments:
-    * @param 1 UINT64 - Custom handle passed by the caller.
-    * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which is reporting a stale connection.
-    * @param 3 UINT64 - Duration of the last buffering ACK received in 100ns.
-    *
-    * Optional Callback.
-    *
-    * The callback returned shall take the appropriate action (decided by the implementor) to handle the stale connection.
-    *
-    *  @return a function pointer conforming to the description above.
-    */
+     * The function returned by this callback takes three arguments:
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE - Kinesis Video metadata for the stream which is reporting a stale connection.
+     * @param 3 UINT64 - Duration of the last buffering ACK received in 100ns.
+     *
+     * Optional Callback.
+     *
+     * The callback returned shall take the appropriate action (decided by the implementor) to handle the stale connection.
+     *
+     *  @return a function pointer conforming to the description above.
+     */
     virtual StreamConnectionStaleFunc getStreamConnectionStaleCallback();
 
     /**
@@ -522,36 +525,38 @@ public:
     virtual DeviceCertToTokenFunc getDeviceCertToTokenCallback();
 
     /**
-    * Shuts down a stream.
-    *
-    * The function returned by this callback takes two arguments:
-    *
-    * Optional Callback.
-    *
-    * @param 1 UINT64 - Custom handle passed by the caller.
-    * @param 2 STREAM_HANDLE -  - The stream to shutdown.
-    *
-    *  @return a function pointer conforming to the description above.
-    */
+     * Shuts down a stream.
+     *
+     * The function returned by this callback takes two arguments:
+     *
+     * Optional Callback.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 STREAM_HANDLE -  - The stream to shutdown.
+     *
+     *  @return a function pointer conforming to the description above.
+     */
     virtual StreamShutdownFunc getStreamShutdownCallback();
 
     /**
-    * Shuts down a client.
-    *
-    * The function returned by this callback takes two arguments:
-    *
-    * Optional Callback.
-    *
-    * @param 1 UINT64 - Custom handle passed by the caller.
-    * @param 2 CLIENT_HANDLE - The client handle.
-    *
-    *  @return a function pointer conforming to the description above.
-    */
+     * Shuts down a client.
+     *
+     * The function returned by this callback takes two arguments:
+     *
+     * Optional Callback.
+     *
+     * @param 1 UINT64 - Custom handle passed by the caller.
+     * @param 2 CLIENT_HANDLE - The client handle.
+     *
+     *  @return a function pointer conforming to the description above.
+     */
     virtual ClientShutdownFunc getClientShutdownCallback();
 
-    virtual ~CallbackProvider() {}
+    virtual ~CallbackProvider()
+    {
+    }
 
-protected:
+  protected:
     callback_t callbacks_;
 };
 

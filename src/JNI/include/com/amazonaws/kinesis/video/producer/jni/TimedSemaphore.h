@@ -6,16 +6,14 @@
 #ifndef __TIMED_SEMAPHORE_H__
 #define __TIMED_SEMAPHORE_H__
 
-class TimedSemaphore
-{
-    TimedSemaphore(const TimedSemaphore&); // Prevent copy construction
+class TimedSemaphore {
+    TimedSemaphore(const TimedSemaphore&);            // Prevent copy construction
     TimedSemaphore& operator=(const TimedSemaphore&); // Prevent assignment
     MUTEX mMutex;
     CVAR mCond;
     UINT32 mCount;
 
-public:
-
+  public:
     TimedSemaphore() : mCount(0)
     {
         mMutex = MUTEX_CREATE(FALSE);
@@ -35,10 +33,8 @@ public:
     {
         MUTEX_LOCK(mMutex);
 
-        while (mCount <= 0)
-        {
-            if (STATUS_FAILED(CVAR_WAIT(mCond, mMutex, INFINITE_TIME_VALUE)))
-            {
+        while (mCount <= 0) {
+            if (STATUS_FAILED(CVAR_WAIT(mCond, mMutex, INFINITE_TIME_VALUE))) {
                 CRASH("Fatal error in semaphore wait");
                 break;
             }
@@ -57,8 +53,7 @@ public:
         MUTEX_LOCK(mMutex);
 
         bool sem = (mCount > 0);
-        if (sem)
-        {
+        if (sem) {
             mCount--;
         }
 
@@ -78,20 +73,17 @@ public:
         // Create default units duration
         UINT64 duration = relTimeOutMs * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
 
-        while (mCount == 0)
-        {
+        while (mCount == 0) {
             STATUS status = CVAR_WAIT(mCond, mMutex, duration);
-            if (status == STATUS_OPERATION_TIMED_OUT)
-            {
+            if (status == STATUS_OPERATION_TIMED_OUT) {
                 retVal = false;
                 break;
             }
 
             // Any other failure is fatal
-            if (STATUS_FAILED(status))
-            {
+            if (STATUS_FAILED(status)) {
                 CRASH("Fatal error in timed semaphore wait");
-                
+
                 // Unreachable - just to keep some static code analysis tools happy
                 break;
             }

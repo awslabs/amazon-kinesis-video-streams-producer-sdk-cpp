@@ -15,6 +15,6 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
 BOOL setStreamingEndpoint(JNIEnv* env, jstring streamingEndpoint, PCHAR pEndpoint);
 BOOL setStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBYTE* ppBuffer);
 BOOL releaseStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBYTE pBuffer);
-BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount);
+BOOL setTags(JNIEnv* env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount);
 VOID releaseTags(PTag tags);
 #endif // __KINESIS_VIDEO_PARAMETERS_CONVERSION_H__
