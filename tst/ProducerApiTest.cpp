@@ -1,6 +1,9 @@
 #include "ProducerTestFixture.h"
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
+namespace com {
+namespace amazonaws {
+namespace kinesis {
+namespace video {
 
 using namespace std;
 using namespace std::chrono;
@@ -12,21 +15,21 @@ ProducerTestBase* gProducerApiTest;
 
 PVOID staticProducerRoutine(PVOID arg)
 {
-    auto kinesis_video_stream = reinterpret_cast<KinesisVideoStream*> (arg);
+    auto kinesis_video_stream = reinterpret_cast<KinesisVideoStream*>(arg);
     return gProducerApiTest->basicProducerRoutine(kinesis_video_stream);
 }
 
 PVOID staticProducerRoutineOffline(PVOID arg)
 {
-    auto kinesis_video_stream = reinterpret_cast<KinesisVideoStream*> (arg);
+    auto kinesis_video_stream = reinterpret_cast<KinesisVideoStream*>(arg);
     return gProducerApiTest->basicProducerRoutine(kinesis_video_stream, STREAMING_TYPE_OFFLINE);
 }
 
-PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_stream,
-                                             STREAMING_TYPE streaming_type) {
+PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_stream, STREAMING_TYPE streaming_type)
+{
     UINT32 index = 0, persistentMetadataIndex = 0;
-    UINT64 timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+    UINT64 timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count() /
+        DEFAULT_TIME_UNIT_IN_NANOS;
     Frame frame;
     std::string metadataNameStr;
 
@@ -39,11 +42,8 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
     frame.trackId = DEFAULT_TRACK_ID;
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
-    BYTE cpd2[] = {0x00, 0x00, 0x00, 0x01, 0x67, 0x64, 0x00, 0x34,
-                   0xAC, 0x2B, 0x40, 0x1E, 0x00, 0x78, 0xD8, 0x08,
-                   0x80, 0x00, 0x01, 0xF4, 0x00, 0x00, 0xEA, 0x60,
-                   0x47, 0xA5, 0x50, 0x00, 0x00, 0x00, 0x01, 0x68,
-                   0xEE, 0x3C, 0xB0};
+    BYTE cpd2[] = {0x00, 0x00, 0x00, 0x01, 0x67, 0x64, 0x00, 0x34, 0xAC, 0x2B, 0x40, 0x1E, 0x00, 0x78, 0xD8, 0x08, 0x80, 0x00,
+                   0x01, 0xF4, 0x00, 0x00, 0xEA, 0x60, 0x47, 0xA5, 0x50, 0x00, 0x00, 0x00, 0x01, 0x68, 0xEE, 0x3C, 0xB0};
     UINT32 cpdSize = SIZEOF(cpd2);
 
     EXPECT_TRUE(kinesis_video_stream->start(cpd2, cpdSize, DEFAULT_TRACK_ID));
@@ -53,8 +53,8 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
         if (IS_OFFLINE_STREAMING_MODE(streaming_type)) {
             timestamp += frame.duration;
         } else {
-            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count() /
+                DEFAULT_TIME_UNIT_IN_NANOS;
         }
 
         frame.index = index++;
@@ -72,15 +72,9 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
-                                               << strstrm.str()
-                                               << " Id: " << frame.index
-                                               << ", Key Frame: "
-                                               << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
-                                                   ? "true" : "false")
-                                               << ", Size: " << frame.size
-                                               << ", Dts: " << frame.decodingTs
-                                               << ", Pts: " << frame.presentationTs);
+        LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
+                                               << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
+                                               << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
 
         // Apply some non-persistent metadata every few frames
         if (frame.index % 20 == 0) {
@@ -129,7 +123,6 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
     LOG_DEBUG("Stopping the stream: " << kinesis_video_stream->getStreamName());
     EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
 
-
     // The signalling should be handled per stream.
     // This is for a demo purpose only!!!
     EXPECT_TRUE(gProducerApiTest->stop_called_) << "Status of stopped state " << gProducerApiTest->stop_called_;
@@ -144,32 +137,20 @@ TEST_F(ProducerApiTest, invalid_credentials)
 {
     std::unique_ptr<Credentials> credentials;
     std::unique_ptr<CredentialProvider> credential_provider;
-    credentials.reset(new Credentials("",
-                                      "SecretKey",
-                                      "SessionToken",
-                                      std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+    credentials.reset(new Credentials("", "SecretKey", "SessionToken", std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
 
     credential_provider.reset(new TestCredentialProvider(*credentials.get(), TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
     EXPECT_THROW(CreateProducer(std::move(credential_provider)), std::runtime_error);
 
-    credentials.reset(new Credentials("AccessKey",
-                                      "",
-                                      "SessionToken",
-                                      std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+    credentials.reset(new Credentials("AccessKey", "", "SessionToken", std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
     credential_provider.reset(new TestCredentialProvider(*credentials.get(), TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
     EXPECT_THROW(CreateProducer(std::move(credential_provider)), std::runtime_error);
 
-    credentials.reset(new Credentials("",
-                                      "",
-                                      "SessionToken",
-                                      std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+    credentials.reset(new Credentials("", "", "SessionToken", std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
     credential_provider.reset(new TestCredentialProvider(*credentials.get(), TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
     EXPECT_THROW(CreateProducer(std::move(credential_provider)), std::runtime_error);
 
-    credentials.reset(new Credentials("AccessKey",
-                                      "SecretKey",
-                                      "",
-                                      std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
+    credentials.reset(new Credentials("AccessKey", "SecretKey", "", std::chrono::seconds(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS)));
     credential_provider.reset(new TestCredentialProvider(*credentials.get(), TEST_STREAMING_TOKEN_DURATION_IN_SECONDS));
     CreateProducer(std::move(credential_provider)); // expect no exception thrown since empty session token is allowed
 }
@@ -227,7 +208,7 @@ TEST_F(ProducerApiTest, DISABLED_create_produce_offline_stream)
         streams_[i] = CreateTestStream(i, STREAMING_TYPE_OFFLINE);
 
         // Spin off the producer
-        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&producer_thread_, staticProducerRoutineOffline, reinterpret_cast<PVOID> (streams_[i].get())));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&producer_thread_, staticProducerRoutineOffline, reinterpret_cast<PVOID>(streams_[i].get())));
     }
 
     // Wait for some time to produce
@@ -287,8 +268,8 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream)
         // Start streaming
         for (uint32_t index = 0; index < TEST_START_STOP_ITERATION_COUT; index++) {
             // Produce frames
-            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count() /
+                DEFAULT_TIME_UNIT_IN_NANOS;
             frame.index = index++;
             frame.decodingTs = timestamp;
             frame.presentationTs = timestamp;
@@ -298,15 +279,10 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream)
 
             std::stringstream strstrm;
             strstrm << " TID: 0x" << std::hex << GETTID();
-            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
-                                                   << strstrm.str()
-                                                   << " Id: " << frame.index
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index
                                                    << ", Key Frame: "
-                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
-                                                       ? "true" : "false")
-                                                   << ", Size: " << frame.size
-                                                   << ", Dts: " << frame.decodingTs
-                                                   << ", Pts: " << frame.presentationTs);
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
+                                                   << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
 
             EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
 
@@ -353,8 +329,8 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_endpoint_cached)
         // Start streaming
         for (uint32_t index = 0; index < 100; index++) {
             // Produce frames
-            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count() /
+                DEFAULT_TIME_UNIT_IN_NANOS;
             frame.index = index++;
             frame.decodingTs = timestamp;
             frame.presentationTs = timestamp;
@@ -364,15 +340,10 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_endpoint_cached)
 
             std::stringstream strstrm;
             strstrm << " TID: 0x" << std::hex << GETTID();
-            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
-                                                   << strstrm.str()
-                                                   << " Id: " << frame.index
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index
                                                    << ", Key Frame: "
-                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
-                                                       ? "true" : "false")
-                                                   << ", Size: " << frame.size
-                                                   << ", Dts: " << frame.decodingTs
-                                                   << ", Pts: " << frame.presentationTs);
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
+                                                   << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
 
             EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
 
@@ -419,8 +390,8 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_all_cached)
         // Start streaming
         for (uint32_t index = 0; index < 100; index++) {
             // Produce frames
-            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count() /
+                DEFAULT_TIME_UNIT_IN_NANOS;
             frame.index = index++;
             frame.decodingTs = timestamp;
             frame.presentationTs = timestamp;
@@ -430,15 +401,10 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_all_cached)
 
             std::stringstream strstrm;
             strstrm << " TID: 0x" << std::hex << GETTID();
-            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
-                                                   << strstrm.str()
-                                                   << " Id: " << frame.index
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index
                                                    << ", Key Frame: "
-                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
-                                                       ? "true" : "false")
-                                                   << ", Size: " << frame.size
-                                                   << ", Dts: " << frame.decodingTs
-                                                   << ", Pts: " << frame.presentationTs);
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
+                                                   << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
 
             EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
 
@@ -485,8 +451,8 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_endpoint_cached)
         // Start streaming
         for (uint32_t index = 0; index < 100; index++) {
             // Produce frames
-            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count() /
+                DEFAULT_TIME_UNIT_IN_NANOS;
             frame.index = index++;
             frame.decodingTs = timestamp;
             frame.presentationTs = timestamp;
@@ -496,15 +462,10 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_endpoint_cached)
 
             std::stringstream strstrm;
             strstrm << " TID: 0x" << std::hex << GETTID();
-            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
-                                                   << strstrm.str()
-                                                   << " Id: " << frame.index
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index
                                                    << ", Key Frame: "
-                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
-                                                       ? "true" : "false")
-                                                   << ", Size: " << frame.size
-                                                   << ", Dts: " << frame.decodingTs
-                                                   << ", Pts: " << frame.presentationTs);
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
+                                                   << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
 
             EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
 
@@ -553,8 +514,8 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_all_cached)
         // Start streaming
         for (uint32_t index = 0; index < 100; index++) {
             // Produce frames
-            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count() / DEFAULT_TIME_UNIT_IN_NANOS;
+            timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count() /
+                DEFAULT_TIME_UNIT_IN_NANOS;
             frame.index = index++;
             frame.decodingTs = timestamp;
             frame.presentationTs = timestamp;
@@ -564,15 +525,10 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_all_cached)
 
             std::stringstream strstrm;
             strstrm << " TID: 0x" << std::hex << GETTID();
-            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName()
-                                                   << strstrm.str()
-                                                   << " Id: " << frame.index
+            LOG_DEBUG("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index
                                                    << ", Key Frame: "
-                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
-                                                       ? "true" : "false")
-                                                   << ", Size: " << frame.size
-                                                   << ", Dts: " << frame.decodingTs
-                                                   << ", Pts: " << frame.presentationTs);
+                                                   << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
+                                                   << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
 
             EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
 
@@ -605,7 +561,7 @@ TEST_F(ProducerApiTest, create_produce_stream)
         streams_[i] = CreateTestStream(i);
 
         // Spin off the producer
-        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&producer_thread_, staticProducerRoutine, reinterpret_cast<PVOID> (streams_[i].get())));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&producer_thread_, staticProducerRoutine, reinterpret_cast<PVOID>(streams_[i].get())));
     }
 
 #if 0
@@ -684,7 +640,7 @@ TEST_F(ProducerApiTest, create_caching_endpoing_produce_stream)
         streams_[i] = CreateTestStream(i);
 
         // Spin off the producer
-        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&producer_thread_, staticProducerRoutine, reinterpret_cast<PVOID> (streams_[i].get())));
+        EXPECT_EQ(STATUS_SUCCESS, THREAD_CREATE(&producer_thread_, staticProducerRoutine, reinterpret_cast<PVOID>(streams_[i].get())));
     }
 
     // Wait for some time to produce
@@ -720,18 +676,9 @@ TEST_F(ProducerApiTest, exceed_max_track_count)
     const string testTrackName = "testTrackName", testCodecId = "testCodecId";
 
     // add 4 tracks
-    unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(stream_name,
-            hours(2),
-            nullptr,
-            "",
-            STREAMING_TYPE_REALTIME,
-            "video/h264",
-            milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
-            seconds(2),
-            milliseconds(1),
-            true,
-            true,
-            true));
+    unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(stream_name, hours(2), nullptr, "", STREAMING_TYPE_REALTIME, "video/h264",
+                                                                        milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS), seconds(2), milliseconds(1),
+                                                                        true, true, true));
     stream_definition->addTrack(1, testTrackName, testCodecId, MKV_TRACK_INFO_TYPE_VIDEO);
     stream_definition->addTrack(2, testTrackName, testCodecId, MKV_TRACK_INFO_TYPE_AUDIO);
     stream_definition->addTrack(3, testTrackName, testCodecId, MKV_TRACK_INFO_TYPE_VIDEO);
@@ -745,35 +692,11 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
     const string testTrackName = "testTrackName", testCodecId = "testCodecId";
 
     // Empty
-    unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(stream_name,
-            hours(2),
-            nullptr,
-            "",
-            STREAMING_TYPE_REALTIME,
-            "video/h264",
-            milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
-            seconds(2),
-            milliseconds(1),
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
-            25,
-            4 * 1024 * 1024,
-            seconds(120),
-            seconds(40),
-            seconds(30),
-            "V_MPEG4/ISO/AVC",
-            "kinesis_video",
-            nullptr,
-            0,
-            MKV_TRACK_INFO_TYPE_VIDEO,
-            vector<uint8_t>(),
-            DEFAULT_TRACK_ID));
+    unique_ptr<StreamDefinition> stream_definition(
+        new StreamDefinition(stream_name, hours(2), nullptr, "", STREAMING_TYPE_REALTIME, "video/h264",
+                             milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS), seconds(2), milliseconds(1), true, true, true, true, true, true, true,
+                             NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS, 25, 4 * 1024 * 1024, seconds(120), seconds(40), seconds(30),
+                             "V_MPEG4/ISO/AVC", "kinesis_video", nullptr, 0, MKV_TRACK_INFO_TYPE_VIDEO, vector<uint8_t>(), DEFAULT_TRACK_ID));
 
     EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(std::move(stream_definition)));
     kinesis_video_producer_->freeStreams();
@@ -781,35 +704,11 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
     // Valid
     vector<uint8_t> segment_uuid = vector<uint8_t>(MKV_SEGMENT_UUID_LEN);
     memset(&segment_uuid[0], 0xab, MKV_SEGMENT_UUID_LEN);
-    stream_definition.reset(new StreamDefinition(stream_name,
-            hours(2),
-            nullptr,
-            "",
-            STREAMING_TYPE_REALTIME,
-            "video/h264",
-            milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
-            seconds(2),
-            milliseconds(1),
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
-            25,
-            4 * 1024 * 1024,
-            seconds(120),
-            seconds(40),
-            seconds(30),
-            "V_MPEG4/ISO/AVC",
-            "kinesis_video",
-            nullptr,
-            0,
-            MKV_TRACK_INFO_TYPE_VIDEO,
-            vector<uint8_t>(),
-            DEFAULT_TRACK_ID));
+    stream_definition.reset(new StreamDefinition(stream_name, hours(2), nullptr, "", STREAMING_TYPE_REALTIME, "video/h264",
+                                                 milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS), seconds(2), milliseconds(1), true, true, true, true,
+                                                 true, true, true, NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS, 25, 4 * 1024 * 1024,
+                                                 seconds(120), seconds(40), seconds(30), "V_MPEG4/ISO/AVC", "kinesis_video", nullptr, 0,
+                                                 MKV_TRACK_INFO_TYPE_VIDEO, vector<uint8_t>(), DEFAULT_TRACK_ID));
 
     EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(std::move(stream_definition)));
     kinesis_video_producer_->freeStreams();
@@ -817,73 +716,25 @@ TEST_F(ProducerApiTest, segment_uuid_variations)
     // invalid - larger
     segment_uuid = vector<uint8_t>(MKV_SEGMENT_UUID_LEN + 1);
     memset(&segment_uuid[0], 0xab, MKV_SEGMENT_UUID_LEN + 1);
-    stream_definition.reset(new StreamDefinition(stream_name,
-            hours(2),
-            nullptr,
-            "",
-            STREAMING_TYPE_REALTIME,
-            "video/h264",
-            milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
-            seconds(2),
-            milliseconds(1),
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
-            25,
-            4 * 1024 * 1024,
-            seconds(120),
-            seconds(40),
-            seconds(30),
-            "V_MPEG4/ISO/AVC",
-            "kinesis_video",
-            nullptr,
-            0,
-            MKV_TRACK_INFO_TYPE_VIDEO,
-            vector<uint8_t>(),
-            DEFAULT_TRACK_ID));
+    stream_definition.reset(new StreamDefinition(stream_name, hours(2), nullptr, "", STREAMING_TYPE_REALTIME, "video/h264",
+                                                 milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS), seconds(2), milliseconds(1), true, true, true, true,
+                                                 true, true, true, NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS, 25, 4 * 1024 * 1024,
+                                                 seconds(120), seconds(40), seconds(30), "V_MPEG4/ISO/AVC", "kinesis_video", nullptr, 0,
+                                                 MKV_TRACK_INFO_TYPE_VIDEO, vector<uint8_t>(), DEFAULT_TRACK_ID));
 
     EXPECT_NE(nullptr, kinesis_video_producer_->createStreamSync(std::move(stream_definition)));
     kinesis_video_producer_->freeStreams();
 
     // shorter length
     segment_uuid = vector<uint8_t>(MKV_SEGMENT_UUID_LEN - 1);
-    EXPECT_ANY_THROW(stream_definition.reset(new StreamDefinition(stream_name,
-            hours(2),
-            nullptr,
-            "",
-            STREAMING_TYPE_REALTIME,
-            "video/h264",
-            milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS),
-            seconds(2),
-            milliseconds(1),
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS,
-            25,
-            4 * 1024 * 1024,
-            seconds(120),
-            seconds(40),
-            seconds(30),
-            "V_MPEG4/ISO/AVC",
-            "kinesis_video",
-            nullptr,
-            0,
-            MKV_TRACK_INFO_TYPE_VIDEO,
-            segment_uuid,
-            DEFAULT_TRACK_ID)));
+    EXPECT_ANY_THROW(stream_definition.reset(
+        new StreamDefinition(stream_name, hours(2), nullptr, "", STREAMING_TYPE_REALTIME, "video/h264",
+                             milliseconds(TEST_MAX_STREAM_LATENCY_IN_MILLIS), seconds(2), milliseconds(1), true, true, true, true, true, true, true,
+                             NAL_ADAPTATION_ANNEXB_NALS | NAL_ADAPTATION_ANNEXB_CPD_NALS, 25, 4 * 1024 * 1024, seconds(120), seconds(40), seconds(30),
+                             "V_MPEG4/ISO/AVC", "kinesis_video", nullptr, 0, MKV_TRACK_INFO_TYPE_VIDEO, segment_uuid, DEFAULT_TRACK_ID)));
 }
 
-}  // namespace video
-}  // namespace kinesis
-}  // namespace amazonaws
-}  // namespace com
+} // namespace video
+} // namespace kinesis
+} // namespace amazonaws
+} // namespace com
