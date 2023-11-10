@@ -1606,9 +1606,18 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
                 goto CleanUp;
             }
             break;
+
         case GST_STATE_CHANGE_READY_TO_PAUSED:
             gst_collect_pads_start (kvssink->collect);
             break;
+            
+        default:
+            break;
+    }
+
+    ret = GST_ELEMENT_CLASS (parent_class)->change_state(element, transition);
+
+    switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
             gst_collect_pads_stop (kvssink->collect);
@@ -1624,14 +1633,14 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             }
             LOG_INFO("Stopped kvssink for " << kvssink->stream_name);
             break;
+
         case GST_STATE_CHANGE_READY_TO_NULL:
             LOG_INFO("Pipeline state changed to NULL in kvssink");
             break;
+
         default:
             break;
     }
-
-    ret = GST_ELEMENT_CLASS (parent_class)->change_state(element, transition);
 
 CleanUp:
 
