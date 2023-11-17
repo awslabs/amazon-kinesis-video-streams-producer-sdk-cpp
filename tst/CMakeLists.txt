@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.6.3)
-project(producerTest)
+project(producerTest LANGUAGES CXX)
 
 file(GLOB PRODUCER_TEST_SOURCES *.cpp)
 
