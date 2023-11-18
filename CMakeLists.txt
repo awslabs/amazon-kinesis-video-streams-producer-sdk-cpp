@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6.3)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
-project(KinesisVideoProducerCpp LANGUAGES CXX)
+project(KinesisVideoProducerCpp)
 
 project(KinesisVideoProducerCpp VERSION 3.4.0)
 
@@ -79,10 +79,12 @@ if(BUILD_DEPENDENCIES)
   endif()
   
   if(BUILD_LOG4CPLUS_HOST)
-    set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
+    set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST} 
+                   -DCOMPILER_ID=${CMAKE_CXX_COMPILER_ID})
     build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
   else()
-    build_dependency(log4cplus -DBUILD_STATIC=${BUILD_STATIC})
+    set(BUILD_ARGS -DCOMPILER_ID=${CMAKE_CXX_COMPILER_ID})
+    build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
   endif()
 
   message(STATUS "Finished building dependencies.")

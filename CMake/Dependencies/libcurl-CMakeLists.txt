@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6.3)
 
-project(libcurl-download LANGUAGES CXX)
+project(libcurl-download LANGUAGES NONE)
 
 find_program(MAKE_EXE NAMES make)
 
