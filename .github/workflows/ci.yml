@@ -292,6 +292,7 @@ jobs:
           choco install nasm strawberryperl
           choco install gstreamer --version=1.16.2
           choco install gstreamer-devel --version=1.16.2
+          Import-Module "$env:ChocolateyInstall/helpers/chocolateyInstaller.psm1"
           refreshenv
       - name: Build repository
         run: |
