@@ -197,10 +197,11 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 * The sample docker scripts for RTSP plugin, raspberry pi and linux can be found in the [Kinesis demos repository](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/tree/master/producer-cpp).
 
 ## DEBUG
-* When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure your environment variables are set correctly:  
+* When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure Java is installed and your environment variables are set correctly:  
 `export JAVA_INCLUDE_PATH2=/Library/Java/JavaVirtualMachines/<YOUR_JDK_VERSION>/Contents/Home/include` or `export JAVA_INCLUDE_PATH2=$JAVA_HOME/include` for Mac OS.  
 `export JAVA_INCLUDE_PATH2='/usr/java/<JDK_VERSION>/include'` for Linux.
 * If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
+* If you are running into issues building libcurl on M1 Mac, you can try `brew unlink openssl`.
 * If you would like to visualize the GStreamer pipeline being constructed in a GStreamer application, include the following after the elements have been linked:
 `GST_DEBUG_BIN_TO_DOT_FILE(<gst-bin-object>, GST_DEBUG_GRAPH_SHOW_ALL, <file-name>);`
 For example, if the application created a pipeline object `GstPipeline* pipeline = gst_pipeline_new("test-pipeline")`, and you would like to see the visualized pipeline with filename pipeline, add:
