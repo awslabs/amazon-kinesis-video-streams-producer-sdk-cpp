@@ -53,30 +53,29 @@ jobs:
       id-token: write
       contents: read
     steps:
-    - name: Clone repository
-      uses: actions/checkout@v3
-    - name: Install dependencies
-      run: |
-        brew install pkg-config openssl cmake gstreamer
-        brew unlink openssl
-    - name: Build repository
-      run: |
-        mkdir build && cd build
-        sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++'
-        make
-        make install
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1-node16
-      with:
-        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-        role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
-        aws-region: ${{ secrets.AWS_REGION }}
-        role-duration-seconds: 10800
-    - name: Run tests
-      run: |
-        cd build  
-        ./tst/producerTest
-
+      - name: Clone repository
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          brew install pkg-config openssl cmake gstreamer
+          brew unlink openssl
+      - name: Build repository
+        run: |
+          mkdir build && cd build
+          sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++'
+          make
+          make install
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 10800
+      - name: Run tests
+        run: |
+          cd build  
+          ./tst/producerTest
   mac-os-build-gcc:
     runs-on: macos-12
     permissions:
