@@ -126,10 +126,6 @@ else()
   set(Log4cplus ${LOG4CPLUS_LIBRARIES})
 endif()
 
-if (WIN32)
-  set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
-endif()
-
 ############# Enable Sanitizers ############
 if(${CMAKE_C_COMPILER_ID} MATCHES "GNU|Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
@@ -212,7 +208,7 @@ endif()
 
 
 if(BUILD_GSTREAMER_PLUGIN)
-  pkg_check_modules(GST_APP REQUIRED gstreamer-1.0)
+  pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
 
