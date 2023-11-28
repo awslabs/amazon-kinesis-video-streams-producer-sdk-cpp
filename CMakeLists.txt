@@ -127,7 +127,7 @@ else()
 endif()
 
 if (WIN32)
-  set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\lib\\pkg-config.exe")
+  set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
 endif()
 
 ############# Enable Sanitizers ############
@@ -212,7 +212,7 @@ endif()
 
 
 if(BUILD_GSTREAMER_PLUGIN)
-  pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
+  pkg_check_modules(GST_APP REQUIRED gstreamer-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
 
