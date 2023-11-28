@@ -126,6 +126,11 @@ else()
   set(Log4cplus ${LOG4CPLUS_LIBRARIES})
 endif()
 
+if (WIN32)
+  set(PKG_CONFIG_PATH "D:\\gstreamer\\1.0\\x86_64\\lib\\pkgconfig")
+  set(PKG_CONFIG_PATH "D:\\gstreamer\\1.0\\x86_64\\lib\\pkgconfig")
+  set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+endif()
 
 ############# Enable Sanitizers ############
 if(${CMAKE_C_COMPILER_ID} MATCHES "GNU|Clang")
