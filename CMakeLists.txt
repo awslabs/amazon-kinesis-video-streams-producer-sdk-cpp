@@ -127,7 +127,6 @@ else()
 endif()
 
 if (WIN32)
-  # set(PKG_CONFIG_PATH "D:\\gstreamer\\1.0\\x86_64\\lib\\pkgconfig")
   set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
 endif()
 
