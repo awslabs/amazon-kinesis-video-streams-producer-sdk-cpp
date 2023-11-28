@@ -297,7 +297,7 @@ jobs:
           $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
           git config --system core.longpaths true
           Dir -Recurse D:\gstreamer\1.0
-          $env:PKG_CONFIG_PATH = 'C:\gstreamer\1.0\msvc_x86_64\lib\pkgconfig'
+          $env:PKG_CONFIG_PATH = 'D:\gstreamer\1.0\x86_64\lib\pkgconfig'
           gci env:
           pkg-config --cflags --libs gstreamer-1.0
           .github/build_windows.bat
