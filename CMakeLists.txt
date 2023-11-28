@@ -126,6 +126,7 @@ else()
   set(Log4cplus ${LOG4CPLUS_LIBRARIES})
 endif()
 
+
 ############# Enable Sanitizers ############
 if(${CMAKE_C_COMPILER_ID} MATCHES "GNU|Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
