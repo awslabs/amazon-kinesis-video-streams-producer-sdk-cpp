@@ -257,6 +257,9 @@ if(BUILD_GSTREAMER_PLUGIN)
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
   target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
+  add_executable(kvssink_simple_sample samples/kvssink_simple_sample.cpp)
+  target_link_libraries(kvssink_simple_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
   target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
 
