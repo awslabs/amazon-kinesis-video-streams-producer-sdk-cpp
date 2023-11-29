@@ -1614,6 +1614,9 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     }
 
     ret = GST_ELEMENT_CLASS (parent_class)->change_state(element, transition);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        goto CleanUp;
+    }
 
     switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
