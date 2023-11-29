@@ -52,8 +52,8 @@ jobs:
       id-token: write
       contents: read
     env:
-      CC: gcc
-      CXX: g++
+      CC: /usr/local/bin/gcc-13
+      CXX: /usr/local/bin/g++-13
       AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
@@ -192,7 +192,7 @@ jobs:
           timeout --signal=SIGABRT 60m ./tst/producerTest
 
   # memory-sanitizer:
-  #   runs-on: ubuntu-20.04 
+  #   runs-on: ubuntu-20.04
   #   permissions:
   #     id-token: write
   #     contents: read
@@ -291,7 +291,7 @@ jobs:
         run: |
           choco install nasm strawberryperl
           choco install gstreamer --version=1.16.2
-          choco install gstreamer-devel --version=1.16.2 
+          choco install gstreamer-devel --version=1.16.2
       - name: Build repository
         run: |
           $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'

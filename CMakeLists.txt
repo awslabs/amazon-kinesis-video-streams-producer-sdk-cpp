@@ -127,7 +127,11 @@ else()
 endif()
 
 if (WIN32)
-  set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  if(EXISTS "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  else()
+     set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  endif()
 endif()
 
 ############# Enable Sanitizers ############
