@@ -205,7 +205,6 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 `GST_DEBUG_BIN_TO_DOT_FILE(<gst-bin-object>, GST_DEBUG_GRAPH_SHOW_ALL, <file-name>);`
 For example, if the application created a pipeline object `GstPipeline* pipeline = gst_pipeline_new("test-pipeline")`, and you would like to see the visualized pipeline with filename pipeline, add:
 `GST_DEBUG_BIN_TO_DOT_FILE((GstBin*) pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline");`. Also ensure to set the path to where you would like the file to be stored. `export GST_DEBUG_DUMP_DOT_DIR=.`. The file generated would be a `.dot` format. Convert to PDF to check the visualized pipeline. Also, this requires `graphviz` to be installed. So make sure to install that.
-* On Windows, if you run into a cmake error `A required package was not found` when Checking for module `gstreamer-app-1.0`, try changing the drive partition from 'D:' to 'C:' in following CMakeLists.txt line `set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")`.
 
 
 ## FAQ
