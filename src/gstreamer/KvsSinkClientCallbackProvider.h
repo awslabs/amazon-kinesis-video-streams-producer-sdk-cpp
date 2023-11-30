@@ -4,29 +4,26 @@
 #include <ClientCallbackProvider.h>
 #include <Logger.h>
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-class KvsSinkClientCallbackProvider : public ClientCallbackProvider {
-  public:
-    StorageOverflowPressureFunc getStorageOverflowPressureCallback() override
-    {
-        return storageOverflowPressure;
-    }
+    class KvsSinkClientCallbackProvider: public ClientCallbackProvider {
+    public:
 
-    UINT64 getCallbackCustomData() override
-    {
-        return reinterpret_cast<UINT64>(this);
-    }
+        StorageOverflowPressureFunc getStorageOverflowPressureCallback() override {
+            return storageOverflowPressure;
+        }
 
-  private:
-    static STATUS storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes);
-};
-} // namespace video
-} // namespace kinesis
-} // namespace amazonaws
-} // namespace com
+        UINT64 getCallbackCustomData() override {
+            return reinterpret_cast<UINT64> (this);
+        }
+
+    private:
+        static STATUS storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes);
+    };
+}
+}
+}
+}
+
 
 #endif //__KVS_SINK_CLIENT_CALLBACK_PROVIDER_H__

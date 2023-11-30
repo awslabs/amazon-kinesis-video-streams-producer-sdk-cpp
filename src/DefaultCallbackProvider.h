@@ -19,44 +19,58 @@
 #include <string>
 #include <mutex>
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 class DefaultCallbackProvider : public CallbackProvider {
-  public:
+public:
     using callback_t = ClientCallbacks;
-    explicit DefaultCallbackProvider(std::unique_ptr<ClientCallbackProvider> client_callback_provider,
-                                     std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
-                                     std::unique_ptr<CredentialProvider> credentials_provider, const std::string& region = DEFAULT_AWS_REGION,
-                                     const std::string& control_plane_uri = EMPTY_STRING, const std::string& user_agent_name = EMPTY_STRING,
-                                     const std::string& custom_user_agent = EMPTY_STRING, const std::string& cert_path = EMPTY_STRING,
-                                     bool is_caching_endpoint = false, uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
+    explicit DefaultCallbackProvider(
+            std::unique_ptr <ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr <CredentialProvider> credentials_provider,
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = EMPTY_STRING,
+            const std::string &user_agent_name = EMPTY_STRING,
+            const std::string &custom_user_agent = EMPTY_STRING,
+            const std::string &cert_path = EMPTY_STRING,
+            bool is_caching_endpoint = false,
+            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
 
     explicit DefaultCallbackProvider(
-        std::unique_ptr<ClientCallbackProvider> client_callback_provider, std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
-        std::unique_ptr<CredentialProvider> credentials_provider = (std::unique_ptr<CredentialProvider>) new EmptyCredentialProvider(),
-        const std::string& region = DEFAULT_AWS_REGION, const std::string& control_plane_uri = EMPTY_STRING,
-        const std::string& user_agent_name = EMPTY_STRING, const std::string& custom_user_agent = EMPTY_STRING,
-        const std::string& cert_path = EMPTY_STRING, bool is_caching_endpoint = false,
-        std::chrono::duration<uint64_t> caching_update_period = std::chrono::seconds(DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD /
-                                                                                     HUNDREDS_OF_NANOS_IN_A_SECOND));
+            std::unique_ptr <ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr <CredentialProvider> credentials_provider = (std::unique_ptr<CredentialProvider>) new EmptyCredentialProvider(),
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = EMPTY_STRING,
+            const std::string &user_agent_name = EMPTY_STRING,
+            const std::string &custom_user_agent = EMPTY_STRING,
+            const std::string &cert_path = EMPTY_STRING,
+            bool is_caching_endpoint = false,
+            std::chrono::duration<uint64_t> caching_update_period = std::chrono::seconds(DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD / HUNDREDS_OF_NANOS_IN_A_SECOND));
 
     explicit DefaultCallbackProvider(
-        std::unique_ptr<ClientCallbackProvider> client_callback_provider, std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
-        std::unique_ptr<CredentialProvider> credentials_provider = (std::unique_ptr<CredentialProvider>) new EmptyCredentialProvider(),
-        const std::string& region = DEFAULT_AWS_REGION, const std::string& control_plane_uri = EMPTY_STRING,
-        const std::string& user_agent_name = EMPTY_STRING, const std::string& custom_user_agent = EMPTY_STRING,
-        const std::string& cert_path = EMPTY_STRING, API_CALL_CACHE_TYPE api_call_caching = API_CALL_CACHE_TYPE_ALL,
-        std::chrono::duration<uint64_t> caching_update_period = std::chrono::seconds(DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD /
-                                                                                     HUNDREDS_OF_NANOS_IN_A_SECOND));
+            std::unique_ptr <ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr <CredentialProvider> credentials_provider = (std::unique_ptr<CredentialProvider>) new EmptyCredentialProvider(),
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = EMPTY_STRING,
+            const std::string &user_agent_name = EMPTY_STRING,
+            const std::string &custom_user_agent = EMPTY_STRING,
+            const std::string &cert_path = EMPTY_STRING,
+            API_CALL_CACHE_TYPE api_call_caching = API_CALL_CACHE_TYPE_ALL,
+            std::chrono::duration<uint64_t> caching_update_period = std::chrono::seconds(DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD / HUNDREDS_OF_NANOS_IN_A_SECOND));
 
-    explicit DefaultCallbackProvider(std::unique_ptr<ClientCallbackProvider> client_callback_provider,
-                                     std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
-                                     std::unique_ptr<CredentialProvider> credentials_provider, const std::string& region,
-                                     const std::string& control_plane_uri, const std::string& user_agent_name, const std::string& custom_user_agent,
-                                     const std::string& cert_path, API_CALL_CACHE_TYPE api_call_caching, uint64_t caching_update_period);
+    explicit DefaultCallbackProvider(
+            std::unique_ptr <ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr <StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr <CredentialProvider> credentials_provider,
+            const std::string &region,
+            const std::string &control_plane_uri,
+            const std::string &user_agent_name,
+            const std::string &custom_user_agent,
+            const std::string &cert_path,
+            API_CALL_CACHE_TYPE api_call_caching,
+            uint64_t caching_update_period);
 
     virtual ~DefaultCallbackProvider();
 
@@ -240,7 +254,9 @@ class DefaultCallbackProvider : public CallbackProvider {
      *
      * @return Status of the callback
      */
-    static STATUS streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 buffer_duration);
+    static STATUS streamLatencyPressureHandler(UINT64 custom_data,
+                                               STREAM_HANDLE stream_handle,
+                                               UINT64 buffer_duration);
 
     /**
      * Reports a dropped frame for the stream.
@@ -251,7 +267,9 @@ class DefaultCallbackProvider : public CallbackProvider {
      *
      * @return Status of the callback
      */
-    static STATUS droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 timecode);
+    static STATUS droppedFrameReportHandler(UINT64 custom_data,
+                                            STREAM_HANDLE stream_handle,
+                                            UINT64 timecode);
 
     /**
      * Reports temporal buffer pressure.
@@ -262,7 +280,9 @@ class DefaultCallbackProvider : public CallbackProvider {
      *
      * @return Status of the callback
      */
-    static STATUS bufferDurationOverflowPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 remaining_duration);
+    static STATUS bufferDurationOverflowPressureHandler(UINT64 custom_data,
+                                                        STREAM_HANDLE stream_handle,
+                                                        UINT64 remaining_duration);
 
     /**
      * Reports a dropped fragment for the stream.
@@ -273,7 +293,9 @@ class DefaultCallbackProvider : public CallbackProvider {
      *
      * @return Status of the callback
      */
-    static STATUS droppedFragmentReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 timecode);
+    static STATUS droppedFragmentReportHandler(UINT64 custom_data,
+                                               STREAM_HANDLE stream_handle,
+                                               UINT64 timecode);
 
     /**
      * Reports stream staleness as the last buffering ack is greater than
@@ -285,7 +307,9 @@ class DefaultCallbackProvider : public CallbackProvider {
      *
      * @return Status of the callback
      */
-    static STATUS streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 last_ack_duration);
+    static STATUS streamConnectionStaleHandler(UINT64 custom_data,
+                                               STREAM_HANDLE stream_handle,
+                                               UINT64 last_ack_duration);
 
     /**
      * Reports a ready state for the stream.
@@ -306,8 +330,11 @@ class DefaultCallbackProvider : public CallbackProvider {
      * @param 4 PFragmentAck - The constructed fragment ack.
      *
      * @return Status of the callback
-     */
-    static STATUS fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, PFragmentAck fragment_ack);
+    */
+    static STATUS fragmentAckReceivedHandler(UINT64 custom_data,
+                                             STREAM_HANDLE stream_handle,
+                                             UPLOAD_HANDLE upload_handle,
+                                             PFragmentAck fragment_ack);
 
     /**
      * Creates/updates the device in the cloud. Currently, no-op.
@@ -318,7 +345,8 @@ class DefaultCallbackProvider : public CallbackProvider {
      * @param service_call_ctx service call context passed from Kinesis Video PIC
      * @return Status of the callback
      */
-    static STATUS createDeviceHandler(UINT64 custom_data, PCHAR device_name, PServiceCallContext service_call_ctx);
+    static STATUS
+    createDeviceHandler(UINT64 custom_data, PCHAR device_name, PServiceCallContext service_call_ctx);
 
     /**
      * Handles stream fragment errors.
@@ -330,8 +358,8 @@ class DefaultCallbackProvider : public CallbackProvider {
      * @param STATUS status code of the failure
      * @return Status of the callback
      */
-    static STATUS streamErrorHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 fragment_timecode,
-                                     STATUS status);
+    static STATUS
+    streamErrorHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 fragment_timecode, STATUS status);
 
     /**
      * Gets triggered when data becomes available
@@ -344,8 +372,12 @@ class DefaultCallbackProvider : public CallbackProvider {
      * @param size_available_in_bytes
      * @return
      */
-    static STATUS streamDataAvailableHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, PCHAR stream_name, UPLOAD_HANDLE stream_upload_handle,
-                                             UINT64 duration_available, UINT64 size_available);
+    static STATUS streamDataAvailableHandler(UINT64 custom_data,
+                                             STREAM_HANDLE stream_handle,
+                                             PCHAR stream_name,
+                                             UPLOAD_HANDLE stream_upload_handle,
+                                             UINT64 duration_available,
+                                             UINT64 size_available);
 
     /**
      * Gets triggered the closing of the stream
@@ -355,7 +387,9 @@ class DefaultCallbackProvider : public CallbackProvider {
      * @param stream_upload_handle opaque handle to the current stream upload from the client.
      * @return
      */
-    static STATUS streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE stream_upload_handle);
+    static STATUS streamClosedHandler(UINT64 custom_data,
+                                      STREAM_HANDLE stream_handle,
+                                      UPLOAD_HANDLE stream_upload_handle);
 
     /**
      * Use log4cplus to print the logs
@@ -366,7 +400,7 @@ class DefaultCallbackProvider : public CallbackProvider {
      */
     static VOID logPrintHandler(UINT32 level, PCHAR tag, PCHAR fmt, ...);
 
-  protected:
+protected:
     StreamCallbacks getStreamCallbacks();
     ProducerCallbacks getProducerCallbacks();
     PlatformCallbacks getPlatformCallbacks();
@@ -394,17 +428,17 @@ class DefaultCallbackProvider : public CallbackProvider {
     /**
      * Stores the credentials provider
      */
-    std::unique_ptr<CredentialProvider> credentials_provider_;
+    std::unique_ptr <CredentialProvider> credentials_provider_;
 
     /**
      * Stores the client level callbacks
      */
-    std::unique_ptr<ClientCallbackProvider> client_callback_provider_;
+    std::unique_ptr <ClientCallbackProvider> client_callback_provider_;
 
     /**
      * Stores the stream level API
      */
-    std::unique_ptr<StreamCallbackProvider> stream_callback_provider_;
+    std::unique_ptr <StreamCallbackProvider> stream_callback_provider_;
 
     /**
      * Stores all callbacks from PIC

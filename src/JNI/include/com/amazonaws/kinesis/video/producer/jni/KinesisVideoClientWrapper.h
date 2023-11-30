@@ -6,54 +6,55 @@
 
 #pragma once
 
-#define HAVE_PTHREADS 1 // Makes threads.h use pthreads
+#define HAVE_PTHREADS 1           // Makes threads.h use pthreads
 
 #include "SyncMutex.h"
 #include "TimedSemaphore.h"
 #include "JNICommon.h"
 #include "Parameters.h"
 
-#define TO_WRAPPER_HANDLE(p)   ((jlong) (p))
-#define FROM_WRAPPER_HANDLE(h) ((KinesisVideoClientWrapper*) (h))
+#define TO_WRAPPER_HANDLE(p)                    ((jlong) (p))
+#define FROM_WRAPPER_HANDLE(h)                  ((KinesisVideoClientWrapper*) (h))
 
 #define JNI_VER JNI_VERSION_1_6
 
-#define CHK_JVM_EXCEPTION(env)                                                                                                                       \
-    do {                                                                                                                                             \
-        /* If there was an exception we need */                                                                                                      \
-        if (env->ExceptionCheck() == JNI_TRUE) {                                                                                                     \
-            /* Print out the message to the stderr */                                                                                                \
-            env->ExceptionDescribe();                                                                                                                \
-            /* Clear the exception */                                                                                                                \
-            env->ExceptionClear();                                                                                                                   \
-            /* Terminate the process as we didn't expect any exceptions */                                                                           \
-            DLOGE("JVM threw an unexpected exception.");                                                                                             \
-            retStatus = STATUS_INVALID_OPERATION;                                                                                                    \
-            goto CleanUp;                                                                                                                            \
-        }                                                                                                                                            \
+#define CHK_JVM_EXCEPTION(env) \
+    do { \
+        /* If there was an exception we need */ \
+        if (env->ExceptionCheck() == JNI_TRUE) { \
+            /* Print out the message to the stderr */ \
+            env->ExceptionDescribe(); \
+            /* Clear the exception */ \
+            env->ExceptionClear(); \
+            /* Terminate the process as we didn't expect any exceptions */ \
+            DLOGE("JVM threw an unexpected exception."); \
+            retStatus = STATUS_INVALID_OPERATION; \
+            goto CleanUp; \
+        } \
     } while (FALSE)
 
 #ifdef ANDROID_BUILD
-#define ATTACH_CURRENT_THREAD_TO_JVM(env)                                                                                                            \
-    do {                                                                                                                                             \
-        if (pWrapper->mJvm->AttachCurrentThread(&env, NULL) != 0) {                                                                                  \
-            DLOGE("Fail to attache to JVM!");                                                                                                        \
-            return STATUS_INVALID_OPERATION;                                                                                                         \
-        }                                                                                                                                            \
+#define ATTACH_CURRENT_THREAD_TO_JVM(env) \
+    do { \
+        if (pWrapper->mJvm->AttachCurrentThread(&env, NULL) != 0) { \
+            DLOGE("Fail to attache to JVM!");\
+            return STATUS_INVALID_OPERATION; \
+        } \
     } while (FALSE)
 #else
-#define ATTACH_CURRENT_THREAD_TO_JVM(env)                                                                                                            \
-    do {                                                                                                                                             \
-        if (pWrapper->mJvm->AttachCurrentThread((PVOID*) &env, NULL) != 0) {                                                                         \
-            DLOGE("Fail to attache to JVM!");                                                                                                        \
-            return STATUS_INVALID_OPERATION;                                                                                                         \
-        }                                                                                                                                            \
+#define ATTACH_CURRENT_THREAD_TO_JVM(env) \
+    do { \
+        if (pWrapper->mJvm->AttachCurrentThread((PVOID*) &env, NULL) != 0) { \
+            DLOGE("Fail to attache to JVM!");\
+            return STATUS_INVALID_OPERATION; \
+        } \
     } while (FALSE)
 #endif
 
-class KinesisVideoClientWrapper {
+class KinesisVideoClientWrapper
+{
     CLIENT_HANDLE mClientHandle;
-    static JavaVM* mJvm;             // scope revised to static to make it accessible from static function- logPrintFunc
+    static JavaVM *mJvm; // scope revised to static to make it accessible from static function- logPrintFunc 
     static jobject mGlobalJniObjRef; // scope revised to static to make it accessible from static function- logPrintFunc
     ClientCallbacks mClientCallbacks;
     DeviceInfo mDeviceInfo;
@@ -123,23 +124,55 @@ class KinesisVideoClientWrapper {
     static STATUS broadcastConditionVariableFunc(UINT64, CVAR);
     static STATUS waitConditionVariableFunc(UINT64, CVAR, MUTEX, UINT64);
     static VOID freeConditionVariableFunc(UINT64, CVAR);
-    static STATUS createStreamFunc(UINT64, PCHAR, PCHAR, PCHAR, PCHAR, UINT64, PServiceCallContext);
-    static STATUS describeStreamFunc(UINT64, PCHAR, PServiceCallContext);
-    static STATUS getStreamingEndpointFunc(UINT64, PCHAR, PCHAR, PServiceCallContext);
-    static STATUS getStreamingTokenFunc(UINT64, PCHAR, STREAM_ACCESS_MODE, PServiceCallContext);
-    static STATUS putStreamFunc(UINT64, PCHAR, PCHAR, UINT64, BOOL, BOOL, PCHAR, PServiceCallContext);
+    static STATUS createStreamFunc(UINT64,
+                                   PCHAR,
+                                   PCHAR,
+                                   PCHAR,
+                                   PCHAR,
+                                   UINT64,
+                                   PServiceCallContext);
+    static STATUS describeStreamFunc(UINT64,
+                                     PCHAR,
+                                     PServiceCallContext);
+    static STATUS getStreamingEndpointFunc(UINT64,
+                                           PCHAR,
+                                           PCHAR,
+                                           PServiceCallContext);
+    static STATUS getStreamingTokenFunc(UINT64,
+                                        PCHAR,
+                                        STREAM_ACCESS_MODE,
+                                        PServiceCallContext);
+    static STATUS putStreamFunc(UINT64,
+                                PCHAR,
+                                PCHAR,
+                                UINT64,
+                                BOOL,
+                                BOOL,
+                                PCHAR,
+                                PServiceCallContext);
 
-    static STATUS tagResourceFunc(UINT64, PCHAR, UINT32, PTag, PServiceCallContext);
+    static STATUS tagResourceFunc(UINT64,
+                                  PCHAR,
+                                  UINT32,
+                                  PTag,
+                                  PServiceCallContext);
 
-    static STATUS clientReadyFunc(UINT64, CLIENT_HANDLE);
+    static STATUS clientReadyFunc(UINT64,
+                                  CLIENT_HANDLE);
 
-    static STATUS createDeviceFunc(UINT64, PCHAR, PServiceCallContext);
+    static STATUS createDeviceFunc(UINT64,
+                                   PCHAR,
+                                   PServiceCallContext);
 
-    static STATUS deviceCertToTokenFunc(UINT64, PCHAR, PServiceCallContext);
+    static STATUS deviceCertToTokenFunc(UINT64,
+                                        PCHAR,
+                                        PServiceCallContext);
     static VOID logPrintFunc(UINT32, PCHAR, PCHAR, ...);
 
-  public:
-    KinesisVideoClientWrapper(JNIEnv* env, jobject thiz, jobject deviceInfo);
+public:
+    KinesisVideoClientWrapper(JNIEnv* env,
+                        jobject thiz,
+                        jobject deviceInfo);
 
     ~KinesisVideoClientWrapper();
     SyncMutex& getSyncLock();
@@ -166,8 +199,7 @@ class KinesisVideoClientWrapper {
     void deviceCertToTokenResult(jlong clientHandle, jint httpStatusCode, jbyteArray token, jint tokenSize, jlong expiration);
     void kinesisVideoStreamFragmentAck(jlong streamHandle, jlong uploadHandle, jobject fragmentAck);
     void kinesisVideoStreamParseFragmentAck(jlong streamHandle, jlong uploadHandle, jstring ack);
-
-  private:
+private:
     BOOL setCallbacks(JNIEnv* env, jobject thiz);
 };
 

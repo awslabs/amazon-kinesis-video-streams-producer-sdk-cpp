@@ -3,16 +3,13 @@
 #include "com/amazonaws/kinesis/video/client/Include.h"
 #include <string>
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /**
- * Interface for the client implementation which will provide the Kinesis Video DeviceInfo struct.
- */
+* Interface for the client implementation which will provide the Kinesis Video DeviceInfo struct.
+*/
 class DeviceInfoProvider {
-  public:
+public:
     using device_info_t = DeviceInfo;
 
     /**
@@ -33,22 +30,19 @@ class DeviceInfoProvider {
      * Return user's custom user agent string which will be appended to the default user agent string
      *
      */
-    virtual const std::string getCustomUserAgent()
-    {
+    virtual const std::string getCustomUserAgent() {
         return "";
     }
 
-    virtual const std::string getCertPath()
-    {
+    virtual const std::string getCertPath() {
         return "";
     }
 
-    virtual ~DeviceInfoProvider()
-    {
-    }
+    virtual ~DeviceInfoProvider() {}
 };
 
 } // namespace video
 } // namespace kinesis
 } // namespace amazonaws
 } // namespace com
+

@@ -23,10 +23,7 @@
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /**
  * Client ready timeout duration.
@@ -43,56 +40,64 @@ namespace video {
  * We will add extra 10 milliseconds to account for thread scheduling to ensure the callback is complete.
  */
 #define CLIENT_STREAM_CLOSED_CALLBACK_AWAIT_TIME_MILLIS (10 + TIMEOUT_AFTER_STREAM_STOPPED + TIMEOUT_WAIT_FOR_CURL_BUFFER)
-#define CONTROL_PLANE_URI_ENV_VAR                       ((PCHAR) "CONTROL_PLANE_URI")
+#define CONTROL_PLANE_URI_ENV_VAR ((PCHAR) "CONTROL_PLANE_URI")
 /**
- * Kinesis Video client interface for real time streaming. The structure of this class is that each instance of type <T,U>
- * is a singleton where T is the implementation of the DeviceInfoProvider interface and U is the implementation of the
- * CallbackProvider interface. The reason for using the singleton is that Kinesis Video client has logic that benefits
- * throughput and network congestion avoidance by sharing state across multiple streams. We balance this benefit with
- * flexibility in the implementation of the application logic that provide the device information and Kinesis Video
- * user-implemented application callbacks. The division by type allows for easy migrations to new callback
- * implementations, such as different network thread implementations or different handling of latency pressure by the
- * application without perturbing the existing system.
- *
- * Example Usage:
- * @code:
- * auto client(KinesisVideoClient<DeviceInfoProviderImpl, CallbackProviderImpl>::getInstance());
- * @endcode
- *
- */
+* Kinesis Video client interface for real time streaming. The structure of this class is that each instance of type <T,U>
+* is a singleton where T is the implementation of the DeviceInfoProvider interface and U is the implementation of the
+* CallbackProvider interface. The reason for using the singleton is that Kinesis Video client has logic that benefits
+* throughput and network congestion avoidance by sharing state across multiple streams. We balance this benefit with
+* flexibility in the implementation of the application logic that provide the device information and Kinesis Video
+* user-implemented application callbacks. The division by type allows for easy migrations to new callback
+* implementations, such as different network thread implementations or different handling of latency pressure by the
+* application without perturbing the existing system.
+*
+* Example Usage:
+* @code:
+* auto client(KinesisVideoClient<DeviceInfoProviderImpl, CallbackProviderImpl>::getInstance());
+* @endcode
+*
+*/
 class KinesisVideoStream;
 class KinesisVideoProducer {
-  public:
-    static std::unique_ptr<KinesisVideoProducer> create(std::unique_ptr<DeviceInfoProvider> device_info_provider,
-                                                        std::unique_ptr<ClientCallbackProvider> client_callback_provider,
-                                                        std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
-                                                        std::unique_ptr<CredentialProvider> credential_provider,
-                                                        const std::string& region = DEFAULT_AWS_REGION, const std::string& control_plane_uri = "",
-                                                        const std::string& user_agent_name = DEFAULT_USER_AGENT_NAME);
+public:
+    static std::unique_ptr<KinesisVideoProducer> create(
+            std::unique_ptr<DeviceInfoProvider> device_info_provider,
+            std::unique_ptr<ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr<CredentialProvider> credential_provider,
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME);
 
-    static std::unique_ptr<KinesisVideoProducer> create(std::unique_ptr<DeviceInfoProvider> device_info_provider,
-                                                        std::unique_ptr<CallbackProvider> callback_provider);
+    static std::unique_ptr<KinesisVideoProducer> create(
+            std::unique_ptr<DeviceInfoProvider> device_info_provider,
+            std::unique_ptr<CallbackProvider> callback_provider);
 
-    static std::unique_ptr<KinesisVideoProducer> createSync(std::unique_ptr<DeviceInfoProvider> device_info_provider,
-                                                            std::unique_ptr<ClientCallbackProvider> client_callback_provider,
-                                                            std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
-                                                            std::unique_ptr<CredentialProvider> credential_provider,
-                                                            const std::string& region = DEFAULT_AWS_REGION, const std::string& control_plane_uri = "",
-                                                            const std::string& user_agent_name = DEFAULT_USER_AGENT_NAME,
-                                                            bool is_caching_endpoint = false,
-                                                            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
+    static std::unique_ptr<KinesisVideoProducer> createSync(
+            std::unique_ptr<DeviceInfoProvider> device_info_provider,
+            std::unique_ptr<ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr<CredentialProvider> credential_provider,
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
+            bool is_caching_endpoint = false,
+            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
 
-    static std::unique_ptr<KinesisVideoProducer> createSync(std::unique_ptr<DeviceInfoProvider> device_info_provider,
-                                                            std::unique_ptr<ClientCallbackProvider> client_callback_provider,
-                                                            std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
-                                                            std::unique_ptr<CredentialProvider> credential_provider,
-                                                            API_CALL_CACHE_TYPE api_call_caching = API_CALL_CACHE_TYPE_ALL,
-                                                            const std::string& region = DEFAULT_AWS_REGION, const std::string& control_plane_uri = "",
-                                                            const std::string& user_agent_name = DEFAULT_USER_AGENT_NAME,
-                                                            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
+    static std::unique_ptr<KinesisVideoProducer> createSync(
+            std::unique_ptr<DeviceInfoProvider> device_info_provider,
+            std::unique_ptr<ClientCallbackProvider> client_callback_provider,
+            std::unique_ptr<StreamCallbackProvider> stream_callback_provider,
+            std::unique_ptr<CredentialProvider> credential_provider,
+            API_CALL_CACHE_TYPE api_call_caching = API_CALL_CACHE_TYPE_ALL,
+            const std::string &region = DEFAULT_AWS_REGION,
+            const std::string &control_plane_uri = "",
+            const std::string &user_agent_name = DEFAULT_USER_AGENT_NAME,
+            uint64_t caching_update_period = DEFAULT_ENDPOINT_CACHE_UPDATE_PERIOD);
 
-    static std::unique_ptr<KinesisVideoProducer> createSync(std::unique_ptr<DeviceInfoProvider> device_info_provider,
-                                                            std::unique_ptr<CallbackProvider> callback_provider);
+    static std::unique_ptr<KinesisVideoProducer> createSync(
+            std::unique_ptr<DeviceInfoProvider> device_info_provider,
+            std::unique_ptr<CallbackProvider> callback_provider);
 
     virtual ~KinesisVideoProducer();
 
@@ -139,17 +144,16 @@ class KinesisVideoProducer {
     /**
      * Returns the raw client handle
      */
-    CLIENT_HANDLE getClientHandle() const
-    {
+    CLIENT_HANDLE getClientHandle() const {
         return client_handle_;
     }
 
-  protected:
+protected:
+
     /**
      * Frees the resources in the underlying Kinesis Video client.
      */
-    void freeKinesisVideoClient()
-    {
+    void freeKinesisVideoClient() {
         if (nullptr != callback_provider_) {
             callback_provider_->shutdown();
         }
@@ -160,8 +164,7 @@ class KinesisVideoProducer {
     /**
      * Initializes an empty class. The real initialization happens through the static functions.
      */
-    KinesisVideoProducer() : client_handle_(INVALID_CLIENT_HANDLE_VALUE)
-    {
+    KinesisVideoProducer() : client_handle_(INVALID_CLIENT_HANDLE_VALUE) {
     }
 
     /**

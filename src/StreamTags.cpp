@@ -2,32 +2,26 @@
 
 #include "StreamTags.h"
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 using std::get;
-using std::map;
 using std::string;
+using std::map;
 
-StreamTags::StreamTags(const map<string, string>* tags) : tags_(tags)
-{
-}
+StreamTags::StreamTags(const map<string, string>* tags) : tags_(tags) {}
 
-PTag StreamTags::asPTag() const
-{
+PTag StreamTags::asPTag() const {
     if (nullptr == tags_) {
         return nullptr;
     }
 
     PTag tags = reinterpret_cast<PTag>(malloc(sizeof(Tag) * tags_->size()));
     size_t i = 0;
-    for (const auto& pair : *tags_) {
-        Tag& tag = tags[i];
+    for (const auto &pair : *tags_) {
+        Tag &tag = tags[i];
         tag.version = TAG_CURRENT_VERSION;
-        auto& name = get<0>(pair);
-        auto& val = get<1>(pair);
+        auto &name = get<0>(pair);
+        auto &val = get<1>(pair);
         assert(MAX_TAG_NAME_LEN >= name.size());
         assert(MAX_TAG_VALUE_LEN >= val.size());
 
@@ -41,8 +35,7 @@ PTag StreamTags::asPTag() const
     return tags;
 }
 
-size_t StreamTags::count() const
-{
+size_t StreamTags::count() const {
     if (nullptr != tags_) {
         return tags_->size();
     } else {

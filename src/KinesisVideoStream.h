@@ -11,10 +11,7 @@
 #include "KinesisVideoStreamMetrics.h"
 #include "StreamDefinition.h"
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /**
  * Stream stop timeout duration.
@@ -25,36 +22,35 @@ namespace video {
 #define DEBUG_DUMP_FRAME_INFO "DEBUG_DUMP_FRAME_INFO"
 
 /**
- * This definition comes from the Kinesis Video PIC, the typedef is to allow differentiation in case of other "Frame" definitions.
- */
+* This definition comes from the Kinesis Video PIC, the typedef is to allow differentiation in case of other "Frame" definitions.
+*/
 using KinesisVideoFrame = ::Frame;
 
 /**
- * KinesisVideoStream is responsible for streaming any type of data into KinesisVideo service
- *
- * Example Usage:
- * @code:
- * auto client(KinesisVideoClient<DeviceInfoProviderImpl, CallbackProviderImpl>::getInstance());
- * auto stream(client.createStream(StreamInfo(...));
- * stream.start()
- *
- * // Assumes you have a keepStreaming() and getFrameFromSrc() methods that do what their name sounds like they do.
- * while(keepStreaming()) {
- *   stream.putFrame(getFrameFromSrc());
- * }
- * stream.stop();
- * @endcode
- */
+* KinesisVideoStream is responsible for streaming any type of data into KinesisVideo service
+*
+* Example Usage:
+* @code:
+* auto client(KinesisVideoClient<DeviceInfoProviderImpl, CallbackProviderImpl>::getInstance());
+* auto stream(client.createStream(StreamInfo(...));
+* stream.start()
+*
+* // Assumes you have a keepStreaming() and getFrameFromSrc() methods that do what their name sounds like they do.
+* while(keepStreaming()) {
+*   stream.putFrame(getFrameFromSrc());
+* }
+* stream.stop();
+* @endcode
+*/
 class KinesisVideoProducer;
 class KinesisVideoStream {
     friend KinesisVideoProducer;
+public:
 
-  public:
     /**
      * @return A pointer to the Kinesis Video STREAM_HANDLE for this instance.
      */
-    PSTREAM_HANDLE getStreamHandle()
-    {
+    PSTREAM_HANDLE getStreamHandle() {
         return &stream_handle_;
     }
 
@@ -132,32 +128,29 @@ class KinesisVideoStream {
      */
     bool stopSync();
 
-    bool operator==(const KinesisVideoStream& rhs) const
-    {
-        return stream_handle_ == rhs.stream_handle_ && stream_name_ == rhs.stream_name_;
+    bool operator==(const KinesisVideoStream &rhs) const {
+        return stream_handle_ == rhs.stream_handle_ &&
+               stream_name_ == rhs.stream_name_;
     }
 
-    bool operator!=(const KinesisVideoStream& rhs) const
-    {
+    bool operator!=(const KinesisVideoStream &rhs) const {
         return !(rhs == *this);
     }
 
-    KinesisVideoStream(const KinesisVideoStream& rhs)
-        : stream_handle_(rhs.stream_handle_), kinesis_video_producer_(rhs.kinesis_video_producer_), stream_name_(rhs.stream_name_)
-    {
-    }
+    KinesisVideoStream(const KinesisVideoStream &rhs)
+            : stream_handle_(rhs.stream_handle_),
+              kinesis_video_producer_(rhs.kinesis_video_producer_),
+              stream_name_(rhs.stream_name_) {}
 
-    std::string getStreamName()
-    {
+    std::string getStreamName() {
         return stream_name_;
     }
 
-    const KinesisVideoProducer& getProducer() const
-    {
+    const KinesisVideoProducer& getProducer() const {
         return kinesis_video_producer_;
     }
 
-  protected:
+protected:
     /**
      * Non-public constructor as streams should be only created by the producer client
      */
@@ -171,8 +164,7 @@ class KinesisVideoStream {
     /**
      * Static function to call destructor needed for the shared_ptr in the producer client object
      */
-    static void videoStreamDeleter(KinesisVideoStream* kinesis_video_stream)
-    {
+    static void videoStreamDeleter(KinesisVideoStream* kinesis_video_stream) {
         delete kinesis_video_stream;
     }
 

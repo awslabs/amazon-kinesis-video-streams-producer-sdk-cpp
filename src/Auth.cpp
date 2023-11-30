@@ -3,57 +3,52 @@
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 using std::mutex;
 
-CredentialProvider::CredentialProvider() : next_rotation_time_(0), security_token_(NULL)
-{
+CredentialProvider::CredentialProvider()
+    :   next_rotation_time_(0),
+        security_token_(NULL) {
     MEMSET(&callbacks_, 0, SIZEOF(callbacks_));
 }
 
-void CredentialProvider::getCredentials(Credentials& credentials)
-{
+void CredentialProvider::getCredentials(Credentials& credentials) {
+
     // synchronize credential access since multiple clients may call simultaneously
     std::lock_guard<mutex> guard(credential_mutex_);
     refreshCredentials();
     credentials = credentials_;
 }
 
-void CredentialProvider::getUpdatedCredentials(Credentials& credentials)
-{
+void CredentialProvider::getUpdatedCredentials(Credentials& credentials) {
+
     // synchronize credential access since multiple clients may call simultaneously
     std::lock_guard<mutex> guard(credential_mutex_);
     refreshCredentials(true);
     credentials = credentials_;
 }
 
-void CredentialProvider::refreshCredentials(bool forceUpdate)
-{
+void CredentialProvider::refreshCredentials(bool forceUpdate) {
     auto now_time = systemCurrentTime().time_since_epoch();
     // update if we've exceeded the refresh interval with grace period
     if (forceUpdate || now_time + CredentialProviderGracePeriod > next_rotation_time_) {
-        LOG_DEBUG("Refreshing credentials. Force refreshing: " << forceUpdate << " Now time is: " << now_time.count()
-                                                               << " Expiration: " << next_rotation_time_.count());
+        LOG_DEBUG("Refreshing credentials. Force refreshing: " << forceUpdate
+                         << " Now time is: " << now_time.count()
+                         << " Expiration: " << next_rotation_time_.count());
         updateCredentials(credentials_);
         next_rotation_time_ = credentials_.getExpiration();
     }
 }
 
-void CredentialProvider::updateCredentials(Credentials& credentials)
-{
+void CredentialProvider::updateCredentials(Credentials &credentials) {
     // no-op
 }
-CredentialProvider::~CredentialProvider()
-{
+CredentialProvider::~CredentialProvider() {
     freeAwsCredentials(&security_token_);
 }
 
-CredentialProvider::callback_t CredentialProvider::getCallbacks(PClientCallbacks clientCallbacks)
-{
+CredentialProvider::callback_t CredentialProvider::getCallbacks(PClientCallbacks clientCallbacks) {
     UNUSED_PARAM(clientCallbacks);
 
     MEMSET(&callbacks_, 0, SIZEOF(callbacks_));
@@ -70,37 +65,30 @@ CredentialProvider::callback_t CredentialProvider::getCallbacks(PClientCallbacks
     return callbacks_;
 }
 
-GetDeviceCertificateFunc CredentialProvider::getDeviceCertificateCallback()
-{
+GetDeviceCertificateFunc CredentialProvider::getDeviceCertificateCallback() {
     // we are using a security token, so this callback should be null.
     return nullptr;
 }
 
-GetDeviceFingerprintFunc CredentialProvider::getDeviceFingerPrintCallback()
-{
+GetDeviceFingerprintFunc CredentialProvider::getDeviceFingerPrintCallback() {
     // we are using a security token, so this callback should be null.
     return nullptr;
 }
 
-GetSecurityTokenFunc CredentialProvider::getSecurityTokenCallback()
-{
+GetSecurityTokenFunc CredentialProvider::getSecurityTokenCallback() {
     return getSecurityTokenHandler;
 }
 
-GetStreamingTokenFunc CredentialProvider::getStreamingTokenCallback()
-{
+GetStreamingTokenFunc CredentialProvider::getStreamingTokenCallback() {
     return getStreamingTokenHandler;
 }
 
-DeviceCertToTokenFunc CredentialProvider::deviceCertToTokenCallback()
-{
+DeviceCertToTokenFunc CredentialProvider::deviceCertToTokenCallback() {
     // We are using a security token, so this callback should be null.
     return nullptr;
 }
 
-STATUS CredentialProvider::getStreamingTokenHandler(UINT64 custom_data, PCHAR stream_name, STREAM_ACCESS_MODE access_mode,
-                                                    PServiceCallContext p_service_call_context)
-{
+STATUS CredentialProvider::getStreamingTokenHandler(UINT64 custom_data, PCHAR stream_name, STREAM_ACCESS_MODE access_mode, PServiceCallContext p_service_call_context) {
     LOG_DEBUG("getStreamingTokenHandler invoked");
     STATUS status = STATUS_SUCCESS;
     UNUSED_PARAM(stream_name);
@@ -124,18 +112,22 @@ STATUS CredentialProvider::getStreamingTokenHandler(UINT64 custom_data, PCHAR st
     freeAwsCredentials(&this_obj->security_token_);
 
     // Store the buffer so we can release it at the end
-    if (IS_EMPTY_STRING(session_token.c_str())) {
-        status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len, nullptr, 0, expiration,
-                                      &this_obj->security_token_);
+    if(IS_EMPTY_STRING(session_token.c_str())) {
+        status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
+                             nullptr, 0, expiration, &this_obj->security_token_);
 
     } else {
         status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
-                                      (PCHAR) session_token.c_str(), session_token_len, expiration, &this_obj->security_token_);
+                             (PCHAR) session_token.c_str(), session_token_len, expiration, &this_obj->security_token_);
+
     }
 
-    if (STATUS_SUCCEEDED(status)) {
-        status = getStreamingTokenResultEvent(p_service_call_context->customData, SERVICE_CALL_RESULT_OK,
-                                              reinterpret_cast<PBYTE>(this_obj->security_token_), this_obj->security_token_->size, expiration);
+    if(STATUS_SUCCEEDED(status)) {
+        status = getStreamingTokenResultEvent(
+                p_service_call_context->customData, SERVICE_CALL_RESULT_OK,
+                reinterpret_cast<PBYTE>(this_obj->security_token_),
+                this_obj->security_token_->size,
+                expiration);
     } else {
         LOG_ERROR("getStreamingTokenHandler failed with code " << std::hex << status);
     }
@@ -143,14 +135,14 @@ STATUS CredentialProvider::getStreamingTokenHandler(UINT64 custom_data, PCHAR st
     return status;
 }
 
-STATUS CredentialProvider::getSecurityTokenHandler(UINT64 custom_data, PBYTE* pp_token, PUINT32 p_size, PUINT64 p_expiration)
-{
+STATUS CredentialProvider::getSecurityTokenHandler(UINT64 custom_data, PBYTE* pp_token, PUINT32 p_size, PUINT64 p_expiration) {
     LOG_DEBUG("getSecurityTokenHandler invoked");
 
     auto this_obj = reinterpret_cast<CredentialProvider*>(custom_data);
     STATUS status = STATUS_SUCCESS;
     Credentials credentials;
     this_obj->getCredentials(credentials);
+
 
     auto access_key = credentials.getAccessKey();
     auto access_key_len = access_key.length();
@@ -166,18 +158,19 @@ STATUS CredentialProvider::getSecurityTokenHandler(UINT64 custom_data, PBYTE* pp
     *p_expiration = credentials.getExpiration().count() * HUNDREDS_OF_NANOS_IN_A_SECOND;
 
     // Store the buffer so we can release it at the end
-    if (IS_EMPTY_STRING(session_token.c_str())) {
+    if(IS_EMPTY_STRING(session_token.c_str())) {
         // Store the buffer so we can release it at the end
-        status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len, nullptr, 0,
-                                      *p_expiration, &this_obj->security_token_);
+        status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
+                             nullptr, 0, *p_expiration, &this_obj->security_token_);
 
     } else {
         // Store the buffer so we can release it at the end
         status = createAwsCredentials((PCHAR) access_key.c_str(), access_key_len, (PCHAR) secret_key.c_str(), secret_key_len,
-                                      (PCHAR) session_token.c_str(), session_token_len, *p_expiration, &this_obj->security_token_);
+                             (PCHAR) session_token.c_str(), session_token_len, *p_expiration, &this_obj->security_token_);
+
     }
 
-    if (STATUS_SUCCEEDED(status)) {
+    if(STATUS_SUCCEEDED(status)) {
         *pp_token = (PBYTE) (this_obj->security_token_);
         *p_size = this_obj->security_token_->size;
     } else {

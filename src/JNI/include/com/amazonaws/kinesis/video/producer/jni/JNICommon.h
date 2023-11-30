@@ -5,14 +5,15 @@
 #ifndef __JNICOMMON_H__
 #define __JNICOMMON_H__
 
-#include <jni.h> // Basic native API
+#include <jni.h>                  // Basic native API
 #include <string.h>
 
 #define EXCEPTION_NAME "com/amazonaws/kinesisvideo/producer/ProducerException"
 
 inline void throwNativeException(JNIEnv* env, const char* name, const char* msg, STATUS status)
 {
-    if (env->ExceptionCheck()) {
+    if (env->ExceptionCheck())
+    {
         env->ExceptionClear(); // Discard pending exception (should never happen)
         DLOGW("Had to clear a pending exception found when throwing \"%s\" (code 0x%x)", msg, status);
     }
@@ -33,7 +34,8 @@ inline void throwNativeException(JNIEnv* env, const char* name, const char* msg,
     const jobject exception = env->NewObject(exceptionClass, constructor, msgString, intStatus);
     CHECK(exception != NULL);
 
-    if (env->Throw(jthrowable(exception)) != JNI_OK) {
+    if (env->Throw(jthrowable(exception)) != JNI_OK)
+    {
         DLOGE("Failed throwing %s: %s (status 0x%x)", name, msg, status);
     }
 

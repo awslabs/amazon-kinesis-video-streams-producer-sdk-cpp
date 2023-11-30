@@ -5,11 +5,11 @@
 
 #include "com/amazonaws/kinesis/video/producer/jni/KinesisVideoClientWrapper.h"
 
-BOOL setDeviceInfo(JNIEnv* env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
+BOOL setDeviceInfo(JNIEnv *env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
 {
     STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
-    const char* retChars;
+    const char *retChars;
 
     CHECK(env != NULL && deviceInfo != NULL && pDeviceInfo != NULL);
 
@@ -154,11 +154,10 @@ CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
 
-BOOL setClientInfo(JNIEnv* env, jobject clientInfo, PClientInfo pClientInfo)
-{
+BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
     STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
-    const char* retChars;
+    const char *retChars;
 
     CHECK(env != NULL && clientInfo != NULL && pClientInfo != NULL);
 
@@ -254,10 +253,11 @@ CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
 
-BOOL setTags(JNIEnv* env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount)
+
+BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount)
 {
     STATUS retStatus = STATUS_SUCCESS;
-    const char* retChars;
+    const char *retChars;
     jclass tagClass = NULL;
     jobject tagObj = NULL;
     jstring retString = NULL;
@@ -277,12 +277,11 @@ BOOL setTags(JNIEnv* env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount
 
     // Allocate enough memory.
     // NOTE: We need to add two NULL terminators for tag name and tag value
-    CHK(NULL != (pTags = (PTag) MEMCALLOC(tagCount, SIZEOF(Tag) + (MAX_TAG_NAME_LEN + MAX_TAG_VALUE_LEN + 2) * SIZEOF(CHAR))),
-        STATUS_NOT_ENOUGH_MEMORY);
+    CHK(NULL != (pTags = (PTag) MEMCALLOC(tagCount, SIZEOF(Tag) + (MAX_TAG_NAME_LEN +  MAX_TAG_VALUE_LEN + 2) * SIZEOF(CHAR))), STATUS_NOT_ENOUGH_MEMORY);
 
     // Iterate over and set the values. NOTE: the actual storage for the strings will follow the array
     pCurPtr = (PCHAR) (pTags + tagCount);
-    for (; i < tagCount; i++) {
+    for (;i < tagCount; i++) {
         CHK(NULL != (tagObj = env->GetObjectArrayElement(tagArray, (jsize) i)), STATUS_INVALID_ARG);
         CHK_JVM_EXCEPTION(env);
 
@@ -356,7 +355,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     jbyte* bufferPtr = NULL;
     jsize arrayLen = 0;
     UINT32 trackInfoCount = 0;
-    const char* retChars;
+    const char *retChars;
 
     CHECK(env != NULL && streamInfo != NULL && pStreamInfo != NULL);
 
@@ -461,6 +460,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
         pStreamInfo->streamCaps.allowStreamCreation = env->CallBooleanMethod(streamInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
+
 
     methodId = env->GetMethodID(cls, "getMaxLatency", "()J");
     if (methodId == NULL) {
@@ -581,7 +581,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getTrackInfoVersion");
     } else {
-        for (UINT32 i = 0; i < trackInfoCount; ++i) {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
             pStreamInfo->streamCaps.trackInfoList[i].version = (UINT64) env->CallIntMethod(streamInfo, methodId, i);
             CHK_JVM_EXCEPTION(env);
         }
@@ -591,7 +591,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getTrackName");
     } else {
-        for (UINT32 i = 0; i < trackInfoCount; ++i) {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
             jstring retString = (jstring) env->CallObjectMethod(streamInfo, methodId, i);
             CHK_JVM_EXCEPTION(env);
 
@@ -610,7 +610,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getCodecId");
     } else {
-        for (UINT32 i = 0; i < trackInfoCount; ++i) {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
             jstring retString = (jstring) env->CallObjectMethod(streamInfo, methodId, i);
             CHK_JVM_EXCEPTION(env);
 
@@ -629,7 +629,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getCodecPrivateData");
     } else {
-        for (UINT32 i = 0; i < trackInfoCount; ++i) {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
             byteArray = (jbyteArray) env->CallObjectMethod(streamInfo, methodId, i);
             CHK_JVM_EXCEPTION(env);
 
@@ -659,7 +659,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getTrackInfoType");
     } else {
-        for (UINT32 i = 0; i < trackInfoCount; ++i) {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
             pStreamInfo->streamCaps.trackInfoList[i].trackType = (MKV_TRACK_INFO_TYPE) env->CallIntMethod(streamInfo, methodId, i);
             CHK_JVM_EXCEPTION(env);
         }
@@ -669,7 +669,7 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getTrackId");
     } else {
-        for (UINT32 i = 0; i < trackInfoCount; ++i) {
+        for(UINT32 i = 0; i < trackInfoCount; ++i) {
             pStreamInfo->streamCaps.trackInfoList[i].trackId = (UINT64) env->CallLongMethod(streamInfo, methodId, i);
             CHK_JVM_EXCEPTION(env);
         }
@@ -920,7 +920,7 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
 {
     STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
-    const char* retChars;
+    const char *retChars;
 
     CHECK(env != NULL && streamDescription != NULL && pStreamDesc != NULL);
 
@@ -1074,7 +1074,7 @@ BOOL setStreamingEndpoint(JNIEnv* env, jstring streamingEndpoint, PCHAR pEndpoin
 {
     CHECK(env != NULL && streamingEndpoint != NULL && pEndpoint != NULL);
 
-    const char* endpointChars = env->GetStringUTFChars(streamingEndpoint, NULL);
+    const char *endpointChars = env->GetStringUTFChars(streamingEndpoint, NULL);
     STRNCPY(pEndpoint, endpointChars, MAX_URI_CHAR_LEN + 1);
     pEndpoint[MAX_URI_CHAR_LEN] = '\0';
     env->ReleaseStringUTFChars(streamingEndpoint, endpointChars);
