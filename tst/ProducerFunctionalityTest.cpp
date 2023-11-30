@@ -1,18 +1,14 @@
 #include "ProducerTestFixture.h"
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-#define TEST_CURL_FAULT_INJECT_COUNT 2
-#define WAIT_5_SECONDS_FOR_ACKS      5 * HUNDREDS_OF_NANOS_IN_A_SECOND
+#define TEST_CURL_FAULT_INJECT_COUNT                      2
+#define WAIT_5_SECONDS_FOR_ACKS                           5 * HUNDREDS_OF_NANOS_IN_A_SECOND
 
 class ProducerFunctionalityTest : public ProducerTestBase {
 };
 
-TEST_F(ProducerFunctionalityTest, start_stopsync_terminate)
-{
+TEST_F(ProducerFunctionalityTest, start_stopsync_terminate) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -29,8 +25,7 @@ TEST_F(ProducerFunctionalityTest, start_stopsync_terminate)
     streams_[0] = nullptr;
 }
 
-TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration)
-{
+TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -55,7 +50,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration)
     streams_[0] = CreateTestStream(0, STREAMING_TYPE_OFFLINE, TEST_MAX_STREAM_LATENCY_IN_MILLIS, test_buffer_duration_seconds);
     auto kinesis_video_stream = streams_[0];
 
-    for (uint32_t i = 0; i < total_frame_count_; i++) {
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
@@ -63,9 +58,15 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration)
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
-                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                              << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
         timestamp += frame_duration_;
@@ -81,8 +82,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration)
     streams_[0] = nullptr;
 }
 
-TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage)
-{
+TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -109,7 +109,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage)
     streams_[0] = CreateTestStream(1, STREAMING_TYPE_OFFLINE);
     auto kinesis_video_stream = streams_[0];
 
-    for (uint32_t i = 0; i < total_frame_count_; i++) {
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
@@ -117,9 +117,15 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage)
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
-                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                              << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
         timestamp += frame_duration_;
@@ -135,8 +141,8 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage)
     streams_[0] = nullptr;
 }
 
-TEST_F(ProducerFunctionalityTest, intermittent_file_upload)
-{
+
+TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -168,7 +174,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload)
         streams_[0] = CreateTestStream(0, STREAMING_TYPE_OFFLINE);
         auto kinesis_video_stream = streams_[0];
 
-        for (uint32_t i = 0; i < total_frames; i++) {
+        for(uint32_t i = 0; i < total_frames; i++) {
             frame.index = i;
             frame.decodingTs = timestamp;
             frame.presentationTs = timestamp;
@@ -176,10 +182,15 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload)
 
             std::stringstream strstrm;
             strstrm << " TID: 0x" << std::hex << GETTID();
-            LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index
+            LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                                  << strstrm.str()
+                                                  << " Id: " << frame.index
                                                   << ", Key Frame: "
-                                                  << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                                  << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+                                                  << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                      ? "true" : "false")
+                                                  << ", Size: " << frame.size
+                                                  << ", Dts: " << frame.decodingTs
+                                                  << ", Pts: " << frame.presentationTs);
 
             EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
             timestamp += frame_duration_;
@@ -202,8 +213,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload)
     }
 }
 
-TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload)
-{
+TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -229,7 +239,7 @@ TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload)
     streams_[0] = CreateTestStream(0, STREAMING_TYPE_OFFLINE);
     auto kinesis_video_stream = streams_[0];
 
-    for (uint32_t i = 0; i < total_frame_count_; i++) {
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
@@ -237,9 +247,15 @@ TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload)
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
-                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                              << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
         timestamp += frame_duration_;
@@ -253,10 +269,10 @@ TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload)
     EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
+
 }
 
-TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space)
-{
+TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -264,7 +280,7 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space)
     }
 
     device_storage_size_ = 10 * 1024 * 1024llu; // 10MB heap
-    uint64_t test_total_frame_count = 10 * 1000llu;
+    uint64_t test_total_frame_count =  10 * 1000llu;
     CreateProducer();
 
     buffering_ack_in_sequence_ = true;
@@ -282,7 +298,7 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space)
     streams_[0] = CreateTestStream(0, STREAMING_TYPE_OFFLINE);
     auto kinesis_video_stream = streams_[0];
 
-    for (uint32_t i = 0; i < test_total_frame_count; i++) {
+    for(uint32_t i = 0; i < test_total_frame_count; i++) {
         frame.index = i;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
@@ -290,9 +306,15 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space)
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
-                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                              << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
         timestamp += frame_duration_;
@@ -306,6 +328,7 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space)
     EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
+
 }
 
 /**
@@ -318,8 +341,7 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space)
  * session will not rollback due to the previous session being closed and persisted ACK
  * received. If, however, this is not the case, the rollback would cause a latency pressure.
  */
-TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr)
-{
+TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -343,10 +365,12 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
     // Set the value of the frame buffer
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
-    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME, 15000, 120);
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
+                                   15000,
+                                   120);
     auto kinesis_video_stream = streams_[0];
 
-    for (uint32_t i = 0; i < total_frame_count_; i++) {
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
 
@@ -364,9 +388,15 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
-                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                              << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
         timestamp += frame_duration_;
@@ -396,11 +426,10 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
  * session will not rollback due to the previous session being closed and persisted ACK
  * received. If, however, this is not the case, the rollback would cause a latency pressure.
  */
-/**
- * TODO: This is disabled until we implement the auto fragment closing feature
- */
-TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pressure_auto)
-{
+ /**
+  * TODO: This is disabled until we implement the auto fragment closing feature
+  */
+TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pressure_auto) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -423,10 +452,12 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
     // Set the value of the frame buffer
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
-    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME, 15000, 120);
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
+                                   15000,
+                                   120);
     auto kinesis_video_stream = streams_[0];
 
-    for (uint32_t i = 0; i < total_frame_count_; i++) {
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
 
@@ -442,9 +473,15 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
-                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                              << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
         timestamp += frame_duration_;
@@ -477,8 +514,7 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
  * fragment and re-stream. The previous fragment timestamps are in the past causing latency
  * pressure callback to fire.
  */
-TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure)
-{
+TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -506,11 +542,13 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure)
     // Set the value of the frame buffer
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
-    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME, 15000, 120);
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
+                                   15000,
+                                   120);
     auto kinesis_video_stream = streams_[0];
 
     startTime = GETTIME();
-    for (uint32_t i = 0; i < total_frame_count_; i++) {
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
 
@@ -520,20 +558,26 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure)
             UINT64 start = GETTIME();
             THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
             delta = GETTIME() - start;
-        } else if (i < 5 * key_frame_interval_) {
+        } else if ( i < 5 * key_frame_interval_ ) {
             // This should not flip to false until after the 60s sleep when we start putting frames
             EXPECT_TRUE(buffering_ack_in_sequence_);
         }
 
-        timestamp = startTime + i * frame_duration_ + delta;
+        timestamp = startTime + i*frame_duration_ + delta;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
-                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                              << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                  ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
 
@@ -558,8 +602,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure)
  * scenario. EoFR should be automatically produced after pause
  * Backend should NOT timeout so we should get an ACK
  */
-TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure)
-{
+TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
     // Check if it's run with the env vars set if not bail out
     if (!access_key_set_) {
         LOG_WARN("Creds not set");
@@ -587,11 +630,13 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure)
     // Set the value of the frame buffer
     MEMSET(frame.frameData, 0x55, SIZEOF(frameBuffer_));
 
-    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME, 15000, 120);
+    streams_[0] = CreateTestStream(0, STREAMING_TYPE_REALTIME,
+                                   15000,
+                                   120);
     auto kinesis_video_stream = streams_[0];
 
     startTime = GETTIME();
-    for (uint32_t i = 0; i < total_frame_count_; i++) {
+    for(uint32_t i = 0; i < total_frame_count_; i++) {
         frame.index = i;
         frame.flags = (frame.index % key_frame_interval_ == 0) ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
 
@@ -603,15 +648,21 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure)
             delta = GETTIME() - start;
         }
 
-        timestamp = startTime + i * frame_duration_ + delta;
+        timestamp = startTime + i*frame_duration_ + delta;
         frame.decodingTs = timestamp;
         frame.presentationTs = timestamp;
 
         std::stringstream strstrm;
         strstrm << " TID: 0x" << std::hex << GETTID();
-        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName() << strstrm.str() << " Id: " << frame.index << ", Key Frame: "
-                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME) ? "true" : "false")
-                                              << ", Size: " << frame.size << ", Dts: " << frame.decodingTs << ", Pts: " << frame.presentationTs);
+        LOG_INFO("Putting frame for stream: " << kinesis_video_stream->getStreamName()
+                                              << strstrm.str()
+                                              << " Id: " << frame.index
+                                              << ", Key Frame: "
+                                              << (((frame.flags & FRAME_FLAG_KEY_FRAME) == FRAME_FLAG_KEY_FRAME)
+                                                ? "true" : "false")
+                                              << ", Size: " << frame.size
+                                              << ", Dts: " << frame.decodingTs
+                                              << ", Pts: " << frame.presentationTs);
 
         EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
 
@@ -629,7 +680,10 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure)
     streams_[0] = nullptr;
 }
 
-} // namespace video
-} // namespace kinesis
-} // namespace amazonaws
-} // namespace com
+
+
+}
+}
+}
+}
+

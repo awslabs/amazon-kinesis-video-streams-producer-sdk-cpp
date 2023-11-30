@@ -2,14 +2,10 @@
 
 using namespace std;
 
-namespace com {
-namespace amazonaws {
-namespace kinesis {
-namespace video {
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-STATUS getProducerTestBase(UINT64 custom_handle, ProducerTestBase** ppTestBase)
-{
-    TestClientCallbackProvider* clientCallbackProvider = reinterpret_cast<TestClientCallbackProvider*>(custom_handle);
+STATUS getProducerTestBase(UINT64 custom_handle, ProducerTestBase** ppTestBase) {
+    TestClientCallbackProvider* clientCallbackProvider = reinterpret_cast<TestClientCallbackProvider*> (custom_handle);
     EXPECT_TRUE(clientCallbackProvider != nullptr);
     if (clientCallbackProvider == nullptr) {
         return STATUS_INVALID_OPERATION;
@@ -23,11 +19,11 @@ STATUS getProducerTestBase(UINT64 custom_handle, ProducerTestBase** ppTestBase)
     return STATUS_SUCCESS;
 }
 
+
 /**
  * Global write-once pointer to the tests
  */
-STATUS TestClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes)
-{
+STATUS TestClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes) {
     UNUSED_PARAM(custom_handle);
     LOG_WARN("Reporting storage overflow. Bytes remaining " << remaining_bytes);
     ProducerTestBase* testBase;
@@ -39,16 +35,13 @@ STATUS TestClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle,
     return STATUS_SUCCESS;
 }
 
-STATUS TestStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 last_buffering_ack)
-{
+STATUS TestStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 last_buffering_ack) {
     UNUSED_PARAM(stream_handle);
     LOG_WARN("Reporting stream stale. Last ACK received " << last_buffering_ack);
     return validateCallback(custom_data);
 }
 
-STATUS TestStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle,
-                                                            UINT64 errored_timecode, STATUS status)
-{
+STATUS TestStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status) {
     UNUSED_PARAM(stream_handle);
     LOG_ERROR("Reporting stream error. Errored timecode " << errored_timecode << " with status code " << status);
     ProducerTestBase* testBase;
@@ -61,8 +54,7 @@ STATUS TestStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, 
     return validateCallback(custom_data);
 }
 
-STATUS TestStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 dropped_frame_timecode)
-{
+STATUS TestStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 dropped_frame_timecode) {
     UNUSED_PARAM(stream_handle);
     LOG_WARN("Reporting dropped frame. Frame timecode " << dropped_frame_timecode);
     ProducerTestBase* testBase;
@@ -75,8 +67,7 @@ STATUS TestStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data,
     return validateCallback(custom_data);
 }
 
-STATUS TestStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 duration)
-{
+STATUS TestStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 duration) {
     UNUSED_PARAM(stream_handle);
     LOG_WARN("Reporting stream latency pressure. Current buffer duration " << duration);
 
@@ -91,8 +82,7 @@ STATUS TestStreamCallbackProvider::streamLatencyPressureHandler(UINT64 custom_da
     return validateCallback(custom_data);
 }
 
-STATUS TestStreamCallbackProvider::bufferDurationOverflowPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 remaining_duration)
-{
+STATUS TestStreamCallbackProvider::bufferDurationOverflowPressureHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 remaining_duration) {
     LOG_WARN("Reporting buffer duration overflow pressure. remaining duration " << remaining_duration);
     ProducerTestBase* testBase;
     STATUS ret = getProducerTestBase(custom_data, &testBase);
@@ -103,9 +93,7 @@ STATUS TestStreamCallbackProvider::bufferDurationOverflowPressureHandler(UINT64 
     return validateCallback(custom_data);
 }
 
-STATUS TestStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle,
-                                                              PFragmentAck fragment_ack)
-{
+STATUS TestStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, PFragmentAck fragment_ack) {
     UNUSED_PARAM(stream_handle);
     UNUSED_PARAM(fragment_ack);
     LOG_TRACE("Reporting fragment ack");
@@ -119,8 +107,7 @@ STATUS TestStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data
         if (testBase->previous_buffering_ack_timestamp_.find(upload_handle) != testBase->previous_buffering_ack_timestamp_.end() &&
             fragment_ack->timestamp != testBase->previous_buffering_ack_timestamp_[upload_handle] && // timestamp can be same when retransmit happens
             fragment_ack->timestamp - testBase->previous_buffering_ack_timestamp_[upload_handle] > testBase->getFragmentDurationMs()) {
-            LOG_ERROR("Buffering ack not in sequence. Previous ack ts: " << testBase->previous_buffering_ack_timestamp_[upload_handle]
-                                                                         << " Current ack ts: " << fragment_ack->timestamp);
+            LOG_ERROR("Buffering ack not in sequence. Previous ack ts: " << testBase->previous_buffering_ack_timestamp_[upload_handle] << " Current ack ts: " << fragment_ack->timestamp);
             testBase->buffering_ack_in_sequence_ = false;
         }
 
@@ -130,9 +117,12 @@ STATUS TestStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data
     return validateCallback(custom_data);
 }
 
-STATUS TestStreamCallbackProvider::streamDataAvailableHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, PCHAR stream_name,
-                                                              UPLOAD_HANDLE stream_upload_handle, UINT64 duration_available, UINT64 size_available)
-{
+STATUS TestStreamCallbackProvider::streamDataAvailableHandler(UINT64 custom_data,
+                                                              STREAM_HANDLE stream_handle,
+                                                              PCHAR stream_name,
+                                                              UPLOAD_HANDLE stream_upload_handle,
+                                                              UINT64 duration_available,
+                                                              UINT64 size_available) {
     UNUSED_PARAM(stream_handle);
     UNUSED_PARAM(stream_name);
     UNUSED_PARAM(stream_upload_handle);
@@ -142,8 +132,7 @@ STATUS TestStreamCallbackProvider::streamDataAvailableHandler(UINT64 custom_data
     return validateCallback(custom_data);
 }
 
-STATUS TestStreamCallbackProvider::streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 stream_upload_handle)
-{
+STATUS TestStreamCallbackProvider::streamClosedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UINT64 stream_upload_handle) {
     UNUSED_PARAM(stream_handle);
     UNUSED_PARAM(stream_upload_handle);
     LOG_INFO("Reporting stream stopped.");
@@ -160,9 +149,8 @@ STATUS TestStreamCallbackProvider::streamClosedHandler(UINT64 custom_data, STREA
     return STATUS_SUCCESS;
 }
 
-STATUS TestStreamCallbackProvider::validateCallback(UINT64 custom_data)
-{
-    TestStreamCallbackProvider* streamCallbackProvider = reinterpret_cast<TestStreamCallbackProvider*>(custom_data);
+STATUS TestStreamCallbackProvider::validateCallback(UINT64 custom_data) {
+    TestStreamCallbackProvider* streamCallbackProvider = reinterpret_cast<TestStreamCallbackProvider*> (custom_data);
     EXPECT_TRUE(streamCallbackProvider != nullptr);
     if (streamCallbackProvider == nullptr) {
         return STATUS_INVALID_OPERATION;
@@ -179,7 +167,8 @@ STATUS TestStreamCallbackProvider::validateCallback(UINT64 custom_data)
     return STATUS_SUCCESS;
 }
 
-} // namespace video
-} // namespace kinesis
-} // namespace amazonaws
-} // namespace com
+
+}  // namespace video
+}  // namespace kinesis
+}  // namespace amazonaws
+}  // namespace com;
