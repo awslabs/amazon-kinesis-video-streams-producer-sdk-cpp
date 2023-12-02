@@ -348,6 +348,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
                                              "stream-format", G_TYPE_STRING, "avc",
                                              "alignment", G_TYPE_STRING, "au",
+                                             "framerate", GST_TYPE_FRACTION, 25, 1,
                                              NULL);
     //gst_caps_set_simple(h264_caps, "profile", G_TYPE_STRING, "baseline", NULL);
     g_object_set(G_OBJECT(filter), "caps", h264_caps, NULL);
@@ -434,10 +435,40 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
 	stream_timer.detach();
     }
     LOG_DEBUG("before main loop");
+
+
+
+    LOG_DEBUG("SAMPLE Playing for 5 seconds");
+    sleep(5);
+
+    LOG_DEBUG("SAMPLE Sleeping for 5 seconds");
+    gst_ret = gst_element_set_state(pipeline, GST_STATE_READY);
+    sleep(5);
+
+    LOG_DEBUG("SAMPLE Playing for 20 seconds");
+    gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    sleep(20);
+
+    LOG_DEBUG("SAMPLE Sleeping for 60 seconds");
+    gst_ret = gst_element_set_state(pipeline, GST_STATE_READY);
+    sleep(60);
+
+
+    LOG_DEBUG("SAMPLE Playing for 20 seconds");
+    gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    sleep(20);
+
+
+    LOG_DEBUG("SAMPLE Sleeping for 1200 seconds (20 minutes)");
+    gst_ret = gst_element_set_state(pipeline, GST_STATE_READY);
+    sleep(1200);
+
+    LOG_DEBUG("SAMPLE Playing onward");
+    gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+
     data->main_loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(data->main_loop);
     LOG_DEBUG("after main loop")
-
 
     /* free resources */
     gst_bus_remove_signal_watch(bus);
