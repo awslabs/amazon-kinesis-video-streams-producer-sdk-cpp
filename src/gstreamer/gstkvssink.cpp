@@ -1631,6 +1631,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             }
             break;
         case GST_STATE_CHANGE_READY_TO_PAUSED:
+            data->streamingStopped.store(false);
             try {
                 LOG_INFO("Attempting to create track data");
                 init_track_data(kvssink);
