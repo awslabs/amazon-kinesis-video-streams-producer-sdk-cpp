@@ -94,17 +94,24 @@ set(BUILD_COMMON_LWS
 set(BUILD_COMMON_CURL
     TRUE
     CACHE BOOL "Build ProducerC with CURL Support" FORCE)
-set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
-if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
-  file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
-endif()
-fetch_repo(kvscproducer)
-add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
 
 ############# find dependent libraries ############
 
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(KVSCPRODUCER libcproducer)
+if(KVSCPRODUCER_FOUND)
+  set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
+  link_directories(${KVSCPRODUCER_LIBRARY_DIRS})
+else()
+  set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
+  if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
+    file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
+  endif()
+  fetch_repo(kvscproducer)
+  add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
+endif()
 
 if (OPEN_SRC_INSTALL_PREFIX)
   find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
