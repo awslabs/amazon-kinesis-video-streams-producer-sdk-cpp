@@ -8,6 +8,11 @@ project(KinesisVideoProducerCpp VERSION 3.4.0)
 set(CMAKE_CXX_STANDARD 11)
 include(GNUInstallDirs)
 
+set(KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION 3)
+set(KINESIS_VIDEO_PRODUCER_CPP_MINOR_VERSION 4)
+set(KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION 1)
+set(KINESIS_VIDEO_PRODUCER_CPP_VERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION}.${KINESIS_VIDEO_PRODUCER_CPP_MINOR_VERSION}.${KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION})
+
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
 option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/Android" OFF)
@@ -27,7 +32,7 @@ option(MEMORY_SANITIZER "Build with MemorySanitizer" OFF)
 option(THREAD_SANITIZER "Build with ThreadSanitizer" OFF)
 option(UNDEFINED_BEHAVIOR_SANITIZER "Build with UndefinedBehaviorSanitizer" OFF)
 
-add_definitions(-DCPP_VERSION_STRING=\"${PROJECT_VERSION}\")
+add_definitions(-DCPP_VERSION_STRING=\"${KINESIS_VIDEO_PRODUCER_CPP_VERSION}\")
 
 set(CMAKE_MACOSX_RPATH TRUE)
 get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
@@ -194,6 +199,9 @@ install(
   DESTINATION .)
 
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
+if(NOT BUILD_STATIC)
+  set_target_properties(KinesisVideoProducer PROPERTIES VERSION ${KINESIS_VIDEO_PRODUCER_CPP_VERSION} SOVERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION})
+endif()
 target_link_libraries(
   KinesisVideoProducer
   PUBLIC kvsCommonCurl
@@ -221,6 +229,9 @@ if(BUILD_JNI)
     DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include
     DESTINATION .)
   add_library(KinesisVideoProducerJNI SHARED ${JNI_HEADERS} ${JNI_SOURCE_FILES})
+  if(NOT BUILD_STATIC)
+    set_target_properties(KinesisVideoProducerJNI PROPERTIES VERSION ${KINESIS_VIDEO_PRODUCER_CPP_VERSION} SOVERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION})
+  endif()
   target_link_libraries(KinesisVideoProducerJNI kvspic)
   
   install(
