@@ -1572,12 +1572,25 @@ init_track_data(GstKvsSink *kvssink) {
 
 static GstStateChangeReturn
 gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
+    /*
+        The below state transition cases are separated into two switch blocks:
+        one for upward (NULL->READY->PAUSED->PLAYING) transitions and one for
+        downward (PLAYING->PAUSED->READY->NULL) transitions. It is necessary to transition
+        an element's parent class state after any of the element's upward transitions but
+        before any downward transitions. As per GStreamer documentation,
+        "this is necessary in order to safely handle concurrent access by multiple threads."
+        
+        https://gstreamer.freedesktop.org/documentation/plugin-development/basics/states.
+        html?gi-language=c#:~:text=Note%20that%20upwards,destroying%20allocated%20resources.
+    */
+    
     GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
     GstKvsSink *kvssink = GST_KVS_SINK (element);
     auto data = kvssink->data;
     string err_msg = "";
     ostringstream oss;
 
+    // Upward transitions
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
             if(kvssink->log_config_path != NULL) {
@@ -1613,11 +1626,13 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             break;
     }
 
+    // Parent class transition
     ret = GST_ELEMENT_CLASS (parent_class)->change_state(element, transition);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         goto CleanUp;
     }
 
+    // Downward transitions
     switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
