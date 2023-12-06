@@ -4,9 +4,9 @@ include(Utilities)
 project(KinesisVideoProducerCpp)
 
 project(KinesisVideoProducerCpp VERSION 3.4.0)
-include(GNUInstallDirs)
 
 set(CMAKE_CXX_STANDARD 11)
+include(GNUInstallDirs)
 
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
@@ -216,6 +216,7 @@ install(
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
   include_directories(${JNI_INCLUDE_DIRS})
+  
   install(
     DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include
     DESTINATION .)
