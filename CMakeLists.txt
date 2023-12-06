@@ -216,9 +216,18 @@ install(
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
   include_directories(${JNI_INCLUDE_DIRS})
-
+  
+  install(
+    DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include
+    DESTINATION .)
   add_library(KinesisVideoProducerJNI SHARED ${JNI_HEADERS} ${JNI_SOURCE_FILES})
   target_link_libraries(KinesisVideoProducerJNI kvspic)
+  
+  install(
+    TARGETS KinesisVideoProducerJNI
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
 
