@@ -11,8 +11,7 @@
 static const size_t gMaxMutexDescriptionSize = 100;
 static const char* const gDefaultMutexDescription = "mutex";
 
-class SyncMutex
-{
+class SyncMutex {
     // Logging behavior
     char mMutexDescription[gMaxMutexDescriptionSize];
     bool mLogsEnabled;
@@ -21,11 +20,10 @@ class SyncMutex
     MUTEX mMutex;
     CVAR mCondition;
 
-    SyncMutex(const SyncMutex&); // Prevent copies
+    SyncMutex(const SyncMutex&);            // Prevent copies
     SyncMutex& operator=(const SyncMutex&); // Prevent assignment
 
-public:
-
+  public:
     SyncMutex()
     {
         initialize();
@@ -80,8 +78,7 @@ public:
     // Acquire the mutex.
     void lock(const char* function)
     {
-        if (mLogsEnabled)
-        {
+        if (mLogsEnabled) {
             DLOGI("%s: locking %s", function, mMutexDescription);
         }
 
@@ -91,8 +88,7 @@ public:
     // Release the mutex.
     void unlock(const char* function)
     {
-        if (mLogsEnabled)
-        {
+        if (mLogsEnabled) {
             DLOGI("%s: unlocking %s", function, mMutexDescription);
         }
 
@@ -105,8 +101,7 @@ public:
         MUTEX_LOCK(mMutex);
 
         UINT64 before = 0;
-        if (mLogsEnabled)
-        {
+        if (mLogsEnabled) {
             DLOGI("%s: waiting on %s", function, mMutexDescription);
             UINT64 before = GETTIME();
         }
@@ -114,8 +109,7 @@ public:
         int status = CVAR_WAIT(mCondition, mMutex, INFINITE_TIME_VALUE);
         CHECK_EXT(status == 0, "pthread_cond_wait() returned Unix errno %d", status);
 
-        if (mLogsEnabled)
-        {
+        if (mLogsEnabled) {
             UINT64 after = GETTIME();
             UINT64 elapsed_ms = (after - before) / HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
             DLOGI("%s: waited %ldms for %s", function, elapsed_ms, mMutexDescription);
@@ -127,8 +121,7 @@ public:
     // Signal the condition variable, allowing all blocked threads to continue.
     void notifyAll(const char* function)
     {
-        if (mLogsEnabled)
-        {
+        if (mLogsEnabled) {
             DLOGI("%s: signalling %s", function, mMutexDescription);
         }
 
@@ -142,16 +135,23 @@ public:
      * exited (goto, return, etc).
      */
     class Autolock {
-
         SyncMutex& mLock;
         const char* mFunction;
 
-    public:
-        Autolock(SyncMutex& mutex, const char* function) : mLock(mutex), mFunction(function) {mLock.lock(function);}
-        Autolock(SyncMutex* mutex, const char* function) : mLock(*mutex), mFunction(function) {mLock.lock(function);}
-        ~Autolock() {mLock.unlock(mFunction);}
+      public:
+        Autolock(SyncMutex& mutex, const char* function) : mLock(mutex), mFunction(function)
+        {
+            mLock.lock(function);
+        }
+        Autolock(SyncMutex* mutex, const char* function) : mLock(*mutex), mFunction(function)
+        {
+            mLock.lock(function);
+        }
+        ~Autolock()
+        {
+            mLock.unlock(mFunction);
+        }
     };
-
 };
 
 #endif // __SYNC_MUTEX_H__

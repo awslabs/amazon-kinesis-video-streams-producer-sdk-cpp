@@ -7,14 +7,17 @@
 #include <vector>
 
 namespace {
-    const uint32_t DEFAULT_MAX_AUDIO_QUEUE_SIZE = 200;
-    const uint32_t DEFAULT_MAX_VIDEO_QUEUE_SIZE = 50;
-    const uint64_t DEFAULT_MKV_TIMECODE_SCALE_NS = 1000000;
-    const uint32_t DEFAULT_BUFFER_SIZE_AUDIO = 50 * 1024;
-    const uint32_t DEFAULT_BUFFER_SIZE_VIDEO = 100 * 1024;
-}
+const uint32_t DEFAULT_MAX_AUDIO_QUEUE_SIZE = 200;
+const uint32_t DEFAULT_MAX_VIDEO_QUEUE_SIZE = 50;
+const uint64_t DEFAULT_MKV_TIMECODE_SCALE_NS = 1000000;
+const uint32_t DEFAULT_BUFFER_SIZE_AUDIO = 50 * 1024;
+const uint32_t DEFAULT_BUFFER_SIZE_VIDEO = 100 * 1024;
+} // namespace
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
+namespace com {
+namespace amazonaws {
+namespace kinesis {
+namespace video {
 
 /**
  * @Deprecated
@@ -34,21 +37,18 @@ class PutFrameHelper {
     bool put_frame_status;
     uint8_t* data_buffer;
     uint32_t data_buffer_size;
-public:
-    PutFrameHelper(
-            std::shared_ptr<KinesisVideoStream> kinesis_video_stream,
-            uint64_t mkv_timecode_scale_ns = DEFAULT_MKV_TIMECODE_SCALE_NS,
-            uint32_t max_audio_queue_size = DEFAULT_MAX_AUDIO_QUEUE_SIZE,
-            uint32_t max_video_queue_size = DEFAULT_MAX_VIDEO_QUEUE_SIZE,
-            uint32_t initial_buffer_size_audio = DEFAULT_BUFFER_SIZE_AUDIO,
-            uint32_t initial_buffer_size_video = DEFAULT_BUFFER_SIZE_VIDEO);
+
+  public:
+    PutFrameHelper(std::shared_ptr<KinesisVideoStream> kinesis_video_stream, uint64_t mkv_timecode_scale_ns = DEFAULT_MKV_TIMECODE_SCALE_NS,
+                   uint32_t max_audio_queue_size = DEFAULT_MAX_AUDIO_QUEUE_SIZE, uint32_t max_video_queue_size = DEFAULT_MAX_VIDEO_QUEUE_SIZE,
+                   uint32_t initial_buffer_size_audio = DEFAULT_BUFFER_SIZE_AUDIO, uint32_t initial_buffer_size_video = DEFAULT_BUFFER_SIZE_VIDEO);
 
     ~PutFrameHelper();
 
     /*
      * application should call getFrameDataBuffer() to get a buffer to store frame data before calling putFrameMultiTrack()
      */
-    uint8_t *getFrameDataBuffer(uint32_t requested_buffer_size, bool isVideo);
+    uint8_t* getFrameDataBuffer(uint32_t requested_buffer_size, bool isVideo);
 
     /*
      * application should call putFrameMultiTrack() to pass over the frame. The frame will be put into the kinesis video
@@ -66,11 +66,9 @@ public:
     void putEofr();
 };
 
-}
-}
-}
-}
-
-
+} // namespace video
+} // namespace kinesis
+} // namespace amazonaws
+} // namespace com
 
 #endif //__PUT_FRAME_HELPER_H__

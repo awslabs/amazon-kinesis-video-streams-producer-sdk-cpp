@@ -4,27 +4,30 @@
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
+namespace com {
+namespace amazonaws {
+namespace kinesis {
+namespace video {
 
 /**
-* Kinesis Video Stream level callback provider
-*
-*    getStreamUnderflowReportCallback();
-*    getStreamLatencyPressureCallback();
-*    getStreamConnectionStaleCallback();
-*    getDroppedFrameReportCallback();
-*    getDroppedFragmentReportCallback();
-*    getStreamErrorReportCallback();
-*    getStreamReadyCallback();
-*    getStreamClosedCallback();
-*    getStreamDataAvailableCallback();
-*    getFragmentAckReceivedCallback();
-*
-* The optional callbacks are virtual, but there are default implementations defined for them that return nullptr,
-* which will therefore use the defaults provided by the Kinesis Video SDK.
-*/
+ * Kinesis Video Stream level callback provider
+ *
+ *    getStreamUnderflowReportCallback();
+ *    getStreamLatencyPressureCallback();
+ *    getStreamConnectionStaleCallback();
+ *    getDroppedFrameReportCallback();
+ *    getDroppedFragmentReportCallback();
+ *    getStreamErrorReportCallback();
+ *    getStreamReadyCallback();
+ *    getStreamClosedCallback();
+ *    getStreamDataAvailableCallback();
+ *    getFragmentAckReceivedCallback();
+ *
+ * The optional callbacks are virtual, but there are default implementations defined for them that return nullptr,
+ * which will therefore use the defaults provided by the Kinesis Video SDK.
+ */
 class StreamCallbackProvider {
-public:
+  public:
     /**
      * Returns the custom data for this object to be used with the callbacks.
      *
@@ -32,7 +35,8 @@ public:
      */
     virtual UINT64 getCallbackCustomData() = 0;
 
-    virtual BufferDurationOverflowPressureFunc getBufferDurationOverFlowCallback() {
+    virtual BufferDurationOverflowPressureFunc getBufferDurationOverFlowCallback()
+    {
         return nullptr;
     }
 
@@ -48,7 +52,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual StreamUnderflowReportFunc getStreamUnderflowReportCallback() {
+    virtual StreamUnderflowReportFunc getStreamUnderflowReportCallback()
+    {
         return nullptr;
     };
 
@@ -65,7 +70,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual StreamLatencyPressureFunc getStreamLatencyPressureCallback() {
+    virtual StreamLatencyPressureFunc getStreamLatencyPressureCallback()
+    {
         return nullptr;
     };
 
@@ -81,7 +87,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual DroppedFrameReportFunc getDroppedFrameReportCallback() {
+    virtual DroppedFrameReportFunc getDroppedFrameReportCallback()
+    {
         return nullptr;
     };
 
@@ -97,7 +104,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual StreamConnectionStaleFunc getStreamConnectionStaleCallback() {
+    virtual StreamConnectionStaleFunc getStreamConnectionStaleCallback()
+    {
         return nullptr;
     };
 
@@ -114,7 +122,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual DroppedFragmentReportFunc getDroppedFragmentReportCallback() {
+    virtual DroppedFragmentReportFunc getDroppedFragmentReportCallback()
+    {
         return nullptr;
     };
 
@@ -131,7 +140,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual StreamErrorReportFunc getStreamErrorReportCallback() {
+    virtual StreamErrorReportFunc getStreamErrorReportCallback()
+    {
         return nullptr;
     };
 
@@ -147,7 +157,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual StreamReadyFunc getStreamReadyCallback() {
+    virtual StreamReadyFunc getStreamReadyCallback()
+    {
         return nullptr;
     };
 
@@ -163,7 +174,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual StreamClosedFunc getStreamClosedCallback() {
+    virtual StreamClosedFunc getStreamClosedCallback()
+    {
         return nullptr;
     };
 
@@ -182,7 +194,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual StreamDataAvailableFunc getStreamDataAvailableCallback() {
+    virtual StreamDataAvailableFunc getStreamDataAvailableCallback()
+    {
         return nullptr;
     };
 
@@ -199,7 +212,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual FragmentAckReceivedFunc getFragmentAckReceivedCallback() {
+    virtual FragmentAckReceivedFunc getFragmentAckReceivedCallback()
+    {
         return nullptr;
     };
 
@@ -216,11 +230,12 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual BufferDurationOverflowPressureFunc getBufferDurationOverflowPressureCallback() {
+    virtual BufferDurationOverflowPressureFunc getBufferDurationOverflowPressureCallback()
+    {
         return nullptr;
     };
 
-    virtual ~StreamCallbackProvider() {};
+    virtual ~StreamCallbackProvider(){};
 };
 
 } // namespace video

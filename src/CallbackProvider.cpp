@@ -2,12 +2,16 @@
 
 #include "CallbackProvider.h"
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
+namespace com {
+namespace amazonaws {
+namespace kinesis {
+namespace video {
 
-CallbackProvider::callback_t CallbackProvider::getCallbacks() {
+CallbackProvider::callback_t CallbackProvider::getCallbacks()
+{
     MEMSET(&callbacks_, 0, SIZEOF(callbacks_));
     callbacks_.customData = reinterpret_cast<uintptr_t>(this);
-    callbacks_.version = CALLBACKS_CURRENT_VERSION;  // from kinesis video client include
+    callbacks_.version = CALLBACKS_CURRENT_VERSION; // from kinesis video client include
     callbacks_.getDeviceCertificateFn = getDeviceCertificateCallback();
     callbacks_.getSecurityTokenFn = getSecurityTokenCallback();
     callbacks_.getDeviceFingerprintFn = getDeviceFingerprintCallback();
@@ -52,140 +56,174 @@ CallbackProvider::callback_t CallbackProvider::getCallbacks() {
     return callbacks_;
 }
 
-void CallbackProvider::shutdown() {
+void CallbackProvider::shutdown()
+{
     // No-op
 }
 
-void CallbackProvider::shutdownStream(STREAM_HANDLE stream_handle) {
+void CallbackProvider::shutdownStream(STREAM_HANDLE stream_handle)
+{
     UNUSED_PARAM(stream_handle);
     // No-op
 }
 
-CreateMutexFunc CallbackProvider::getCreateMutexCallback() {
+CreateMutexFunc CallbackProvider::getCreateMutexCallback()
+{
     return nullptr;
 }
 
-LockMutexFunc CallbackProvider::getLockMutexCallback() {
+LockMutexFunc CallbackProvider::getLockMutexCallback()
+{
     return nullptr;
 }
 
-UnlockMutexFunc CallbackProvider::getUnlockMutexCallback() {
+UnlockMutexFunc CallbackProvider::getUnlockMutexCallback()
+{
     return nullptr;
 }
 
-TryLockMutexFunc CallbackProvider::getTryLockMutexCallback() {
+TryLockMutexFunc CallbackProvider::getTryLockMutexCallback()
+{
     return nullptr;
 }
 
-FreeMutexFunc CallbackProvider::getFreeMutexCallback() {
+FreeMutexFunc CallbackProvider::getFreeMutexCallback()
+{
     return nullptr;
 }
 
-CreateConditionVariableFunc CallbackProvider::getCreateConditionVariableCallback() {
+CreateConditionVariableFunc CallbackProvider::getCreateConditionVariableCallback()
+{
     return nullptr;
 }
 
-SignalConditionVariableFunc CallbackProvider::getSignalConditionVariableCallback() {
+SignalConditionVariableFunc CallbackProvider::getSignalConditionVariableCallback()
+{
     return nullptr;
 }
 
-BroadcastConditionVariableFunc CallbackProvider::getBroadcastConditionVariableCallback() {
+BroadcastConditionVariableFunc CallbackProvider::getBroadcastConditionVariableCallback()
+{
     return nullptr;
 }
 
-WaitConditionVariableFunc CallbackProvider::getWaitConditionVariableCallback() {
+WaitConditionVariableFunc CallbackProvider::getWaitConditionVariableCallback()
+{
     return nullptr;
 }
 
-FreeConditionVariableFunc CallbackProvider::getFreeConditionVariableCallback() {
+FreeConditionVariableFunc CallbackProvider::getFreeConditionVariableCallback()
+{
     return nullptr;
 }
 
-GetCurrentTimeFunc CallbackProvider::getCurrentTimeCallback() {
+GetCurrentTimeFunc CallbackProvider::getCurrentTimeCallback()
+{
     return nullptr;
 }
 
-GetRandomNumberFunc CallbackProvider::getRandomNumberCallback() {
+GetRandomNumberFunc CallbackProvider::getRandomNumberCallback()
+{
     return nullptr;
 }
 
-LogPrintFunc CallbackProvider::getLogPrintCallback() {
+LogPrintFunc CallbackProvider::getLogPrintCallback()
+{
     return nullptr;
 }
 
-ClientReadyFunc CallbackProvider::getClientReadyCallback() {
+ClientReadyFunc CallbackProvider::getClientReadyCallback()
+{
     return nullptr;
 }
 
-StreamDataAvailableFunc CallbackProvider::getStreamDataAvailableCallback() {
+StreamDataAvailableFunc CallbackProvider::getStreamDataAvailableCallback()
+{
     return nullptr;
 }
 
-StreamReadyFunc CallbackProvider::getStreamReadyCallback() {
+StreamReadyFunc CallbackProvider::getStreamReadyCallback()
+{
     return nullptr;
 }
 
-StreamClosedFunc CallbackProvider::getStreamClosedCallback() {
+StreamClosedFunc CallbackProvider::getStreamClosedCallback()
+{
     return nullptr;
 }
 
-DroppedFragmentReportFunc CallbackProvider::getDroppedFragmentReportCallback() {
+DroppedFragmentReportFunc CallbackProvider::getDroppedFragmentReportCallback()
+{
     return nullptr;
 }
 
-StreamErrorReportFunc CallbackProvider::getStreamErrorReportCallback() {
+StreamErrorReportFunc CallbackProvider::getStreamErrorReportCallback()
+{
     return nullptr;
 }
 
-StreamConnectionStaleFunc CallbackProvider::getStreamConnectionStaleCallback() {
+StreamConnectionStaleFunc CallbackProvider::getStreamConnectionStaleCallback()
+{
     return nullptr;
 }
 
-DroppedFrameReportFunc CallbackProvider::getDroppedFrameReportCallback() {
+DroppedFrameReportFunc CallbackProvider::getDroppedFrameReportCallback()
+{
     return nullptr;
 }
 
-BufferDurationOverflowPressureFunc CallbackProvider::getBufferDurationOverflowPressureCallback() {
+BufferDurationOverflowPressureFunc CallbackProvider::getBufferDurationOverflowPressureCallback()
+{
     return nullptr;
 }
 
-StreamLatencyPressureFunc CallbackProvider::getStreamLatencyPressureCallback() {
+StreamLatencyPressureFunc CallbackProvider::getStreamLatencyPressureCallback()
+{
     return nullptr;
 }
 
-FragmentAckReceivedFunc CallbackProvider::getFragmentAckReceivedCallback() {
+FragmentAckReceivedFunc CallbackProvider::getFragmentAckReceivedCallback()
+{
     return nullptr;
 }
 
-StorageOverflowPressureFunc CallbackProvider::getStorageOverflowPressureCallback() {
+StorageOverflowPressureFunc CallbackProvider::getStorageOverflowPressureCallback()
+{
     return nullptr;
 }
 
-StreamUnderflowReportFunc CallbackProvider::getStreamUnderflowReportCallback() {
+StreamUnderflowReportFunc CallbackProvider::getStreamUnderflowReportCallback()
+{
     return nullptr;
 }
 
-GetDeviceFingerprintFunc CallbackProvider::getDeviceFingerprintCallback() {
+GetDeviceFingerprintFunc CallbackProvider::getDeviceFingerprintCallback()
+{
     return nullptr;
 }
 
-GetSecurityTokenFunc CallbackProvider::getSecurityTokenCallback() {
+GetSecurityTokenFunc CallbackProvider::getSecurityTokenCallback()
+{
     return nullptr;
 }
 
-GetDeviceCertificateFunc CallbackProvider::getDeviceCertificateCallback() {
+GetDeviceCertificateFunc CallbackProvider::getDeviceCertificateCallback()
+{
     return nullptr;
 }
 
-DeviceCertToTokenFunc CallbackProvider::getDeviceCertToTokenCallback() {
+DeviceCertToTokenFunc CallbackProvider::getDeviceCertToTokenCallback()
+{
     return nullptr;
 }
 
-StreamShutdownFunc CallbackProvider::getStreamShutdownCallback() {
+StreamShutdownFunc CallbackProvider::getStreamShutdownCallback()
+{
     return nullptr;
 }
 
-ClientShutdownFunc CallbackProvider::getClientShutdownCallback() {
+ClientShutdownFunc CallbackProvider::getClientShutdownCallback()
+{
     return nullptr;
 }
 

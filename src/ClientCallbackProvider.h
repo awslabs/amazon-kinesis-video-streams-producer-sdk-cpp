@@ -4,17 +4,20 @@
 
 #include "com/amazonaws/kinesis/video/client/Include.h"
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
+namespace com {
+namespace amazonaws {
+namespace kinesis {
+namespace video {
 
 /**
-* Kinesis Video client level callback provider
-*
-*   getClientReadyCallback();
-*   getStorageOverflowPressureCallback();
-*
-*/
+ * Kinesis Video client level callback provider
+ *
+ *   getClientReadyCallback();
+ *   getStorageOverflowPressureCallback();
+ *
+ */
 class ClientCallbackProvider {
-public:
+  public:
     /**
      * Returns the custom data for this object to be used with the callbacks.
      *
@@ -29,7 +32,8 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual ClientReadyFunc getClientReadyCallback() {
+    virtual ClientReadyFunc getClientReadyCallback()
+    {
         return nullptr;
     };
 
@@ -40,11 +44,12 @@ public:
      *
      *  @return a function pointer conforming to the description above.
      */
-    virtual StorageOverflowPressureFunc getStorageOverflowPressureCallback() {
+    virtual StorageOverflowPressureFunc getStorageOverflowPressureCallback()
+    {
         return nullptr;
     };
 
-    virtual ~ClientCallbackProvider() {};
+    virtual ~ClientCallbackProvider(){};
 };
 
 } // namespace video

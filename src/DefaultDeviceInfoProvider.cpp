@@ -5,7 +5,10 @@
 
 #include <string>
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
+namespace com {
+namespace amazonaws {
+namespace kinesis {
+namespace video {
 
 LOGGER_TAG("com.amazonaws.kinesis.video");
 
@@ -15,23 +18,23 @@ using std::string;
  * Default storage size is 256MB which will be suitable for
  * the default 3 minutes buffer at 10MBps + some room for defragmentation.
  */
-#define DEFAULT_STORAGE_SIZE            256 * 1024 * 1024
+#define DEFAULT_STORAGE_SIZE 256 * 1024 * 1024
 
 /**
  * Default max stream count
  */
-#define DEFAULT_MAX_STREAM_COUNT        16
+#define DEFAULT_MAX_STREAM_COUNT 16
 
-DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_useragent, const std::string &cert_path)
-        : custom_useragent_(custom_useragent),
-        cert_path_(cert_path){
+DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string& custom_useragent, const std::string& cert_path)
+    : custom_useragent_(custom_useragent), cert_path_(cert_path)
+{
     memset(&device_info_, 0, sizeof(device_info_));
     device_info_.version = DEVICE_INFO_CURRENT_VERSION;
     device_info_.clientInfo.version = CLIENT_INFO_CURRENT_VERSION;
 
     // Set the device name
-    const string &device_id = "Kinesis_Video_Device";
-    size_t bytes_written = device_id.copy(reinterpret_cast<char *>(&(device_info_.name)), device_id.size(), 0);
+    const string& device_id = "Kinesis_Video_Device";
+    size_t bytes_written = device_id.copy(reinterpret_cast<char*>(&(device_info_.name)), device_id.size(), 0);
 
     // Null terminate the array.
     device_info_.name[bytes_written] = '\0';
@@ -78,21 +81,22 @@ DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_u
     device_info_.clientInfo.loggerLogLevel = logLevel;
 }
 
-DeviceInfoProvider::device_info_t DefaultDeviceInfoProvider::getDeviceInfo() {
+DeviceInfoProvider::device_info_t DefaultDeviceInfoProvider::getDeviceInfo()
+{
     return device_info_;
 }
 
-const string DefaultDeviceInfoProvider::getCustomUserAgent() {
+const string DefaultDeviceInfoProvider::getCustomUserAgent()
+{
     return custom_useragent_;
 }
 
-const string DefaultDeviceInfoProvider::getCertPath() {
+const string DefaultDeviceInfoProvider::getCertPath()
+{
     return cert_path_;
 }
-
 
 } // namespace video
 } // namespace kinesis
 } // namespace amazonaws
 } // namespace com
-
