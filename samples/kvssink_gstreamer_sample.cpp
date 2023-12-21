@@ -69,6 +69,7 @@ typedef struct _CustomData {
     char *stream_name;
     mutex file_list_mtx;
     int metadata_counter = 1;
+    bool persist_flag = true;
 
     // list of files to upload.
     vector<FileInfo> file_list;
@@ -268,10 +269,10 @@ static gboolean send_custom_event(gpointer user_data) {
     metadata_value_stream << "metadata_value_" << data_global.metadata_counter;
 
     // Create the custom event structure
-    GstStructure *structure = gst_structure_new_empty(KVS_ADD_METADATA_G_STRUCT_NAME);
-    gst_structure_set(structure, KVS_ADD_METADATA_NAME, G_TYPE_STRING, metadata_key_stream.str().c_str(), NULL);
-    gst_structure_set(structure, KVS_ADD_METADATA_VALUE, G_TYPE_STRING, metadata_value_stream.str().c_str(), NULL);
-    gst_structure_set(structure, KVS_ADD_METADATA_PERSISTENT, G_TYPE_BOOLEAN, FALSE, NULL);
+    GstStructure *structure = gst_structure_new_empty("put-fragment-metadata");
+    gst_structure_set(structure, "name", G_TYPE_STRING, metadata_key_stream.str().c_str(), NULL);
+    gst_structure_set(structure, "value", G_TYPE_STRING, metadata_value_stream.str().c_str(), NULL);
+    gst_structure_set(structure, "persist", G_TYPE_BOOLEAN, data_global.persist_flag, NULL);
 
     // Create the custom event
     GstEvent *event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure);
@@ -280,6 +281,7 @@ static gboolean send_custom_event(gpointer user_data) {
     gboolean ret = gst_element_send_event(kvssink, event);
 
     data_global.metadata_counter++;
+    data_global.persist_flag = !data_global.persist_flag;
 
     return ret;
 }
