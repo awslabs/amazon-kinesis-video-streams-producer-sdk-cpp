@@ -68,6 +68,7 @@ typedef struct _CustomData {
     bool h264_stream_supported;
     char *stream_name;
     mutex file_list_mtx;
+    int metadata_counter = 1;
 
     // list of files to upload.
     vector<FileInfo> file_list;
@@ -258,7 +259,32 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
     }
 }
 
-int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
+// Function to send the custom downstream event
+static gboolean send_custom_event(gpointer user_data) {
+    GstElement *kvssink = GST_ELEMENT(user_data);
+    std::ostringstream metadata_key_stream, metadata_value_stream;
+
+    metadata_key_stream << "metadata_key_" << data_global.metadata_counter;
+    metadata_value_stream << "metadata_value_" << data_global.metadata_counter;
+
+    // Create the custom event structure
+    GstStructure *structure = gst_structure_new_empty(KVS_ADD_METADATA_G_STRUCT_NAME);
+    gst_structure_set(structure, KVS_ADD_METADATA_NAME, G_TYPE_STRING, metadata_key_stream.str().c_str(), NULL);
+    gst_structure_set(structure, KVS_ADD_METADATA_VALUE, G_TYPE_STRING, metadata_value_stream.str().c_str(), NULL);
+    gst_structure_set(structure, KVS_ADD_METADATA_PERSISTENT, G_TYPE_BOOLEAN, FALSE, NULL);
+
+    // Create the custom event
+    GstEvent *event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure);
+
+    // Send the custom event to the sink element
+    gboolean ret = gst_element_send_event(kvssink, event);
+
+    data_global.metadata_counter++;
+
+    return ret;
+}
+
+int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
 
     bool vtenc = false, isOnRpi = false;
 
@@ -331,7 +357,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     LOG_DEBUG("Streaming with live source and width: " << width << ", height: " << height << ", fps: " << framerate
                                                        << ", bitrateInKBPS" << bitrateInKBPS);
 
-    GstElement *source_filter, *filter, *kvssink, *h264parse, *encoder, *source, *video_convert;
+    GstElement *source_filter, *filter, *h264parse, *encoder, *source, *video_convert;
 
     /* create the elemnents */
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
@@ -342,11 +368,6 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     filter = gst_element_factory_make("capsfilter", "encoder_filter");
     if (!filter) {
         LOG_ERROR("Failed to create capsfilter (2)");
-        return 1;
-    }
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
-    if (!kvssink) {
-        LOG_ERROR("Failed to create kvssink");
         return 1;
     }
     h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
@@ -543,7 +564,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     return 0;
 }
 
-int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
+int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
     // process runtime if provided
     if (argc == 5){
       if ((0 == STRCMPI(argv[3], "-runtime")) ||
@@ -555,10 +576,9 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
 	  }
       }
     }
-    GstElement *filter, *kvssink, *depay, *source, *h264parse;
+    GstElement *filter, *depay, *source, *h264parse;
 
     filter = gst_element_factory_make("capsfilter", "filter");
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
     depay = gst_element_factory_make("rtph264depay", "depay");
     source = gst_element_factory_make("rtspsrc", "source");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
@@ -606,14 +626,13 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
     return 0;
 }
 
-int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
+int gstreamer_file_source_init(CustomData *data, GstElement *pipeline, GstElement *kvssink) {
 
-    GstElement *demux, *kvssink, *filesrc, *h264parse, *filter, *queue;
+    GstElement *demux,*filesrc, *h264parse, *filter, *queue;
     string file_suffix;
     string file_path = data->file_list.at(data->current_file_idx).path;
 
     filter = gst_element_factory_make("capsfilter", "filter");
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
     filesrc = gst_element_factory_make("filesrc", "filesrc");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
     queue = gst_element_factory_make("queue", "queue");
@@ -683,28 +702,34 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     /* init GStreamer */
     gst_init(&argc, &argv);
 
-    GstElement *pipeline;
+    GstElement *pipeline, *kvssink;
     int ret;
     GstStateChangeReturn gst_ret;
 
     // Reset first frame pts
     data->first_pts = GST_CLOCK_TIME_NONE;
 
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
+    if (!kvssink) {
+        LOG_ERROR("Failed to create kvssink");
+        return 1;
+    }
+
     switch (data->streamSource) {
         case LIVE_SOURCE:
             LOG_INFO("Streaming from live source");
             pipeline = gst_pipeline_new("live-kinesis-pipeline");
-            ret = gstreamer_live_source_init(argc, argv, data, pipeline);
+            ret = gstreamer_live_source_init(argc, argv, data, pipeline, kvssink);
             break;
         case RTSP_SOURCE:
             LOG_INFO("Streaming from rtsp source");
             pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
-            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline);
+            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline, kvssink);
             break;
         case FILE_SOURCE:
             LOG_INFO("Streaming from file source");
             pipeline = gst_pipeline_new("file-kinesis-pipeline");
-            ret = gstreamer_file_source_init(data, pipeline);
+            ret = gstreamer_file_source_init(data, pipeline, kvssink);
             break;
     }
 
@@ -718,6 +743,10 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     g_signal_connect(G_OBJECT(bus), "message::error", (GCallback) error_cb, data);
     g_signal_connect(G_OBJECT(bus), "message::eos", G_CALLBACK(eos_cb), data);
     gst_object_unref(bus);
+
+    // Create a GStreamer timer to trigger the custom downstream event every 2 seconds
+    g_timeout_add_seconds(2, send_custom_event, kvssink);
+
     /* start streaming */
     gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (gst_ret == GST_STATE_CHANGE_FAILURE) {
