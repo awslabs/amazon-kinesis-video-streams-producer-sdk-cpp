@@ -543,7 +543,7 @@ int main(int argc, char *argv[]) {
             DLOGI("[KVSSINK Sample] Unrecognized source type. Defaulting to device source in GStreamer");
         }
     } else {
-        printf("[KVSSINK Sample] Using device source in GStreamer\n");
+        printf("[KVSSINK Sample] Using test source in GStreamer\n");
     }
 
     switch (data_global.mediaType) {
