@@ -1514,10 +1514,6 @@ init_track_data(GstKvsSink *kvssink) {
                 kvs_sink_track_data->track_id = KVS_SINK_DEFAULT_TRACKID;
             }
 
-            // Remove track cpd received from a previous stop/start stream
-            // NOTE: This is to allow track cpd to be re-added to new stream session
-            //kvssink->data->track_cpd_received.erase(kvs_sink_track_data->track_id);
-
             GstCollectData *collect_data = (GstCollectData *) walk->data;
 
             // extract media type from GstCaps to check whether it's h264 or h265
@@ -1541,10 +1537,6 @@ init_track_data(GstKvsSink *kvssink) {
             if (kvssink->data->media_type == AUDIO_VIDEO) {
                 kvs_sink_track_data->track_id = KVS_SINK_DEFAULT_AUDIO_TRACKID;
             }
-
-            // Remove track cpd received from a previous stop/start stream
-            // NOTE: This is to allow track cpd to be re-added to new stream session
-            //kvssink->data->track_cpd_received.erase(kvs_sink_track_data->track_id);
 
             GstCollectData *collect_data = (GstCollectData *) walk->data;
 
@@ -1676,8 +1668,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
                 data->kinesis_video_stream->stopSync();
                 data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
 
-                // Remove track cpd received from a previous stop/start stream
-                // NOTE: This is to allow new track cpd to be added to a new stream session
+                // Remove track CPDs received from previous streaming session.
+                // NOTE: This is to allow new track CPD to be added to a new stream session.
                 data->track_cpd_received.clear();
 
                 data->streamingStopped.store(true);
