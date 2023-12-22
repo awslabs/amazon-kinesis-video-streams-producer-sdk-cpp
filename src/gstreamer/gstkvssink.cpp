@@ -471,11 +471,10 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
     bool do_retry = true;
     while(do_retry) {
         try {
-            LOG_INFO("Try creating stream for " << kvssink->stream_name);
+            LOG_INFO("Attempting to create stream for " << kvssink->stream_name);
             // stream is freed when createStreamSync fails
-            LOG_INFO("Calling create_kinesis_video_stream");
             create_kinesis_video_stream(kvssink);
-            LOG_INFO("Done calling create_kinesis_video_stream");
+            LOG_INFO("Finished creating stream");
             break;
         } catch (runtime_error &err) {
             if (--retry_count == 0) {
@@ -1504,6 +1503,8 @@ init_track_data(GstKvsSink *kvssink) {
     gchar *video_content_type = NULL, *audio_content_type = NULL;
     const gchar *media_type;
 
+    LOG_INFO("Attempting to create track data");
+
     for (walk = kvssink->collect->data; walk != NULL; walk = g_slist_next (walk)) {
         GstKvsSinkTrackData *kvs_sink_track_data = (GstKvsSinkTrackData *) walk->data;
 
@@ -1514,8 +1515,8 @@ init_track_data(GstKvsSink *kvssink) {
             }
 
             // Remove track cpd received from a previous stop/start stream
-            // NOTE: This is to allows track cpd to be re-added to new stream session
-            kvssink->data->track_cpd_received.erase(kvs_sink_track_data->track_id);
+            // NOTE: This is to allow track cpd to be re-added to new stream session
+            //kvssink->data->track_cpd_received.erase(kvs_sink_track_data->track_id);
 
             GstCollectData *collect_data = (GstCollectData *) walk->data;
 
@@ -1542,7 +1543,8 @@ init_track_data(GstKvsSink *kvssink) {
             }
 
             // Remove track cpd received from a previous stop/start stream
-            kvssink->data->track_cpd_received.erase(kvs_sink_track_data->track_id);
+            // NOTE: This is to allow track cpd to be re-added to new stream session
+            //kvssink->data->track_cpd_received.erase(kvs_sink_track_data->track_id);
 
             GstCollectData *collect_data = (GstCollectData *) walk->data;
 
@@ -1585,6 +1587,8 @@ init_track_data(GstKvsSink *kvssink) {
             }
             break;
     }
+
+    LOG_INFO("Created track data");
 
     g_free(video_content_type);
     g_free(audio_content_type);
@@ -1629,13 +1633,12 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto CleanUp;
             }
+
             break;
         case GST_STATE_CHANGE_READY_TO_PAUSED:
             data->streamingStopped.store(false);
             try {
-                LOG_INFO("Attempting to create track data");
                 init_track_data(kvssink);
-                LOG_INFO("Created track data");
                 kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
                 kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
             } catch (runtime_error &err) {
@@ -1644,12 +1647,10 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto CleanUp;
             }
-            LOG_INFO("Attmpting to create stream");
             if (!kinesis_video_stream_init(kvssink, err_msg)) {
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto CleanUp;
             }
-            LOG_INFO("Created stream");
             gst_collect_pads_start (kvssink->collect);
             break;
         default:
@@ -1665,7 +1666,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     // Downward transitions
     switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-            LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
+            LOG_INFO("Attempting to stop kvssink for " << kvssink->stream_name);
             gst_collect_pads_stop (kvssink->collect);
 
             // Need this check in case an EOS was received in the buffer handler and
@@ -1674,6 +1675,11 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             if(!data->streamingStopped.load()) {
                 data->kinesis_video_stream->stopSync();
                 data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+
+                // Remove track cpd received from a previous stop/start stream
+                // NOTE: This is to allow new track cpd to be added to a new stream session
+                data->track_cpd_received.clear();
+
                 data->streamingStopped.store(true);
             } else {
                 LOG_INFO("Streaming already stopped for " << kvssink->stream_name);
