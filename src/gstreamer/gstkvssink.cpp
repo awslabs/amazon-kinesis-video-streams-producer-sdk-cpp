@@ -471,10 +471,9 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
     bool do_retry = true;
     while(do_retry) {
         try {
-            LOG_INFO("Attempting to create stream for " << kvssink->stream_name);
+            LOG_INFO("Try creating stream for " << kvssink->stream_name);
             // stream is freed when createStreamSync fails
             create_kinesis_video_stream(kvssink);
-            LOG_INFO("Finished creating stream");
             break;
         } catch (runtime_error &err) {
             if (--retry_count == 0) {
@@ -1099,17 +1098,12 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
     switch (GST_EVENT_TYPE (event)) {
         case GST_EVENT_CAPS: {
-            LOG_INFO("Calling GST_EVENT_CAPS case.");
-            
             gst_event_parse_caps(event, &gstcaps);
             GstStructure *gststructforcaps = gst_caps_get_structure(gstcaps, 0);
             GST_INFO ("structure is %" GST_PTR_FORMAT, gststructforcaps);
             media_type = gst_structure_get_name (gststructforcaps);
 
-
             if (!strcmp (media_type, GSTREAMER_MEDIA_TYPE_ALAW) || !strcmp (media_type, GSTREAMER_MEDIA_TYPE_MULAW)) {
-                LOG_INFO("GST_EVENT_CAPS Not GSTREAMER_MEDIA_TYPE_ALAW nor GSTREAMER_MEDIA_TYPE_MULAW");
-
                 guint8 codec_private_data[KVS_PCM_CPD_SIZE_BYTE];
                 KVS_PCM_FORMAT_CODE format = KVS_PCM_FORMAT_CODE_MULAW;
 
@@ -1138,8 +1132,6 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 ret = data->kinesis_video_stream->start(codec_private_data, KVS_PCM_CPD_SIZE_BYTE, track_id);
 
             } else if (data->track_cpd_received.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
-                LOG_INFO("GST_EVENT_CAPS Is GSTREAMER_MEDIA_TYPE_ALAW and GSTREAMER_MEDIA_TYPE_MULAW, and track cpd rec == 0 and has codec_data field");
-
                 const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
                 gchar *cpd = gst_value_serialize(gstStreamFormat);
                 string cpd_str = string(cpd);
@@ -1192,8 +1184,6 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_EOS: {
             LOG_INFO("EOS Event received in sink for " << kvssink->stream_name);
-            // NOTE: EOS is usually only used for file sinks:
-            // https://gitlab.freedesktop.org/gstreamer/gst-plugins-base/-/issues/998#note_1975763:~:text=The%20only%20case%20where%20an%20EOS%20is%20usually%20needed%20is%20if%20you%27re%20muxing%20into%20a%20file%20and%20want%20to%20make%20sure%20that%20the%20muxer%20writes%20the%20sample/seek%20tables%20properly%20and%20fixes%20up%20the%20headers%20with%20the%20duration%20and%20such%2C%20esp.%20for%20mp4.
             break;
         }
         default:
@@ -1269,7 +1259,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         // check anyways in case it happens
         if(!data->streamingStopped.load()) {
             data->kinesis_video_stream->stopSync();
-            data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
             data->streamingStopped.store(true);
             LOG_INFO("Sending eos for " << kvssink->stream_name);
         }
@@ -1451,7 +1440,6 @@ gst_kvs_sink_request_new_pad (GstElement * element, GstPadTemplate * templ,
     kvs_sink_track_data->kvssink = kvssink;
     kvs_sink_track_data->track_type = track_type;
     kvs_sink_track_data->track_id = KVS_SINK_DEFAULT_TRACKID;
-    // TODO: Should track_cpd_received.erase be called here too?
 
     if (!gst_element_add_pad (element, GST_PAD (newpad))) {
         gst_object_unref (newpad);
@@ -1503,8 +1491,6 @@ init_track_data(GstKvsSink *kvssink) {
     gchar *video_content_type = NULL, *audio_content_type = NULL;
     const gchar *media_type;
 
-    LOG_INFO("Attempting to create track data");
-
     for (walk = kvssink->collect->data; walk != NULL; walk = g_slist_next (walk)) {
         GstKvsSinkTrackData *kvs_sink_track_data = (GstKvsSinkTrackData *) walk->data;
 
@@ -1513,10 +1499,6 @@ init_track_data(GstKvsSink *kvssink) {
             if (kvssink->data->media_type == AUDIO_VIDEO) {
                 kvs_sink_track_data->track_id = KVS_SINK_DEFAULT_TRACKID;
             }
-
-            // Remove track cpd received from a previous stop/start stream
-            // NOTE: This is to allow track cpd to be re-added to new stream session
-            //kvssink->data->track_cpd_received.erase(kvs_sink_track_data->track_id);
 
             GstCollectData *collect_data = (GstCollectData *) walk->data;
 
@@ -1541,10 +1523,6 @@ init_track_data(GstKvsSink *kvssink) {
             if (kvssink->data->media_type == AUDIO_VIDEO) {
                 kvs_sink_track_data->track_id = KVS_SINK_DEFAULT_AUDIO_TRACKID;
             }
-
-            // Remove track cpd received from a previous stop/start stream
-            // NOTE: This is to allow track cpd to be re-added to new stream session
-            //kvssink->data->track_cpd_received.erase(kvs_sink_track_data->track_id);
 
             GstCollectData *collect_data = (GstCollectData *) walk->data;
 
@@ -1588,8 +1566,6 @@ init_track_data(GstKvsSink *kvssink) {
             break;
     }
 
-    LOG_INFO("Created track data");
-
     g_free(video_content_type);
     g_free(audio_content_type);
 }
@@ -1627,6 +1603,10 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
             try {
                 kinesis_video_producer_init(kvssink);
+                init_track_data(kvssink);
+                kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+                kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+
             } catch (runtime_error &err) {
                 oss << "Failed to init kvs producer. Error: " << err.what();
                 err_msg = oss.str();
@@ -1634,23 +1614,12 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
                 goto CleanUp;
             }
 
-            break;
-        case GST_STATE_CHANGE_READY_TO_PAUSED:
-            data->streamingStopped.store(false);
-            try {
-                init_track_data(kvssink);
-                kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
-                kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
-            } catch (runtime_error &err) {
-                oss << "Failed to init track data. Error: " << err.what();
-                err_msg = oss.str();
-                ret = GST_STATE_CHANGE_FAILURE;
-                goto CleanUp;
-            }
             if (!kinesis_video_stream_init(kvssink, err_msg)) {
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto CleanUp;
             }
+            break;
+        case GST_STATE_CHANGE_READY_TO_PAUSED:
             gst_collect_pads_start (kvssink->collect);
             break;
         default:
@@ -1666,7 +1635,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     // Downward transitions
     switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-            LOG_INFO("Attempting to stop kvssink for " << kvssink->stream_name);
+            LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
             gst_collect_pads_stop (kvssink->collect);
 
             // Need this check in case an EOS was received in the buffer handler and
@@ -1674,12 +1643,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             // we want to avoid an extra call
             if(!data->streamingStopped.load()) {
                 data->kinesis_video_stream->stopSync();
-                data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
-
-                // Remove track cpd received from a previous stop/start stream
-                // NOTE: This is to allow new track cpd to be added to a new stream session
-                data->track_cpd_received.clear();
-
                 data->streamingStopped.store(true);
             } else {
                 LOG_INFO("Streaming already stopped for " << kvssink->stream_name);

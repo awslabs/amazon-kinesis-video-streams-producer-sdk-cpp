@@ -6,9 +6,9 @@ build
 cmake-build-debug/
 cmake-build-release/
 doc/
-open-source/*
+open-source/
 outputs
 tags
 dependency
-.vs
-.vscode/*
+.vs/
+.vscode/
