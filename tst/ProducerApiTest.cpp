@@ -114,7 +114,7 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
         // Simulate EoFr first
         if (frame.index % 50 == 0 && frame.index != 0) {
             Frame eofr = EOFR_FRAME_INITIALIZER;
-            EXPECT_TRUE(kinesis_video_stream->putFrame(eofr));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(eofr));
         }
 #endif
 

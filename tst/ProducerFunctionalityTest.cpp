@@ -376,7 +376,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
 
         // Pause on the 5th
         if (i == 5 * key_frame_interval_) {
-            EXPECT_TRUE(kinesis_video_stream->putFrame(eofr));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(eofr));
 
             // Make sure we hit the connection idle timeout
             THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
