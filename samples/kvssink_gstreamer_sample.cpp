@@ -266,7 +266,7 @@ static gboolean send_custom_event(gpointer user_data) {
     metadata_value_stream << "metadata_value_" << data_global.metadata_counter;
 
     // Create the custom event structure
-    GstStructure *structure = gst_structure_new_empty("put-fragment-metadata");
+    GstStructure *structure = gst_structure_new_empty("kvs-add-metadata");
     gst_structure_set(structure, "name", G_TYPE_STRING, metadata_key_stream.str().c_str(), NULL);
     gst_structure_set(structure, "value", G_TYPE_STRING, metadata_value_stream.str().c_str(), NULL);
     gst_structure_set(structure, "persist", G_TYPE_BOOLEAN, data_global.persist_flag, NULL);
@@ -905,4 +905,8 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
+
+
+// export KVS_DEBUG_DUMP_DATA_FILE_DIR=/Users/niyatim/Desktop/aws-kvs/producer-sdk/cpp/amazon-kinesis-video-streams-producer-sdk-cpp/media
+
 
