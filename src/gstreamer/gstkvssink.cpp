@@ -1161,7 +1161,8 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             gboolean persistent;
             bool is_persist;
 
-            if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME)) {
+            if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME) || data->fragment_metadata_count >= 10) {
+                LOG_INFO("Current fragment's metadata count  " << data->fragment_metadata_count << " . Current metadata cannot be persisted.");
                 goto CleanUp;
             }
 
@@ -1182,6 +1183,12 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             if (!result) {
                 LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist << " for " << kvssink->stream_name);
             }
+
+            if (is_persist) {
+                data->persisted_fragment_metadata_count++;
+            }
+            data->fragment_metadata_count++;
+            
             gst_event_unref (event);
             event = NULL;
             break;
@@ -1231,7 +1238,6 @@ put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
             kvs_sink_metric->client_metrics = data->kinesis_video_producer->getMetrics();
             kvs_sink_metric->frame_pts = frame.presentationTs;
             kvs_sink_metric->on_first_frame = data->on_first_frame;
-            data->on_first_frame = false;
             g_signal_emit(G_OBJECT(data->kvs_sink), data->metric_signal_id, 0, kvs_sink_metric);
             delete kvs_sink_metric;
         }
