@@ -1225,15 +1225,17 @@ put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
     Frame frame;
 
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    put_frame_status = data->kinesis_video_stream->putFrame(frame);
-    if(data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
-        if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame){
+    bool ret = data->kinesis_video_stream->putFrame(frame);
+        
+    if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame) {
+        data->fragment_metadata_count = data->persisted_fragment_metadata_count;
+        data->on_first_frame = false;
+        if(data->get_metrics && ret) {
             KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
             kvs_sink_metric->stream_metrics = data->kinesis_video_stream->getMetrics();
             kvs_sink_metric->client_metrics = data->kinesis_video_producer->getMetrics();
             kvs_sink_metric->frame_pts = frame.presentationTs;
             kvs_sink_metric->on_first_frame = data->on_first_frame;
-            data->on_first_frame = false;
             g_signal_emit(G_OBJECT(data->kvs_sink), data->metric_signal_id, 0, kvs_sink_metric);
             delete kvs_sink_metric;
         }
