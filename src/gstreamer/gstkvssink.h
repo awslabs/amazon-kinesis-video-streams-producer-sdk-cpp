@@ -169,6 +169,8 @@ struct _KvsSinkCustomData {
             frame_count(0),
             first_pts(GST_CLOCK_TIME_NONE),
             producer_start_time(GST_CLOCK_TIME_NONE),
+            fragment_metadata_count(0),
+            persisted_fragment_metadata_count(0),
             streamingStopped(false) {}
     std::unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     std::shared_ptr<KinesisVideoStream> kinesis_video_stream;
@@ -180,6 +182,8 @@ struct _KvsSinkCustomData {
     bool use_original_pts;
     bool get_metrics;
     uint32_t frame_count;
+    uint32_t fragment_metadata_count;
+    uint32_t persisted_fragment_metadata_count;
     bool on_first_frame;
     std::atomic<bool> streamingStopped;
     uint64_t frame_pts;
