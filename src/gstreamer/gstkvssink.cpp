@@ -137,7 +137,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define GSTREAMER_MEDIA_TYPE_ALAW       "audio/x-alaw"
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
-#define MAX_FRAGMENT_METADATA_COUNT     10
 
 namespace KvsSinkSignals {
     guint err_signal_id;
