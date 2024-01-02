@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6.3)
 find_program(MAKE_EXE NAMES make)
 
-project(log4cplus-download NONE)
+project(log4cplus-download LANGUAGES CXX)
 
 set(BUILD_SHARED_LIBS 1)
 if (BUILD_STATIC)
@@ -16,7 +16,11 @@ else()
 endif()
 
 if (DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot ${CMAKE_OSX_SYSROOT}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot${CMAKE_OSX_SYSROOT}")
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  SET(CONFIGURE_COMMAND ${CONFIGURE_STATIC})
 endif()
 
 include(ExternalProject)
