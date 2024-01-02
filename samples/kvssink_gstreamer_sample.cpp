@@ -9,6 +9,7 @@
 #include <IotCertCredentialProvider.h>
 #include "gstreamer/gstkvssink.h"
 #include <thread>
+#include <tuple>
 #include "include.h"
 
 using namespace std;
@@ -260,29 +261,37 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
     }
 }
 
-// Function to send the custom downstream event
-static gboolean send_custom_event(gpointer user_data) {
-    GstElement *kvssink = GST_ELEMENT(user_data);
+// Function to get key, value, and persist values
+static std::tuple<std::string, std::string, gboolean> get_metadata() {
     std::ostringstream metadata_key_stream, metadata_value_stream;
 
     metadata_key_stream << "metadata_key_" << data_global.metadata_counter;
     metadata_value_stream << "metadata_value_" << data_global.metadata_counter;
+    
+    data_global.metadata_counter++;
+    data_global.persist_flag = !data_global.persist_flag;
+
+    return std::make_tuple(metadata_key_stream.str(), metadata_value_stream.str(),
+        data_global.persist_flag);
+}
+
+// Function to send the custom downstream event
+static gboolean send_custom_event(gpointer user_data) {
+    GstElement *kvssink = GST_ELEMENT(user_data);
+
+    auto metadata = get_metadata();
 
     // Create the custom event structure
     GstStructure *structure = gst_structure_new_empty("kvs-add-metadata");
-    gst_structure_set(structure, "name", G_TYPE_STRING, metadata_key_stream.str().c_str(), NULL);
-    gst_structure_set(structure, "value", G_TYPE_STRING, metadata_value_stream.str().c_str(), NULL);
-    gst_structure_set(structure, "persist", G_TYPE_BOOLEAN, data_global.persist_flag, NULL);
+    gst_structure_set(structure, "name", G_TYPE_STRING, std::get<0>(metadata).c_str(), NULL);
+    gst_structure_set(structure, "value", G_TYPE_STRING, std::get<1>(metadata).c_str(), NULL);
+    gst_structure_set(structure, "persist", G_TYPE_BOOLEAN, std::get<2>(metadata), NULL);
 
     // Create the custom event
     GstEvent *event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure);
 
     // Send the custom event to the sink element
     gboolean ret = gst_element_send_event(kvssink, event);
-
-    data_global.metadata_counter++;
-    data_global.persist_flag = !data_global.persist_flag;
-
     return ret;
 }
 
