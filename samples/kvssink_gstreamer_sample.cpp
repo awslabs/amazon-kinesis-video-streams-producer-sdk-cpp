@@ -914,8 +914,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
-
-// export KVS_DEBUG_DUMP_DATA_FILE_DIR=/Users/niyatim/Desktop/aws-kvs/producer-sdk/cpp/amazon-kinesis-video-streams-producer-sdk-cpp/media
-
-
