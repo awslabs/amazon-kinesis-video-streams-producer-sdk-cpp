@@ -136,7 +136,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define GSTREAMER_MEDIA_TYPE_ALAW       "audio/x-alaw"
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
-#define MAX_FRAGMENT_METADATA_COUNT     10
 
 namespace KvsSinkSignals {
     guint err_signal_id;
@@ -1163,7 +1162,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             bool is_persist;
 
             if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME) || 
-                    data->fragment_metadata_count >= MAX_FRAGMENT_METADATA_COUNT) {
+                    data->fragment_metadata_count >= MAX_FRAGMENT_METADATA_COUNT - 2) {
                 LOG_INFO("Current fragment's metadata count  " << data->fragment_metadata_count << " . Max limit reached. Current metadata cannot be persisted.");
                 goto CleanUp;
             }
