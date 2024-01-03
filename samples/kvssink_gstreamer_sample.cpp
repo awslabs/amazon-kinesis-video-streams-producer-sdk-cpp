@@ -746,7 +746,7 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
         sleep(10);
         LOG_DEBUG("Pausing...");
         gst_element_set_state(pipeline, GST_STATE_PAUSED);
-        sleep(7200);
+        sleep(720);
         LOG_DEBUG("Playing...");
         gst_element_set_state(pipeline, GST_STATE_PLAYING);
     }

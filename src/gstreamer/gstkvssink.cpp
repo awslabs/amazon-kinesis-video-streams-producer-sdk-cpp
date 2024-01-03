@@ -1668,6 +1668,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     switch (transition) {
         case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
             data->streamingStopped.store(true);
+
+            // SHould this be data->kinesis_video_stream->stopSync() ???
             data->kinesis_video_stream->resetStream();
             kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
             kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
