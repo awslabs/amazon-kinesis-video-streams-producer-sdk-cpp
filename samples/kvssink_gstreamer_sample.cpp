@@ -732,10 +732,31 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
 	std::thread stream_timer(timer, data);
 	stream_timer.detach();
     }
+
+
     LOG_DEBUG("before main loop");
     data->main_loop = g_main_loop_new(NULL, FALSE);
-    g_main_loop_run(data->main_loop);
-    LOG_DEBUG("after main loop")
+
+    std::thread mainLoopThread(g_main_loop_run, data->main_loop);
+
+    int count = 0;
+    while(data_global.stream_status != STATUS_KVS_GSTREAMER_SAMPLE_INTERRUPTED) {
+        count++;
+        LOG_DEBUG("Play/Pause count: " << count);
+        sleep(10);
+        LOG_DEBUG("Pausing...");
+        gst_element_set_state(pipeline, GST_STATE_PAUSED);
+        sleep(7200);
+        LOG_DEBUG("Playing...");
+        gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    }
+    
+    
+    //g_main_loop_run(data->main_loop);
+
+
+    mainLoopThread.join();
+    LOG_DEBUG("after main loop");
 
 
     /* free resources */

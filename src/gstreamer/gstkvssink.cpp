@@ -1299,6 +1299,10 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
     }
 
+    if (data->streamingStopped.load()) {
+        goto CleanUp;
+    }
+
     if(buf != NULL) {
         isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
                         GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
@@ -1367,6 +1371,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             }
         }
 
+        LOG_INFO("Puting frame...");
         put_frame(kvssink->data, info.data, info.size,
                   std::chrono::nanoseconds(buf->pts),
                   std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
@@ -1645,6 +1650,10 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             }
             gst_collect_pads_start (kvssink->collect);
             break;
+        case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+            data->streamingStopped.store(false);
+            break;
+
         default:
             break;
     }
@@ -1657,6 +1666,12 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
     // Downward transitions
     switch (transition) {
+        case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
+            data->streamingStopped.store(true);
+            data->kinesis_video_stream->resetStream();
+            kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+            kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+            break;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             LOG_INFO("Attempting to stop kvssink for " << kvssink->stream_name);
             gst_collect_pads_stop (kvssink->collect);
