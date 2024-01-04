@@ -258,38 +258,19 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
     }
 }
 
-// Function to get key, value, and persist values
-static std::tuple<std::string, std::string, gboolean> get_metadata() {
-    std::ostringstream metadata_key_stream, metadata_value_stream;
+// Function to put fragment metadata: name, value, and persist values
+static void put_metadata(GstElement* element) {
+    std::ostringstream metadata_name_stream, metadata_value_stream;
 
-    metadata_key_stream << "metadata_key_" << data_global.metadata_counter;
+    metadata_name_stream << "metadata_name_" << data_global.metadata_counter;
     metadata_value_stream << "metadata_value_" << data_global.metadata_counter;
     
     data_global.metadata_counter++;
     data_global.persist_flag = !data_global.persist_flag;
 
-    return std::make_tuple(metadata_key_stream.str(), metadata_value_stream.str(),
-        data_global.persist_flag);
-}
-
-// Function to send the custom downstream event
-static gboolean send_custom_event(gpointer user_data) {
-    GstElement *kvssink = GST_ELEMENT(user_data);
-
-    auto metadata = get_metadata();
-
-    // Create the custom event structure
-    GstStructure *structure = gst_structure_new_empty("kvs-add-metadata");
-    gst_structure_set(structure, "name", G_TYPE_STRING, std::get<0>(metadata).c_str(), NULL);
-    gst_structure_set(structure, "value", G_TYPE_STRING, std::get<1>(metadata).c_str(), NULL);
-    gst_structure_set(structure, "persist", G_TYPE_BOOLEAN, std::get<2>(metadata), NULL);
-
-    // Create the custom event
-    GstEvent *event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure);
-
-    // Send the custom event to the sink element
-    gboolean ret = gst_element_send_event(kvssink, event);
-    return ret;
+   if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
+        LOG_WARN("Failed to put fragment metadata");
+   }
 }
 
 int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
@@ -753,7 +734,7 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     gst_object_unref(bus);
 
     // Create a GStreamer timer to trigger the custom downstream event every 2 seconds
-    g_timeout_add_seconds(2, send_custom_event, kvssink);
+    g_timeout_add_seconds(2, reinterpret_cast<GSourceFunc>(put_metadata), kvssink);
 
     /* start streaming */
     gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
@@ -868,7 +849,7 @@ int main(int argc, char *argv[]) {
                     } else if(stream_status == STATUS_KVS_GSTREAMER_SAMPLE_INTERRUPTED){
 		        LOG_ERROR("File upload interrupted.  Terminating.");
 		        continue_uploading = false;
-		    }else { // non fatal case.  retry upload
+		    } else { // non fatal case.  retry upload
                         LOG_ERROR("stream error occurred: " << stream_status << ". Terminating.");
                         do_retry = true;
                     }
