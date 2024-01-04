@@ -63,6 +63,11 @@ G_BEGIN_DECLS
 #define KVSSINK_USER_AGENT_POSTFIX_VERSION "UNKNOWN"
 #endif
 
+#define KVS_ADD_METADATA_G_STRUCT_NAME "kvs-add-metadata"
+#define KVS_ADD_METADATA_NAME "name"
+#define KVS_ADD_METADATA_VALUE "value"
+#define KVS_ADD_METADATA_PERSISTENT "persist"
+
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
 typedef struct _KvsSinkCustomData KvsSinkCustomData;
@@ -210,5 +215,14 @@ struct _KvsSinkMetric {
     uint64_t frame_pts;
     bool on_first_frame;
 };
+
+static bool inline put_fragment_metadata(GstElement* element, const std::string name, const std::string value, bool persistent) {
+  GstStructure* structure = gst_structure_new_empty(KVS_ADD_METADATA_G_STRUCT_NAME);
+  gst_structure_set(structure, KVS_ADD_METADATA_NAME, G_TYPE_STRING, name.c_str(), 
+                  KVS_ADD_METADATA_VALUE, G_TYPE_STRING, value.c_str(), 
+                  KVS_ADD_METADATA_PERSISTENT, G_TYPE_BOOLEAN, persistent, NULL);
+  GstEvent* event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure);
+  return gst_element_send_event(element, event);
+}
 
 #endif /* __GST_KVS_SINK_H__ */

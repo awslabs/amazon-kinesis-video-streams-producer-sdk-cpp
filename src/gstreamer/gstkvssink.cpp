@@ -117,10 +117,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 #define DEFAULT_FRAME_DURATION_MS 2
 
-#define KVS_ADD_METADATA_G_STRUCT_NAME "kvs-add-metadata"
-#define KVS_ADD_METADATA_NAME "name"
-#define KVS_ADD_METADATA_VALUE "value"
-#define KVS_ADD_METADATA_PERSISTENT "persist"
 #define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CPP-CLIENT"
 
 #define DEFAULT_AUDIO_TRACK_NAME "audio"
@@ -1163,7 +1159,8 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
             if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME) || 
                     data->fragment_metadata_count >= MAX_FRAGMENT_METADATA_TAGS) {
-                LOG_INFO("Current fragment's metadata count  " << data->fragment_metadata_count << " . Max limit reached. Current metadata cannot be persisted.");
+                ret = FALSE;
+                LOG_WARN("Current fragment's metadata count  " << data->fragment_metadata_count << ". Max limit reached. Current metadata cannot be persisted.");
                 goto CleanUp;
             }
 
@@ -1171,7 +1168,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             if (NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
                 NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
                 !gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
-
+                ret = FALSE;
                 LOG_WARN("Event structure contains invalid field: " << std::string(gst_structure_to_string (structure)) << " for " << kvssink->stream_name);
                 goto CleanUp;
             }
@@ -1182,7 +1179,9 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
             bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
             if (!result) {
+                ret = FALSE;
                 LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist << " for " << kvssink->stream_name);
+                goto CleanUp;
             }
 
             if (is_persist) {
