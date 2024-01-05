@@ -9,7 +9,6 @@
 #include <IotCertCredentialProvider.h>
 #include "gstreamer/gstkvssink.h"
 #include <thread>
-#include <tuple>
 #include "include.h"
 
 using namespace std;
@@ -253,7 +252,7 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 			"role-aliases", G_TYPE_STRING, role_alias, NULL);
 	
 	g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
-        gst_structure_free(iot_credentials);
+    gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort
     } else if(nullptr != (credential_path = getenv("AWS_CREDENTIAL_PATH"))){
