@@ -30,9 +30,15 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 typedef enum _StreamSource {
     FILE_SOURCE,
-    LIVE_SOURCE,
-    RTSP_SOURCE
+    RTSP_SOURCE,
+    DEVICE_SOURCE,
+    TEST_SOURCE
 } StreamSource;
+
+typedef enum _SampleMediaType {
+    SAMPLE_VIDEO_ONLY,
+    SAMPLE_AUDIO_VIDEO,
+} SampleMediaType;
 
 typedef struct _FileInfo {
     _FileInfo() :
@@ -46,7 +52,8 @@ typedef struct _FileInfo {
 typedef struct _CustomData {
 
     _CustomData() :
-            streamSource(LIVE_SOURCE),
+            mediaType(SAMPLE_VIDEO_ONLY),
+            streamSource(TEST_SOURCE),
             h264_stream_supported(false),
             synthetic_dts(0),
             last_unpersisted_file_idx(0),
@@ -104,6 +111,8 @@ typedef struct _CustomData {
 
     volatile StreamSource streamSource;
 
+    volatile SampleMediaType mediaType;
+
     string rtsp_url;
 
     unique_ptr<Credentials> credential;
@@ -118,43 +127,13 @@ typedef struct _CustomData {
     // Used to determine how long the stream should run (seconds)
     // Does not apply for file uploads
     int max_runtime;
+
+    GstElement* kvssink_element;
 } CustomData;
 
 // CustomData 
 CustomData data_global;
 
-static bool format_supported_by_source(GstCaps *src_caps, GstCaps *query_caps, int width, int height, int framerate) {
-    gst_caps_set_simple(query_caps,
-                        "width", G_TYPE_INT, width,
-                        "height", G_TYPE_INT, height,
-                        "framerate", GST_TYPE_FRACTION, framerate, 1,
-                        NULL);
-    bool is_match = gst_caps_can_intersect(query_caps, src_caps);
-
-    // in case the camera has fps as 10000000/333333
-    if (!is_match) {
-        gst_caps_set_simple(query_caps,
-                            "framerate", GST_TYPE_FRACTION_RANGE, framerate, 1, framerate + 1, 1,
-                            NULL);
-        is_match = gst_caps_can_intersect(query_caps, src_caps);
-    }
-
-    return is_match;
-}
-
-static bool resolution_supported(GstCaps *src_caps, GstCaps *query_caps_raw, GstCaps *query_caps_h264,
-                                 CustomData &data, int width, int height, int framerate) {
-    if (query_caps_h264 && format_supported_by_source(src_caps, query_caps_h264, width, height, framerate)) {
-        LOG_DEBUG("src supports h264")
-        data.h264_stream_supported = true;
-    } else if (query_caps_raw && format_supported_by_source(src_caps, query_caps_raw, width, height, framerate)) {
-        LOG_DEBUG("src supports raw")
-        data.h264_stream_supported = false;
-    } else {
-        return false;
-    }
-    return true;
-}
 
 /* callback when eos (End of Stream) is posted on bus */
 static void eos_cb(GstElement *sink, GstMessage *message, CustomData *data) {
@@ -258,82 +237,14 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
     }
 }
 
+
+
 int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
-
     bool vtenc = false, isOnRpi = false;
-
-    /* init stream format */
-    int width = 0, height = 0, framerate = 25, bitrateInKBPS = 512;
-    // index 1 is stream name which is already processed
-    for (int i = 2; i < argc; i++) {
-        if (i < argc) {
-            if ((0 == STRCMPI(argv[i], "-w")) ||
-                (0 == STRCMPI(argv[i], "/w")) ||
-                (0 == STRCMPI(argv[i], "--w"))) {
-                // process the width
-                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &width))) {
-                    return 1;
-                }
-            } else if ((0 == STRCMPI(argv[i], "-h")) ||
-                       (0 == STRCMPI(argv[i], "/h")) ||
-                       (0 == STRCMPI(argv[i], "--h"))) {
-                // process the height
-                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &height))) {
-                    return 1;
-                }
-            } else if ((0 == STRCMPI(argv[i], "-f")) ||
-                       (0 == STRCMPI(argv[i], "/f")) ||
-                       (0 == STRCMPI(argv[i], "--f"))) {
-                // process the framerate
-                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &framerate))) {
-                    return 1;
-                }
-            } else if ((0 == STRCMPI(argv[i], "-b")) ||
-                       (0 == STRCMPI(argv[i], "/b")) ||
-                       (0 == STRCMPI(argv[i], "--b"))) {
-                // process the bitrate
-                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &bitrateInKBPS))) {
-                    return 1;
-                }
-             } else if ((0 == STRCMPI(argv[i], "-runtime")) ||
-                       (0 == STRCMPI(argv[i], "/runtime")) ||
-                       (0 == STRCMPI(argv[i], "--runtime"))) {
-                // process the max runtime
-                if (STATUS_FAILED(STRTOI32(argv[i + 1], NULL, 10, &(data->max_runtime)))) {
-                    return 1;
-                }
-            // skip the index
-            }
-            i++;
-        } else if (0 == STRCMPI(argv[i], "-?") ||
-                   0 == STRCMPI(argv[i], "--?") ||
-                   0 == STRCMPI(argv[i], "--help")) {
-            g_printerr("Invalid arguments\n");
-            return 1;
-        } else if (argv[i][0] == '/' ||
-                   argv[i][0] == '-') {
-            // Unknown option
-            g_printerr("Invalid arguments\n");
-            return 1;
-        }
-    }
-
-    if ((width == 0 && height != 0) || (width != 0 && height == 0)) {
-        g_printerr("Invalid resolution\n");
-        return 1;
-    }
-
-    if(framerate <= 0 || bitrateInKBPS <= 0) {
-       g_printerr("Invalid input arguments\n");
-       return 1;
-    }
-
-    LOG_DEBUG("Streaming with live source and width: " << width << ", height: " << height << ", fps: " << framerate
-                                                       << ", bitrateInKBPS" << bitrateInKBPS);
 
     GstElement *source_filter, *filter, *kvssink, *h264parse, *encoder, *source, *video_convert;
 
-    /* create the elemnents */
+    /* create the elements */
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
     if (!source_filter) {
         LOG_ERROR("Failed to create capsfilter (1)");
@@ -355,49 +266,54 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
         return 1;
     }
 
-    // Attempt to create vtenc encoder
-    encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
-    if (encoder) {
-        vtenc = true;
-        source = gst_element_factory_make("videotestsrc", "source");
-        if (source) {
-            LOG_DEBUG("Using videotestsrc");
-        } else {
-            LOG_ERROR("Failed to create videotestsrc");
-            return 1;
-        }
-    } else {
-        // Failed creating vtenc - check pi hardware encoder
-        encoder = gst_element_factory_make("omxh264enc", "encoder");
-        if (encoder) {
-            LOG_DEBUG("Using omxh264enc")
-            isOnRpi = true;
-        } else {
-            // - attempt x264enc
-            isOnRpi = false;
-            encoder = gst_element_factory_make("x264enc", "encoder");
-            if (encoder) {
-                LOG_DEBUG("Using x264enc");
-            } else {
-                LOG_ERROR("Failed to create x264enc");
-                return 1;
+
+
+
+
+    switch (data->mediaType) {
+        case SAMPLE_VIDEO_ONLY:
+            LOG_INFO("Streaming video-only");
+            switch (data->streamSource) {
+                case TEST_SOURCE: {
+                    LOG_INFO("TEST_SOURCE");
+                    source = gst_element_factory_make("videotestsrc", "source");
+                    g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
+                    break;
+                }
+                case DEVICE_SOURCE: {
+                    LOG_INFO("DEVICE_SOURCE");
+                    source = gst_element_factory_make("autovideosrc", "source");
+                    break;
+                }
+                case RTSP_SOURCE: {
+                    LOG_INFO("RTSP_SOURCE");
+                    break;
+                }
             }
-        }
-        source = gst_element_factory_make("v4l2src", "source");
-        if (source) {
-            LOG_DEBUG("Using v4l2src");
-        } else {
-            LOG_DEBUG("Failed to create v4l2src, trying ksvideosrc")
-            source = gst_element_factory_make("ksvideosrc", "source");
-            if (source) {
-                LOG_DEBUG("Using ksvideosrc");
-            } else {
-                LOG_ERROR("Failed to create ksvideosrc");
-                return 1;
+            break;
+
+        // TODO: implement audio and video later.
+        case SAMPLE_AUDIO_VIDEO:
+            switch (data->streamSource) {
+                case TEST_SOURCE: {
+                    
+                    break;
+                }
+                case DEVICE_SOURCE: {
+                   
+                    break;
+                }
+                case RTSP_SOURCE: {
+                    
+                    break;
+                }
             }
-        }
-        vtenc = false;
+            break;
     }
+
+
+    encoder = gst_element_factory_make("x264enc", "encoder");
+
 
     if (!pipeline || !source || !source_filter || !encoder || !filter || !kvssink || !h264parse) {
         g_printerr("Not all elements could be created.\n");
@@ -405,114 +321,35 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     }
 
     /* configure source */
-    if (vtenc) {
-        g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
-    } else {
-        g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
-    }
-
-    /* Determine whether device supports h264 encoding and select a streaming resolution supported by the device*/
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(source, GST_STATE_READY)) {
         g_printerr("Unable to set the source to ready state.\n");
         return 1;
     }
-
-    GstPad *srcpad = gst_element_get_static_pad(source, "src");
-    GstCaps *src_caps = gst_pad_query_caps(srcpad, NULL);
     gst_element_set_state(source, GST_STATE_NULL);
 
+    /* video converter */
+    video_convert = gst_element_factory_make("videoconvert", "video_convert");
+    if (!video_convert) {
+        g_printerr("video convert could not be created.\n");
+        return 1;
+    }
+
+    /* configure source filter */
     GstCaps *query_caps_raw = gst_caps_new_simple("video/x-raw",
-                                                  "width", G_TYPE_INT, width,
-                                                  "height", G_TYPE_INT, height,
+                                                  "format", G_TYPE_STRING, "I420",
                                                   NULL);
-    GstCaps *query_caps_h264 = gst_caps_new_simple("video/x-h264",
-                                                   "width", G_TYPE_INT, width,
-                                                   "height", G_TYPE_INT, height,
-                                                   NULL);
-
-    if (width != 0 && height != 0) {
-        if (!resolution_supported(src_caps, query_caps_raw, query_caps_h264, *data, width, height, framerate)) {
-            g_printerr("Resolution %dx%d not supported by video source\n", width, height);
-            return 1;
-        }
-    } else {
-        vector<int> res_width = {640, 1280, 1920};
-        vector<int> res_height = {480, 720, 1080};
-        vector<int> fps = {30, 25, 20};
-        bool found_resolution = false;
-        for (int i = 0; i < res_width.size(); i++) {
-            width = res_width[i];
-            height = res_height[i];
-            for (int j = 0; j < fps.size(); j++) {
-                framerate = fps[j];
-                if (resolution_supported(src_caps, query_caps_raw, query_caps_h264, *data, width, height, framerate)) {
-                    found_resolution = true;
-                    break;
-                }
-            }
-            if (found_resolution) {
-                break;
-            }
-        }
-        if (!found_resolution) {
-            g_printerr(
-                    "Default list of resolutions (1920x1080, 1280x720, 640x480) are not supported by video source\n");
-            return 1;
-        }
-    }
-
-    gst_caps_unref(src_caps);
-    gst_object_unref(srcpad);
-
-    /* create the elemnents needed for the corresponding pipeline */
-    if (!data->h264_stream_supported) {
-        video_convert = gst_element_factory_make("videoconvert", "video_convert");
-
-        if (!video_convert) {
-            g_printerr("Not all elements could be created.\n");
-            return 1;
-        }
-    }
-
-    /* source filter */
-    if (!data->h264_stream_supported) {
-        gst_caps_set_simple(query_caps_raw,
-                            "format", G_TYPE_STRING, "I420",
-                            NULL);
-        g_object_set(G_OBJECT(source_filter), "caps", query_caps_raw, NULL);
-    } else {
-        gst_caps_set_simple(query_caps_h264,
-                            "stream-format", G_TYPE_STRING, "byte-stream",
-                            "alignment", G_TYPE_STRING, "au",
-                            NULL);
-        g_object_set(G_OBJECT(source_filter), "caps", query_caps_h264, NULL);
-    }
-    gst_caps_unref(query_caps_h264);
+    g_object_set(G_OBJECT(source_filter), "caps", query_caps_raw, NULL);
     gst_caps_unref(query_caps_raw);
 
     /* configure encoder */
-    if (!data->h264_stream_supported) {
-        if (vtenc) {
-            g_object_set(G_OBJECT(encoder), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval",
-                         45, "bitrate", bitrateInKBPS, NULL);
-        } else if (isOnRpi) {
-            g_object_set(G_OBJECT(encoder), "control-rate", 2, "target-bitrate", bitrateInKBPS * 1000,
-                         "periodicty-idr", 45, "inline-header", FALSE, NULL);
-        } else {
-            g_object_set(G_OBJECT(encoder), "bframes", 0, "key-int-max", 45, "bitrate", bitrateInKBPS, NULL);
-        }
-    }
-
-
-    /* configure filter */
+    g_object_set(G_OBJECT(encoder), "bframes", 0, "bitrate", 512, NULL);
+        
+    /* configure output filter */
     GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
                                              "stream-format", G_TYPE_STRING, "avc",
                                              "alignment", G_TYPE_STRING, "au",
                                              NULL);
-    if (!data->h264_stream_supported) {
-        gst_caps_set_simple(h264_caps, "profile", G_TYPE_STRING, "baseline",
-                            NULL);
-    }
+    //gst_caps_set_simple(h264_caps, "profile", G_TYPE_STRING, "baseline", NULL);
     g_object_set(G_OBJECT(filter), "caps", h264_caps, NULL);
     gst_caps_unref(h264_caps);
 
@@ -520,163 +357,24 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
     determine_credentials(kvssink, data);
 
-    /* build the pipeline */
-    if (!data->h264_stream_supported) {
-        gst_bin_add_many(GST_BIN(pipeline), source, video_convert, source_filter, encoder, h264parse, filter,
-                         kvssink, NULL);
-        LOG_DEBUG("Constructing pipeline with encoding element")
-        if (!gst_element_link_many(source, video_convert, source_filter, encoder, h264parse, filter, kvssink, NULL)) {
-            g_printerr("Elements could not be linked.\n");
-            gst_object_unref(pipeline);
-            return 1;
-        }
-    } else {
-        LOG_DEBUG("Constructing pipeline without encoding element")
-        gst_bin_add_many(GST_BIN(pipeline), source, source_filter, h264parse, filter, kvssink, NULL);
-        if (!gst_element_link_many(source, source_filter, h264parse, filter, kvssink, NULL)) {
-            g_printerr("Elements could not be linked.\n");
-            gst_object_unref(pipeline);
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
-    // process runtime if provided
-    if (argc == 5){
-      if ((0 == STRCMPI(argv[3], "-runtime")) ||
-          (0 == STRCMPI(argv[3], "/runtime")) ||
-          (0 == STRCMPI(argv[3], "--runtime"))){
-          // process the max runtime
-          if (STATUS_FAILED(STRTOI32(argv[4], NULL, 10, &(data->max_runtime)))) {
-                return 1;
-	  }
-      }
-    }
-    GstElement *filter, *kvssink, *depay, *source, *h264parse;
-
-    filter = gst_element_factory_make("capsfilter", "filter");
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
-    depay = gst_element_factory_make("rtph264depay", "depay");
-    source = gst_element_factory_make("rtspsrc", "source");
-    h264parse = gst_element_factory_make("h264parse", "h264parse");
-
-    if (!pipeline || !source || !depay || !kvssink || !filter || !h264parse) {
-        g_printerr("Not all elements could be created.\n");
-        return 1;
-    }
-
-    // configure filter
-    GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
-                                             "stream-format", G_TYPE_STRING, "avc",
-                                             "alignment", G_TYPE_STRING, "au",
-                                             NULL);
-    g_object_set(G_OBJECT(filter), "caps", h264_caps, NULL);
-    gst_caps_unref(h264_caps);
-
-    // configure kvssink
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
-    determine_credentials(kvssink, data);
-    
-    // configure rtspsrc
-    g_object_set(G_OBJECT(source),
-                 "location", data->rtsp_url.c_str(),
-                 "short-header", true, // Necessary for target camera
-                 NULL);
-
-    g_signal_connect(source, "pad-added", G_CALLBACK(pad_added_cb), depay);
+    data->kvssink_element = source;
 
     /* build the pipeline */
-    gst_bin_add_many(GST_BIN(pipeline), source,
-                     depay, h264parse, filter, kvssink,
-                     NULL);
-
-    /* Leave the actual source out - this will be done when the pad is added */
-    if (!gst_element_link_many(depay, filter, h264parse,
-                               kvssink,
-                               NULL)) {
-
+    gst_bin_add_many(GST_BIN(pipeline), source, video_convert, source_filter, encoder, filter,
+                        kvssink, NULL);
+    if (!gst_element_link_many(source, video_convert, encoder, kvssink, NULL)) {
         g_printerr("Elements could not be linked.\n");
         gst_object_unref(pipeline);
-        return 1;
     }
-
+           
     return 0;
 }
 
-int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
-
-    GstElement *demux, *kvssink, *filesrc, *h264parse, *filter, *queue;
-    string file_suffix;
-    string file_path = data->file_list.at(data->current_file_idx).path;
-
-    filter = gst_element_factory_make("capsfilter", "filter");
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
-    filesrc = gst_element_factory_make("filesrc", "filesrc");
-    h264parse = gst_element_factory_make("h264parse", "h264parse");
-    queue = gst_element_factory_make("queue", "queue");
-
-    // set demux based off filetype
-    file_suffix = file_path.substr(file_path.size() - 3);
-    if (file_suffix.compare("mkv") == 0) {
-        demux = gst_element_factory_make("matroskademux", "demux");
-    } else if (file_suffix.compare("mp4") == 0) {
-        demux = gst_element_factory_make("qtdemux", "demux");
-    } else if (file_suffix.compare(".ts") == 0) {
-        demux = gst_element_factory_make("tsdemux", "demux");
-    } else {
-        LOG_ERROR("File format not supported. Supported ones are mp4, mkv and ts. File suffix: " << file_suffix);
-        return 1;
-    }
 
 
-    if (!demux || !filesrc || !h264parse || !kvssink || !pipeline || !filter) {
-        g_printerr("Not all elements could be created:\n");
-        return 1;
-    }
-
-    // configure filter
-    GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
-                                             "stream-format", G_TYPE_STRING, "avc",
-                                             "alignment", G_TYPE_STRING, "au",
-                                             NULL);
-    g_object_set(G_OBJECT(filter), "caps", h264_caps, NULL);
-    gst_caps_unref(h264_caps);
-
-    // configure kvssink
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "streaming-type", STREAMING_TYPE_OFFLINE, "storage-size", 128, NULL);
-    determine_credentials(kvssink, data);
-
-    // configure filesrc
-    g_object_set(G_OBJECT(filesrc), "location", file_path.c_str(), NULL);
-
-    // configure demux
-    g_signal_connect(demux, "pad-added", G_CALLBACK(pad_added_cb), queue);
 
 
-    /* build the pipeline */
-    gst_bin_add_many(GST_BIN(pipeline), demux,
-                     filesrc, filter, kvssink, h264parse, queue,
-                     NULL);
 
-    if (!gst_element_link_many(filesrc, demux,
-                               NULL)) {
-        g_printerr("Elements could not be linked.\n");
-        gst_object_unref(pipeline);
-        return 1;
-    }
-
-    if (!gst_element_link_many(queue, h264parse, filter, kvssink,
-                               NULL)) {
-        g_printerr("Video elements could not be linked.\n");
-        gst_object_unref(pipeline);
-        return 1;
-    }
-
-    return 0;
-}
 
 int gstreamer_init(int argc, char *argv[], CustomData *data) {
 
@@ -691,21 +389,26 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     data->first_pts = GST_CLOCK_TIME_NONE;
 
     switch (data->streamSource) {
-        case LIVE_SOURCE:
-            LOG_INFO("Streaming from live source");
-            pipeline = gst_pipeline_new("live-kinesis-pipeline");
+        case TEST_SOURCE:
+            LOG_INFO("Streaming from test source");
+            pipeline = gst_pipeline_new("test-kinesis-pipeline");
             ret = gstreamer_live_source_init(argc, argv, data, pipeline);
             break;
-        case RTSP_SOURCE:
-            LOG_INFO("Streaming from rtsp source");
-            pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
-            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline);
+        case DEVICE_SOURCE:
+            LOG_INFO("Streaming from device source");
+            pipeline = gst_pipeline_new("device-kinesis-pipeline");
+            ret = gstreamer_live_source_init(argc, argv, data, pipeline);
             break;
-        case FILE_SOURCE:
-            LOG_INFO("Streaming from file source");
-            pipeline = gst_pipeline_new("file-kinesis-pipeline");
-            ret = gstreamer_file_source_init(data, pipeline);
-            break;
+        // case RTSP_SOURCE:
+        //     LOG_INFO("Streaming from rtsp source");
+        //     pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
+        //     ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline);
+        //     break;
+        // case FILE_SOURCE:
+        //     LOG_INFO("Streaming from file source");
+        //     pipeline = gst_pipeline_new("file-kinesis-pipeline");
+        //     ret = gstreamer_file_source_init(data, pipeline);
+        //     break;
     }
 
     if (ret != 0) {
@@ -736,20 +439,54 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
 
     LOG_DEBUG("before main loop");
     data->main_loop = g_main_loop_new(NULL, FALSE);
-
     std::thread mainLoopThread(g_main_loop_run, data->main_loop);
 
-    int count = 0;
-    while(data_global.stream_status != STATUS_KVS_GSTREAMER_SAMPLE_INTERRUPTED) {
-        count++;
-        LOG_DEBUG("Play/Pause count: " << count);
+
+    // LOG_DEBUG("SAMPLE Playing for 5 seconds");
+    // sleep(5);
+
+    // LOG_DEBUG("SAMPLE Sleeping for 5 seconds");
+    // gst_ret = gst_element_set_state(pipeline, GST_STATE_READY);
+    // sleep(5);
+
+    // LOG_DEBUG("SAMPLE Playing for 20 seconds");
+    // gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    // sleep(20);
+
+    // LOG_DEBUG("SAMPLE Sleeping for 60 seconds");
+    // gst_ret = gst_element_set_state(pipeline, GST_STATE_READY);
+    // sleep(60);
+
+
+    // LOG_DEBUG("SAMPLE Playing for 20 seconds");
+    // gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    // sleep(20);
+
+
+    // LOG_DEBUG("SAMPLE Sleeping for 1200 seconds (20 minutes)");
+    // gst_ret = gst_element_set_state(pipeline, GST_STATE_READY);
+    // sleep(1200);
+
+
+    // int count = 0;
+    // while(data_global.stream_status != STATUS_KVS_GSTREAMER_SAMPLE_INTERRUPTED) {
+        // count++;
+        // LOG_DEBUG("Play/Pause count: " << count);
+
         sleep(10);
         LOG_DEBUG("Pausing...");
-        gst_element_set_state(pipeline, GST_STATE_PAUSED);
-        sleep(720);
+        GstEvent* flush_start = gst_event_new_flush_start();
+        gst_element_send_event(pipeline, flush_start);
+        gst_element_set_state(data->kvssink_element, GST_STATE_PAUSED);
+        //gst_element_set_state(pipeline, GST_STATE_PAUSED);
+        
+        sleep(10);
+
         LOG_DEBUG("Playing...");
+        GstEvent* flush_stop = gst_event_new_flush_stop(true);
+        gst_element_send_event(data->kvssink_element, flush_stop);
         gst_element_set_state(pipeline, GST_STATE_PLAYING);
-    }
+    //}
     
     
     //g_main_loop_run(data->main_loop);
@@ -793,36 +530,62 @@ int main(int argc, char *argv[]) {
     stream_name[MAX_STREAM_NAME_LEN] = '\0';
     data_global.stream_name = stream_name;
 
-    data_global.streamSource = LIVE_SOURCE;
+    data_global.mediaType = SAMPLE_VIDEO_ONLY;
     if (argc > 2) {
-        string third_arg = string(argv[2]);
-        // config options for live source begin with -
-        if (third_arg[0] != '-') {
-            string prefix = third_arg.substr(0, 4);
-            string suffix = third_arg.substr(third_arg.size() - 3);
-            if (prefix.compare("rtsp") == 0) {
-                data_global.streamSource = RTSP_SOURCE;
-                data_global.rtsp_url = string(argv[2]);
-
-            } else if (suffix.compare("mkv") == 0 ||
-                       suffix.compare("mp4") == 0 ||
-                       suffix.compare(".ts") == 0) {
-                data_global.streamSource = FILE_SOURCE;
-                // skip over stream name
-                for (int i = 2; i < argc; ++i) {
-                    string file_path = string(argv[i]);
-                    // file path should be at least 4 char (shortest example: a.ts)
-                    if (file_path.size() < 4) {
-                        LOG_ERROR("Invalid file path");
-                        return 1;
-                    }
-                    FileInfo fileInfo;
-                    fileInfo.path = file_path;
-                    data_global.file_list.push_back(fileInfo);
-                }
-            }
+        if (STRCMP(argv[2], "video-only") == 0) {
+            data_global.mediaType = SAMPLE_VIDEO_ONLY;
+            DLOGI("[KVSSINK Sample] Streaming video only");
+        } else if (STRCMP(argv[2], "audio-video") == 0) {
+            data_global.mediaType = SAMPLE_AUDIO_VIDEO;
+            DLOGI("[KVSSINK Sample] Streaming audio and video");
+        } else {
+            DLOGI("[KVSSINK Sample] Unrecognized streaming type. Defaulting to video-only");
         }
+    } else {
+        DLOGI("[KVSSINK Sample] Streaming video-only");
     }
+
+    data_global.streamSource = TEST_SOURCE;
+    if (argc > 3) {
+        if (STRCMP(argv[3], "testsrc") == 0) {
+            DLOGI("[KVSSINK Sample] Using test source in GStreamer");
+            data_global.streamSource = TEST_SOURCE;
+        } else if (STRCMP(argv[3], "devicesrc") == 0) {
+            DLOGI("[KVSSINK Sample] Using device source in GStreamer");
+            data_global.streamSource = DEVICE_SOURCE;
+        } else if (STRCMP(argv[3], "rtspsrc") == 0) {
+            DLOGI("[KVSSINK Sample] Using RTSP source in GStreamer");
+            if (argc < 5) {
+                printf("[KVSSINK Sample] No RTSP source URI included. Defaulting to test source");
+                // TODO: fix the exe name
+                printf("[KVSSINK Sample] Usage: ./kvsWebrtcClientMasterGstSample <channel name> audio-video rtspsrc rtsp://<rtsp uri>\n"
+                       "or ./kvsWebrtcClientMasterGstSample <channel name> video-only rtspsrc <rtsp://<rtsp uri>");
+                data_global.streamSource = DEVICE_SOURCE;
+            } else {
+                data_global.streamSource = RTSP_SOURCE;
+                data_global.rtsp_url = argv[4];
+            }
+        } else {
+            DLOGI("[KVSSINK Sample] Unrecognized source type. Defaulting to device source in GStreamer");
+        }
+    } else {
+        printf("[KVSSINK Sample] Using test source in GStreamer\n");
+    }
+
+    switch (data_global.mediaType) {
+        case SAMPLE_VIDEO_ONLY:
+            DLOGI("[KVSSINK Sample] streaming type video-only");
+            break;
+        case SAMPLE_AUDIO_VIDEO:
+            DLOGI("[KVSSINK Sample] streaming type audio-video");
+            break;
+    }
+
+
+
+
+
+
 
     bool do_retry = true;
 
@@ -898,4 +661,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-

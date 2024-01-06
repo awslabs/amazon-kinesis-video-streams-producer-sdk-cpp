@@ -709,6 +709,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->num_streams = 0;
     kvssink->num_audio_streams = 0;
     kvssink->num_video_streams = 0;
+    //kvssink->pause_time = 0;
 
     // Stream definition
     kvssink->stream_name = g_strdup (DEFAULT_STREAM_NAME);
@@ -1221,6 +1222,12 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = static_cast<UINT64>(track_id);
 }
 
+bool put_eofr_frame(shared_ptr<KvsSinkCustomData> data) {
+    Frame eofrFrame = EOFR_FRAME_INITIALIZER;
+    bool ret = data->kinesis_video_stream->putFrame(eofrFrame);
+    return ret;
+}
+
 bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
 
@@ -1257,6 +1264,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     uint64_t track_id;
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
+
+    LOG_INFO("BUFFER RECEIVED");
 
     info.data = NULL;
     // eos reached
@@ -1299,9 +1308,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
     }
 
-    if (data->streamingStopped.load()) {
-        goto CleanUp;
-    }
+    // if (data->streamingStopped.load()) {
+    //     goto CleanUp;
+    // }
 
     if(buf != NULL) {
         isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
@@ -1372,9 +1381,12 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
 
         LOG_INFO("Puting frame...");
+        LOG_INFO("With pts: " << buf->pts);
+        LOG_INFO("With dts: " << (buf->dts + kvssink->pause_time) / 1000000000);
+
         put_frame(kvssink->data, info.data, info.size,
                   std::chrono::nanoseconds(buf->pts),
-                  std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+                  std::chrono::nanoseconds(buf->dts + kvssink->pause_time), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
     }
     else {
@@ -1610,6 +1622,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     auto data = kvssink->data;
     string err_msg = "";
     ostringstream oss;
+    GstEvent* flush_start;
+    GstEvent* flush_stop;
 
     // Upward transitions
     switch (transition) {
@@ -1651,7 +1665,14 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             gst_collect_pads_start (kvssink->collect);
             break;
         case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
-            data->streamingStopped.store(false);
+            // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+            // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+            //data->streamingStopped.store(false);
+
+            // if (kvssink->pause_time != 0) {
+            //     kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+            //             systemCurrentTime().time_since_epoch()).count() - kvssink->pause_time;
+            // }
             break;
 
         default:
@@ -1667,12 +1688,22 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     // Downward transitions
     switch (transition) {
         case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
-            data->streamingStopped.store(true);
+            // flush_start =  gst_event_new_flush_start();
+            // gst_element_send_event(element, flush_start);
+            
+            //data->streamingStopped.store(true);
 
-            // SHould this be data->kinesis_video_stream->stopSync() ???
-            data->kinesis_video_stream->resetStream();
-            kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
-            kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+            //put_eofr_frame(data);
+
+            // kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+            //             systemCurrentTime().time_since_epoch()).count();
+
+            // Should this be data->kinesis_video_stream->stopSync() ???
+            // LOG_INFO("RESETTING THE STREAM");
+            // data->kinesis_video_stream->resetStream();
+            
+            // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+            // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
             break;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             LOG_INFO("Attempting to stop kvssink for " << kvssink->stream_name);
