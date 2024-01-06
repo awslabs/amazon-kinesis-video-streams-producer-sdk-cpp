@@ -321,6 +321,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     }
 
     /* configure source */
+    // g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "is-live", TRUE, NULL); these don't fix the stagnant dts upon pause unfortunately
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(source, GST_STATE_READY)) {
         g_printerr("Unable to set the source to ready state.\n");
         return 1;
@@ -474,18 +475,33 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
         // LOG_DEBUG("Play/Pause count: " << count);
 
         sleep(10);
+
+        GstEvent* flush_start;
+        GstEvent* flush_stop;
+
         LOG_DEBUG("Pausing...");
-        GstEvent* flush_start = gst_event_new_flush_start();
+        flush_start = gst_event_new_flush_start();
         gst_element_send_event(pipeline, flush_start);
-        gst_element_set_state(data->kvssink_element, GST_STATE_PAUSED);
-        //gst_element_set_state(pipeline, GST_STATE_PAUSED);
-        
+        gst_element_set_state(pipeline, GST_STATE_PAUSED);
         sleep(10);
 
         LOG_DEBUG("Playing...");
-        GstEvent* flush_stop = gst_event_new_flush_stop(true);
-        gst_element_send_event(data->kvssink_element, flush_stop);
+        flush_stop = gst_event_new_flush_stop(true);
+        gst_element_send_event(pipeline, flush_stop);
         gst_element_set_state(pipeline, GST_STATE_PLAYING);
+        // sleep(10);
+
+        // LOG_DEBUG("Pausing...");
+        // flush_start = gst_event_new_flush_start();
+        // gst_element_send_event(pipeline, flush_start);
+        // gst_element_set_state(pipeline, GST_STATE_PAUSED);
+        // sleep(10);
+
+        // LOG_DEBUG("Playing...");
+        // flush_stop = gst_event_new_flush_stop(false);
+        // gst_element_send_event(data->kvssink_element, flush_stop);
+        // gst_element_set_state(pipeline, GST_STATE_PLAYING);
+
     //}
     
     

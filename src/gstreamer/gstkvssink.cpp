@@ -709,7 +709,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->num_streams = 0;
     kvssink->num_audio_streams = 0;
     kvssink->num_video_streams = 0;
-    //kvssink->pause_time = 0;
+    kvssink->pause_time = 0;
 
     // Stream definition
     kvssink->stream_name = g_strdup (DEFAULT_STREAM_NAME);
@@ -1336,6 +1336,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                 buf->pts = buf->dts;
             }
         } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
+            LOG_INFO("UPDATING TO NEW TS ");
             buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
         }
 
@@ -1385,8 +1386,10 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         LOG_INFO("With dts: " << (buf->dts + kvssink->pause_time) / 1000000000);
 
         put_frame(kvssink->data, info.data, info.size,
-                  std::chrono::nanoseconds(buf->pts),
-                  std::chrono::nanoseconds(buf->dts + kvssink->pause_time), kinesis_video_flags, track_id, data->frame_count);
+                  std::chrono::nanoseconds( (uint64_t) chrono::duration_cast<nanoseconds>(
+                        systemCurrentTime().time_since_epoch()).count()),
+                  std::chrono::nanoseconds( (uint64_t) chrono::duration_cast<nanoseconds>(
+                        systemCurrentTime().time_since_epoch()).count() + kvssink->pause_time), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
     }
     else {
@@ -1673,6 +1676,12 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             //     kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
             //             systemCurrentTime().time_since_epoch()).count() - kvssink->pause_time;
             // }
+            // if (kvssink->pause_time != 0) {
+            //     kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+            //             systemCurrentTime().time_since_epoch()).count() - kvssink->pause_time;
+            //     LOG_INFO("Set pause_time to: " << kvssink->pause_time);
+            // }
+
             break;
 
         default:
@@ -1695,6 +1704,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
             //put_eofr_frame(data);
 
+            // kvssink->pause_time += (uint64_t) chrono::duration_cast<nanoseconds>(
+            //             systemCurrentTime().time_since_epoch()).count();
             // kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
             //             systemCurrentTime().time_since_epoch()).count();
 
