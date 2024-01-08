@@ -1158,20 +1158,21 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             bool is_persist;
 
             if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME) || 
-                    data->fragment_metadata_count >= MAX_FRAGMENT_METADATA_TAGS) {
+                NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
+                NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
+                !gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
+                ret = FALSE;
+                LOG_WARN("Event structure is invalid or it contains invalid field: " << std::string(gst_structure_to_string (structure)) << " for " << kvssink->stream_name);
+                goto CleanUp;
+            }
+
+            if (data->fragment_metadata_count >= MAX_FRAGMENT_METADATA_TAGS) {
                 ret = FALSE;
                 LOG_WARN("Current fragment's metadata count  " << data->fragment_metadata_count << ". Max limit reached. Current metadata cannot be persisted.");
                 goto CleanUp;
             }
 
             LOG_INFO("received kvs-add-metadata event for " << kvssink->stream_name);
-            if (NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
-                NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
-                !gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
-                ret = FALSE;
-                LOG_WARN("Event structure contains invalid field: " << std::string(gst_structure_to_string (structure)) << " for " << kvssink->stream_name);
-                goto CleanUp;
-            }
 
             metadata_name = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_NAME));
             metadata_value = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE));
