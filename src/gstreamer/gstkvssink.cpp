@@ -1269,27 +1269,27 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
 
     info.data = NULL;
     // eos reached
-    if (buf == NULL && track_data == NULL) {
-        LOG_INFO("Received event for " << kvssink->stream_name);
-        // Need this check in case pipeline is already being set to NULL and
-        // stream  is being or/already stopped. Although stopSync() is an idempotent call,
-        // we want to avoid an extra call. It is not possible for this callback to be invoked
-        // after stopSync() since we stop collecting on pads before invoking. But having this
-        // check anyways in case it happens
-        if(!data->streamingStopped.load()) {
-            data->kinesis_video_stream->stopSync();
-            data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
-            data->streamingStopped.store(true);
-            LOG_INFO("Sending eos for " << kvssink->stream_name);
-        }
+    // if (buf == NULL && track_data == NULL) {
+    //     LOG_INFO("Received event for " << kvssink->stream_name);
+    //     // Need this check in case pipeline is already being set to NULL and
+    //     // stream  is being or/already stopped. Although stopSync() is an idempotent call,
+    //     // we want to avoid an extra call. It is not possible for this callback to be invoked
+    //     // after stopSync() since we stop collecting on pads before invoking. But having this
+    //     // check anyways in case it happens
+    //     if(!data->streamingStopped.load()) {
+    //         data->kinesis_video_stream->stopSync();
+    //         data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+    //         data->streamingStopped.store(true);
+    //         LOG_INFO("Sending eos for " << kvssink->stream_name);
+    //     }
 
-        // send out eos message to gstreamer bus
-        message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
-        gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
+    //     // send out eos message to gstreamer bus
+    //     message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
+    //     gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
 
-        ret = GST_FLOW_EOS;
-        goto CleanUp;
-    }
+    //     ret = GST_FLOW_EOS;
+    //     goto CleanUp;
+    // }
 
     if (STATUS_FAILED(stream_status)) {
         // in offline case, we cant tell the pipeline to restream the file again in case of network outage.
@@ -1383,7 +1383,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
 
         LOG_INFO("Puting frame...");
         LOG_INFO("With pts: " << buf->pts);
-        LOG_INFO("With dts: " << (buf->dts + kvssink->pause_time) / 1000000000);
+        LOG_INFO("With dts: " << (buf->dts + kvssink->pause_time) / 1000000);
 
         put_frame(kvssink->data, info.data, info.size,
                   std::chrono::nanoseconds( (uint64_t) chrono::duration_cast<nanoseconds>(
