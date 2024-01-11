@@ -484,26 +484,23 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
 
         LOG_DEBUG("Pausing...");
 
+        
+        //         sleep(2);
         flush_start = gst_event_new_flush_start();
         gst_element_send_event(pipeline, flush_start);
-
-        sleep(2);
-
         gst_element_set_state(pipeline, GST_STATE_PAUSED);
         
         // eos = gst_event_new_eos();
         // gst_element_send_event(pipeline, eos);
-        // sleep(2);
 
         
         sleep(10);
 
         LOG_DEBUG("Playing...");
+        //         sleep(2);
+        gst_element_set_state(pipeline, GST_STATE_PLAYING);
         flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
-        sleep(2);
-        gst_element_set_state(pipeline, GST_STATE_PLAYING);
-        // sleep(10);
 
         // LOG_DEBUG("Pausing...");
         // flush_start = gst_event_new_flush_start();
