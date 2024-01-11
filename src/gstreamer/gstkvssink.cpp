@@ -1668,6 +1668,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             gst_collect_pads_start (kvssink->collect);
             break;
         case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+            // flush_stop =  gst_event_new_flush_stop((gboolean)FALSE);
+            // gst_element_send_event(element, flush_stop);
             // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
             // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
             //data->streamingStopped.store(false);
@@ -1698,15 +1700,17 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     switch (transition) {
         case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
 
+            LOG_INFO("SETTING KVSSINK PLAYING->PAUSED");
+
+            // flush_start =  gst_event_new_flush_start();
+            // gst_element_send_event(element, flush_start);
+
             GSList *walk;
             for (walk = kvssink->collect->data; walk; walk = g_slist_next (walk)) {
                 GstCollectData *c_data;
                 c_data = (GstCollectData *) walk->data;
                 gst_collect_pads_pop (kvssink->collect, c_data)    ;                
             }
-
-            // flush_start =  gst_event_new_flush_start();
-            // gst_element_send_event(element, flush_start);
             
             //data->streamingStopped.store(true);
 

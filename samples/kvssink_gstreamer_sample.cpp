@@ -128,7 +128,7 @@ typedef struct _CustomData {
     // Does not apply for file uploads
     int max_runtime;
 
-    GstElement* kvssink_element;
+    GstElement* source_element;
 } CustomData;
 
 // CustomData 
@@ -242,9 +242,14 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
     bool vtenc = false, isOnRpi = false;
 
-    GstElement *source_filter, *filter, *kvssink, *h264parse, *encoder, *source, *video_convert;
+    GstElement *clock_overlay, *source_filter, *filter, *kvssink, *h264parse, *encoder, *decoder, *source, *video_convert;
 
     /* create the elements */
+    clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
+    if (!source_filter) {
+        LOG_ERROR("Failed to create clockoverlay");
+        return 1;
+    }
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
     if (!source_filter) {
         LOG_ERROR("Failed to create capsfilter (1)");
@@ -255,7 +260,8 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
         LOG_ERROR("Failed to create capsfilter (2)");
         return 1;
     }
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
+    // kvssink = gst_element_factory_make("kvssink", "kvssink");
+    kvssink = gst_element_factory_make("autovideosink", "kvssink");
     if (!kvssink) {
         LOG_ERROR("Failed to create kvssink");
         return 1;
@@ -266,7 +272,11 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
         return 1;
     }
 
-
+    decoder = gst_element_factory_make("avdec_h264", "decoder");
+    if (!decoder) {
+        LOG_ERROR("Failed to create kvssink");
+        return 1;
+    }
 
 
 
@@ -315,12 +325,13 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     encoder = gst_element_factory_make("x264enc", "encoder");
 
 
-    if (!pipeline || !source || !source_filter || !encoder || !filter || !kvssink || !h264parse) {
+    if (!pipeline || !source || !clock_overlay || !source_filter || !encoder || !filter || !kvssink || !h264parse) {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
 
     /* configure source */
+    g_object_set(source, "sync", FALSE, NULL);
     // g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "is-live", TRUE, NULL); these don't fix the stagnant dts upon pause unfortunately
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(source, GST_STATE_READY)) {
         g_printerr("Unable to set the source to ready state.\n");
@@ -355,15 +366,15 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     gst_caps_unref(h264_caps);
 
     /* configure kvssink */
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
-    determine_credentials(kvssink, data);
+    // g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
+    // determine_credentials(kvssink, data);
 
-    data->kvssink_element = source;
+    data->source_element = source;
 
     /* build the pipeline */
-    gst_bin_add_many(GST_BIN(pipeline), source, video_convert, source_filter, encoder, filter,
+    gst_bin_add_many(GST_BIN(pipeline), source, clock_overlay, video_convert, source_filter, encoder, decoder, filter,
                         kvssink, NULL);
-    if (!gst_element_link_many(source, video_convert, source_filter, encoder, filter, kvssink, NULL)) {
+    if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, decoder, filter, kvssink, NULL)) {
         g_printerr("Elements could not be linked.\n");
         gst_object_unref(pipeline);
     }
@@ -423,6 +434,10 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     g_signal_connect(G_OBJECT(bus), "message::eos", G_CALLBACK(eos_cb), data);
     gst_object_unref(bus);
     /* start streaming */
+
+    g_object_set(pipeline, "async-handling", TRUE, NULL);
+    gst_pipeline_use_clock((GstPipeline *)pipeline, NULL);
+    
     gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (gst_ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr("Unable to set the pipeline to the playing state.\n");
@@ -486,21 +501,21 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
 
         
         //         sleep(2);
+        gst_element_set_state(data->source_element, GST_STATE_NULL);
         flush_start = gst_event_new_flush_start();
         gst_element_send_event(pipeline, flush_start);
-        gst_element_set_state(pipeline, GST_STATE_PAUSED);
         
         // eos = gst_event_new_eos();
         // gst_element_send_event(pipeline, eos);
-
         
         sleep(10);
 
         LOG_DEBUG("Playing...");
         //         sleep(2);
-        gst_element_set_state(pipeline, GST_STATE_PLAYING);
         flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
+        gst_element_set_state(data->source_element, GST_STATE_PLAYING);
+        
 
         // LOG_DEBUG("Pausing...");
         // flush_start = gst_event_new_flush_start();
@@ -510,7 +525,7 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
 
         // LOG_DEBUG("Playing...");
         // flush_stop = gst_event_new_flush_stop(false);
-        // gst_element_send_event(data->kvssink_element, flush_stop);
+        // gst_element_send_event(data->source_element, flush_stop);
         // gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
     //}
@@ -522,6 +537,8 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     mainLoopThread.join();
     LOG_DEBUG("after main loop");
 
+    // TODO: Rather than sleeping, have the app check on whether there are still frames in pipeline.
+    sleep(2);
 
     /* free resources */
     gst_bus_remove_signal_watch(bus);
