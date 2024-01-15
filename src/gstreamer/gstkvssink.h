@@ -36,6 +36,7 @@
 #include <string.h>
 #include <mutex>
 #include <atomic>
+#include <tuple>
 #include <gst/base/gstcollectpads.h>
 #include <unordered_set>
 
@@ -72,6 +73,8 @@ typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
 typedef struct _KvsSinkCustomData KvsSinkCustomData;
 typedef struct _KvsSinkMetric KvsSinkMetric;
+
+typedef std::tuple<std::string, std::string, bool> (*SupportImagesCallback)();
 
 /* all information needed for one track */
 typedef struct _GstKvsSinkTrackData {
@@ -143,8 +146,9 @@ struct _GstKvsSink {
     guint                       num_streams;
     guint                       num_audio_streams;
     guint                       num_video_streams;
-
-
+    
+    SupportImagesCallback      support_images_callback;
+  
     std::unique_ptr<Credentials> credentials_;
     std::shared_ptr<KvsSinkCustomData> data;
 };
