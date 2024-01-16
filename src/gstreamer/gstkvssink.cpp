@@ -105,7 +105,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_ACCESS_KEY "access_key"
 #define DEFAULT_SECRET_KEY "secret_key"
 #define DEFAULT_SESSION_TOKEN "session_token"
-#define DEFAULT_REGION "us-west-2"
+#define DEFAULT_REGION ""
 #define DEFAULT_ROTATION_PERIOD_SECONDS 3600
 #define DEFAULT_LOG_FILE_PATH "../kvs_log_configuration"
 #define DEFAULT_STORAGE_SIZE_MB 128
@@ -318,12 +318,15 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         session_token_str = string(kvssink->session_token);
     }
 
-    if (nullptr == (default_region = getenv(DEFAULT_REGION_ENV_VAR))) {
-        region_str = string(kvssink->aws_region);
+    if(IS_EMPTY_STRING(kvssink->aws_region)) {
+        if (nullptr == (default_region = getenv(DEFAULT_REGION_ENV_VAR))) {
+            LOG_AND_THROW("No region set. Either set with env AWS_DEFAULT_REGION or set kvssink property aws-region");
+        } else {
+            region_str = string(default_region);
+        }
     } else {
-        region_str = string(default_region); // Use env var if both property and env var are available.
+        region_str = string(kvssink->aws_region);
     }
-
     unique_ptr<CredentialProvider> credential_provider;
 
     if (kvssink->iot_certificate) {
