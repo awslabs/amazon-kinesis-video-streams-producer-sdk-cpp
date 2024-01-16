@@ -10,6 +10,7 @@ ExternalProject_Add(libkvscproducer-download
 	GIT_TAG           develop
 	SOURCE_DIR        "${CMAKE_CURRENT_BINARY_DIR}/kvscproducer-src"
 	BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/kvscproducer-build"
+	CMAKE_ARGS        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
 	CONFIGURE_COMMAND ""
 	BUILD_COMMAND     ""
 	INSTALL_COMMAND   ""
