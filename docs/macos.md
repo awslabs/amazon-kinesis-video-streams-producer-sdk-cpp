@@ -6,7 +6,14 @@ Define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables with th
 export AWS_ACCESS_KEY_ID=YourAccessKeyId
 export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
 ```
-optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS_DEFAULT_REGION` for the region other than `us-west-2`
+
+#### Setting region
+
+If using kvssink, the region can be set in 2 ways:
+1. Set `AWS_DEFAULT_REGION` to the desired region, or,
+2. Set the `aws-region` property.
+
+If `aws-region` and `AWS_DEFAULT_REGION` are set, the `aws-region` property would be used instead of the env.
 
 ###### Discovering available devices.
 Run the `gst-device-monitor-1.0` command to identify available media devices in your system. An example output as follows:
@@ -139,7 +146,7 @@ gst-launch-1.0 -v  souphttpsrc location="https://.../playlist.m3u8" ! hlsdemux n
 Change your current working directory to `build`. Launch the sample application with a stream name and a path to the file and it will start streaming.
 
 ```
-AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey ./kvs_gstreamer_audio_video_sample <my-stream> </path/to/file>
+AWS_ACCESS_KEY_ID=YourAccessKeyId AWS_SECRET_ACCESS_KEY=YourSecretAccessKey AWS_DEFAULT_REGION=YourRegion ./kvs_gstreamer_audio_video_sample <my-stream> </path/to/file>
 ```
 
 ##### Running the GStreamer sample application to stream audio and video from live source
