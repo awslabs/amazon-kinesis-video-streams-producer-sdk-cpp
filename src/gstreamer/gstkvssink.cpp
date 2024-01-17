@@ -319,9 +319,9 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     }
 
     if (IS_EMPTY_STRING(kvssink->aws_region)) {
-        default_region = getenv(DEFAULT_REGION_ENV_VAR);
+        default_region = GETENV(DEFAULT_REGION_ENV_VAR);
         if (IS_NULL_OR_EMPTY_STRING(default_region)) {
-            LOG_AND_THROW("No region set. Either set with env " << DEFAULT_REGION_ENV_VAR << " or set kvssink property aws-region");
+            LOG_AND_THROW("No region set. Either set non-empty value with env " << DEFAULT_REGION_ENV_VAR << " or set kvssink property aws-region");
         } else {
             region_str = string(default_region);
         }
