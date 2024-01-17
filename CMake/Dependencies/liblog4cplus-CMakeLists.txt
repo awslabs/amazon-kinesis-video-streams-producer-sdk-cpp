@@ -28,15 +28,15 @@ include(ExternalProject)
 if (WIN32)
   ExternalProject_Add(project_log4cplus
       GIT_REPOSITORY    https://github.com/log4cplus/log4cplus
-      GIT_TAG           REL_2_0_1
+      GIT_TAG           REL_2_0_1 # If version set to 2.0.6, the unit tests seem to hang after completing all the runs. So keeping it at 2.0.1
       PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
       TEST_COMMAND      ""
-      CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX} -DLOG4CPLUS_BUILD_TESTING=0 -DLOG4CPLUS_BUILD_LOGGINGSERVER=0 -DUNICODE=0 -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
+      CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX} -DLOG4CPLUS_BUILD_TESTING=0 -DLOG4CPLUS_BUILD_LOGGINGSERVER=0 -DUNICODE=0 -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
   )
 else()
   ExternalProject_Add(project_log4cplus
        GIT_REPOSITORY    https://github.com/log4cplus/log4cplus
-       GIT_TAG           REL_2_0_1
+       GIT_TAG           REL_2_0_6 # Fixes the CATCH_REQUIRE related build errors encountered in MacOS M1
        PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
        CONFIGURE_COMMAND ${CONFIGURE_COMMAND}
        BUILD_COMMAND     ${MAKE_EXE}
