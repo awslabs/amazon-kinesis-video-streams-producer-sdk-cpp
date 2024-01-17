@@ -1377,9 +1377,9 @@ CleanUp:
     if (buf != NULL) {
         gst_buffer_unref (buf);
     }
-
+    
     if (STATUS_FAILED(put_frame_status)) {
-        GST_ELEMENT_WARNING (kvssink, STREAM, FAILED, (NULL),
+        GST_ELEMENT_WARNING (kvssink, RESOURCE, GST_RESOURCE_ERROR_WRITE, (NULL),
                            ("put frame error occurred. Status: 0x%08x", put_frame_status));
     }
 
