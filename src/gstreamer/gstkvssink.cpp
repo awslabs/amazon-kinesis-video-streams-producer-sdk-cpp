@@ -1683,8 +1683,12 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             //             systemCurrentTime().time_since_epoch()).count() - kvssink->pause_time;
             //     LOG_INFO("Set pause_time to: " << kvssink->pause_time);
             // }
-
             break;
+        
+        // (downward)
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
+            LOG_INFO("Attempting to stop kvssink for " << kvssink->stream_name);
+            gst_collect_pads_stop (kvssink->collect);
 
         default:
             break;
@@ -1729,9 +1733,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
             break;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-            LOG_INFO("Attempting to stop kvssink for " << kvssink->stream_name);
-            gst_collect_pads_stop (kvssink->collect);
-
             // Need this check in case an EOS was received in the buffer handler and
             // stream was already stopped. Although stopSync() is an idempotent call,
             // we want to avoid an extra call
