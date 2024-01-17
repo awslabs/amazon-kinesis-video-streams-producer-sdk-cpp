@@ -260,8 +260,8 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
         LOG_ERROR("Failed to create capsfilter (2)");
         return 1;
     }
-    // kvssink = gst_element_factory_make("kvssink", "kvssink");
-    kvssink = gst_element_factory_make("autovideosink", "kvssink");
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
+    //kvssink = gst_element_factory_make("autovideosink", "kvssink");
     if (!kvssink) {
         LOG_ERROR("Failed to create kvssink");
         return 1;
@@ -274,7 +274,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
 
     decoder = gst_element_factory_make("avdec_h264", "decoder");
     if (!decoder) {
-        LOG_ERROR("Failed to create kvssink");
+        LOG_ERROR("Failed to create decoder");
         return 1;
     }
 
@@ -331,8 +331,8 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     }
 
     /* configure source */
-    g_object_set(source, "sync", FALSE, NULL);
-    // g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "is-live", TRUE, NULL); these don't fix the stagnant dts upon pause unfortunately
+    //g_object_set(source, "sync", FALSE, NULL);
+    g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "is-live", TRUE, NULL); // these don't fix the stagnant dts upon pause unfortunately
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(source, GST_STATE_READY)) {
         g_printerr("Unable to set the source to ready state.\n");
         return 1;
@@ -366,15 +366,15 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     gst_caps_unref(h264_caps);
 
     /* configure kvssink */
-    // g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
-    // determine_credentials(kvssink, data);
+    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
+    determine_credentials(kvssink, data);
 
     data->source_element = source;
 
     /* build the pipeline */
-    gst_bin_add_many(GST_BIN(pipeline), source, clock_overlay, video_convert, source_filter, encoder, decoder, filter,
+    gst_bin_add_many(GST_BIN(pipeline), source, clock_overlay, video_convert, source_filter, encoder, filter,
                         kvssink, NULL);
-    if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, decoder, filter, kvssink, NULL)) {
+    if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, filter, kvssink, NULL)) {
         g_printerr("Elements could not be linked.\n");
         gst_object_unref(pipeline);
     }
