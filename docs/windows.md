@@ -53,6 +53,7 @@ Device found:
                 wasapi.device.description = "Speakers\ \(Conexant\ ISST\ Audio\)"
 ```
 
+
 Start sample application to send video stream to KVS using gstreamer plugin by executing the following command:
 
 1.  Before running the demo applications, set the environment by following the instructions below.
@@ -116,6 +117,12 @@ gst-launch-1.0 -v  filesrc location="YourAudioVideo.ts" ! tsdemux name=demux ! q
       set AWS_ACCESS_KEY_ID=YourAccessKeyId
       set AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
       ```
+
+     *  If using kvssink, the region can be set in 2 ways:
+        1. Set `AWS_DEFAULT_REGION` to the desired region, or,
+        2. Set the `aws-region` property.
+
+        If `aws-region` and `AWS_DEFAULT_REGION` are set, the `aws-region` property would be used instead of the env.
 
       * Run the demo
           * **Example**:

@@ -12,7 +12,15 @@ Define AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables with th
 export AWS_ACCESS_KEY_ID=YourAccessKeyId
 export AWS_SECRET_ACCESS_KEY=YourSecretAccessKey
 ```
-optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token and `AWS_DEFAULT_REGION` for the region other than `us-west-2`
+optionally, set `AWS_SESSION_TOKEN` if integrating with temporary token.
+
+#### Setting region
+
+If using kvssink, the region can be set in 2 ways:
+1. Set `AWS_DEFAULT_REGION` to the desired region, or,
+2. Set the `aws-region` property.
+
+If `aws-region` and `AWS_DEFAULT_REGION` are set, the `aws-region` property would be used instead of the env.
 
 ###### Discovering audio and video devices available in your system.
 Run the `gst-device-monitor-1.0` command to identify available media devices in your system. An example output as follows:
