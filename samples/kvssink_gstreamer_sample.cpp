@@ -242,11 +242,12 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
     bool vtenc = false, isOnRpi = false;
 
-    GstElement *clock_overlay, *source_filter, *filter, *kvssink, *h264parse, *encoder, *decoder, *source, *video_convert;
+    GstElement *clock_overlay, *source_filter, *filter, *kvssink, *h264parse, *encoder, *source, *video_convert;
+
 
     /* create the elements */
     clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
-    if (!source_filter) {
+    if (!clock_overlay) {
         LOG_ERROR("Failed to create clockoverlay");
         return 1;
     }
@@ -255,6 +256,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
         LOG_ERROR("Failed to create capsfilter (1)");
         return 1;
     }
+
     filter = gst_element_factory_make("capsfilter", "encoder_filter");
     if (!filter) {
         LOG_ERROR("Failed to create capsfilter (2)");
@@ -269,12 +271,6 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
     if (!h264parse) {
         LOG_ERROR("Failed to create h264parse");
-        return 1;
-    }
-
-    decoder = gst_element_factory_make("avdec_h264", "decoder");
-    if (!decoder) {
-        LOG_ERROR("Failed to create decoder");
         return 1;
     }
 
@@ -332,7 +328,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
 
     /* configure source */
     //g_object_set(source, "sync", FALSE, NULL);
-    g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "is-live", TRUE, NULL); // these don't fix the stagnant dts upon pause unfortunately
+    //g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "is-live", TRUE, NULL); // these don't fix the stagnant dts upon pause unfortunately
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(source, GST_STATE_READY)) {
         g_printerr("Unable to set the source to ready state.\n");
         return 1;
@@ -435,8 +431,8 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     gst_object_unref(bus);
     /* start streaming */
 
-    g_object_set(pipeline, "async-handling", TRUE, NULL);
-    gst_pipeline_use_clock((GstPipeline *)pipeline, NULL);
+    // g_object_set(pipeline, "async-handling", TRUE, NULL);
+    // gst_pipeline_use_clock((GstPipeline *)pipeline, NULL);
     
     gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (gst_ret == GST_STATE_CHANGE_FAILURE) {
