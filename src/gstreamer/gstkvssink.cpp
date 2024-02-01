@@ -1265,7 +1265,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
 
-    LOG_INFO("BUFFER RECEIVED");
+    LOG_INFO("");
+    LOG_INFO("******************************** BUFFER RECEIVED ********************************");
 
     info.data = NULL;
     // eos reached
@@ -1290,6 +1291,11 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     //     ret = GST_FLOW_EOS;
     //     goto CleanUp;
     // }
+
+    if (buf == NULL && track_data == NULL) {
+        LOG_INFO("INVALID BUFFER RECEIVED");
+    }
+
 
     if (STATUS_FAILED(stream_status)) {
         // in offline case, we cant tell the pipeline to restream the file again in case of network outage.
@@ -1324,21 +1330,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             goto CleanUp;
         }
 
-        // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
-        // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
-        // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
-        if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-            if(!data->use_original_pts) {
-                buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
-                buf->pts += data->pts_base;
-            }
-            else {
-                buf->pts = buf->dts;
-            }
-        } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
-            LOG_INFO("UPDATING TO NEW TS ");
-            buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
-        }
+        LOG_INFO("Starting pts: " << buf->pts);
+
 
         data->last_dts = buf->dts;
         track_id = kvs_sink_track_data->track_id;
@@ -1367,30 +1360,38 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
         if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
             if (data->first_pts == GST_CLOCK_TIME_NONE) {
+                LOG_INFO("Updating first_pts to: " << buf->pts);
                 data->first_pts = buf->pts;
             }
             if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
-                data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+                uint64_t nowTime = (uint64_t) chrono::duration_cast<nanoseconds>(
                         systemCurrentTime().time_since_epoch()).count();
+                LOG_INFO("Updating producer_start_time to: " << nowTime);
+                data->producer_start_time = nowTime ;
             }
             if(!data->use_original_pts) {
+                LOG_INFO("Incrementing buf->pts by: producer_start_time - first_pts");
+                LOG_INFO("= " << data->producer_start_time << " - " << data->first_pts);
+                LOG_INFO("= " << (data->producer_start_time - data->first_pts));
                 buf->pts += data->producer_start_time - data->first_pts;
+                LOG_INFO("buf->pts is now: " << buf->pts);
             }
             else {
                 buf->pts = buf->dts;
             }
         }
 
-        LOG_INFO("Puting frame...");
-        LOG_INFO("With pts: " << buf->pts);
-        LOG_INFO("With dts: " << (buf->dts + kvssink->pause_time) / 1000000);
+
+        LOG_INFO("With pts: " << (buf->pts - data->producer_start_time) / 1); //1000000
+        LOG_INFO("With dts: " << buf->dts / 1);
 
         put_frame(kvssink->data, info.data, info.size,
-                  std::chrono::nanoseconds( (uint64_t) chrono::duration_cast<nanoseconds>(
-                        systemCurrentTime().time_since_epoch()).count()),
-                  std::chrono::nanoseconds( (uint64_t) chrono::duration_cast<nanoseconds>(
-                        systemCurrentTime().time_since_epoch()).count() + kvssink->pause_time), kinesis_video_flags, track_id, data->frame_count);
+                  std::chrono::nanoseconds(buf->pts),
+                  std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
+        LOG_INFO("*********************************************************************************");
+        LOG_INFO("");
+
     }
     else {
         LOG_WARN("GStreamer buffer is invalid for " << kvssink->stream_name);
@@ -1653,8 +1654,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             data->streamingStopped.store(false);
             try {
                 init_track_data(kvssink);
-                kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
-                kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+                // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+                // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
             } catch (runtime_error &err) {
                 oss << "Failed to init track data. Error: " << err.what();
                 err_msg = oss.str();
@@ -1668,11 +1669,13 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             gst_collect_pads_start (kvssink->collect);
             break;
         case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+                // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+                // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
             // flush_stop =  gst_event_new_flush_stop((gboolean)FALSE);
             // gst_element_send_event(element, flush_stop);
             // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
             // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
-            //data->streamingStopped.store(false);
+            // data->streamingStopped.store(false);
 
             // if (kvssink->pause_time != 0) {
             //     kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
@@ -1709,13 +1712,15 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             // flush_start =  gst_event_new_flush_start();
             // gst_element_send_event(element, flush_start);
 
-            GSList *walk;
-            for (walk = kvssink->collect->data; walk; walk = g_slist_next (walk)) {
-                GstCollectData *c_data;
-                c_data = (GstCollectData *) walk->data;
-                gst_collect_pads_pop (kvssink->collect, c_data)    ;                
-            }
-            
+
+            // GSList *walk;
+            // for (walk = kvssink->collect->data; walk; walk = g_slist_next (walk)) {
+            //     GstCollectData *c_data;
+            //     c_data = (GstCollectData *) walk->data;
+            //     gst_collect_pads_pop (kvssink->collect, c_data);                
+            // }
+
+
             //data->streamingStopped.store(true);
 
             //put_eofr_frame(data);

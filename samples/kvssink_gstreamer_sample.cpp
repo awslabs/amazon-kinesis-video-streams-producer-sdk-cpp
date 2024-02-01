@@ -129,6 +129,8 @@ typedef struct _CustomData {
     int max_runtime;
 
     GstElement* source_element;
+    GstElement* encoder_element;
+
 } CustomData;
 
 // CustomData 
@@ -263,7 +265,6 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
         return 1;
     }
     kvssink = gst_element_factory_make("kvssink", "kvssink");
-    //kvssink = gst_element_factory_make("autovideosink", "kvssink");
     if (!kvssink) {
         LOG_ERROR("Failed to create kvssink");
         return 1;
@@ -320,6 +321,18 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
 
     encoder = gst_element_factory_make("x264enc", "encoder");
 
+    GstElement* decodebin = gst_element_factory_make("decodebin", "decodebin");
+    if (!decodebin ) {
+        g_printerr("Not all elements could be created. decodebin\n");
+        return 1;
+    }
+
+    GstElement* autovideosink = gst_element_factory_make("autovideosink", "autovideosink");
+    if (!autovideosink ) {
+        g_printerr("Not all elements could be created. autovideosink\n");
+        return 1;
+    }
+
 
     if (!pipeline || !source || !clock_overlay || !source_filter || !encoder || !filter || !kvssink || !h264parse) {
         g_printerr("Not all elements could be created.\n");
@@ -350,12 +363,13 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     gst_caps_unref(query_caps_raw);
 
     /* configure encoder */
-    g_object_set(G_OBJECT(encoder), "bframes", 0, "bitrate", 512, NULL);
-        
+    g_object_set(G_OBJECT(encoder), "bframes", 0, "bitrate", 512, "key-int-max", 40, NULL);
+
     /* configure output filter */
     GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
                                              "stream-format", G_TYPE_STRING, "avc",
                                              "alignment", G_TYPE_STRING, "au",
+                                             "framerate", GST_TYPE_FRACTION, 20, 1,
                                              NULL);
     //gst_caps_set_simple(h264_caps, "profile", G_TYPE_STRING, "baseline", NULL);
     g_object_set(G_OBJECT(filter), "caps", h264_caps, NULL);
@@ -366,6 +380,17 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     determine_credentials(kvssink, data);
 
     data->source_element = source;
+    data->encoder_element = encoder;
+
+    GstElement* queue = gst_element_factory_make("queue", "queue");
+
+    GstElement* matroskamux = gst_element_factory_make("matroskamux", "matroskamux");
+    GstElement* filesink = gst_element_factory_make("filesink", "filesink");
+    g_object_set(G_OBJECT(filesink), "location", "footage.mkv", NULL);
+
+
+
+
 
     /* build the pipeline */
     gst_bin_add_many(GST_BIN(pipeline), source, clock_overlay, video_convert, source_filter, encoder, filter,
@@ -484,34 +509,55 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     // while(data_global.stream_status != STATUS_KVS_GSTREAMER_SAMPLE_INTERRUPTED) {
         // count++;
         // LOG_DEBUG("Play/Pause count: " << count);
+    for (int i = 0; i < 5; i++) {
+
 
         sleep(10);
 
         GstEvent* flush_start;
         GstEvent* flush_stop;
 
-        // GstEvent* eos;
+        GstEvent* eos;
+
+
+    // ./kvssink_gstreamer_sample aTestStream video-only devicesrc
+/*      
+export GST_PLUGIN_PATH=`pwd`/build                         
+export LD_LIBRARY_PATH=`pwd`/open-source/local/lib
+*/
 
 
         LOG_DEBUG("Pausing...");
 
         
-        //         sleep(2);
-        gst_element_set_state(data->source_element, GST_STATE_NULL);
+        //sleep(2);
+        // gst_element_set_state(data->source_element, GST_STATE_PAUSED);
+        // gst_element_set_state(pipeline, GST_STATE_PAUSED);
+
+
+
+        eos = gst_event_new_eos();
+        gst_element_send_event(data->source_element, eos);
+
+
+// 9864, 9902, 9912
+
+        sleep(10);
+        LOG_DEBUG("Playing...");
+        // //         sleep(2);
+
+        // gst_element_set_state(data->encoder_element, GST_STATE_READY);
+        // gst_element_set_state(data->encoder_element, GST_STATE_PAUSED);
+
+        // gst_element_set_state(data->source_element, GST_STATE_PLAYING);
         flush_start = gst_event_new_flush_start();
         gst_element_send_event(pipeline, flush_start);
-        
-        // eos = gst_event_new_eos();
-        // gst_element_send_event(pipeline, eos);
-        
-        sleep(10);
-
-        LOG_DEBUG("Playing...");
-        //         sleep(2);
         flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
-        gst_element_set_state(data->source_element, GST_STATE_PLAYING);
-        
+
+
+        gst_element_set_state(pipeline, GST_STATE_PLAYING);
+        }
 
         // LOG_DEBUG("Pausing...");
         // flush_start = gst_event_new_flush_start();
