@@ -27,6 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install pkg-config cmake gstreamer
+          brew install autoconf automake libtool
           brew unlink openssl
       - name: Build repository
         run: |
