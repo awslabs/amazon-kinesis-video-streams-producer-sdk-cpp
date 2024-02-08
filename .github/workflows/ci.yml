@@ -22,6 +22,10 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - name: Setup XCode version 15.2
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.2'
       - name: Clone repository
         uses: actions/checkout@v3
       - name: Install dependencies
