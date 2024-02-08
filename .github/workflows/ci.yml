@@ -31,7 +31,8 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON
           make
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
