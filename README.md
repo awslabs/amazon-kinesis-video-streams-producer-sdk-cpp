@@ -30,7 +30,9 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ makes it easy to build an on
 ### Download
 To download run the following command:
 
-`git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git`
+```
+git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git
+```
 
 Note: You will also need to install `pkg-config`, `CMake`, `m4` and a build enviroment. If you are building the GStreamer plugin you will also need GStreamer and GStreamer (Development Libraries).
 
