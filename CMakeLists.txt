@@ -36,6 +36,10 @@ add_definitions(-DCPP_VERSION_STRING=\"${KINESIS_VIDEO_PRODUCER_CPP_VERSION}\")
 set(CMAKE_MACOSX_RPATH TRUE)
 get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
 
+if (WIN32)
+  set(CMAKE_OBJECT_PATH_MAX 512)
+endif()
+
 # static settings
 if(BUILD_STATIC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
