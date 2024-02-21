@@ -701,6 +701,7 @@ void kinesis_video_stream_init(CustomData *data) {
 int gstreamer_init(int argc, char *argv[], CustomData &data) {
 
     GstStateChangeReturn ret;
+    std::thread mainLoopThread;
 
     // Reset first frame pts
     data.first_pts = GST_CLOCK_TIME_NONE;
@@ -966,7 +967,17 @@ int gstreamer_init(int argc, char *argv[], CustomData &data) {
     LOG_DEBUG("Pipeline playing");
 
     data.main_loop = g_main_loop_new(NULL, FALSE);
-    g_main_loop_run(data.main_loop);
+    mainLoopThread = std::thread(g_main_loop_run, data.main_loop);
+
+    sleep(10);
+    LOG_DEBUG("Pausing...");
+    gst_element_set_state(pipeline, GST_STATE_PAUSED);
+    sleep(10);
+    LOG_DEBUG("Playing...");
+    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+
+
+    mainLoopThread.join();
     LOG_DEBUG("Pipeline finished");
 
 CleanUp:

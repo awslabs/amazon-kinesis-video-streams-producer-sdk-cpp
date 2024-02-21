@@ -475,9 +475,10 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
     bool do_retry = true;
     while(do_retry) {
         try {
-            LOG_INFO("Try creating stream for " << kvssink->stream_name);
+            LOG_INFO("Attempting to create stream for " << kvssink->stream_name);
             // stream is freed when createStreamSync fails
             create_kinesis_video_stream(kvssink);
+            LOG_INFO("Finished creating stream");
             break;
         } catch (runtime_error &err) {
             if (--retry_count == 0) {
@@ -712,6 +713,7 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->num_streams = 0;
     kvssink->num_audio_streams = 0;
     kvssink->num_video_streams = 0;
+    kvssink->pause_time = 0;
 
     // Stream definition
     kvssink->stream_name = g_strdup (DEFAULT_STREAM_NAME);
@@ -1102,12 +1104,17 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
 
     switch (GST_EVENT_TYPE (event)) {
         case GST_EVENT_CAPS: {
+            LOG_INFO("Calling GST_EVENT_CAPS case.");
+            
             gst_event_parse_caps(event, &gstcaps);
             GstStructure *gststructforcaps = gst_caps_get_structure(gstcaps, 0);
             GST_INFO ("structure is %" GST_PTR_FORMAT, gststructforcaps);
             media_type = gst_structure_get_name (gststructforcaps);
 
+
             if (!strcmp (media_type, GSTREAMER_MEDIA_TYPE_ALAW) || !strcmp (media_type, GSTREAMER_MEDIA_TYPE_MULAW)) {
+                LOG_INFO("GST_EVENT_CAPS Not GSTREAMER_MEDIA_TYPE_ALAW nor GSTREAMER_MEDIA_TYPE_MULAW");
+
                 guint8 codec_private_data[KVS_PCM_CPD_SIZE_BYTE];
                 KVS_PCM_FORMAT_CODE format = KVS_PCM_FORMAT_CODE_MULAW;
 
@@ -1136,6 +1143,8 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 ret = data->kinesis_video_stream->start(codec_private_data, KVS_PCM_CPD_SIZE_BYTE, track_id);
 
             } else if (data->track_cpd_received.count(track_id) == 0 && gst_structure_has_field(gststructforcaps, "codec_data")) {
+                LOG_INFO("GST_EVENT_CAPS Is GSTREAMER_MEDIA_TYPE_ALAW and GSTREAMER_MEDIA_TYPE_MULAW, and track cpd rec == 0 and has codec_data field");
+
                 const GValue *gstStreamFormat = gst_structure_get_value(gststructforcaps, "codec_data");
                 gchar *cpd = gst_value_serialize(gstStreamFormat);
                 string cpd_str = string(cpd);
@@ -1188,6 +1197,8 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_EOS: {
             LOG_INFO("EOS Event received in sink for " << kvssink->stream_name);
+            // NOTE: EOS is usually only used for file sinks:
+            // https://gitlab.freedesktop.org/gstreamer/gst-plugins-base/-/issues/998#note_1975763:~:text=The%20only%20case%20where%20an%20EOS%20is%20usually%20needed%20is%20if%20you%27re%20muxing%20into%20a%20file%20and%20want%20to%20make%20sure%20that%20the%20muxer%20writes%20the%20sample/seek%20tables%20properly%20and%20fixes%20up%20the%20headers%20with%20the%20duration%20and%20such%2C%20esp.%20for%20mp4.
             break;
         }
         default:
@@ -1213,6 +1224,12 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(frame_data);
     frame->trackId = static_cast<UINT64>(track_id);
+}
+
+bool put_eofr_frame(shared_ptr<KvsSinkCustomData> data) {
+    Frame eofrFrame = EOFR_FRAME_INITIALIZER;
+    bool ret = data->kinesis_video_stream->putFrame(eofrFrame);
+    return ret;
 }
 
 bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
@@ -1252,28 +1269,37 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
 
+    LOG_INFO("");
+    LOG_INFO("******************************** BUFFER RECEIVED ********************************");
+
     info.data = NULL;
     // eos reached
+    // if (buf == NULL && track_data == NULL) {
+    //     LOG_INFO("Received event for " << kvssink->stream_name);
+    //     // Need this check in case pipeline is already being set to NULL and
+    //     // stream  is being or/already stopped. Although stopSync() is an idempotent call,
+    //     // we want to avoid an extra call. It is not possible for this callback to be invoked
+    //     // after stopSync() since we stop collecting on pads before invoking. But having this
+    //     // check anyways in case it happens
+    //     if(!data->streamingStopped.load()) {
+    //         data->kinesis_video_stream->stopSync();
+    //         data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+    //         data->streamingStopped.store(true);
+    //         LOG_INFO("Sending eos for " << kvssink->stream_name);
+    //     }
+
+    //     // send out eos message to gstreamer bus
+    //     message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
+    //     gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
+
+    //     ret = GST_FLOW_EOS;
+    //     goto CleanUp;
+    // }
+
     if (buf == NULL && track_data == NULL) {
-        LOG_INFO("Received event for " << kvssink->stream_name);
-        // Need this check in case pipeline is already being set to NULL and
-        // stream  is being or/already stopped. Although stopSync() is an idempotent call,
-        // we want to avoid an extra call. It is not possible for this callback to be invoked
-        // after stopSync() since we stop collecting on pads before invoking. But having this
-        // check anyways in case it happens
-        if(!data->streamingStopped.load()) {
-            data->kinesis_video_stream->stopSync();
-            data->streamingStopped.store(true);
-            LOG_INFO("Sending eos for " << kvssink->stream_name);
-        }
-
-        // send out eos message to gstreamer bus
-        message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
-        gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
-
-        ret = GST_FLOW_EOS;
-        goto CleanUp;
+        LOG_INFO("INVALID BUFFER RECEIVED");
     }
+
 
     if (STATUS_FAILED(stream_status)) {
         // in offline case, we cant tell the pipeline to restream the file again in case of network outage.
@@ -1292,6 +1318,10 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
     }
 
+    // if (data->streamingStopped.load()) {
+    //     goto CleanUp;
+    // }
+
     if(buf != NULL) {
         isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
                         GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
@@ -1304,20 +1334,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             goto CleanUp;
         }
 
-        // In offline mode, if user specifies a file_start_time, the stream will be configured to use absolute
-        // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
-        // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
-        if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-            if(!data->use_original_pts) {
-                buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
-                buf->pts += data->pts_base;
-            }
-            else {
-                buf->pts = buf->dts;
-            }
-        } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
-            buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
-        }
+        LOG_INFO("Starting pts: " << buf->pts);
+
 
         data->last_dts = buf->dts;
         track_id = kvs_sink_track_data->track_id;
@@ -1346,24 +1364,38 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
         if (!IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
             if (data->first_pts == GST_CLOCK_TIME_NONE) {
+                LOG_INFO("Updating first_pts to: " << buf->pts);
                 data->first_pts = buf->pts;
             }
             if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
-                data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+                uint64_t nowTime = (uint64_t) chrono::duration_cast<nanoseconds>(
                         systemCurrentTime().time_since_epoch()).count();
+                LOG_INFO("Updating producer_start_time to: " << nowTime);
+                data->producer_start_time = nowTime ;
             }
             if(!data->use_original_pts) {
+                LOG_INFO("Incrementing buf->pts by: producer_start_time - first_pts");
+                LOG_INFO("= " << data->producer_start_time << " - " << data->first_pts);
+                LOG_INFO("= " << (data->producer_start_time - data->first_pts));
                 buf->pts += data->producer_start_time - data->first_pts;
+                LOG_INFO("buf->pts is now: " << buf->pts);
             }
             else {
                 buf->pts = buf->dts;
             }
         }
 
+
+        LOG_INFO("With pts: " << (buf->pts - data->producer_start_time) / 1); //1000000
+        LOG_INFO("With dts: " << buf->dts / 1);
+
         put_frame(kvssink->data, info.data, info.size,
                   std::chrono::nanoseconds(buf->pts),
                   std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
+        LOG_INFO("*********************************************************************************");
+        LOG_INFO("");
+
     }
     else {
         LOG_WARN("GStreamer buffer is invalid for " << kvssink->stream_name);
@@ -1444,6 +1476,7 @@ gst_kvs_sink_request_new_pad (GstElement * element, GstPadTemplate * templ,
     kvs_sink_track_data->kvssink = kvssink;
     kvs_sink_track_data->track_type = track_type;
     kvs_sink_track_data->track_id = KVS_SINK_DEFAULT_TRACKID;
+    // TODO: Should track_cpd_received.erase be called here too?
 
     if (!gst_element_add_pad (element, GST_PAD (newpad))) {
         gst_object_unref (newpad);
@@ -1494,6 +1527,8 @@ init_track_data(GstKvsSink *kvssink) {
     GstCaps *caps;
     gchar *video_content_type = NULL, *audio_content_type = NULL;
     const gchar *media_type;
+
+    LOG_INFO("Attempting to create track data");
 
     for (walk = kvssink->collect->data; walk != NULL; walk = g_slist_next (walk)) {
         GstKvsSinkTrackData *kvs_sink_track_data = (GstKvsSinkTrackData *) walk->data;
@@ -1570,6 +1605,8 @@ init_track_data(GstKvsSink *kvssink) {
             break;
     }
 
+    LOG_INFO("Created track data");
+
     g_free(video_content_type);
     g_free(audio_content_type);
 }
@@ -1593,6 +1630,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     auto data = kvssink->data;
     string err_msg = "";
     ostringstream oss;
+    GstEvent* flush_start;
+    GstEvent* flush_stop;
 
     // Upward transitions
     switch (transition) {
@@ -1607,10 +1646,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
             try {
                 kinesis_video_producer_init(kvssink);
-                init_track_data(kvssink);
-                kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
-                kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
-
             } catch (runtime_error &err) {
                 oss << "Failed to init kvs producer. Error: " << err.what();
                 err_msg = oss.str();
@@ -1618,14 +1653,50 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
                 goto CleanUp;
             }
 
+            break;
+        case GST_STATE_CHANGE_READY_TO_PAUSED:
+            data->streamingStopped.store(false);
+            try {
+                init_track_data(kvssink);
+                // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+                // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+            } catch (runtime_error &err) {
+                oss << "Failed to init track data. Error: " << err.what();
+                err_msg = oss.str();
+                ret = GST_STATE_CHANGE_FAILURE;
+                goto CleanUp;
+            }
             if (!kinesis_video_stream_init(kvssink, err_msg)) {
                 ret = GST_STATE_CHANGE_FAILURE;
                 goto CleanUp;
             }
-            break;
-        case GST_STATE_CHANGE_READY_TO_PAUSED:
             gst_collect_pads_start (kvssink->collect);
             break;
+        case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+                // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+                // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+            // flush_stop =  gst_event_new_flush_stop((gboolean)FALSE);
+            // gst_element_send_event(element, flush_stop);
+            // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+            // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+            // data->streamingStopped.store(false);
+
+            // if (kvssink->pause_time != 0) {
+            //     kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+            //             systemCurrentTime().time_since_epoch()).count() - kvssink->pause_time;
+            // }
+            // if (kvssink->pause_time != 0) {
+            //     kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+            //             systemCurrentTime().time_since_epoch()).count() - kvssink->pause_time;
+            //     LOG_INFO("Set pause_time to: " << kvssink->pause_time);
+            // }
+            break;
+        
+        // (downward)
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
+            LOG_INFO("Attempting to stop kvssink for " << kvssink->stream_name);
+            gst_collect_pads_stop (kvssink->collect);
+
         default:
             break;
     }
@@ -1638,15 +1709,50 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
 
     // Downward transitions
     switch (transition) {
-        case GST_STATE_CHANGE_PAUSED_TO_READY:
-            LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
-            gst_collect_pads_stop (kvssink->collect);
+        case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
 
+            LOG_INFO("SETTING KVSSINK PLAYING->PAUSED");
+
+            // flush_start =  gst_event_new_flush_start();
+            // gst_element_send_event(element, flush_start);
+
+
+            // GSList *walk;
+            // for (walk = kvssink->collect->data; walk; walk = g_slist_next (walk)) {
+            //     GstCollectData *c_data;
+            //     c_data = (GstCollectData *) walk->data;
+            //     gst_collect_pads_pop (kvssink->collect, c_data);                
+            // }
+
+
+            //data->streamingStopped.store(true);
+
+            //put_eofr_frame(data);
+
+            // kvssink->pause_time += (uint64_t) chrono::duration_cast<nanoseconds>(
+            //             systemCurrentTime().time_since_epoch()).count();
+            // kvssink->pause_time = (uint64_t) chrono::duration_cast<nanoseconds>(
+            //             systemCurrentTime().time_since_epoch()).count();
+
+            // Should this be data->kinesis_video_stream->stopSync() ???
+            // LOG_INFO("RESETTING THE STREAM");
+            // data->kinesis_video_stream->resetStream();
+            
+            // kvssink->data->first_pts = GST_CLOCK_TIME_NONE;
+            // kvssink->data->producer_start_time = GST_CLOCK_TIME_NONE;
+            break;
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
             // Need this check in case an EOS was received in the buffer handler and
             // stream was already stopped. Although stopSync() is an idempotent call,
             // we want to avoid an extra call
             if(!data->streamingStopped.load()) {
                 data->kinesis_video_stream->stopSync();
+                data->kinesis_video_producer->freeStream(data->kinesis_video_stream);
+
+                // Remove track CPDs received from previous streaming session.
+                // NOTE: This is to allow new track CPD to be added to a new stream session.
+                data->track_cpd_received.clear();
+
                 data->streamingStopped.store(true);
             } else {
                 LOG_INFO("Streaming already stopped for " << kvssink->stream_name);
