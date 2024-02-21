@@ -30,7 +30,9 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ makes it easy to build an on
 ### Download
 To download run the following command:
 
-`git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git`
+```bash
+git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git
+```
 
 Note: You will also need to install `pkg-config`, `CMake`, `m4` and a build enviroment. If you are building the GStreamer plugin you will also need GStreamer and GStreamer (Development Libraries).
 
@@ -40,7 +42,7 @@ Refer to the [FAQ](#FAQ) for platform specific instructions.
 
 Prepare a build directory in the newly checked out repository:
 
-```
+```bash
 mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build
 cd amazon-kinesis-video-streams-producer-sdk-cpp/build
 ```
@@ -54,11 +56,11 @@ By default we download all the libraries from GitHub and build them locally, so 
 If you do wish to link to existing libraries you can do `cmake .. -DBUILD_DEPENDENCIES=OFF`
 Libraries needed to build producer are: Curl, Openssl and Log4cplus. If you want to build the gstreamer plugin you will need to have gstreamer in your system.
 On Mac OS you can get the libraries using homebrew
-```
+```bash
 brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
 ```
 On Ubuntu and Raspberry Pi OS you can get the libraries by running
-```
+```bash
 sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
 ```
 ### Setup desired log level:
@@ -104,7 +106,7 @@ You can pass the following options to `cmake ..`.
 
 JNI examples are NOT built by default.  If you wish to build JNI you MUST add `-DBUILD_JNI=TRUE` when running `cmake`:
 
-```
+```bash
 cmake -DBUILD_JNI=TRUE
 ```
 
@@ -112,7 +114,7 @@ cmake -DBUILD_JNI=TRUE
 
 The GStreamer plugin and samples are NOT built by default. If you wish to build them you MUST add `-DBUILD_GSTREAMER_PLUGIN=TRUE` when running cmake:
 
-```
+```bash
 cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 ```
 
@@ -120,7 +122,7 @@ cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 
 After running cmake, in the same build directory run `make`:
 
-```
+```bash
 make
 ```
 
@@ -138,14 +140,14 @@ The GStreamer plugin is located in your `build` directory.
 
 To load this plugin set the following environment variables. This should be run from the root of the repo, NOT the `build` directory.
 
-```
+```bash
 export GST_PLUGIN_PATH=`pwd`/build
 export LD_LIBRARY_PATH=`pwd`/open-source/local/lib
 ```
 
 The equivalent for Windows is
 
-```
+```bat
 set GST_PLUGIN_PATH=%CD%\build
 set PATH=%PATH%;%CD%\open-source\local\bin;%CD%\open-source\local\lib
 ```
