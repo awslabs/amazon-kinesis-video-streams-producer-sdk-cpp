@@ -3,6 +3,46 @@
 * Ubuntu/Debian - `apt-get install cmake m4 git build-essential`
 * RHEL/CentOS - `yum install cmake git m4 && yum groupinstall 'Development Tools'`
 
+<details>
+  <summary>Quick-Install</summary>
+
+  In case you want to try Kinesis Video Streams but without installing or downloading anything on your local computer, follow this procedure.
+
+  Create an Amazon Cloud9 instance, or Amazon EC2 instance. **t2.micro** is sufficient. Change the platform to **Ubuntu 22.04 LTS**.
+
+  If you're on Amazon Cloud9, increase the storage size of the underlying EC2. Run the following script in the Amazon Cloud9 terminal. It will increase the storage size to 20 GiB.
+  ```sh
+  wget https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/resize_volume.sh
+  chmod +x resize_volume.sh
+  ./resize_volume.sh
+  rm resize_volume.sh
+  ```
+
+  In the Cloud9 or EC2 instance, install the necessary dependencies and build the C++ Producer SDK and the sample applications. Run the following commands in the terminal:
+  ```sh
+  sudo apt-get update
+  sudo apt-get install -y cmake m4 git build-essential pkg-config libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+  git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git
+  cd amazon-kinesis-video-streams-producer-sdk-cpp
+  mkdir build
+  cd build
+  cmake .. -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_DEPENDENCIES=OFF
+  make
+  export GST_PLUGIN_PATH=`pwd`
+  ```
+
+  Sample GStreamer pipeline that generates test video with timestamp overlay to send to Kinesis Video Streams:
+  ```sh
+  gst-launch-1.0 -v videotestsrc is-live=true \
+    ! video/x-raw,framerate=10/1,width=640,height=480 \
+    ! clockoverlay time-format="%a %B %d, %Y %I:%M:%S %p" \
+    ! x264enc bframes=0 key-int-max=10 \
+    ! h264parse \
+    ! kvssink stream-name="YourStreamName" aws-region="us-west-2" access-key="YourAccessKey" secret-key="YourSecretKey"
+  ```
+
+</details>
+
 ### How to run sample applications for sending media to KVS using [GStreamer](https://gstreamer.freedesktop.org/):
 
 ##### Setting credentials in environment variables
