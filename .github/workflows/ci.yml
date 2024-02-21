@@ -28,25 +28,26 @@ jobs:
       - name: Install dependencies
         run: |
           curl --version 
-          brew install pkg-config cmake openssl gstreamer
+          brew install pkg-config cmake gstreamer
           brew unlink openssl
-#      - name: Build repository
-#        run: |
-#          mkdir build && cd build
-#          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.
-#          make
-#          make install
-#      - name: Configure AWS Credentials
-#        uses: aws-actions/configure-aws-credentials@v1-node16
-#        with:
-#          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-#          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
-#          aws-region: ${{ secrets.AWS_REGION }}
-#          role-duration-seconds: 10800
-#      - name: Run tests
-#        run: |
-#          cd build
-#          ./tst/producerTest
+          brew unlink curl
+      - name: Build repository
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.
+          make
+          make install
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 10800
+      - name: Run tests
+        run: |
+          cd build
+          ./tst/producerTest
 #  mac-os-m1-build-clang:
 #    runs-on: macos-13-xlarge
 #    env:
