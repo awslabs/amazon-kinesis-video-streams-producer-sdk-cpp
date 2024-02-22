@@ -127,14 +127,7 @@ else()
   add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
 endif()
 
-if (OPEN_SRC_INSTALL_PREFIX)
-  find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
-else()
-  find_package(CURL REQUIRED)
-endif()
-
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS})
-link_directories(${CURL_LIBRARY_DIRS})
+set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS})
 
 if (WIN32)
   find_package(Log4cplus
@@ -215,8 +208,7 @@ target_link_libraries(
   KinesisVideoProducer
   PUBLIC kvsCommonCurl
          cproducer
-         ${Log4cplus}
-         ${LIBCURL_LIBRARIES})
+         ${Log4cplus})
 
 install(
     TARGETS KinesisVideoProducer
