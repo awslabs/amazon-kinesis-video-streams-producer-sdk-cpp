@@ -212,7 +212,7 @@ target_link_libraries(
   PUBLIC kvsCommonCurl
          cproducer
          ${Log4cplus}
-         ${LIBCURL_LIBRARIES})
+         ${CURL_LIBRARIES})
 
 install(
     TARGETS KinesisVideoProducer
