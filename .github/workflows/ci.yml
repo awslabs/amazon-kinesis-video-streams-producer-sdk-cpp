@@ -28,6 +28,7 @@ jobs:
         run: |
           brew install pkg-config cmake gstreamer
           brew unlink openssl
+          brew unlink curl
       - name: Build repository
         run: |
           mkdir build && cd build
