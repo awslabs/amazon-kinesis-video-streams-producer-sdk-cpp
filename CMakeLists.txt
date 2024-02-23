@@ -127,6 +127,7 @@ else()
   add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
 endif()
 
+list(APPEND CMAKE_PREFIX_PATH "${OPEN_SRC_INSTALL_PREFIX}")
 if (OPEN_SRC_INSTALL_PREFIX)
   set(CMAKE_FIND_DEBUG_MODE ON)
   find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
@@ -141,7 +142,7 @@ if (WIN32)
   find_package(Log4cplus
     NAMES log4cplus REQUIRED
     PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
-  SET(Log4cplus "log4cplus::log4cplus")
+    SET(Log4cplus "log4cplus::log4cplus")
 else()
   find_package(Log4cplus REQUIRED)
   include_directories(${LOG4CPLUS_INCLUDE_DIR})
@@ -212,12 +213,14 @@ add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 if(NOT BUILD_STATIC)
   set_target_properties(KinesisVideoProducer PROPERTIES VERSION ${KINESIS_VIDEO_PRODUCER_CPP_VERSION} SOVERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION})
 endif()
+set_target_properties(KinesisVideoProducer PROPERTIES INSTALL_RPATH "${OPEN_SRC_INSTALL_PREFIX}/lib")
+#set(LIBCURL_LIBRARIES "${OPEN_SRC_INSTALL_PREFIX}/lib/libcurl.dylib")
 target_link_libraries(
   KinesisVideoProducer
   PUBLIC kvsCommonCurl
          cproducer
          ${Log4cplus}
-         ${CURL_LIBRARIES})
+         CURL::libcurl)
 
 install(
     TARGETS KinesisVideoProducer
