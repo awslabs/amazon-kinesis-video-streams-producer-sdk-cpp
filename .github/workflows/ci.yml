@@ -319,6 +319,12 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
+
+      - name: Enable Long Path Support
+        run: |
+          REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+        shell: powershell
+
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
