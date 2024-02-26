@@ -11,7 +11,7 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-11
+    runs-on: macos-14
     env:
       AWS_KVS_LOG_LEVEL: 2
       CC: /usr/bin/clang
