@@ -8,6 +8,7 @@ project(KinesisVideoProducerCpp VERSION 3.4.0)
 set(CMAKE_CXX_STANDARD 11)
 include(GNUInstallDirs)
 
+
 set(KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION 3)
 set(KINESIS_VIDEO_PRODUCER_CPP_MINOR_VERSION 4)
 set(KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION 1)
@@ -67,6 +68,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 
+
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
     file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
@@ -79,7 +81,6 @@ if(BUILD_DEPENDENCIES)
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
     set(ENV{PATH} "$ENV{PATH}:${OPEN_SRC_INSTALL_PREFIX}/bin")
   endif()
-
 
   message(STATUS "Begin building dependencies.")
 
@@ -101,9 +102,6 @@ endif()
 set(BUILD_COMMON_LWS
     FALSE
     CACHE BOOL "Build ProducerC without LWS Support" FORCE)
-set(BUILD_COMMON_CURL
-    TRUE
-    CACHE BOOL "Build ProducerC with CURL Support" FORCE)
 
 ############# find dependent libraries ############
 
@@ -123,14 +121,7 @@ else()
   add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
 endif()
 
-if (OPEN_SRC_INSTALL_PREFIX)
-  find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
-else()
-  find_package(CURL REQUIRED)
-endif()
 
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS})
-link_directories(${CURL_LIBRARY_DIRS})
 
 if (WIN32)
   find_package(Log4cplus
@@ -209,10 +200,9 @@ if(NOT BUILD_STATIC)
 endif()
 target_link_libraries(
   KinesisVideoProducer
-  PUBLIC kvsCommonCurl
-         cproducer
-         ${Log4cplus}
-         ${LIBCURL_LIBRARIES})
+  PUBLIC cproducer
+         ${Log4cplus})
+
 
 install(
     TARGETS KinesisVideoProducer
@@ -246,40 +236,37 @@ if(BUILD_JNI)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
+pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
+
+include_directories(${GST_APP_INCLUDE_DIRS})
+link_directories(${GST_APP_LIBRARY_DIRS})
+
+add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
+target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
+add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
+target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
+add_executable(kvs_gstreamer_audio_video_sample samples/kvs_gstreamer_audio_video_sample.cpp)
+target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
+add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
+target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
 
 if(BUILD_GSTREAMER_PLUGIN)
-  pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
-  include_directories(${GST_APP_INCLUDE_DIRS})
-  link_directories(${GST_APP_LIBRARY_DIRS})
-
   if(BUILD_STATIC)
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
   else()
     add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   endif()
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
-  target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
-  add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
-
-  add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
-  target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
-  add_executable(kvs_gstreamer_audio_video_sample samples/kvs_gstreamer_audio_video_sample.cpp)
-  target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
-  add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
-  target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
-
+  target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES})
   install(
     TARGETS gstkvssink
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-  
 endif()
 
 if(BUILD_TEST)
