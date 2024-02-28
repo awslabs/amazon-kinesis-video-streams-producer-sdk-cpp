@@ -16,6 +16,7 @@ set(KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION 1)
 set(KINESIS_VIDEO_PRODUCER_CPP_VERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION}.${KINESIS_VIDEO_PRODUCER_CPP_MINOR_VERSION}.${KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION})
 
 # User Flags
+option(BUILD_C_PRODUCER "Whether to build KVS Proudcer C library, else will check for system-installed version" ON)
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
 option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/Android" OFF)
 option(BUILD_STATIC "Build with static linkage" OFF)
@@ -68,8 +69,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-
-
+message("CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
@@ -110,19 +110,26 @@ set(BUILD_COMMON_LWS
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(KVSCPRODUCER libcproducer)
-if(KVSCPRODUCER_FOUND)
-  set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
-  link_directories(${KVSCPRODUCER_LIBRARY_DIRS})
-else()
+
+if(BUILD_C_PRODUCER)
+  # TODO: Double check all the below is correct/necessary.
   set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
-  if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
-    file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
-  endif()
+  set(BUILD_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
   fetch_repo(kvscproducer)
   add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
+else()
+  # TODO: Check that this works.
+  # Finding Producer C on system.
+  pkg_check_modules(KVSCPRODUCER libcproducer)
+  if(KVSCPRODUCER_FOUND)
+    message("Found system KVS Producer C located: ${KVSCPRODUCER_PREFIX}")
+    set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
+    link_directories(${KVSCPRODUCER_LIBRARY_DIRS})
+  else()
+    message(FATAL_ERROR "Could not find system KVS Producer C. PkgConfig searched in: ${KVSCPRODUCER_INCLUDE_DIRS} \
+                         Please check Producer C installation or set BUILD_C_PRODUCER to TRUE to build Producer C with this project.")
+  endif()
 endif()
-
 
 
 if (WIN32)
@@ -212,11 +219,20 @@ install(
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
-install(
-    TARGETS cproducer
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+# TODO: Why were we installing cproducer?
+
+# From CMAKE documentatin:
+# A platform-specific default is provided by CMake: /usr/local on UNIX, and “<SystemDrive>/Program Files/<ProjectName>” 
+# on Windows, where SystemDrive is along the lines of C: and ProjectName is the name given to the top-most project command.
+
+# And CMAKE_INSTALL_LIBDIR is "lib" by default.
+# So, installing into CMAKE_INSTALL_LIBDIR = usr/local/lib
+
+# install(
+#     TARGETS cproducer
+#     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
@@ -239,21 +255,6 @@ if(BUILD_JNI)
 endif()
 
 
-if(BUILD_GSTREAMER_PLUGIN)
-  pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
-  include_directories(${GST_APP_INCLUDE_DIRS})
-  link_directories(${GST_APP_LIBRARY_DIRS})
-
-  if(BUILD_STATIC)
-    add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
-  else()
-    add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
-  endif()
-  target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
-  add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
-  target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
 add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
 target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
@@ -267,6 +268,9 @@ add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_upl
 target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
 
 if(BUILD_GSTREAMER_PLUGIN)
+  pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
+  include_directories(${GST_APP_INCLUDE_DIRS})
+  link_directories(${GST_APP_LIBRARY_DIRS})
   if(BUILD_STATIC)
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
   else()
