@@ -73,11 +73,11 @@ message("CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
-    file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
+    file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
   endif()
 
   if (NOT OPEN_SRC_INSTALL_PREFIX)
-    set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
+    set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
     set(ENV{PKG_CONFIG_PATH}
           "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
@@ -116,7 +116,7 @@ if(BUILD_C_PRODUCER)
   set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
   set(BUILD_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
   fetch_repo(kvscproducer)
-  add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
+  add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src)
 else()
   # TODO: Check that this works.
   # Finding Producer C on system.
@@ -141,6 +141,7 @@ else()
   find_package(Log4cplus REQUIRED)
   include_directories(${LOG4CPLUS_INCLUDE_DIR})
   set(Log4cplus ${LOG4CPLUS_LIBRARIES})
+  message("LOG4CPLUS_LIBRARIES located at: ${LOG4CPLUS_LIBRARIES}")
 endif()
 
 if (WIN32)
@@ -254,6 +255,10 @@ if(BUILD_JNI)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
+# Need GStreamer for all samples, regardless of whether building kvssisnk
+pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
+include_directories(${GST_APP_INCLUDE_DIRS})
+link_directories(${GST_APP_LIBRARY_DIRS})
 
 add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
 target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
@@ -268,9 +273,6 @@ add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_upl
 target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
 
 if(BUILD_GSTREAMER_PLUGIN)
-  pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
-  include_directories(${GST_APP_INCLUDE_DIRS})
-  link_directories(${GST_APP_LIBRARY_DIRS})
   if(BUILD_STATIC)
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
   else()

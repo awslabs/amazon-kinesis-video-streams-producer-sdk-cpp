@@ -7,7 +7,6 @@
 #include <unordered_set>
 #include <string>
 #include <sstream>
-#include <curl/curl.h>
 
 // The number of retries allowed. 0 means no retry, all tests will run exactly run once.
 #define MAX_TRIALS 10
@@ -43,9 +42,6 @@ class Retrier : public ::testing::EmptyTestEventListener {
 };
 
 int main(int argc, char **argv) {
-    curl_version_info_data *d = curl_version_info(CURLVERSION_NOW);
-    printf("CURL version is: %s\n", d->version);
-    
     int trial = 0, rc;
     bool breakOnFailure; 
 
