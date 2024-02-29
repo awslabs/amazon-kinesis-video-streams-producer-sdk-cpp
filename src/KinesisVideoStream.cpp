@@ -19,7 +19,7 @@ KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video
     }
 }
 
-bool KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
+STATUS KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
     if (debug_dump_frame_info_) {
         LOG_DEBUG("[" << this->stream_name_ << "] pts: " << frame.presentationTs << ", dts: " << frame.decodingTs << ", duration: " << frame.duration << ", size: " << frame.size << ", trackId: " << frame.trackId
                           << ", isKey: " << CHECK_FRAME_FLAG_KEY_FRAME(frame.flags));
@@ -29,7 +29,7 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
     STATUS status = putKinesisVideoFrame(stream_handle_, &frame);
     if (STATUS_FAILED(status)) {
         LOG_ERROR("Put frame for " << this->stream_name_ << " failed with 0x" << std::hex << status);
-        return false;
+        return status;
     }
 
     // Print metrics on every key-frame
@@ -60,9 +60,7 @@ bool KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
             LOG_ERROR("Failed to get metrics. Error: " << err.what());
         }
     }
-
-    // Even if metrics fail, we do not want to return false for putFrame. We just log the error
-    return true;
+    return status;
 }
 
 bool KinesisVideoStream::start(const std::string& hexEncodedCodecPrivateData, uint64_t trackId) {

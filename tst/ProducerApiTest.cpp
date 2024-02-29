@@ -114,11 +114,11 @@ PVOID ProducerTestBase::basicProducerRoutine(KinesisVideoStream* kinesis_video_s
         // Simulate EoFr first
         if (frame.index % 50 == 0 && frame.index != 0) {
             Frame eofr = EOFR_FRAME_INITIALIZER;
-            EXPECT_TRUE(kinesis_video_stream->putFrame(eofr));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(eofr));
         }
 #endif
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(frame));
 
         // Sleep a while for non-offline modes
         if (streaming_type != STREAMING_TYPE_OFFLINE) {
@@ -308,7 +308,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream)
                                                    << ", Dts: " << frame.decodingTs
                                                    << ", Pts: " << frame.presentationTs);
 
-            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(frame));
 
             THREAD_SLEEP(frame_duration_);
         }
@@ -374,7 +374,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_endpoint_cached)
                                                    << ", Dts: " << frame.decodingTs
                                                    << ", Pts: " << frame.presentationTs);
 
-            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(frame));
 
             THREAD_SLEEP(frame_duration_);
         }
@@ -440,7 +440,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_stream_all_cached)
                                                    << ", Dts: " << frame.decodingTs
                                                    << ", Pts: " << frame.presentationTs);
 
-            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(frame));
 
             THREAD_SLEEP(frame_duration_);
         }
@@ -506,7 +506,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_endpoint_cached)
                                                    << ", Dts: " << frame.decodingTs
                                                    << ", Pts: " << frame.presentationTs);
 
-            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(frame));
 
             THREAD_SLEEP(frame_duration_);
         }
@@ -574,7 +574,7 @@ TEST_F(ProducerApiTest, create_produce_start_stop_reset_stream_all_cached)
                                                    << ", Dts: " << frame.decodingTs
                                                    << ", Pts: " << frame.presentationTs);
 
-            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->putFrame(frame));
 
             THREAD_SLEEP(frame_duration_);
         }
