@@ -69,11 +69,11 @@ endif()
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
-    file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
+    file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
   endif()
 
   if (NOT OPEN_SRC_INSTALL_PREFIX)
-    set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
+    set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
     set(ENV{PKG_CONFIG_PATH}
           "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
@@ -110,6 +110,11 @@ set(BUILD_COMMON_CURL
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
 
+#       This should not assume that we don't want to build C Producer with this project.
+#       If C Producer is installed in system default (usr/local for unix), it will find it and not build it.
+#       We can add a flag that states do not build C Producer if want to default to system.
+#       Justification: the producer versions are closley tied to one another, so can be disastrous to build
+#       this SDK with an older C Producer that is lingering in the system.
 pkg_check_modules(KVSCPRODUCER libcproducer)
 if(KVSCPRODUCER_FOUND)
   set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
@@ -123,24 +128,18 @@ else()
   add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
 endif()
 
-if (OPEN_SRC_INSTALL_PREFIX)
-  find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
-else()
-  find_package(CURL REQUIRED)
-endif()
-
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS})
-link_directories(${CURL_LIBRARY_DIRS})
-
-if (WIN32)
-  find_package(Log4cplus
-    NAMES log4cplus REQUIRED
-    PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
-  SET(Log4cplus "log4cplus::log4cplus")
-else()
-  find_package(Log4cplus REQUIRED)
-  include_directories(${LOG4CPLUS_INCLUDE_DIR})
-  set(Log4cplus ${LOG4CPLUS_LIBRARIES})
+# Only check for system log4cplus if we are not building deps.
+if(NOT BUILD_DEPENDENCIES)
+  if (WIN32)
+    find_package(Log4cplus
+      NAMES log4cplus REQUIRED
+      PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
+    SET(Log4cplus "log4cplus::log4cplus")
+  else()
+    find_package(Log4cplus REQUIRED)
+    include_directories(${LOG4CPLUS_INCLUDE_DIR})
+    set(Log4cplus ${LOG4CPLUS_LIBRARIES})
+  endif()
 endif()
 
 if (WIN32)
@@ -211,8 +210,7 @@ target_link_libraries(
   KinesisVideoProducer
   PUBLIC kvsCommonCurl
          cproducer
-         ${Log4cplus}
-         ${LIBCURL_LIBRARIES})
+         ${Log4cplus})
 
 install(
     TARGETS KinesisVideoProducer
@@ -220,11 +218,12 @@ install(
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
-install(
-    TARGETS cproducer
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+# We will install cproducer regardless of whether pkg_check_modules found it in our system already? This is causing a build failure when it is on my system.
+# install(
+#     TARGETS cproducer
+#     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
