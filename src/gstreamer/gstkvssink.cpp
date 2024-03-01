@@ -1166,12 +1166,6 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 goto CleanUp;
             }
 
-            if (data->fragment_metadata_count >= MAX_FRAGMENT_METADATA_TAGS) {
-                ret = FALSE;
-                LOG_WARN("Current fragment's metadata count  " << data->fragment_metadata_count << ". Max limit reached. Current metadata cannot be persisted.");
-                goto CleanUp;
-            }
-
             LOG_INFO("received kvs-add-metadata event for " << kvssink->stream_name);
 
             metadata_name = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_NAME));
@@ -1184,11 +1178,6 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist << " for " << kvssink->stream_name);
                 goto CleanUp;
             }
-
-            if (is_persist) {
-                data->persisted_fragment_metadata_count++;
-            }
-            data->fragment_metadata_count++;
             
             gst_event_unref (event);
             event = NULL;

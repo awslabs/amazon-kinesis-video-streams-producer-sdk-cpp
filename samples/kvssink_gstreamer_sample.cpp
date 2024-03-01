@@ -51,6 +51,7 @@ typedef struct _CustomData {
             synthetic_dts(0),
             last_unpersisted_file_idx(0),
             stream_status(STATUS_SUCCESS),
+            fragment_metadata_timer_id(0),
             base_pts(0),
             max_frame_pts(0),
             key_frame_pts(0),
@@ -68,6 +69,7 @@ typedef struct _CustomData {
     bool h264_stream_supported;
     char *stream_name;
     mutex file_list_mtx;
+    int fragment_metadata_timer_id;
     int metadata_counter = 1;
     bool persist_flag = true;
 
@@ -270,9 +272,10 @@ static void put_metadata(GstElement* element) {
     data_global.metadata_counter++;
     data_global.persist_flag = !data_global.persist_flag;
 
-   if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
-        LOG_WARN("Failed to put fragment metadata");
-   }
+    if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
+        LOG_WARN("Failed to put fragment metadata, going to stop the timer that sends the metadata");
+        g_source_remove(data_global.fragment_metadata_timer_id);
+    }
 }
 
 int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
@@ -736,8 +739,8 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     gst_object_unref(bus);
 
     // Create a GStreamer timer to trigger the custom downstream event every 2 seconds
-    g_timeout_add_seconds(2, reinterpret_cast<GSourceFunc>(put_metadata), kvssink);
-
+    data->fragment_metadata_timer_id = g_timeout_add_seconds(2, reinterpret_cast<GSourceFunc>(put_metadata), kvssink);
+    
     /* start streaming */
     gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (gst_ret == GST_STATE_CHANGE_FAILURE) {
