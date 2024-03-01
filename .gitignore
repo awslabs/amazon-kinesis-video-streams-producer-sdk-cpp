@@ -6,8 +6,7 @@ build
 cmake-build-debug/
 cmake-build-release/
 doc/
-open-source/*
-outputs
+open-source/
 tags
 dependency
 
