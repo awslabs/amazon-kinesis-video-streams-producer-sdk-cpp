@@ -192,7 +192,7 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
-link_directories(${${CMAKE_SOURCE_DIR}/open-source/local/lib})
+link_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/lib})
 
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
