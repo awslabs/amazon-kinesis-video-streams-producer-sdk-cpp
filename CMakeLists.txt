@@ -92,7 +92,7 @@ if(BUILD_DEPENDENCIES)
     set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
     build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
   else()
-    build_dependency(log4cplus -DBUILD_STATIC=${BUILD_STATIC})
+    #build_dependency(log4cplus -DBUILD_STATIC=${BUILD_STATIC})
   endif()
 
   message(STATUS "Finished building dependencies.")
@@ -110,18 +110,19 @@ set(BUILD_COMMON_CURL
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(KVSCPRODUCER libcproducer)
-if(KVSCPRODUCER_FOUND)
-  set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
-  link_directories(${KVSCPRODUCER_LIBRARY_DIRS})
-else()
+# pkg_check_modules(KVSCPRODUCER libcproducer)
+# if(KVSCPRODUCER_FOUND)
+#   set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
+#   link_directories(${KVSCPRODUCER_LIBRARY_DIRS})
+# else()
   set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
   if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
     file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
   endif()
+  set(BUILD_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
   fetch_repo(kvscproducer)
-  add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
-endif()
+  add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src)
+# endif()
 
 
 if (WIN32)
@@ -211,11 +212,11 @@ install(
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
-install(
-    TARGETS cproducer
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+# install(
+#     TARGETS cproducer
+#     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
