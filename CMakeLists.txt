@@ -88,12 +88,12 @@ if(BUILD_DEPENDENCIES)
     build_dependency(automake)
   endif()
   
-  if(BUILD_LOG4CPLUS_HOST)
-    set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
-    build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
-  else()
-    build_dependency(log4cplus -DBUILD_STATIC=${BUILD_STATIC})
-  endif()
+  # if(BUILD_LOG4CPLUS_HOST)
+  #   set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
+  #   build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
+  # else()
+  #   build_dependency(log4cplus -DBUILD_STATIC=${BUILD_STATIC})
+  # endif()
 
   message(STATUS "Finished building dependencies.")
 endif()
@@ -204,8 +204,7 @@ if(NOT BUILD_STATIC)
 endif()
 target_link_libraries(
   KinesisVideoProducer
-  PUBLIC kvsCommonCurl
-         cproducer
+  PUBLIC cproducer
          ${Log4cplus})
 
 install(
@@ -240,11 +239,23 @@ if(BUILD_JNI)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
+pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
+include_directories(${GST_APP_INCLUDE_DIRS})
+link_directories(${GST_APP_LIBRARY_DIRS})
+
+add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
+target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
+
+add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
+target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
+add_executable(kvs_gstreamer_audio_video_sample samples/kvs_gstreamer_audio_video_sample.cpp)
+target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
+add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
+target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
 
 if(BUILD_GSTREAMER_PLUGIN)
-  pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
-  include_directories(${GST_APP_INCLUDE_DIRS})
-  link_directories(${GST_APP_LIBRARY_DIRS})
 
   if(BUILD_STATIC)
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
@@ -255,18 +266,6 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
   target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
-  add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
-
-  add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
-  target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
-  add_executable(kvs_gstreamer_audio_video_sample samples/kvs_gstreamer_audio_video_sample.cpp)
-  target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
-
-  add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
-  target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
 
   install(
     TARGETS gstkvssink
