@@ -162,6 +162,10 @@ static bool resolution_supported(GstCaps *src_caps, GstCaps *query_caps_raw, Gst
 
 /* callback when eos (End of Stream) is posted on bus */
 static void eos_cb(GstElement *sink, GstMessage *message, CustomData *data) {
+    if (data->fragment_metadata_timer_id != 0) {
+        g_source_remove(data->fragment_metadata_timer_id);
+        LOG_TRACE("Removing the put_metadata timer");
+    }
     if (data->streamSource == FILE_SOURCE) {
         // bookkeeping base_pts. add 1ms to avoid overlap.
         data->base_pts += +data->max_frame_pts + duration_cast<nanoseconds>(milliseconds(1)).count();
@@ -181,6 +185,11 @@ static void eos_cb(GstElement *sink, GstMessage *message, CustomData *data) {
 static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
     GError *err;
     gchar *debug_info;
+
+    if (data->fragment_metadata_timer_id != 0) {
+        g_source_remove(data->fragment_metadata_timer_id);
+        LOG_TRACE("Removing the put_metadata timer");
+    }
 
     /* Print error details on the screen */
     gst_message_parse_error(msg, &err, &debug_info);
@@ -222,8 +231,13 @@ void timer(CustomData *data) {
 
 /* Function handles sigint signal */
 void sigint_handler(int sigint){
-    LOG_DEBUG("SIGINT received.  Exiting graceully");
+    LOG_DEBUG("SIGINT received.  Exiting gracefully");
     
+    if (data_global.fragment_metadata_timer_id != 0) {
+        g_source_remove(data_global.fragment_metadata_timer_id);
+        LOG_TRACE("Removing the put_metadata timer");
+    }
+
     if(data_global.main_loop != NULL){
         g_main_loop_quit(data_global.main_loop);
     }
@@ -263,6 +277,10 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 }
 
 // Function to put fragment metadata: name, value, and persist values
+// This is a sample function. Customers can write their own put_metadata and trigger it 
+// either using the timer or some other logic. This function can contain custom logic to
+// generate the metadata. To trigger the downstream event that calls the API putKinesisVideoFragmentMetadata,
+// put_fragment_metadata must be called as shown below.
 static void put_metadata(GstElement* element) {
     std::ostringstream metadata_name_stream, metadata_value_stream;
 
@@ -274,7 +292,10 @@ static void put_metadata(GstElement* element) {
 
     if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
         LOG_WARN("Failed to put fragment metadata, going to stop the timer that sends the metadata");
-        g_source_remove(data_global.fragment_metadata_timer_id);
+        if (data_global.fragment_metadata_timer_id != 0) {
+            g_source_remove(data_global.fragment_metadata_timer_id);
+            LOG_TRACE("Removing the put_metadata timer");
+        }
     }
 }
 
@@ -622,7 +643,7 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
 
 int gstreamer_file_source_init(CustomData *data, GstElement *pipeline, GstElement *kvssink) {
 
-    GstElement *demux,*filesrc, *h264parse, *filter, *queue;
+    GstElement *demux, *filesrc, *h264parse, *filter, *queue;
     string file_suffix;
     string file_path = data->file_list.at(data->current_file_idx).path;
 
@@ -738,7 +759,7 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     g_signal_connect(G_OBJECT(bus), "message::eos", G_CALLBACK(eos_cb), data);
     gst_object_unref(bus);
 
-    // Create a GStreamer timer to trigger the custom downstream event every 2 seconds
+    // Create a GStreamer timer to generate and put fragment metadata tags every 2 seconds
     data->fragment_metadata_timer_id = g_timeout_add_seconds(2, reinterpret_cast<GSourceFunc>(put_metadata), kvssink);
     
     /* start streaming */
@@ -746,7 +767,7 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     if (gst_ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr("Unable to set the pipeline to the playing state.\n");
         gst_object_unref(pipeline);
-	data->stream_status = STATUS_KVS_GSTREAMER_SAMPLE_ERROR; 
+	    data->stream_status = STATUS_KVS_GSTREAMER_SAMPLE_ERROR; 
         return 1;
     }
     // set timer if valid runtime provided (non-positive values are ignored)
