@@ -319,7 +319,7 @@ jobs:
       - name: Move cloned repo
         run: |
           git config --system core.longpaths true
-          mkdir C:\producer
+          mkdir C:\amazon-kinesis-video-streams-producer-sdk-cpp
           Move-Item -Path "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\*" -Destination "C:\amazon-kinesis-video-streams-producer-sdk-cpp"
       - name: Install dependencies
         run: |
