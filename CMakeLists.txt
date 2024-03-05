@@ -241,7 +241,7 @@ if(BUILD_GSTREAMER_PLUGIN)
   else()
     add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   endif()
-  target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(gstkvssink PRIVATE ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
   target_link_libraries(kvssink_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspic)
