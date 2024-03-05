@@ -329,6 +329,7 @@ jobs:
       - name: Build repository
         run: |
           $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin"
+          cd C:\amazon-kinesis-video-streams-producer-sdk-cpp
           .github\build_windows.bat
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
