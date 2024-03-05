@@ -316,6 +316,11 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
+      - name: Move cloned repo
+        run: |
+          git config --system core.longpaths true
+          mkdir C:\producer
+          Move-Item -Path "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\*" -Destination "C:\amazon-kinesis-video-streams-producer-sdk-cpp"
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
@@ -323,10 +328,7 @@ jobs:
           choco install gstreamer-devel --version=1.16.2
       - name: Build repository
         run: |
-          git config --system core.longpaths true
-          reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
-          New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" ` -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
-          $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin"
+          $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin"
           .github\build_windows.bat
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
@@ -337,8 +339,8 @@ jobs:
           role-duration-seconds: 10800
       - name: Run tests
         run: |
-          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
-          & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
+          & "C:\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
 
   arm64-cross-compilation:
     runs-on: ubuntu-20.04
