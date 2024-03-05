@@ -38,8 +38,7 @@ else()
       GIT_REPOSITORY    https://github.com/log4cplus/log4cplus
       GIT_TAG           REL_2_0_6 # Fixes the CATCH_REQUIRE related build errors encountered in MacOS M1
       PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
-      CMAKE_ARGS
-        -DCMAKE_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX}
+      CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
       BUILD_ALWAYS      TRUE
       TEST_COMMAND      ""
   )
