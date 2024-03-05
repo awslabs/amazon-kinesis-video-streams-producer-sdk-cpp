@@ -186,6 +186,8 @@ install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
   DESTINATION .)
 
+link_directories(${OPEN_SRC_INSTALL_PREFIX}/lib)
+
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 if(NOT BUILD_STATIC)
   set_target_properties(KinesisVideoProducer PROPERTIES VERSION ${KINESIS_VIDEO_PRODUCER_CPP_VERSION} SOVERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION})
@@ -232,7 +234,6 @@ if(BUILD_GSTREAMER_PLUGIN)
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
-  link_directories(${OPEN_SRC_INSTALL_PREFIX}/lib)
   include_directories(${OPEN_SRC_INSTALL_PREFIX}/include)
 
   if(BUILD_STATIC)
