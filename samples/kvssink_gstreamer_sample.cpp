@@ -51,6 +51,7 @@ typedef struct _CustomData {
             synthetic_dts(0),
             last_unpersisted_file_idx(0),
             stream_status(STATUS_SUCCESS),
+            put_fragment_metadata_frequency_seconds(2),
             fragment_metadata_timer_id(0),
             base_pts(0),
             max_frame_pts(0),
@@ -69,6 +70,7 @@ typedef struct _CustomData {
     bool h264_stream_supported;
     char *stream_name;
     mutex file_list_mtx;
+    int put_fragment_metadata_frequency_seconds;
     int fragment_metadata_timer_id;
     int metadata_counter = 1;
     bool persist_flag = true;
@@ -760,7 +762,7 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     gst_object_unref(bus);
 
     // Create a GStreamer timer to generate and put fragment metadata tags every 2 seconds
-    data->fragment_metadata_timer_id = g_timeout_add_seconds(2, reinterpret_cast<GSourceFunc>(put_metadata), kvssink);
+    data->fragment_metadata_timer_id = g_timeout_add_seconds(data->put_fragment_metadata_frequency_seconds, reinterpret_cast<GSourceFunc>(put_metadata), kvssink);
     
     /* start streaming */
     gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
