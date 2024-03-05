@@ -314,9 +314,9 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Clone repository # to shorten path length for Windows OS
+      - name: Clone repository
         uses: actions/checkout@v3
-      - name: Move cloned repo
+      - name: Move cloned repo # to shorten path length for Windows OS
         run: |
           git config --system core.longpaths true
           mkdir C:\amazon-kinesis-video-streams-producer-sdk-cpp
