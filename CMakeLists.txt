@@ -117,7 +117,6 @@ if (WIN32)
   SET(Log4cplus "log4cplus::log4cplus")
 else()
   find_package(Log4cplus REQUIRED)
-  include_directories(${LOG4CPLUS_INCLUDE_DIR})
 endif()
 
 message("LOG4CPLUS_INCLUDE_DIR is ${LOG4CPLUS_INCLUDE_DIR}")
