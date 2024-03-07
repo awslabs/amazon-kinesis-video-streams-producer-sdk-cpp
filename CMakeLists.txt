@@ -114,7 +114,7 @@ if (WIN32)
   find_package(Log4cplus
     NAMES log4cplus REQUIRED
     PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
-  SET(Log4cplus "log4cplus::log4cplus")
+  set(LOG4CPLUS_LIBRARIES "log4cplus::log4cplus")
 else()
   find_package(Log4cplus REQUIRED)
 endif()
