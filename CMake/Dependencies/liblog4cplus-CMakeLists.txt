@@ -1,48 +1,36 @@
 cmake_minimum_required(VERSION 3.6.3)
-find_program(MAKE_EXE NAMES make)
-
 project(log4cplus-download NONE)
 
-set(BUILD_SHARED_LIBS 1)
+set(BUILD_SHARED_LIBS ON)
 if (BUILD_STATIC)
-    set(BUILD_SHARED_LIBS 0)
-    set(CONFIGURE_STATIC --disable-shared --enable-static)
+  set(BUILD_SHARED_LIBS OFF)
 endif()
 
-if (DEFINED BUILD_LOG4CPLUS_HOST AND NOT BUILD_LOG4CPLUS_HOST STREQUAL OFF)
-  SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_log4cplus/configure "CFLAGS=${CMAKE_C_FLAGS}" --prefix=${OPEN_SRC_INSTALL_PREFIX} ${CONFIGURE_STATIC} --host=${BUILD_LOG4CPLUS_HOST})
-else()
-  SET(CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build/src/project_log4cplus/configure "CFLAGS=${CMAKE_C_FLAGS}" --prefix=${OPEN_SRC_INSTALL_PREFIX} ${CONFIGURE_STATIC})
+set(EXTRA_CMAKE_ARGS "")
+if (DEFINED BUILD_LOG4CPLUS_HOST AND NOT BUILD_LOG4CPLUS_HOST STREQUAL "OFF")
+  list(APPEND EXTRA_CMAKE_ARGS "-DCMAKE_SYSTEM_NAME=${BUILD_LOG4CPLUS_HOST}")
 endif()
-
-if (DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot${CMAKE_OSX_SYSROOT}")
-endif()
-
 
 include(ExternalProject)
 
 if (WIN32)
-  ExternalProject_Add(project_log4cplus
-      GIT_REPOSITORY    https://github.com/log4cplus/log4cplus
-      GIT_TAG           REL_2_0_1
-      GIT_SHALLOW       TRUE
-      GIT_PROGRESS      TRUE
-      PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
-      TEST_COMMAND      ""
-      CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX} -DLOG4CPLUS_BUILD_TESTING=0 -DLOG4CPLUS_BUILD_LOGGINGSERVER=0 -DUNICODE=0 -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
-  )
-else()
-  ExternalProject_Add(project_log4cplus
-       GIT_REPOSITORY    https://github.com/log4cplus/log4cplus
-       GIT_TAG           REL_2_0_1
-       GIT_SHALLOW       TRUE
-       GIT_PROGRESS      TRUE
-       PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
-       CONFIGURE_COMMAND ${CONFIGURE_COMMAND}
-       BUILD_COMMAND     ${MAKE_EXE}
-       BUILD_IN_SOURCE   TRUE
-       INSTALL_COMMAND   ${MAKE_EXE} install
-       TEST_COMMAND      ""
-  )
+  list(APPEND EXTRA_CMAKE_ARGS "-DUNICODE=0")
 endif()
+
+ExternalProject_Add(project_log4cplus
+  GIT_REPOSITORY    https://github.com/log4cplus/log4cplus
+  GIT_TAG           REL_2_1_2
+  GIT_SHALLOW       TRUE
+  GIT_PROGRESS      TRUE
+  PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/build
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX}
+    -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
+    -DLOG4CPLUS_ENABLE_THREAD_POOL=OFF
+    -DLOG4CPLUS_BUILD_TESTING=OFF
+    -DLOG4CPLUS_BUILD_LOGGINGSERVER=OFF
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    ${EXTRA_CMAKE_ARGS}
+  BUILD_ALWAYS      TRUE
+  TEST_COMMAND      ""
+)

@@ -36,6 +36,7 @@ find_path(LOG4CPLUS_INCLUDE_DIR
 find_library(LOG4CPLUS_LIBRARY
   NAMES
     log4cplus
+    log4cplusS
   PATHS
     /usr/local
     /usr
