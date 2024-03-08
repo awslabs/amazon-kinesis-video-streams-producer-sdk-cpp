@@ -19,7 +19,6 @@ option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
-option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
 option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
 option(CONSTRAINED_DEVICE "Set thread stack size to 0.5MB" OFF)
 
@@ -83,11 +82,6 @@ if(BUILD_DEPENDENCIES)
 
   message(STATUS "Begin building dependencies.")
 
-  if (NOT WIN32)
-    build_dependency(autoconf)
-    build_dependency(automake)
-  endif()
-  
   if(BUILD_LOG4CPLUS_HOST)
     set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
     build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
@@ -97,13 +91,6 @@ if(BUILD_DEPENDENCIES)
 
   message(STATUS "Finished building dependencies.")
 endif()
-
-set(BUILD_COMMON_LWS
-    FALSE
-    CACHE BOOL "Build ProducerC without LWS Support" FORCE)
-set(BUILD_COMMON_CURL
-    TRUE
-    CACHE BOOL "Build ProducerC with CURL Support" FORCE)
 
 ############# find dependent libraries ############
 
@@ -123,31 +110,23 @@ else()
   add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
 endif()
 
-if (OPEN_SRC_INSTALL_PREFIX)
-  find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
-else()
-  find_package(CURL REQUIRED)
-endif()
-
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS})
-link_directories(${CURL_LIBRARY_DIRS})
-
 if (WIN32)
   find_package(Log4cplus
     NAMES log4cplus REQUIRED
     PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
-  SET(Log4cplus "log4cplus::log4cplus")
+  set(LOG4CPLUS_LIBRARIES "log4cplus::log4cplus")
 else()
   find_package(Log4cplus REQUIRED)
-  include_directories(${LOG4CPLUS_INCLUDE_DIR})
-  set(Log4cplus ${LOG4CPLUS_LIBRARIES})
 endif()
+
+message("LOG4CPLUS_INCLUDE_DIR is ${LOG4CPLUS_INCLUDE_DIR}")
+message("LOG4CPLUS_LIBRARIES is ${LOG4CPLUS_LIBRARIES}")
 
 if (WIN32)
   if(EXISTS "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
     set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
   else()
-     set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
   endif()
 endif()
 
@@ -199,9 +178,14 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
+include_directories(${LOG4CPLUS_INCLUDE_DIR})
+
+
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
   DESTINATION .)
+
+link_directories(${OPEN_SRC_INSTALL_PREFIX}/lib)
 
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
 if(NOT BUILD_STATIC)
@@ -209,10 +193,8 @@ if(NOT BUILD_STATIC)
 endif()
 target_link_libraries(
   KinesisVideoProducer
-  PUBLIC kvsCommonCurl
-         cproducer
-         ${Log4cplus}
-         ${LIBCURL_LIBRARIES})
+  PUBLIC cproducer
+         ${LOG4CPLUS_LIBRARIES})
 
 install(
     TARGETS KinesisVideoProducer
@@ -251,28 +233,29 @@ if(BUILD_GSTREAMER_PLUGIN)
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
+  include_directories(${OPEN_SRC_INSTALL_PREFIX}/include)
 
   if(BUILD_STATIC)
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
   else()
     add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   endif()
-  target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(gstkvssink PRIVATE ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
-  target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(kvssink_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspic)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
+  target_link_libraries(kvs_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
 
   add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
-  target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(kvs_gstreamer_multistream_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_audio_video_sample samples/kvs_gstreamer_audio_video_sample.cpp)
-  target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(kvs_gstreamer_audio_video_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
-  target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
+  target_link_libraries(kvs_gstreamer_file_uploader_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES})
 
   install(
     TARGETS gstkvssink

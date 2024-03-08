@@ -16,8 +16,6 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
       CC: /usr/bin/clang
       CXX: /usr/bin/clang++
-      LDFLAGS: -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
-      CPATH: /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/
     permissions:
       id-token: write
       contents: read
@@ -43,7 +41,7 @@ jobs:
           role-duration-seconds: 10800
       - name: Run tests
         run: |
-          cd build  
+          cd build
           ./tst/producerTest
   mac-os-m1-build-clang:
     runs-on: macos-13-xlarge
