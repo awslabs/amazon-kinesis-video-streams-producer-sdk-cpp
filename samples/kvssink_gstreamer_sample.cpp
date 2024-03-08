@@ -2,7 +2,6 @@
 #include <string.h>
 #include <chrono>
 #include <Logger.h>
-#include "KinesisVideoProducer.h"
 #include <vector>
 #include <stdlib.h>
 #include <mutex>
@@ -58,12 +57,10 @@ typedef struct _CustomData {
             first_pts(GST_CLOCK_TIME_NONE),
             use_absolute_fragment_times(true),
             max_runtime(0)	{
-        producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
+        producer_start_time = chrono::duration_cast<nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     }
 
     GMainLoop *main_loop;
-    unique_ptr<KinesisVideoProducer> kinesis_video_producer;
-    shared_ptr<KinesisVideoStream> kinesis_video_stream;
     bool stream_started;
     bool h264_stream_supported;
     char *stream_name;
