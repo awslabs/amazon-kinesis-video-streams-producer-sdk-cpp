@@ -1620,13 +1620,23 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     /*
         The below state transition cases are separated into two switch blocks:
         one for upward (NULL->READY->PAUSED->PLAYING) transitions and one for
-        downward (PLAYING->PAUSED->READY->NULL) transitions. It is necessary to transition
-        an element's parent class state after any of the element's upward transitions but
-        before any downward transitions. As per GStreamer documentation,
+        downward (PLAYING->PAUSED->READY->NULL) transitions. It is typically* necessary to
+        transition an element's parent class state after any of the element's upward
+        transitions but before any downward transitions. As per GStreamer documentation,
         "this is necessary in order to safely handle concurrent access by multiple threads."
         
         https://gstreamer.freedesktop.org/documentation/plugin-development/basics/states.
         html?gi-language=c#:~:text=Note%20that%20upwards,destroying%20allocated%20resources.
+
+        * NOTE: The gst_collect_pads_stop call should be called before calling the parent
+                element state change function in the PAUSED_TO_READY state change to ensure
+                no pad is blocked and the element can finish streaming.
+
+                https://gstreamer.freedesktop.org/documentation/base/gstcollectpads.html?gi-
+                language=c#:~:text=The%20gst_collect_pads_stop%20call%20should%20be%20called%
+                20before%20calling%20the%20parent%20element%20state%20change%20function%20in%
+                20the%20PAUSED_TO_READY%20state%20change%20to%20ensure%20no%20pad%20is%20bloc
+                ked%20and%20the%20element%20can%20finish%20streaming.
     */
     
     GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
@@ -1667,6 +1677,12 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
         case GST_STATE_CHANGE_READY_TO_PAUSED:
             gst_collect_pads_start (kvssink->collect);
             break;
+
+        // (Downward Transition) gst_collect_pads_stop must be called prior to parent class PAUSED->READY transition.
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
+            LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
+            gst_collect_pads_stop(kvssink->collect);
+            break;
         default:
             break;
     }
@@ -1680,9 +1696,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     // Downward transitions
     switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-            LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
-            gst_collect_pads_stop (kvssink->collect);
-
             // Need this check in case an EOS was received in the buffer handler and
             // stream was already stopped. Although stopSync() is an idempotent call,
             // we want to avoid an extra call
