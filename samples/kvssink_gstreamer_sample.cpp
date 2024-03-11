@@ -166,8 +166,8 @@ static void eos_cb(GstElement *sink, GstMessage *message, CustomData *data) {
             data->file_list.at(data->current_file_idx).last_fragment_ts = data->key_frame_pts;
         }
     }
-    LOG_DEBUG("Terminating pipeline due to EOS");
-    g_main_loop_quit(data->main_loop);
+    //LOG_DEBUG("Terminating pipeline due to EOS");
+    //g_main_loop_quit(data->main_loop);
 }
 
 /* This function is called when an error message is posted on the bus */
@@ -356,9 +356,9 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
     if (encoder) {
         vtenc = true;
-        source = gst_element_factory_make("videotestsrc", "source");
+        source = gst_element_factory_make("autovideosrc", "source");
         if (source) {
-            LOG_DEBUG("Using videotestsrc");
+            LOG_DEBUG("Using autovideosrc");
         } else {
             LOG_ERROR("Failed to create videotestsrc");
             return 1;
@@ -403,7 +403,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
 
     /* configure source */
     if (vtenc) {
-        g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
+        // g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
     } else {
         g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
     }
@@ -729,9 +729,26 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
 	std::thread stream_timer(timer, data);
 	stream_timer.detach();
     }
+
     LOG_DEBUG("before main loop");
     data->main_loop = g_main_loop_new(NULL, FALSE);
-    g_main_loop_run(data->main_loop);
+    std::thread mainLoopThread(g_main_loop_run, data->main_loop);
+
+    sleep(10);
+    LOG_DEBUG("Pausing...");
+    GstEvent* eos;
+    eos = gst_event_new_eos();
+    gst_element_send_event(pipeline, eos);
+
+    sleep(10);
+    LOG_DEBUG("Playing...");
+    GstEvent* flush_start = gst_event_new_flush_start();
+    gst_element_send_event(pipeline, flush_start);
+    GstEvent*flush_stop = gst_event_new_flush_stop(true);
+    gst_element_send_event(pipeline, flush_stop);
+
+
+    mainLoopThread.join();
     LOG_DEBUG("after main loop")
 
 
