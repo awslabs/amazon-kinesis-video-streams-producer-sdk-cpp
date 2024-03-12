@@ -105,7 +105,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_ACCESS_KEY "access_key"
 #define DEFAULT_SECRET_KEY "secret_key"
 #define DEFAULT_SESSION_TOKEN "session_token"
-#define DEFAULT_REGION "us-west-2"
+#define DEFAULT_REGION ""
 #define DEFAULT_ROTATION_PERIOD_SECONDS 3600
 #define DEFAULT_LOG_FILE_PATH "../kvs_log_configuration"
 #define DEFAULT_STORAGE_SIZE_MB 128
@@ -318,12 +318,16 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         session_token_str = string(kvssink->session_token);
     }
 
-    if (nullptr == (default_region = getenv(DEFAULT_REGION_ENV_VAR))) {
-        region_str = string(kvssink->aws_region);
+    if (IS_EMPTY_STRING(kvssink->aws_region)) {
+        default_region = GETENV(DEFAULT_REGION_ENV_VAR);
+        if (IS_NULL_OR_EMPTY_STRING(default_region)) {
+            LOG_AND_THROW("No region set. Either set non-empty value with env " << DEFAULT_REGION_ENV_VAR << " or set kvssink property aws-region");
+        } else {
+            region_str = string(default_region);
+        }
     } else {
-        region_str = string(default_region); // Use env var if both property and env var are available.
+        region_str = string(kvssink->aws_region);
     }
-
     unique_ptr<CredentialProvider> credential_provider;
 
     if (kvssink->iot_certificate) {
@@ -1213,14 +1217,17 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = static_cast<UINT64>(track_id);
 }
 
-bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
+STATUS
+put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
 
+    STATUS put_frame_status = STATUS_SUCCESS;
     Frame frame;
+
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    bool ret = data->kinesis_video_stream->putFrame(frame);
-    if (data->get_metrics && ret) {
-        if (CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame) {
+    put_frame_status = data->kinesis_video_stream->putFrame(frame);
+    if (data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
+        if (CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame){
             KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
             kvs_sink_metric->stream_metrics = data->kinesis_video_stream->getMetrics();
             kvs_sink_metric->client_metrics = data->kinesis_video_producer->getMetrics();
@@ -1231,7 +1238,7 @@ bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
             delete kvs_sink_metric;
         }
     }
-    return ret;
+    return put_frame_status;
 }
 
 static GstFlowReturn
@@ -1249,6 +1256,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     uint64_t track_id;
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
+    STATUS put_frame_status = STATUS_SUCCESS;
 
     info.data = NULL;
     // eos reached
@@ -1309,7 +1317,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             if (!data->use_original_pts) {
                 buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
                 buf->pts += data->pts_base;
-            } else {
+            }
+            else {
                 buf->pts = buf->dts;
             }
         } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
@@ -1345,24 +1354,24 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             if (data->first_pts == GST_CLOCK_TIME_NONE) {
                 data->first_pts = buf->pts;
             }
-
             if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
                 data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
                         systemCurrentTime().time_since_epoch()).count();
             }
-
             if (!data->use_original_pts) {
                 buf->pts += data->producer_start_time - data->first_pts;
-            } else {
+            }
+            else {
                 buf->pts = buf->dts;
             }
         }
 
-        put_frame(kvssink->data, info.data, info.size,
-                  std::chrono::nanoseconds(buf->pts),
-                  std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+        put_frame_status = put_frame(data, info.data, info.size,
+                                     std::chrono::nanoseconds(buf->pts),
+                                     std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
-    } else {
+    }
+    else {
         LOG_WARN("GStreamer buffer is invalid for " << kvssink->stream_name);
     }
 
@@ -1373,6 +1382,11 @@ CleanUp:
 
     if (buf != NULL) {
         gst_buffer_unref (buf);
+    }
+    
+    if (STATUS_FAILED(put_frame_status)) {
+        GST_ELEMENT_WARNING (kvssink, RESOURCE, WRITE, (NULL),
+                           ("put frame error occurred. Status: 0x%08x", put_frame_status));
     }
 
     return ret;
@@ -1573,12 +1587,35 @@ init_track_data(GstKvsSink *kvssink) {
 
 static GstStateChangeReturn
 gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
+    /*
+        The below state transition cases are separated into two switch blocks:
+        one for upward (NULL->READY->PAUSED->PLAYING) transitions and one for
+        downward (PLAYING->PAUSED->READY->NULL) transitions. It is typically* necessary to
+        transition an element's parent class state after any of the element's upward
+        transitions but before any downward transitions. As per GStreamer documentation,
+        "this is necessary in order to safely handle concurrent access by multiple threads."
+        
+        https://gstreamer.freedesktop.org/documentation/plugin-development/basics/states.
+        html?gi-language=c#:~:text=Note%20that%20upwards,destroying%20allocated%20resources.
+
+        * NOTE: The gst_collect_pads_stop call should be called before calling the parent
+                element state change function in the PAUSED_TO_READY state change to ensure
+                no pad is blocked and the element can finish streaming.
+
+                https://gstreamer.freedesktop.org/documentation/base/gstcollectpads.html?gi-
+                language=c#:~:text=The%20gst_collect_pads_stop%20call%20should%20be%20called%
+                20before%20calling%20the%20parent%20element%20state%20change%20function%20in%
+                20the%20PAUSED_TO_READY%20state%20change%20to%20ensure%20no%20pad%20is%20bloc
+                ked%20and%20the%20element%20can%20finish%20streaming.
+    */
+    
     GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
     GstKvsSink *kvssink = GST_KVS_SINK (element);
     auto data = kvssink->data;
     string err_msg = "";
     ostringstream oss;
 
+    // Upward transitions
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
             if (kvssink->log_config_path != NULL) {
@@ -1610,10 +1647,25 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
         case GST_STATE_CHANGE_READY_TO_PAUSED:
             gst_collect_pads_start (kvssink->collect);
             break;
+
+        // (Downward Transition) gst_collect_pads_stop must be called prior to parent class PAUSED->READY transition.
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
-            gst_collect_pads_stop (kvssink->collect);
+            gst_collect_pads_stop(kvssink->collect);
+            break;
+        default:
+            break;
+    }
 
+    // Parent class transition
+    ret = GST_ELEMENT_CLASS (parent_class)->change_state(element, transition);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        goto CleanUp;
+    }
+
+    // Downward transitions
+    switch (transition) {
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
             // Need this check in case an EOS was received in the buffer handler and
             // stream was already stopped. Although stopSync() is an idempotent call,
             // we want to avoid an extra call
@@ -1631,8 +1683,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
         default:
             break;
     }
-
-    ret = GST_ELEMENT_CLASS (parent_class)->change_state(element, transition);
 
 CleanUp:
 

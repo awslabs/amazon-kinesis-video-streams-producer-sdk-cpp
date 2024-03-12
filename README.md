@@ -30,7 +30,9 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ makes it easy to build an on
 ### Download
 To download run the following command:
 
-`git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git`
+```bash
+git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git
+```
 
 Note: You will also need to install `pkg-config`, `CMake`, `m4` and a build enviroment. If you are building the GStreamer plugin you will also need GStreamer and GStreamer (Development Libraries).
 
@@ -40,7 +42,7 @@ Refer to the [FAQ](#FAQ) for platform specific instructions.
 
 Prepare a build directory in the newly checked out repository:
 
-```
+```bash
 mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build
 cd amazon-kinesis-video-streams-producer-sdk-cpp/build
 ```
@@ -54,12 +56,12 @@ By default we download all the libraries from GitHub and build them locally, so 
 If you do wish to link to existing libraries you can do `cmake .. -DBUILD_DEPENDENCIES=OFF`
 Libraries needed to build producer are: Curl, Openssl and Log4cplus. If you want to build the gstreamer plugin you will need to have gstreamer in your system.
 On Mac OS you can get the libraries using homebrew
-```
-$ brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
+```bash
+brew install pkg-config openssl cmake gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly log4cplus gst-libav
 ```
 On Ubuntu and Raspberry Pi OS you can get the libraries by running
-```
-$ sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+```bash
+sudo apt-get install libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
 ```
 ### Setup desired log level:
 Set up the desired log level. The log levels currently available with `log4cplus` are:
@@ -73,6 +75,10 @@ Set up the desired log level. The log levels currently available with `log4cplus
 To set a log level, update the log level value [here](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/kvs_log_configuration#L1)
 
 Note: The default log level is `DEBUG`
+
+The SDK also tracks entry and exit of functions which increases the verbosity of the logs. This will be useful when you want to track the transitions within the codebase. To do so, you need to set log level to TRACE and add the following to the cmake file:
+`add_definitions(-DLOG_STREAMING)`
+Note: This log level is extremely VERBOSE and could flood the files if using file based logging strategy.
 
 #### Cross-Compilation
 If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See our [ci.yml](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/develop/.github/workflows/ci.yml) for an example of this. Every commit is cross compiled to ensure that it continues to work.
@@ -94,12 +100,13 @@ You can pass the following options to `cmake ..`.
 * `-DUNDEFINED_BEHAVIOR_SANITIZER` Build with UndefinedBehaviorSanitizer
 * `-DALIGNED_MEMORY_MODEL` Build for aligned memory model only devices. Default is OFF.
 * `-DBUILD_LOG4CPLUS_HOST` Specify host-name for log4cplus for cross-compilation. Default is OFF.
+* `-DCONSTRAINED_DEVICE` Set the thread stack size to 0.5MB, needed for Alpine builds
 
 #### To Include JNI
 
 JNI examples are NOT built by default.  If you wish to build JNI you MUST add `-DBUILD_JNI=TRUE` when running `cmake`:
 
-```
+```bash
 cmake -DBUILD_JNI=TRUE
 ```
 
@@ -107,14 +114,14 @@ cmake -DBUILD_JNI=TRUE
 
 The GStreamer plugin and samples are NOT built by default. If you wish to build them you MUST add `-DBUILD_GSTREAMER_PLUGIN=TRUE` when running cmake:
 
-```
+```bash
 cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 ```
 ### Compiling 
 
 After running cmake, in the same build directory run `make`:
 
-```
+```bash
 make
 ```
 
@@ -132,14 +139,14 @@ The GStreamer plugin is located in your `build` directory.
 
 To load this plugin set the following environment variables. This should be run from the root of the repo, NOT the `build` directory.
 
-```
+```bash
 export GST_PLUGIN_PATH=`pwd`/build
 export LD_LIBRARY_PATH=`pwd`/open-source/local/lib
 ```
 
 The equivalent for Windows is
 
-```
+```bat
 set GST_PLUGIN_PATH=%CD%\build
 set PATH=%PATH%;%CD%\open-source\local\bin;%CD%\open-source\local\lib
 ```
@@ -196,7 +203,7 @@ both -- for both
 The events will start on the 2nd key frame, and will reoccur every 200 key frames. If you would to change this frequence you can edit the sample.
 
 #### To run from a file
-in the kvs_gstreamer_audio_video_sample.cpp if you would like to upload from a file, include the option flag -f <file_path>
+In the kvs_gstreamer_audio_video_sample.cpp if you would like to upload from a file, include the option flag -f <file_path>
 
 ## Running in offline mode
 By default, the samples run in near realtime mode. To set offline mode, set streamInfo.streamCaps.streamingType to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.
@@ -205,10 +212,11 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 * The sample docker scripts for RTSP plugin, raspberry pi and linux can be found in the [Kinesis demos repository](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/tree/master/producer-cpp).
 
 ## DEBUG
-* When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure your environment variables are set correctly:  
+* When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure Java is installed and your environment variables are set correctly:  
 `export JAVA_INCLUDE_PATH2=/Library/Java/JavaVirtualMachines/<YOUR_JDK_VERSION>/Contents/Home/include` or `export JAVA_INCLUDE_PATH2=$JAVA_HOME/include` for Mac OS.  
 `export JAVA_INCLUDE_PATH2='/usr/java/<JDK_VERSION>/include'` for Linux.
 * If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
+* If you are running into issues building libcurl on M1 Mac, you can try `brew unlink openssl`.
 * If you would like to visualize the GStreamer pipeline being constructed in a GStreamer application, include the following after the elements have been linked:
 `GST_DEBUG_BIN_TO_DOT_FILE(<gst-bin-object>, GST_DEBUG_GRAPH_SHOW_ALL, <file-name>);`
 For example, if the application created a pipeline object `GstPipeline* pipeline = gst_pipeline_new("test-pipeline")`, and you would like to see the visualized pipeline with filename pipeline, add:

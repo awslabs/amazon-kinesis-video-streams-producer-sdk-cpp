@@ -1,5 +1,4 @@
 name: Producer CPP SDK CI
-
 on:
   push:
     branches:
@@ -12,7 +11,41 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-11
+    runs-on: macos-12
+    env:
+      AWS_KVS_LOG_LEVEL: 2
+      CC: /usr/bin/clang
+      CXX: /usr/bin/clang++
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          brew install pkg-config cmake gstreamer
+          brew unlink openssl
+      - name: Build repository
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.
+          make
+          make install
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 10800
+      - name: Run tests
+        run: |
+          cd build
+          ./tst/producerTest
+
+  mac-os-m1-build-clang:
+    runs-on: macos-13-xlarge
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -23,13 +56,12 @@ jobs:
         uses: actions/checkout@v3
       - name: Install dependencies
         run: |
-          brew install pkg-config openssl cmake gstreamer log4cplus
+          brew install pkg-config openssl cmake gstreamer
           brew unlink openssl
       - name: Build repository
         run: |
           mkdir build && cd build
-          sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.'
-          make
+          sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++'
           make install
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
@@ -49,8 +81,8 @@ jobs:
       id-token: write
       contents: read
     env:
-      CC: gcc
-      CXX: g++
+      CC: /usr/local/bin/gcc-13
+      CXX: /usr/local/bin/g++-13
       AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
@@ -189,7 +221,7 @@ jobs:
           timeout --signal=SIGABRT 60m ./tst/producerTest
 
   # memory-sanitizer:
-  #   runs-on: ubuntu-20.04 
+  #   runs-on: ubuntu-20.04
   #   permissions:
   #     id-token: write
   #     contents: read
@@ -244,8 +276,6 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       AWS_KVS_LOG_LEVEL: 2
-      CC: gcc
-      CXX: g++
     permissions:
       id-token: write
       contents: read
@@ -286,16 +316,21 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
+      - name: Move cloned repo # to shorten path length for Windows OS
+        run: |
+          git config --system core.longpaths true
+          mkdir C:\amazon-kinesis-video-streams-producer-sdk-cpp
+          Move-Item -Path "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\*" -Destination "C:\amazon-kinesis-video-streams-producer-sdk-cpp"
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
           choco install gstreamer --version=1.16.2
-          choco install gstreamer-devel --version=1.16.2 
+          choco install gstreamer-devel --version=1.16.2
       - name: Build repository
         run: |
-          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
-          git config --system core.longpaths true
-          .github/build_windows.bat
+          $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin"
+          cd C:\amazon-kinesis-video-streams-producer-sdk-cpp
+          .github\build_windows.bat
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
@@ -305,8 +340,8 @@ jobs:
           role-duration-seconds: 10800
       - name: Run tests
         run: |
-          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
-          & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
+          & "C:\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
 
   arm64-cross-compilation:
     runs-on: ubuntu-20.04

@@ -3,10 +3,15 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
-project(KinesisVideoProducerCpp VERSION 3.4.1)
+project(KinesisVideoProducerCpp VERSION 3.4.2)
 
 set(CMAKE_CXX_STANDARD 11)
 include(GNUInstallDirs)
+
+set(KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION 3)
+set(KINESIS_VIDEO_PRODUCER_CPP_MINOR_VERSION 4)
+set(KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION 2)
+set(KINESIS_VIDEO_PRODUCER_CPP_VERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION}.${KINESIS_VIDEO_PRODUCER_CPP_MINOR_VERSION}.${KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION})
 
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
@@ -14,9 +19,8 @@ option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
-option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
 option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
-
+option(CONSTRAINED_DEVICE "Set thread stack size to 0.5MB" OFF)
 
 # Developer Flags
 option(BUILD_TEST "Build the testing tree" OFF)
@@ -27,7 +31,7 @@ option(MEMORY_SANITIZER "Build with MemorySanitizer" OFF)
 option(THREAD_SANITIZER "Build with ThreadSanitizer" OFF)
 option(UNDEFINED_BEHAVIOR_SANITIZER "Build with UndefinedBehaviorSanitizer" OFF)
 
-add_definitions(-DCPP_VERSION_STRING=\"${PROJECT_VERSION}\")
+add_definitions(-DCPP_VERSION_STRING=\"${KINESIS_VIDEO_PRODUCER_CPP_VERSION}\")
 
 set(CMAKE_MACOSX_RPATH TRUE)
 get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
@@ -56,6 +60,10 @@ endif()
 add_definitions(-DKVS_CA_CERT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/certs/cert.pem")
 add_definitions(-DCMAKE_DETECTED_CACERT_PATH)
 
+if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "Setting CMAKE_BUILD_TYPE to Release by default")
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+endif()
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
@@ -73,11 +81,6 @@ if(BUILD_DEPENDENCIES)
 
   message(STATUS "Begin building dependencies.")
 
-  if (NOT WIN32)
-    build_dependency(autoconf)
-    build_dependency(automake)
-  endif()
-  
   if(BUILD_LOG4CPLUS_HOST)
     set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
     build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
@@ -88,46 +91,42 @@ if(BUILD_DEPENDENCIES)
   message(STATUS "Finished building dependencies.")
 endif()
 
-set(BUILD_COMMON_LWS
-    FALSE
-    CACHE BOOL "Build ProducerC without LWS Support" FORCE)
-set(BUILD_COMMON_CURL
-    TRUE
-    CACHE BOOL "Build ProducerC with CURL Support" FORCE)
-set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
-if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
-  file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
-endif()
-fetch_repo(kvscproducer)
-add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
-
 ############# find dependent libraries ############
 
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
 
-if (OPEN_SRC_INSTALL_PREFIX)
-  find_package(CURL REQUIRED PATHS ${OPEN_SRC_INSTALL_PREFIX})
+pkg_check_modules(KVSCPRODUCER libcproducer)
+if(KVSCPRODUCER_FOUND)
+  set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
+  link_directories(${KVSCPRODUCER_LIBRARY_DIRS})
 else()
-  find_package(CURL REQUIRED)
+  set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
+  if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
+    file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
+  endif()
+  fetch_repo(kvscproducer)
+  add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
 endif()
-
-set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${CURL_INCLUDE_DIRS})
-link_directories(${CURL_LIBRARY_DIRS})
 
 if (WIN32)
   find_package(Log4cplus
     NAMES log4cplus REQUIRED
     PATHS ${OPEN_SRC_INSTALL_PREFIX}/lib)
-  SET(Log4cplus "log4cplus::log4cplus")
+  set(LOG4CPLUS_LIBRARIES "log4cplus::log4cplus")
 else()
   find_package(Log4cplus REQUIRED)
-  include_directories(${LOG4CPLUS_INCLUDE_DIR})
-  set(Log4cplus ${LOG4CPLUS_LIBRARIES})
 endif()
 
+message("LOG4CPLUS_INCLUDE_DIR is ${LOG4CPLUS_INCLUDE_DIR}")
+message("LOG4CPLUS_LIBRARIES is ${LOG4CPLUS_LIBRARIES}")
+
 if (WIN32)
-  set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  if(EXISTS "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  else()
+    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  endif()
 endif()
 
 ############# Enable Sanitizers ############
@@ -178,17 +177,34 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
+include_directories(${LOG4CPLUS_INCLUDE_DIR})
+
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
   DESTINATION .)
 
+link_directories(${OPEN_SRC_INSTALL_PREFIX}/lib)
+
 add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
+if(NOT BUILD_STATIC)
+  set_target_properties(KinesisVideoProducer PROPERTIES VERSION ${KINESIS_VIDEO_PRODUCER_CPP_VERSION} SOVERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION})
+endif()
 target_link_libraries(
   KinesisVideoProducer
-  PUBLIC kvsCommonCurl
-         cproducer
-         ${Log4cplus}
-         ${LIBCURL_LIBRARIES})
+  PUBLIC cproducer
+         ${LOG4CPLUS_LIBRARIES})
+
+install(
+    TARGETS KinesisVideoProducer
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+install(
+    TARGETS cproducer
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 install(
     TARGETS KinesisVideoProducer
@@ -199,9 +215,21 @@ install(
 if(BUILD_JNI)
   find_package(JNI REQUIRED)
   include_directories(${JNI_INCLUDE_DIRS})
-
+  
+  install(
+    DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include
+    DESTINATION .)
   add_library(KinesisVideoProducerJNI SHARED ${JNI_HEADERS} ${JNI_SOURCE_FILES})
+  if(NOT BUILD_STATIC)
+    set_target_properties(KinesisVideoProducerJNI PROPERTIES VERSION ${KINESIS_VIDEO_PRODUCER_CPP_VERSION} SOVERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION})
+  endif()
   target_link_libraries(KinesisVideoProducerJNI kvspic)
+  
+  install(
+    TARGETS KinesisVideoProducerJNI
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
 
@@ -209,28 +237,36 @@ if(BUILD_GSTREAMER_PLUGIN)
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
+  include_directories(${OPEN_SRC_INSTALL_PREFIX}/include)
 
   if(BUILD_STATIC)
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
   else()
     add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   endif()
-  target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(gstkvssink PRIVATE ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
-  target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(kvssink_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspic)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
+  target_link_libraries(kvs_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
 
   add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
-  target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(kvs_gstreamer_multistream_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_audio_video_sample samples/kvs_gstreamer_audio_video_sample.cpp)
-  target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  target_link_libraries(kvs_gstreamer_audio_video_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
-  target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
+  target_link_libraries(kvs_gstreamer_file_uploader_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES})
+
+  install(
+    TARGETS gstkvssink
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+  
 endif()
 
 if(BUILD_TEST)
