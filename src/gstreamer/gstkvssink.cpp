@@ -1188,6 +1188,9 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_EOS: {
             LOG_INFO("EOS Event received in sink for " << kvssink->stream_name);
+            // This is necessary for application to get eos message.
+            GstMessage * message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
+            gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
             break;
         }
         default:

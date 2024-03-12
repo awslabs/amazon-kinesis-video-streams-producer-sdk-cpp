@@ -18,6 +18,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
 std::atomic<bool> terminated(FALSE);
+std::atomic<bool> eosReceived(FALSE); // TODO: Need this to handle waiting for eos from pausing
 std::condition_variable cv;
 
 typedef enum _StreamSource {
@@ -25,6 +26,16 @@ typedef enum _StreamSource {
     DEVICE_SOURCE,
     RTSP_SOURCE
 } StreamSource;
+
+typedef struct _CustomData {
+    _CustomData() :
+            main_loop(NULL),
+            pipeline(NULL) {}
+
+    GMainLoop *main_loop;
+    GstElement *pipeline;
+
+} CustomData;
 
 void sigint_handler(int sigint){
     LOG_DEBUG("SIGINT received.  Exiting...");
@@ -38,32 +49,40 @@ void sigint_handler(int sigint){
 static gboolean
 bus_call (GstBus *bus, GstMessage *msg, gpointer data)
 {
-  GMainLoop *loop = (GMainLoop *) data;
+    GMainLoop *loop = (GMainLoop *) ((CustomData *)data)->main_loop;
+    GstElement *pipeline = (GstElement *) ((CustomData *)data)->pipeline;
 
-  switch (GST_MESSAGE_TYPE (msg)) {
+    switch (GST_MESSAGE_TYPE (msg)) {
+        case GST_MESSAGE_EOS: {
+            LOG_DEBUG("Received EOS");
+            if(!terminated) {
+                GstEvent* flush_start = gst_event_new_flush_start();
+                gst_element_send_event(pipeline, flush_start);
+            }
+            eosReceived = TRUE;
+            break;
+        }
 
-    case GST_MESSAGE_EOS:
-      g_print ("Received EOS\n");
-      break;
+        case GST_MESSAGE_ERROR: {
+            gchar  *debug;
+            GError *error;
 
-    case GST_MESSAGE_ERROR: {
-      gchar  *debug;
-      GError *error;
+            gst_message_parse_error (msg, &error, &debug);
+            g_free (debug);
 
-      gst_message_parse_error (msg, &error, &debug);
-      g_free (debug);
+            g_printerr ("Error: %s\n", error->message);
+            g_error_free (error);
 
-      g_printerr ("Error: %s\n", error->message);
-      g_error_free (error);
+            g_main_loop_quit (loop);
+            break;
+        }
 
-      g_main_loop_quit (loop);
-      break;
+        default: {
+            break;
+        }
     }
-    default:
-      break;
-  }
 
-  return TRUE;
+    return TRUE;
 }
 
 void determine_aws_credentials(GstElement *kvssink, char* streamName) {
@@ -78,17 +97,17 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
         nullptr != (private_key_path = getenv("PRIVATE_KEY_PATH")) &&
         nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
         nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
-	// set the IoT Credentials if provided in envvar
-	GstStructure *iot_credentials =  gst_structure_new(
-			"iot-certificate",
-			"iot-thing-name", G_TYPE_STRING, streamName, 
-			"endpoint", G_TYPE_STRING, iot_credential_endpoint,
-			"cert-path", G_TYPE_STRING, cert_path,
-			"key-path", G_TYPE_STRING, private_key_path,
-			"ca-path", G_TYPE_STRING, ca_cert_path,
-			"role-aliases", G_TYPE_STRING, role_alias, NULL);
-	
-	g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
+    // set the IoT Credentials if provided in envvar
+    GstStructure *iot_credentials =  gst_structure_new(
+            "iot-certificate",
+            "iot-thing-name", G_TYPE_STRING, streamName, 
+            "endpoint", G_TYPE_STRING, iot_credential_endpoint,
+            "cert-path", G_TYPE_STRING, cert_path,
+            "key-path", G_TYPE_STRING, private_key_path,
+            "ca-path", G_TYPE_STRING, ca_cert_path,
+            "role-aliases", G_TYPE_STRING, role_alias, NULL);
+    
+    g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
         gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort
@@ -113,14 +132,16 @@ void stopStartLoop(GstElement *pipeline) {
         GstEvent* eos;
         eos = gst_event_new_eos();
         gst_element_send_event(pipeline, eos);
+        
+        // Use cv.wait_for to break sleep early upon signal interrupt.
         if (cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             break;
         }
         
         LOG_DEBUG("Playing...");
         // Flushing to remove EOS status
-        GstEvent* flush_start = gst_event_new_flush_start();
-        gst_element_send_event(pipeline, flush_start);
+        // GstEvent* flush_start = gst_event_new_flush_start();
+        // gst_element_send_event(pipeline, flush_start);
         GstEvent* flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
     }
@@ -131,6 +152,7 @@ int main (int argc, char *argv[])
 {
     signal(SIGINT, sigint_handler);
 
+    CustomData customData;
     GstElement *pipeline, *source, *clock_overlay, *video_convert, *source_filter, *encoder, *sink_filter, *kvssink;
     GstCaps *source_caps, *sink_caps;
     GstBus *bus;
@@ -189,7 +211,7 @@ int main (int argc, char *argv[])
 
     /* encoder */
     encoder = gst_element_factory_make("x264enc", "encoder");
-    g_object_set(G_OBJECT(encoder), "bframes", 0, "tune", "zero-latency", NULL);
+    g_object_set(G_OBJECT(encoder), "bframes", 0, NULL); // TODO: put back the zerolatency tune
 
     /* sink filter */
     sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
@@ -215,16 +237,18 @@ int main (int argc, char *argv[])
     }
 
     if (!pipeline || !source || !video_convert || !source_filter || !encoder) {
+        // TODO: Gprint -> log4cplus
         g_printerr ("Not all GStreamer elements could be created.\n");
         return -1;
     }
 
-
-    /* Set up the pipeline */
+    /* Populate data struct */
+    customData.main_loop = main_loop;
+    customData.pipeline = pipeline;
 
     /* Add a message handler */
     bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-    bus_watch_id = gst_bus_add_watch (bus, bus_call, main_loop);
+    bus_watch_id = gst_bus_add_watch (bus, bus_call, &customData);
     gst_object_unref (bus);
 
     /* Add elements into the pipeline */
