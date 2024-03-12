@@ -7,6 +7,8 @@ using namespace std;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
+LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
+
 GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
 
 typedef enum _StreamSource {
@@ -56,7 +58,7 @@ bus_call (GstBus     *bus,
   return TRUE;
 }
 
-void determine_credentials(GstElement *kvssink, G_TYPE_STRING streamName) {
+void determine_credentials(GstElement *kvssink, char* streamName) {
 
     char const *iot_credential_endpoint;
     char const *cert_path;
@@ -146,7 +148,7 @@ int main (int argc, char *argv[])
 
     h264parse = gst_element_factory_make("h264parse", "h264parse");
 
-    kvssink = gst_element_factory_make("kvssink", "kvssink")
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
     g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
     determine_credentials(kvssink, stream_name);
 
