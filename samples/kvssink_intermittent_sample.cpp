@@ -1,15 +1,24 @@
+#include <thread>             // std::thread
+#include <chrono>             // std::chrono::seconds
+#include <mutex>              // std::mutex, std::unique_lock
+#include <condition_variable> // std::condition_variable, std::cv_status
+
 #include <gst/gst.h>
 #include <glib.h>
 
 #include "gstreamer/gstkvssink.h"
 
-using namespace std;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
+#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 10
+#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 10
+
 GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
+std::atomic<bool> terminated(FALSE);
+std::condition_variable cv;
 
 typedef enum _StreamSource {
     TEST_SOURCE,
@@ -19,7 +28,8 @@ typedef enum _StreamSource {
 
 void sigint_handler(int sigint){
     LOG_DEBUG("SIGINT received.  Exiting...");
-    
+    terminated = TRUE;
+    cv.notify_all();
     if(main_loop != NULL){
         g_main_loop_quit(main_loop);
     }
@@ -58,8 +68,7 @@ bus_call (GstBus     *bus,
   return TRUE;
 }
 
-void determine_credentials(GstElement *kvssink, char* streamName) {
-
+void determine_aws_credentials(GstElement *kvssink, char* streamName) {
     char const *iot_credential_endpoint;
     char const *cert_path;
     char const *private_key_path;
@@ -90,13 +99,40 @@ void determine_credentials(GstElement *kvssink, char* streamName) {
     }
 }
 
+void stopStartLoop(GstElement *pipeline) {
+    std::mutex cv_m;
+    std::unique_lock<std::mutex> lck(cv_m);
+
+    while (!terminated) {
+        if (cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
+            break;
+        }
+
+        LOG_DEBUG("Pausing...");
+        // EOS is necessary to push frame(s) buffered by h264enc element
+        GstEvent* eos;
+        eos = gst_event_new_eos();
+        gst_element_send_event(pipeline, eos);
+        if (cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
+            break;
+        }
+        
+        LOG_DEBUG("Playing...");
+        // Flushing to remove EOS from elements
+        GstEvent* flush_start = gst_event_new_flush_start();
+        gst_element_send_event(pipeline, flush_start);
+        GstEvent*flush_stop = gst_event_new_flush_stop(true);
+        gst_element_send_event(pipeline, flush_stop);
+    }
+    LOG_DEBUG("Exited stopStartLoop");
+}
 
 int main (int argc, char *argv[])
 {
     signal(SIGINT, sigint_handler);
 
-    GstElement *pipeline, *source, *video_convert, *source_filter, *encoder, *h264parse, *kvssink;
-    GstCaps *source_caps;
+    GstElement *pipeline, *source, *clock_overlay, *video_convert, *source_filter, *encoder, *sink_filter, *kvssink;
+    GstCaps *source_caps, *sink_caps;
     GstBus *bus;
     guint bus_watch_id;
     StreamSource source_type;
@@ -137,27 +173,39 @@ int main (int argc, char *argv[])
     } else { // RTSP_SOURCE
     }
 
+    clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
+
     video_convert = gst_element_factory_make("videoconvert", "video_convert");
 
     source_filter = gst_element_factory_make("capsfilter", "source-filter");
     source_caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "I420", NULL);
     g_object_set(G_OBJECT(source_filter), "caps", source_caps, NULL);
+    gst_caps_unref(source_caps);
 
     encoder = gst_element_factory_make("x264enc", "encoder");
     g_object_set(G_OBJECT(encoder), "bframes", 0, "tune", "zero-latency", NULL);
 
-    h264parse = gst_element_factory_make("h264parse", "h264parse");
+    sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
+    sink_caps = gst_caps_new_simple("video/x-h264",
+                                    "stream-format", G_TYPE_STRING, "avc",
+                                    "alignment", G_TYPE_STRING, "au",
+                                    // "framerate", GST_TYPE_FRACTION, 20, 1,
+                                    NULL);
+    g_object_set(G_OBJECT(sink_filter), "caps", sink_caps, NULL);
+    gst_caps_unref(sink_caps);
 
     kvssink = gst_element_factory_make("kvssink", "kvssink");
     g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
-    determine_credentials(kvssink, stream_name);
+    determine_aws_credentials(kvssink, stream_name);
+    
+
 
     if (!kvssink) {
         LOG_ERROR("Failed to create kvssink element");
         return -1;
     }
 
-    if (!pipeline || !source || !video_convert || !source_filter || !encoder || !h264parse) {
+    if (!pipeline || !source || !video_convert || !source_filter || !encoder) {
         g_printerr ("Not all GStreamer elements could be created.\n");
         return -1;
     }
@@ -172,10 +220,10 @@ int main (int argc, char *argv[])
 
     /* Add elements into the pipeline */
     gst_bin_add_many (GST_BIN (pipeline),
-                        source, video_convert, source_filter, encoder, h264parse, kvssink, NULL);
+                        source, clock_overlay, video_convert, source_filter, encoder, kvssink, NULL);
 
     /* Link the elements together */
-    if (!gst_element_link_many(source, video_convert, source_filter, encoder, h264parse, kvssink, NULL)) {
+    if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, kvssink, NULL)) {
             g_printerr("Elements could not be linked.\n");
             gst_object_unref(pipeline);
             return -1;
@@ -185,13 +233,17 @@ int main (int argc, char *argv[])
     g_print ("Playing..\n");
     gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
+    /* Start stop/start thread for intermittent streaming */
+    std::thread stopStartThread(stopStartLoop, pipeline);
+    
 
     /* Iterate */
     g_print ("Running...\n");
     g_main_loop_run (main_loop);
 
+    stopStartThread.join();
 
-    /* Out of the main loop, clean up nicely */
+    /* Out of the main loop, clean up */
     g_print ("Returned, stopping playback\n");
     gst_element_set_state (pipeline, GST_STATE_NULL);
 
