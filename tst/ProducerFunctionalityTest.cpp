@@ -527,7 +527,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
 
     buffering_ack_in_sequence_ = true;
     key_frame_interval_ = 60;
-    total_frame_count_ = 6 * key_frame_interval_;
+    total_frame_count_ = 7 * key_frame_interval_;
     frame_duration_ = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
 
     UINT64 startTime = 0;

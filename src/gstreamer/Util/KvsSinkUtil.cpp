@@ -82,7 +82,6 @@ gboolean parseIotCredentialGstructure(GstStructure *g_struct, std::map<std::stri
         params_key_set.insert(IOT_COMPLETION_TIMEOUT);
     }
 
-
     if (params_key_set != iot_param_set) {
         std::ostringstream ostream;
         std::copy(iot_param_set.begin(), iot_param_set.end(), std::ostream_iterator<std::string>(ostream, ","));

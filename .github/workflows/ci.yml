@@ -43,6 +43,7 @@ jobs:
         run: |
           cd build
           ./tst/producerTest
+
   mac-os-m1-build-clang:
     runs-on: macos-13-xlarge
     env:
@@ -73,6 +74,7 @@ jobs:
         run: |
           cd build  
           ./tst/producerTest
+
   mac-os-build-gcc:
     runs-on: macos-12
     permissions:
@@ -303,7 +305,7 @@ jobs:
           cd build
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 60m ./tst/producerTest
-  
+
   windows-msvc:
     runs-on: windows-2022
     env:

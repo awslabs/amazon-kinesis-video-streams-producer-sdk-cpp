@@ -3,14 +3,14 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
-project(KinesisVideoProducerCpp VERSION 3.4.0)
+project(KinesisVideoProducerCpp VERSION 3.4.2)
 
 set(CMAKE_CXX_STANDARD 11)
 include(GNUInstallDirs)
 
 set(KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION 3)
 set(KINESIS_VIDEO_PRODUCER_CPP_MINOR_VERSION 4)
-set(KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION 1)
+set(KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION 2)
 set(KINESIS_VIDEO_PRODUCER_CPP_VERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSION}.${KINESIS_VIDEO_PRODUCER_CPP_MINOR_VERSION}.${KINESIS_VIDEO_PRODUCER_CPP_PATCH_VERSION})
 
 # User Flags
@@ -64,7 +64,6 @@ if(NOT CMAKE_BUILD_TYPE)
   message(STATUS "Setting CMAKE_BUILD_TYPE to Release by default")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
 endif()
-
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
@@ -180,7 +179,6 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
 include_directories(${LOG4CPLUS_INCLUDE_DIR})
 
-
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
   DESTINATION .)
@@ -204,6 +202,12 @@ install(
 
 install(
     TARGETS cproducer
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+install(
+    TARGETS KinesisVideoProducer
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
@@ -244,6 +248,9 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
   target_link_libraries(kvssink_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspic)
+
+  add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
+  target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
   target_link_libraries(kvs_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)

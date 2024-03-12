@@ -343,11 +343,11 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
             iot_cert_params.insert( std::pair<std::string,std::string>(IOT_THING_NAME, kvssink->stream_name) );
         }
 
-        if(!iot_cert_params[IOT_CONNECTION_TIMEOUT].empty()) {
+        if (!iot_cert_params[IOT_CONNECTION_TIMEOUT].empty()) {
             iot_connection_timeout = std::stoull(iot_cert_params[IOT_CONNECTION_TIMEOUT]) * HUNDREDS_OF_NANOS_IN_A_SECOND;
         }
 
-        if(!iot_cert_params[IOT_COMPLETION_TIMEOUT].empty()) {
+        if (!iot_cert_params[IOT_COMPLETION_TIMEOUT].empty()) {
             iot_completion_timeout = std::stoull(iot_cert_params[IOT_COMPLETION_TIMEOUT]) * HUNDREDS_OF_NANOS_IN_A_SECOND;
         }
 
@@ -370,7 +370,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     }
 
     // Handle env for providing CP URL
-    if(nullptr != (control_plane_uri = getenv(CONTROL_PLANE_URI_ENV_VAR))) {
+    if (nullptr != (control_plane_uri = getenv(CONTROL_PLANE_URI_ENV_VAR))) {
         LOG_INFO("Getting URL from env for " << kvssink->stream_name);
         control_plane_uri_str = string(control_plane_uri);
     }
@@ -890,6 +890,7 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             kvssink->rotation_period = g_value_get_uint (value);
             break;
         case PROP_LOG_CONFIG_PATH:
+            g_free(kvssink->log_config_path);
             kvssink->log_config_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_FRAMERATE:
@@ -911,6 +912,7 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             break;
 
         case PROP_CREDENTIAL_FILE_PATH:
+            g_free(kvssink->credential_file_path);
             kvssink->credential_file_path = g_strdup (g_value_get_string (value));
             break;
         case PROP_IOT_CERTIFICATE: {
@@ -1224,8 +1226,8 @@ put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
 
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
     put_frame_status = data->kinesis_video_stream->putFrame(frame);
-    if(data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
-        if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame){
+    if (data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
+        if (CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame){
             KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
             kvs_sink_metric->stream_metrics = data->kinesis_video_stream->getMetrics();
             kvs_sink_metric->client_metrics = data->kinesis_video_producer->getMetrics();
@@ -1265,7 +1267,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         // we want to avoid an extra call. It is not possible for this callback to be invoked
         // after stopSync() since we stop collecting on pads before invoking. But having this
         // check anyways in case it happens
-        if(!data->streamingStopped.load()) {
+        if (!data->streamingStopped.load()) {
             data->kinesis_video_stream->stopSync();
             data->streamingStopped.store(true);
             LOG_INFO("Sending eos for " << kvssink->stream_name);
@@ -1296,7 +1298,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         }
     }
 
-    if(buf != NULL) {
+    if (buf != NULL) {
         isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
                         GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
                         (GST_BUFFER_FLAGS(buf) == GST_BUFFER_FLAG_DISCONT) ||
@@ -1312,7 +1314,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
         // timestamp. Therefore in here we add the file_start_time to frame pts to create absolute timestamp.
         // If user did not specify file_start_time, file_start_time will be 0 and has no effect.
         if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-            if(!data->use_original_pts) {
+            if (!data->use_original_pts) {
                 buf->dts = 0; // if offline mode, i.e. streaming a file, the dts from gstreamer is undefined.
                 buf->pts += data->pts_base;
             }
@@ -1340,7 +1342,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                 }
                 break;
             case AUDIO_VIDEO:
-                if(!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
+                if (!delta && kvs_sink_track_data->track_type == MKV_TRACK_INFO_TYPE_VIDEO) {
                     if (data->first_video_frame) {
                         data->first_video_frame = false;
                     }
@@ -1356,7 +1358,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                 data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
                         systemCurrentTime().time_since_epoch()).count();
             }
-            if(!data->use_original_pts) {
+            if (!data->use_original_pts) {
                 buf->pts += data->producer_start_time - data->first_pts;
             }
             else {
@@ -1563,17 +1565,17 @@ init_track_data(GstKvsSink *kvssink) {
 
     switch (kvssink->data->media_type) {
         case AUDIO_VIDEO:
-            if(video_content_type != NULL && audio_content_type != NULL) {
+            if (video_content_type != NULL && audio_content_type != NULL) {
                 kvssink->content_type = g_strjoin(",", video_content_type, audio_content_type, NULL);
             }
             break;
         case AUDIO_ONLY:
-            if(audio_content_type != NULL) {
+            if (audio_content_type != NULL) {
                 kvssink->content_type = g_strdup(audio_content_type);
             }
             break;
         case VIDEO_ONLY:
-            if(video_content_type != NULL) {
+            if (video_content_type != NULL) {
                 kvssink->content_type = g_strdup(video_content_type);
             }
             break;
@@ -1616,7 +1618,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     // Upward transitions
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
-            if(kvssink->log_config_path != NULL) {
+            if (kvssink->log_config_path != NULL) {
                 log4cplus::initialize();
                 log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
                 LOG_INFO("Logger config being used: " << kvssink->log_config_path);
@@ -1667,7 +1669,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
             // Need this check in case an EOS was received in the buffer handler and
             // stream was already stopped. Although stopSync() is an idempotent call,
             // we want to avoid an extra call
-            if(!data->streamingStopped.load()) {
+            if (!data->streamingStopped.load()) {
                 data->kinesis_video_stream->stopSync();
                 data->streamingStopped.store(true);
             } else {
