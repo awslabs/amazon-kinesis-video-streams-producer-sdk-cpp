@@ -36,9 +36,7 @@ void sigint_handler(int sigint){
 }
 
 static gboolean
-bus_call (GstBus     *bus,
-          GstMessage *msg,
-          gpointer    data)
+bus_call (GstBus *bus, GstMessage *msg, gpointer data)
 {
   GMainLoop *loop = (GMainLoop *) data;
 
@@ -99,17 +97,19 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
     }
 }
 
+// This function handles the starting and stopping of the stream.
 void stopStartLoop(GstElement *pipeline) {
     std::mutex cv_m;
     std::unique_lock<std::mutex> lck(cv_m);
 
     while (!terminated) {
+        // Use cv.wait_for to break sleep early upon signal interrupt.
         if (cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             break;
         }
 
         LOG_DEBUG("Pausing...");
-        // EOS is necessary to push frame(s) buffered by h264enc element
+        // EOS is necessary to push frame(s) buffered by the h264enc element
         GstEvent* eos;
         eos = gst_event_new_eos();
         gst_element_send_event(pipeline, eos);
@@ -118,10 +118,10 @@ void stopStartLoop(GstElement *pipeline) {
         }
         
         LOG_DEBUG("Playing...");
-        // Flushing to remove EOS from elements
+        // Flushing to remove EOS status
         GstEvent* flush_start = gst_event_new_flush_start();
         gst_element_send_event(pipeline, flush_start);
-        GstEvent*flush_stop = gst_event_new_flush_stop(true);
+        GstEvent* flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
     }
     LOG_DEBUG("Exited stopStartLoop");
@@ -164,8 +164,10 @@ int main (int argc, char *argv[])
 
 
     /* Create GStreamer elements */
+
     pipeline = gst_pipeline_new ("kvs-pipeline");
 
+    /* configure source */
     if(source_type == TEST_SOURCE) {
         source   = gst_element_factory_make ("videotestsrc", "test-source");
     } else if (source_type == DEVICE_SOURCE) {
@@ -173,18 +175,23 @@ int main (int argc, char *argv[])
     } else { // RTSP_SOURCE
     }
 
+    /* clock overlay */
     clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
 
+    /* video convert */
     video_convert = gst_element_factory_make("videoconvert", "video_convert");
 
+    /* source filter */
     source_filter = gst_element_factory_make("capsfilter", "source-filter");
     source_caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "I420", NULL);
     g_object_set(G_OBJECT(source_filter), "caps", source_caps, NULL);
     gst_caps_unref(source_caps);
 
+    /* encoder */
     encoder = gst_element_factory_make("x264enc", "encoder");
     g_object_set(G_OBJECT(encoder), "bframes", 0, "tune", "zero-latency", NULL);
 
+    /* sink filter */
     sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
     sink_caps = gst_caps_new_simple("video/x-h264",
                                     "stream-format", G_TYPE_STRING, "avc",
@@ -194,11 +201,13 @@ int main (int argc, char *argv[])
     g_object_set(G_OBJECT(sink_filter), "caps", sink_caps, NULL);
     gst_caps_unref(sink_caps);
 
+    /* kvssink */
     kvssink = gst_element_factory_make("kvssink", "kvssink");
     g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
     determine_aws_credentials(kvssink, stream_name);
     
 
+    /* Check that GStreamer elements were all successfully created */
 
     if (!kvssink) {
         LOG_ERROR("Failed to create kvssink element");
@@ -213,7 +222,7 @@ int main (int argc, char *argv[])
 
     /* Set up the pipeline */
 
-    /* we add a message handler */
+    /* Add a message handler */
     bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
     bus_watch_id = gst_bus_add_watch (bus, bus_call, main_loop);
     gst_object_unref (bus);
@@ -236,9 +245,7 @@ int main (int argc, char *argv[])
     /* Start stop/start thread for intermittent streaming */
     std::thread stopStartThread(stopStartLoop, pipeline);
     
-
-    /* Iterate */
-    g_print ("Running...\n");
+    g_print ("Running main loop...\n");
     g_main_loop_run (main_loop);
 
     stopStartThread.join();
