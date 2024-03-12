@@ -1,6 +1,6 @@
-#include <thread>             // std::thread
-#include <chrono>             // std::chrono::seconds
-#include <mutex>              // std::mutex, std::unique_lock
+#include <thread>             // std::chrono::seconds
+#include <mutex>              // std::thread
+#include <chrono>             // std::mutex, std::unique_lock
 #include <condition_variable> // std::condition_variable, std::cv_status
 
 #include <gst/gst.h>
@@ -13,12 +13,12 @@ using namespace log4cplus;
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
-#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 10
-#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 10
+#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 120
+#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 120
 
 GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
 std::atomic<bool> terminated(FALSE);
-std::atomic<bool> eosReceived(FALSE); // TODO: Need this to handle waiting for eos from pausing
+std::atomic<bool> eosHandled(FALSE);
 std::condition_variable cv;
 
 typedef enum _StreamSource {
@@ -41,6 +41,7 @@ void sigint_handler(int sigint){
     LOG_DEBUG("SIGINT received.  Exiting...");
     terminated = TRUE;
     cv.notify_all();
+    //eosHandled.notify_all();
     if(main_loop != NULL){
         g_main_loop_quit(main_loop);
     }
@@ -56,10 +57,13 @@ bus_call (GstBus *bus, GstMessage *msg, gpointer data)
         case GST_MESSAGE_EOS: {
             LOG_DEBUG("Received EOS");
             if(!terminated) {
+                LOG_DEBUG("[TESTING] HANDLING EOS");
+                // Flushing to remove EOS status
                 GstEvent* flush_start = gst_event_new_flush_start();
                 gst_element_send_event(pipeline, flush_start);
             }
-            eosReceived = TRUE;
+            eosHandled = TRUE;
+            eosHandled.notify_all();
             break;
         }
 
@@ -122,26 +126,35 @@ void stopStartLoop(GstElement *pipeline) {
     std::unique_lock<std::mutex> lck(cv_m);
 
     while (!terminated) {
-        // Use cv.wait_for to break sleep early upon signal interrupt.
+        // Using cv.wait_for to break sleep early upon signal interrupt.
         if (cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             break;
         }
 
         LOG_DEBUG("Pausing...");
-        // EOS is necessary to push frame(s) buffered by the h264enc element
+        // EOS event is necessary to push frames buffered by the h264enc element
         GstEvent* eos;
         eos = gst_event_new_eos();
+        eosHandled = FALSE;
+
+        LOG_DEBUG("[TESTING] SENDING EOS");
         gst_element_send_event(pipeline, eos);
-        
-        // Use cv.wait_for to break sleep early upon signal interrupt.
-        if (cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
+
+        // Wait for the EOS event to return to bus.
+        LOG_DEBUG("[TESTING] WAITING FOR EOS");
+        eosHandled.wait(FALSE);
+        LOG_DEBUG("[TESTING] EOS RETURNED");
+
+        // Flushing to remove EOS status
+        GstEvent* flush_start = gst_event_new_flush_start();
+        gst_element_send_event(pipeline, flush_start);
+
+        // Using cv.wait_for to break sleep early upon signal interrupt. Checking for termination again before waiting.
+        if (terminated || cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             break;
         }
-        
+
         LOG_DEBUG("Playing...");
-        // Flushing to remove EOS status
-        // GstEvent* flush_start = gst_event_new_flush_start();
-        // gst_element_send_event(pipeline, flush_start);
         GstEvent* flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
     }
@@ -163,7 +176,9 @@ int main (int argc, char *argv[])
     /* GStreamer Initialisation */
     gst_init (&argc, &argv);
 
+
     /* Check input arguments */
+
     if (argc > 3 || argc < 2) {
         g_printerr ("Usage: %s <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>\n", argv[0]);
         return -1;
