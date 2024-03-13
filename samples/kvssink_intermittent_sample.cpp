@@ -1,7 +1,7 @@
-#include <thread>             // std::chrono::seconds
-#include <mutex>              // std::thread
-#include <chrono>             // std::mutex, std::unique_lock
-#include <condition_variable> // std::condition_variable, std::cv_status
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <condition_variable>
 
 #include <gst/gst.h>
 #include <glib.h>
@@ -11,10 +11,11 @@
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
-LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
-
 #define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 120
 #define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 120
+
+
+LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
 std::atomic<bool> terminated(FALSE);
@@ -34,7 +35,6 @@ typedef struct _CustomData {
 
     GMainLoop *main_loop;
     GstElement *pipeline;
-
 } CustomData;
 
 void sigint_handler(int sigint){
@@ -55,7 +55,7 @@ bus_call (GstBus *bus, GstMessage *msg, gpointer data)
 
     switch (GST_MESSAGE_TYPE (msg)) {
         case GST_MESSAGE_EOS: {
-            LOG_DEBUG("Received EOS");
+            LOG_DEBUG("[KVS sample] Received EOS message");
             if(!terminated) {
                 LOG_DEBUG("[TESTING] HANDLING EOS");
                 // Flushing to remove EOS status
@@ -74,7 +74,7 @@ bus_call (GstBus *bus, GstMessage *msg, gpointer data)
             gst_message_parse_error (msg, &error, &debug);
             g_free (debug);
 
-            g_printerr ("Error: %s\n", error->message);
+            LOG_ERROR("[KVS sample] GStreamer error: %s", error->message);
             g_error_free (error);
 
             g_main_loop_quit (loop);
@@ -120,7 +120,7 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
     }
 }
 
-// This function handles the starting and stopping of the stream.
+// This function handles the intermittent starting and stopping of the stream in a loop.
 void stopStartLoop(GstElement *pipeline) {
     std::mutex cv_m;
     std::unique_lock<std::mutex> lck(cv_m);
@@ -131,21 +131,18 @@ void stopStartLoop(GstElement *pipeline) {
             break;
         }
 
-        LOG_DEBUG("Pausing...");
-        // EOS event is necessary to push frames buffered by the h264enc element
-        GstEvent* eos;
-        eos = gst_event_new_eos();
-        eosHandled = FALSE;
+        LOG_INFO("[KVS sample] Stopping stream to KVS for %d seconds", KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS);
 
-        LOG_DEBUG("[TESTING] SENDING EOS");
+        // EOS event pushes frames buffered by the h264enc element down to kvssink.
+        GstEvent* eos = gst_event_new_eos();
+        eosHandled = FALSE;
         gst_element_send_event(pipeline, eos);
 
-        // Wait for the EOS event to return to bus.
-        LOG_DEBUG("[TESTING] WAITING FOR EOS");
+        // Wait for the EOS event to return from kvssink to the bus which means all elements are done handling the EOS.
+        // We don't want to flush until the EOS is done to ensure all frames buffered in the pipeline have been processed.
         eosHandled.wait(FALSE);
-        LOG_DEBUG("[TESTING] EOS RETURNED");
 
-        // Flushing to remove EOS status
+        // Flushing to remove EOS status.
         GstEvent* flush_start = gst_event_new_flush_start();
         gst_element_send_event(pipeline, flush_start);
 
@@ -154,11 +151,11 @@ void stopStartLoop(GstElement *pipeline) {
             break;
         }
 
-        LOG_DEBUG("Playing...");
+        LOG_INFO("[KVS sample] Starting stream to KVS for %d seconds", KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS);
         GstEvent* flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
     }
-    LOG_DEBUG("Exited stopStartLoop");
+    LOG_DEBUG("[KVS sample] Exited stopStartLoop");
 }
 
 int main (int argc, char *argv[])
@@ -173,14 +170,14 @@ int main (int argc, char *argv[])
     StreamSource source_type;
     char stream_name[MAX_STREAM_NAME_LEN + 1];
 
-    /* GStreamer Initialisation */
+    /* GStreamer Initialization */
     gst_init (&argc, &argv);
 
 
     /* Check input arguments */
 
     if (argc > 3 || argc < 2) {
-        g_printerr ("Usage: %s <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>\n", argv[0]);
+        LOG_ERROR("[KVS sample] Usage: %s <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>", argv[0]);
         return -1;
     }
 
@@ -194,6 +191,9 @@ int main (int argc, char *argv[])
             source_type = DEVICE_SOURCE;
         } else if (0 == STRCMPI(argv[2], "rtspsrc")) {
             source_type = RTSP_SOURCE;
+        } else {
+            LOG_ERROR("[KVS sample] Usage: %s <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>", argv[0]);
+            return -1;
         }
     } else {
         source_type = TEST_SOURCE;
@@ -226,14 +226,13 @@ int main (int argc, char *argv[])
 
     /* encoder */
     encoder = gst_element_factory_make("x264enc", "encoder");
-    g_object_set(G_OBJECT(encoder), "bframes", 0, NULL); // TODO: put back the zerolatency tune
+    g_object_set(G_OBJECT(encoder), "bframes", 0, NULL);
 
     /* sink filter */
     sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
     sink_caps = gst_caps_new_simple("video/x-h264",
                                     "stream-format", G_TYPE_STRING, "avc",
                                     "alignment", G_TYPE_STRING, "au",
-                                    // "framerate", GST_TYPE_FRACTION, 20, 1,
                                     NULL);
     g_object_set(G_OBJECT(sink_filter), "caps", sink_caps, NULL);
     gst_caps_unref(sink_caps);
@@ -247,13 +246,12 @@ int main (int argc, char *argv[])
     /* Check that GStreamer elements were all successfully created */
 
     if (!kvssink) {
-        LOG_ERROR("Failed to create kvssink element");
+        LOG_ERROR("[KVS sample] Failed to create kvssink element");
         return -1;
     }
 
     if (!pipeline || !source || !video_convert || !source_filter || !encoder) {
-        // TODO: Gprint -> log4cplus
-        g_printerr ("Not all GStreamer elements could be created.\n");
+        LOG_ERROR("[KVS sample] Not all GStreamer elements could be created.");
         return -1;
     }
 
@@ -272,28 +270,26 @@ int main (int argc, char *argv[])
 
     /* Link the elements together */
     if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, kvssink, NULL)) {
-            g_printerr("Elements could not be linked.\n");
+            LOG_ERROR("[KVS sample] Elements could not be linked");
             gst_object_unref(pipeline);
             return -1;
     }
 
     /* Set the pipeline to "playing" state*/
-    g_print ("Playing..\n");
+    LOG_INFO("[KVS sample] Starting stream to KVS for %d seconds", KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS);
     gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-    /* Start stop/start thread for intermittent streaming */
+    /* Start the stop/start thread for intermittent streaming */
     std::thread stopStartThread(stopStartLoop, pipeline);
     
-    g_print ("Running main loop...\n");
+    LOG_ERROR("[KVS sample] Starter GStreamer main loop");
     g_main_loop_run (main_loop);
 
     stopStartThread.join();
 
     /* Out of the main loop, clean up */
-    g_print ("Returned, stopping playback\n");
+    LOG_INFO("[KVS sample] Streaming terminated, cleaning up");
     gst_element_set_state (pipeline, GST_STATE_NULL);
-
-    g_print ("Deleting pipeline\n");
     gst_object_unref (GST_OBJECT (pipeline));
     g_source_remove (bus_watch_id);
     g_main_loop_unref (main_loop);

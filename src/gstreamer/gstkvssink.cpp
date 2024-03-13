@@ -1188,6 +1188,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_EOS: {
             LOG_INFO("EOS Event received in sink for " << kvssink->stream_name);
+
             /* "The downstream element should forward the EOS event to its downstream peer elements.
                This way the event will eventually reach the sinks which should then post an EOS message
                on the bus when in PLAYING." - GStreamer, Events, EOS */
@@ -1648,15 +1649,8 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     // Downward transitions
     switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-            // Need this check in case an EOS was received in the buffer handler and
-            // stream was already stopped. Although stopSync() is an idempotent call,
-            // we want to avoid an extra call
-            if(!data->streamingStopped.load()) {
-                data->kinesis_video_stream->stopSync();
-                data->streamingStopped.store(true);
-            } else {
-                LOG_INFO("Streaming already stopped for " << kvssink->stream_name);
-            }
+            data->kinesis_video_stream->stopSync();
+            data->streamingStopped.store(true);
             LOG_INFO("Stopped kvssink for " << kvssink->stream_name);
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:
