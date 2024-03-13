@@ -11,8 +11,9 @@
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
-#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 120
-#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 120
+/* modify these values to change start/stop interval */
+#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 8
+#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 8
 
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
@@ -41,7 +42,6 @@ void sigint_handler(int sigint){
     LOG_DEBUG("SIGINT received.  Exiting...");
     terminated = TRUE;
     cv.notify_all();
-    //eosHandled.notify_all();
     if(main_loop != NULL){
         g_main_loop_quit(main_loop);
     }
@@ -56,12 +56,6 @@ bus_call (GstBus *bus, GstMessage *msg, gpointer data)
     switch (GST_MESSAGE_TYPE (msg)) {
         case GST_MESSAGE_EOS: {
             LOG_DEBUG("[KVS sample] Received EOS message");
-            if(!terminated) {
-                LOG_DEBUG("[TESTING] HANDLING EOS");
-                // Flushing to remove EOS status
-                GstEvent* flush_start = gst_event_new_flush_start();
-                gst_element_send_event(pipeline, flush_start);
-            }
             eosHandled = TRUE;
             eosHandled.notify_all();
             break;
@@ -74,7 +68,7 @@ bus_call (GstBus *bus, GstMessage *msg, gpointer data)
             gst_message_parse_error (msg, &error, &debug);
             g_free (debug);
 
-            LOG_ERROR("[KVS sample] GStreamer error: %s", error->message);
+            LOG_ERROR("[KVS sample] GStreamer error: " << error->message);
             g_error_free (error);
 
             g_main_loop_quit (loop);
@@ -101,7 +95,7 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
         nullptr != (private_key_path = getenv("PRIVATE_KEY_PATH")) &&
         nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
         nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
-    // set the IoT Credentials if provided in envvar
+    // Set the IoT Credentials if provided in envvar.
     GstStructure *iot_credentials =  gst_structure_new(
             "iot-certificate",
             "iot-thing-name", G_TYPE_STRING, streamName, 
@@ -114,7 +108,7 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
     g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
         gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
-    // if no long credentials or IoT credentials provided will look for credential file as last resort
+    // if no long credentials or IoT credentials provided will look for credential file as last resort.
     } else if(nullptr != (credential_path = getenv("AWS_CREDENTIAL_PATH"))){
         g_object_set(G_OBJECT (kvssink), "credential-path", credential_path, NULL);
     }
@@ -131,7 +125,7 @@ void stopStartLoop(GstElement *pipeline) {
             break;
         }
 
-        LOG_INFO("[KVS sample] Stopping stream to KVS for %d seconds", KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS);
+        LOG_INFO("[KVS sample] Stopping stream to KVS for " << KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS << " seconds");
 
         // EOS event pushes frames buffered by the h264enc element down to kvssink.
         GstEvent* eos = gst_event_new_eos();
@@ -151,7 +145,7 @@ void stopStartLoop(GstElement *pipeline) {
             break;
         }
 
-        LOG_INFO("[KVS sample] Starting stream to KVS for %d seconds", KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS);
+        LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds");
         GstEvent* flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
     }
@@ -170,14 +164,13 @@ int main (int argc, char *argv[])
     StreamSource source_type;
     char stream_name[MAX_STREAM_NAME_LEN + 1];
 
-    /* GStreamer Initialization */
     gst_init (&argc, &argv);
 
 
     /* Check input arguments */
 
     if (argc > 3 || argc < 2) {
-        LOG_ERROR("[KVS sample] Usage: %s <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>", argv[0]);
+        LOG_ERROR("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>");
         return -1;
     }
 
@@ -192,7 +185,7 @@ int main (int argc, char *argv[])
         } else if (0 == STRCMPI(argv[2], "rtspsrc")) {
             source_type = RTSP_SOURCE;
         } else {
-            LOG_ERROR("[KVS sample] Usage: %s <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>", argv[0]);
+            LOG_ERROR("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>");
             return -1;
         }
     } else {
@@ -204,7 +197,7 @@ int main (int argc, char *argv[])
 
     pipeline = gst_pipeline_new ("kvs-pipeline");
 
-    /* configure source */
+    /* source */
     if(source_type == TEST_SOURCE) {
         source   = gst_element_factory_make ("videotestsrc", "test-source");
     } else if (source_type == DEVICE_SOURCE) {
@@ -255,39 +248,39 @@ int main (int argc, char *argv[])
         return -1;
     }
 
-    /* Populate data struct */
+    // Populate data struct.
     customData.main_loop = main_loop;
     customData.pipeline = pipeline;
 
-    /* Add a message handler */
+    //Add a message handler.
     bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
     bus_watch_id = gst_bus_add_watch (bus, bus_call, &customData);
     gst_object_unref (bus);
 
-    /* Add elements into the pipeline */
+    // Add elements into the pipeline.
     gst_bin_add_many (GST_BIN (pipeline),
                         source, clock_overlay, video_convert, source_filter, encoder, kvssink, NULL);
 
-    /* Link the elements together */
+    // Link the elements together.
     if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, kvssink, NULL)) {
             LOG_ERROR("[KVS sample] Elements could not be linked");
             gst_object_unref(pipeline);
             return -1;
     }
 
-    /* Set the pipeline to "playing" state*/
-    LOG_INFO("[KVS sample] Starting stream to KVS for %d seconds", KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS);
+    // Set the pipeline to playing state.
+    LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds");
     gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-    /* Start the stop/start thread for intermittent streaming */
+    // Start the stop/start thread for intermittent streaming.
     std::thread stopStartThread(stopStartLoop, pipeline);
     
-    LOG_ERROR("[KVS sample] Starter GStreamer main loop");
+    LOG_ERROR("[KVS sample] Starting GStreamer main loop");
     g_main_loop_run (main_loop);
 
     stopStartThread.join();
 
-    /* Out of the main loop, clean up */
+    // Application terminated, cleanup.
     LOG_INFO("[KVS sample] Streaming terminated, cleaning up");
     gst_element_set_state (pipeline, GST_STATE_NULL);
     gst_object_unref (GST_OBJECT (pipeline));
