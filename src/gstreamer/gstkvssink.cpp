@@ -1188,7 +1188,9 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_EOS: {
             LOG_INFO("EOS Event received in sink for " << kvssink->stream_name);
-            // This is necessary for application to get eos message.
+            /* "The downstream element should forward the EOS event to its downstream peer elements.
+               This way the event will eventually reach the sinks which should then post an EOS message
+               on the bus when in PLAYING." - GStreamer, Events, EOS */
             GstMessage * message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
             gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
             break;
@@ -1260,27 +1262,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     STATUS put_frame_status = STATUS_SUCCESS;
 
     info.data = NULL;
-    // eos reached
-    // if (buf == NULL && track_data == NULL) {
-    //     LOG_INFO("Received event for " << kvssink->stream_name);
-    //     // Need this check in case pipeline is already being set to NULL and
-    //     // stream  is being or/already stopped. Although stopSync() is an idempotent call,
-    //     // we want to avoid an extra call. It is not possible for this callback to be invoked
-    //     // after stopSync() since we stop collecting on pads before invoking. But having this
-    //     // check anyways in case it happens
-    //     if(!data->streamingStopped.load()) {
-    //         // data->kinesis_video_stream->stopSync();
-    //         // data->streamingStopped.store(true);
-    //         // LOG_INFO("Sending eos for " << kvssink->stream_name);
-    //     }
-
-    //     // send out eos message to gstreamer bus
-    //     message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
-    //     gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
-
-    //     ret = GST_FLOW_EOS;
-    //     goto CleanUp;
-    // }
 
     if (STATUS_FAILED(stream_status)) {
         // in offline case, we cant tell the pipeline to restream the file again in case of network outage.
@@ -1300,9 +1281,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     }
 
     if(buf != NULL) {
-
-        // GST_BUFFER_FLAG_IS_SET uses bitwise & to compare, 1536 = GST_BUFFER_FLAG_MARKER (512) + GST_BUFFER_FLAG_HEADER (1024)
-
         isDroppable =   GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_CORRUPTED) ||
                         GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DECODE_ONLY) ||
                         (GST_BUFFER_FLAGS(buf) == GST_BUFFER_FLAG_DISCONT) ||
@@ -1370,9 +1348,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             }
         }
 
-        put_frame(kvssink->data, info.data, info.size,
-                  std::chrono::nanoseconds(buf->pts),
-                  std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+        put_frame_status = put_frame(data, info.data, info.size,
+                                     std::chrono::nanoseconds(buf->pts),
+                                     std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
     }
     else {
@@ -1386,6 +1364,11 @@ CleanUp:
 
     if (buf != NULL) {
         gst_buffer_unref (buf);
+    }
+
+    if (STATUS_FAILED(put_frame_status)) {
+        GST_ELEMENT_WARNING (kvssink, RESOURCE, WRITE, (NULL),
+                           ("put frame error occurred. Status: 0x%08x", put_frame_status));
     }
 
     return ret;
