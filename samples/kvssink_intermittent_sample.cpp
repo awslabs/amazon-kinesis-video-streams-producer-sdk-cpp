@@ -20,7 +20,6 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
 std::atomic<bool> terminated(FALSE);
-std::atomic<bool> eosHandled(FALSE);
 std::condition_variable cv;
 
 typedef enum _StreamSource {
@@ -40,9 +39,7 @@ typedef struct _CustomData {
 void sigint_handler(int sigint){
     LOG_DEBUG("SIGINT received.  Exiting...");
     terminated = TRUE;
-    eosHandled = TRUE;
     cv.notify_all();
-    eosHandled.notify_all();
     if(main_loop != NULL){
         g_main_loop_quit(main_loop);
     }
@@ -57,8 +54,7 @@ bus_call (GstBus *bus, GstMessage *msg, gpointer data)
     switch (GST_MESSAGE_TYPE (msg)) {
         case GST_MESSAGE_EOS: {
             LOG_DEBUG("[KVS sample] Received EOS message");
-            eosHandled = TRUE;
-            eosHandled.notify_all();
+            cv.notify_all();
             break;
         }
 
@@ -130,12 +126,11 @@ void stopStartLoop(GstElement *pipeline) {
 
         // EOS event pushes frames buffered by the h264enc element down to kvssink.
         GstEvent* eos = gst_event_new_eos();
-        eosHandled = FALSE;
         gst_element_send_event(pipeline, eos);
 
         // Wait for the EOS event to return from kvssink to the bus which means all elements are done handling the EOS.
         // We don't want to flush until the EOS is done to ensure all frames buffered in the pipeline have been processed.
-        eosHandled.wait(FALSE);
+        cv.wait(lck);
 
         // Flushing to remove EOS status.
         GstEvent* flush_start = gst_event_new_flush_start();
