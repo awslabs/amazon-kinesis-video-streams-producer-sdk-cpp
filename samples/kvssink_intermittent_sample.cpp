@@ -12,8 +12,8 @@ using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
 /* modify these values to change start/stop interval */
-#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 8
-#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 8
+#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 20
+#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 40
 
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
@@ -25,8 +25,7 @@ std::condition_variable cv;
 
 typedef enum _StreamSource {
     TEST_SOURCE,
-    DEVICE_SOURCE,
-    RTSP_SOURCE
+    DEVICE_SOURCE
 } StreamSource;
 
 typedef struct _CustomData {
@@ -41,7 +40,9 @@ typedef struct _CustomData {
 void sigint_handler(int sigint){
     LOG_DEBUG("SIGINT received.  Exiting...");
     terminated = TRUE;
+    eosHandled = TRUE;
     cv.notify_all();
+    eosHandled.notify_all();
     if(main_loop != NULL){
         g_main_loop_quit(main_loop);
     }
@@ -167,28 +168,34 @@ int main (int argc, char *argv[])
     gst_init (&argc, &argv);
 
 
-    /* Check input arguments */
+    /* Parse input arguments */
 
+    // Check for invalid argument count.
     if (argc > 3 || argc < 2) {
-        LOG_ERROR("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>");
+        LOG_ERROR("[KVS sample] Invalid argument count");
+        LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc or devicesrc>");
         return -1;
     }
 
+    // Get stream name.
     STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
     stream_name[MAX_STREAM_NAME_LEN] = '\0';
 
+    // Get source type.
     if(argc > 2) {
         if(0 == STRCMPI(argv[2], "testsrc")) {
+            LOG_INFO("[KVS sample] Using test source (videotestsrc)");
             source_type = TEST_SOURCE;
         } else if (0 == STRCMPI(argv[2], "devicesrc")) {
+            LOG_INFO("[KVS sample] Using device source (autovideosrc)");
             source_type = DEVICE_SOURCE;
-        } else if (0 == STRCMPI(argv[2], "rtspsrc")) {
-            source_type = RTSP_SOURCE;
         } else {
-            LOG_ERROR("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc, devicesrc, or rtspsrc (optional, default is testsrc)>");
+            LOG_ERROR("[KVS sample] Invalid source type");
+            LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc or devicesrc>");
             return -1;
         }
     } else {
+        LOG_ERROR("[KVS sample] No source specified, defualting to test source (videotestsrc)");
         source_type = TEST_SOURCE;
     }
 
@@ -199,11 +206,11 @@ int main (int argc, char *argv[])
 
     /* source */
     if(source_type == TEST_SOURCE) {
-        source   = gst_element_factory_make ("videotestsrc", "test-source");
+        source = gst_element_factory_make ("videotestsrc", "test-source");
+        g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
     } else if (source_type == DEVICE_SOURCE) {
-        source   = gst_element_factory_make ("autovideosrc", "device-source");
-    } else { // RTSP_SOURCE
-    }
+        source = gst_element_factory_make ("autovideosrc", "device-source");
+    } 
 
     /* clock overlay */
     clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
@@ -243,7 +250,7 @@ int main (int argc, char *argv[])
         return -1;
     }
 
-    if (!pipeline || !source || !video_convert || !source_filter || !encoder) {
+    if (!pipeline || !source || !clock_overlay || !video_convert || !source_filter || !encoder || !sink_filter) {
         LOG_ERROR("[KVS sample] Not all GStreamer elements could be created.");
         return -1;
     }
@@ -259,10 +266,10 @@ int main (int argc, char *argv[])
 
     // Add elements into the pipeline.
     gst_bin_add_many (GST_BIN (pipeline),
-                        source, clock_overlay, video_convert, source_filter, encoder, kvssink, NULL);
+                        source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL);
 
     // Link the elements together.
-    if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, kvssink, NULL)) {
+    if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL)) {
             LOG_ERROR("[KVS sample] Elements could not be linked");
             gst_object_unref(pipeline);
             return -1;
@@ -275,7 +282,7 @@ int main (int argc, char *argv[])
     // Start the stop/start thread for intermittent streaming.
     std::thread stopStartThread(stopStartLoop, pipeline);
     
-    LOG_ERROR("[KVS sample] Starting GStreamer main loop");
+    LOG_INFO("[KVS sample] Starting GStreamer main loop");
     g_main_loop_run (main_loop);
 
     stopStartThread.join();
