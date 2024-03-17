@@ -16,8 +16,6 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
       CC: /usr/bin/clang
       CXX: /usr/bin/clang++
-      LDFLAGS: -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
-      CPATH: /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/
     permissions:
       id-token: write
       contents: read
@@ -43,7 +41,7 @@ jobs:
           role-duration-seconds: 10800
       - name: Run tests
         run: |
-          cd build  
+          cd build
           ./tst/producerTest
   mac-os-m1-build-clang:
     runs-on: macos-13-xlarge
@@ -316,6 +314,11 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
+      - name: Move cloned repo # to shorten path length for Windows OS
+        run: |
+          git config --system core.longpaths true
+          mkdir C:\amazon-kinesis-video-streams-producer-sdk-cpp
+          Move-Item -Path "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\*" -Destination "C:\amazon-kinesis-video-streams-producer-sdk-cpp"
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
@@ -323,9 +326,9 @@ jobs:
           choco install gstreamer-devel --version=1.16.2
       - name: Build repository
         run: |
-          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
-          git config --system core.longpaths true
-          .github/build_windows.bat
+          $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin"
+          cd C:\amazon-kinesis-video-streams-producer-sdk-cpp
+          .github\build_windows.bat
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
@@ -335,8 +338,8 @@ jobs:
           role-duration-seconds: 10800
       - name: Run tests
         run: |
-          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
-          & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
+          & "C:\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
 
   arm64-cross-compilation:
     runs-on: ubuntu-20.04
