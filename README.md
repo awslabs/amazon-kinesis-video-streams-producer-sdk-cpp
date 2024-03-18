@@ -149,7 +149,7 @@ The equivalent for Windows is
 
 ```bat
 set GST_PLUGIN_PATH=%CD%\build
-set PATH=%PATH%;%CD%\open-source\local\bin;%CD%\open-source\local\lib
+set PATH=%PATH%;%CD%\open-source\bin;%CD%\open-source\lib
 ```
 
 Now if you execute `gst-inspect-1.0 kvssink` you should get information on the plugin like
