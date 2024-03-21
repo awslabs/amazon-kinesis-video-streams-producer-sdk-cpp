@@ -123,10 +123,10 @@ message("LOG4CPLUS_INCLUDE_DIR is ${LOG4CPLUS_INCLUDE_DIR}")
 message("LOG4CPLUS_LIBRARIES is ${LOG4CPLUS_LIBRARIES}")
 
 if (WIN32)
-  if(EXISTS "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
-    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+  if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
   else()
-    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
   endif()
 endif()
 
