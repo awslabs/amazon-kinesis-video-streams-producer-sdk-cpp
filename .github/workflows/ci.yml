@@ -322,8 +322,8 @@ jobs:
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
-          choco install gstreamer --version=1.16.2
-          choco install gstreamer-devel --version=1.16.2
+          choco install gstreamer --version=1.22.8
+          choco install gstreamer-devel --version=1.22.8
       - name: Build repository
         run: |
           $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\bin"
