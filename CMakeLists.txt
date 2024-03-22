@@ -179,10 +179,6 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
-link_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/lib})
-
-include_directories(${LOG4CPLUS_INCLUDE_DIR})
-
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
   DESTINATION .)
