@@ -68,11 +68,11 @@ endif()
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
-    file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
+    file(MAKE_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
   endif()
 
   if (NOT OPEN_SRC_INSTALL_PREFIX)
-    set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
+    set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
     set(ENV{PKG_CONFIG_PATH}
           "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
@@ -97,11 +97,11 @@ endif()
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(KVSCPRODUCER libcproducer)
-if(KVSCPRODUCER_FOUND)
-  set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
-  link_directories(${KVSCPRODUCER_LIBRARY_DIRS})
-else()
+ pkg_check_modules(KVSCPRODUCER libcproducer)
+ if(KVSCPRODUCER_FOUND)
+   set(OPEN_SRC_INCLUDE_DIRS ${OPEN_SRC_INCLUDE_DIRS} ${KVSCPRODUCER_INCLUDE_DIRS})
+   link_directories(${KVSCPRODUCER_LIBRARY_DIRS})
+ else()
   set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
   if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
     file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
@@ -178,9 +178,6 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
-include_directories(${LOG4CPLUS_INCLUDE_DIR})
-
-
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
   DESTINATION .)
@@ -194,7 +191,7 @@ endif()
 target_link_libraries(
   KinesisVideoProducer
   PUBLIC cproducer
-         ${LOG4CPLUS_LIBRARIES})
+          ${LOG4CPLUS_LIBRARIES})
 
 install(
     TARGETS KinesisVideoProducer
@@ -227,7 +224,6 @@ if(BUILD_JNI)
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
-
 
 if(BUILD_GSTREAMER_PLUGIN)
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
