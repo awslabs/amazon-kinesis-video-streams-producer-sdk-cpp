@@ -50,6 +50,8 @@ typedef struct _CustomData {
             synthetic_dts(0),
             last_unpersisted_file_idx(0),
             stream_status(STATUS_SUCCESS),
+            put_fragment_metadata_frequency_seconds(2),
+            fragment_metadata_timer_id(0),
             base_pts(0),
             max_frame_pts(0),
             key_frame_pts(0),
@@ -65,6 +67,10 @@ typedef struct _CustomData {
     bool h264_stream_supported;
     char *stream_name;
     mutex file_list_mtx;
+    int put_fragment_metadata_frequency_seconds;
+    int fragment_metadata_timer_id;
+    int metadata_counter = 1;
+    bool persist_flag = true;
 
     // list of files to upload.
     vector<FileInfo> file_list;
@@ -155,6 +161,10 @@ static bool resolution_supported(GstCaps *src_caps, GstCaps *query_caps_raw, Gst
 
 /* callback when eos (End of Stream) is posted on bus */
 static void eos_cb(GstElement *sink, GstMessage *message, CustomData *data) {
+    if (data->fragment_metadata_timer_id != 0) {
+        g_source_remove(data->fragment_metadata_timer_id);
+        LOG_TRACE("Removing the put_metadata timer");
+    }
     if (data->streamSource == FILE_SOURCE) {
         // bookkeeping base_pts. add 1ms to avoid overlap.
         data->base_pts += +data->max_frame_pts + duration_cast<nanoseconds>(milliseconds(1)).count();
@@ -174,6 +184,11 @@ static void eos_cb(GstElement *sink, GstMessage *message, CustomData *data) {
 static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
     GError *err;
     gchar *debug_info;
+
+    if (data->fragment_metadata_timer_id != 0) {
+        g_source_remove(data->fragment_metadata_timer_id);
+        LOG_TRACE("Removing the put_metadata timer");
+    }
 
     /* Print error details on the screen */
     gst_message_parse_error(msg, &err, &debug_info);
@@ -215,8 +230,13 @@ void timer(CustomData *data) {
 
 /* Function handles sigint signal */
 void sigint_handler(int sigint){
-    LOG_DEBUG("SIGINT received.  Exiting graceully");
+    LOG_DEBUG("SIGINT received.  Exiting gracefully");
     
+    if (data_global.fragment_metadata_timer_id != 0) {
+        g_source_remove(data_global.fragment_metadata_timer_id);
+        LOG_TRACE("Removing the put_metadata timer");
+    }
+
     if(data_global.main_loop != NULL){
         g_main_loop_quit(data_global.main_loop);
     }
@@ -247,7 +267,7 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 			"role-aliases", G_TYPE_STRING, role_alias, NULL);
 	
 	g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
-        gst_structure_free(iot_credentials);
+    gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort
     } else if(nullptr != (credential_path = getenv("AWS_CREDENTIAL_PATH"))){
@@ -255,7 +275,30 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
     }
 }
 
-int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
+// Function to put fragment metadata: name, value, and persist values
+// This is a sample function. Customers can write their own put_metadata and trigger it 
+// either using the timer or some other logic. This function can contain custom logic to
+// generate the metadata. To trigger the downstream event that calls the API putKinesisVideoFragmentMetadata,
+// put_fragment_metadata must be called as shown below.
+static void put_metadata(GstElement* element) {
+    std::ostringstream metadata_name_stream, metadata_value_stream;
+
+    metadata_name_stream << "metadata_name_" << data_global.metadata_counter;
+    metadata_value_stream << "metadata_value_" << data_global.metadata_counter;
+    
+    data_global.metadata_counter++;
+    data_global.persist_flag = !data_global.persist_flag;
+
+    if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
+        LOG_WARN("Failed to put fragment metadata, going to stop the timer that sends the metadata");
+        if (data_global.fragment_metadata_timer_id != 0) {
+            g_source_remove(data_global.fragment_metadata_timer_id);
+            LOG_TRACE("Removing the put_metadata timer");
+        }
+    }
+}
+
+int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
 
     bool vtenc = false, isOnRpi = false;
 
@@ -328,7 +371,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     LOG_DEBUG("Streaming with live source and width: " << width << ", height: " << height << ", fps: " << framerate
                                                        << ", bitrateInKBPS" << bitrateInKBPS);
 
-    GstElement *source_filter, *filter, *kvssink, *h264parse, *encoder, *source, *video_convert;
+    GstElement *source_filter, *filter, *h264parse, *encoder, *source, *video_convert;
 
     /* create the elemnents */
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
@@ -339,11 +382,6 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     filter = gst_element_factory_make("capsfilter", "encoder_filter");
     if (!filter) {
         LOG_ERROR("Failed to create capsfilter (2)");
-        return 1;
-    }
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
-    if (!kvssink) {
-        LOG_ERROR("Failed to create kvssink");
         return 1;
     }
     h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
@@ -540,7 +578,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     return 0;
 }
 
-int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
+int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
     // process runtime if provided
     if (argc == 5){
       if ((0 == STRCMPI(argv[3], "-runtime")) ||
@@ -552,10 +590,9 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
 	  }
       }
     }
-    GstElement *filter, *kvssink, *depay, *source, *h264parse;
+    GstElement *filter, *depay, *source, *h264parse;
 
     filter = gst_element_factory_make("capsfilter", "filter");
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
     depay = gst_element_factory_make("rtph264depay", "depay");
     source = gst_element_factory_make("rtspsrc", "source");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
@@ -603,14 +640,13 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
     return 0;
 }
 
-int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
+int gstreamer_file_source_init(CustomData *data, GstElement *pipeline, GstElement *kvssink) {
 
-    GstElement *demux, *kvssink, *filesrc, *h264parse, *filter, *queue;
+    GstElement *demux, *filesrc, *h264parse, *filter, *queue;
     string file_suffix;
     string file_path = data->file_list.at(data->current_file_idx).path;
 
     filter = gst_element_factory_make("capsfilter", "filter");
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
     filesrc = gst_element_factory_make("filesrc", "filesrc");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
     queue = gst_element_factory_make("queue", "queue");
@@ -680,28 +716,34 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     /* init GStreamer */
     gst_init(&argc, &argv);
 
-    GstElement *pipeline;
+    GstElement *pipeline, *kvssink;
     int ret;
     GstStateChangeReturn gst_ret;
 
     // Reset first frame pts
     data->first_pts = GST_CLOCK_TIME_NONE;
 
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
+    if (!kvssink) {
+        LOG_ERROR("Failed to create kvssink");
+        return 1;
+    }
+
     switch (data->streamSource) {
         case LIVE_SOURCE:
             LOG_INFO("Streaming from live source");
             pipeline = gst_pipeline_new("live-kinesis-pipeline");
-            ret = gstreamer_live_source_init(argc, argv, data, pipeline);
+            ret = gstreamer_live_source_init(argc, argv, data, pipeline, kvssink);
             break;
         case RTSP_SOURCE:
             LOG_INFO("Streaming from rtsp source");
             pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
-            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline);
+            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline, kvssink);
             break;
         case FILE_SOURCE:
             LOG_INFO("Streaming from file source");
             pipeline = gst_pipeline_new("file-kinesis-pipeline");
-            ret = gstreamer_file_source_init(data, pipeline);
+            ret = gstreamer_file_source_init(data, pipeline, kvssink);
             break;
     }
 
@@ -715,12 +757,16 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     g_signal_connect(G_OBJECT(bus), "message::error", (GCallback) error_cb, data);
     g_signal_connect(G_OBJECT(bus), "message::eos", G_CALLBACK(eos_cb), data);
     gst_object_unref(bus);
+
+    // Create a GStreamer timer to generate and put fragment metadata tags every 2 seconds
+    data->fragment_metadata_timer_id = g_timeout_add_seconds(data->put_fragment_metadata_frequency_seconds, reinterpret_cast<GSourceFunc>(put_metadata), kvssink);
+    
     /* start streaming */
     gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (gst_ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr("Unable to set the pipeline to the playing state.\n");
         gst_object_unref(pipeline);
-	data->stream_status = STATUS_KVS_GSTREAMER_SAMPLE_ERROR; 
+	    data->stream_status = STATUS_KVS_GSTREAMER_SAMPLE_ERROR; 
         return 1;
     }
     // set timer if valid runtime provided (non-positive values are ignored)
@@ -828,7 +874,7 @@ int main(int argc, char *argv[]) {
                     } else if(stream_status == STATUS_KVS_GSTREAMER_SAMPLE_INTERRUPTED){
 		        LOG_ERROR("File upload interrupted.  Terminating.");
 		        continue_uploading = false;
-		    }else { // non fatal case.  retry upload
+		    } else { // non fatal case.  retry upload
                         LOG_ERROR("stream error occurred: " << stream_status << ". Terminating.");
                         do_retry = true;
                     }
@@ -874,4 +920,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
