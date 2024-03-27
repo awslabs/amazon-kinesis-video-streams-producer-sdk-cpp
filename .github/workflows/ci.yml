@@ -29,7 +29,7 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_SAMPLES=FALSE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
           make install
       - name: Configure AWS Credentials
@@ -60,7 +60,7 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          sh -c 'cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++;cmake .. -DBUILD_TEST=TRUE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++'
+          sh -c 'cmake .. -DBUILD_TEST=TRUE -DBUILD_SAMPLES=FALSE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++;cmake .. -DBUILD_TEST=TRUE -DBUILD_SAMPLES=FALSE -DCOMPILER_WARNINGS=TRUE -DCMAKE_INSTALL_PREFIX=. -DCMAKE_C_COMPILER=$(brew --prefix llvm@15)/bin/clang -DCMAKE_CXX_COMPILER=$(brew --prefix llvm@15)/bin/clang++'
           make install
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
@@ -92,7 +92,7 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_SAMPLES=FALSE -DCMAKE_INSTALL_PREFIX=.
           make
           make install
       - name: Configure AWS Credentials
@@ -239,7 +239,7 @@ jobs:
   #     - name: Build repository
   #       run: |
   #         mkdir build && cd build
-  #         cmake .. -DBUILD_TEST=TRUE -DMEMORY_SANITIZER=TRUE -DBUILD_COMMON_LWS=TRUE
+  #         cmake .. -DBUILD_TEST=TRUE -DBUILD_SAMPLES=FALSE -DMEMORY_SANITIZER=TRUE -DBUILD_COMMON_LWS=TRUE
   #         make
   #         ulimit -c unlimited -S
   #         timeout --signal=SIGABRT 150m ./tst/producerTest --gtest_break_on_failure
@@ -359,7 +359,7 @@ jobs:
         run: |
           sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic64 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_SAMPLES=FALSE -DBUILD_OPENSSL_PLATFORM=linux-generic64 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
           make
           make install
           file libKinesisVideoProducer.so
@@ -382,7 +382,7 @@ jobs:
         run: |
           sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-aarch64 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_SAMPLES=FALSE -DBUILD_OPENSSL_PLATFORM=linux-aarch64 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
           make
           make install
           file libKinesisVideoProducer.so
@@ -405,7 +405,7 @@ jobs:
         run: |
           sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_OPENSSL_PLATFORM=linux-generic32 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_SAMPLES=FALSE -DBUILD_OPENSSL_PLATFORM=linux-generic32 -DBUILD_LOG4CPLUS_HOST=arm-linux -DCMAKE_INSTALL_PREFIX=.
           make
           make install
           file libKinesisVideoProducer.so
