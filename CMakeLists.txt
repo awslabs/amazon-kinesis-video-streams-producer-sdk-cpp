@@ -15,7 +15,7 @@ set(KINESIS_VIDEO_PRODUCER_CPP_VERSION ${KINESIS_VIDEO_PRODUCER_CPP_MAJOR_VERSIO
 
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
-optoin(BUILD_SAMPLES "Whether to build the samples" ON)
+option(BUILD_SAMPLES "Whether to build the samples" ON)
 option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/Android" OFF)
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
