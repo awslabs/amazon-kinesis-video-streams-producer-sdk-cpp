@@ -247,12 +247,13 @@ if(BUILD_GSTREAMER_PLUGIN)
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-    
 endif()
 
 if(BUILD_SAMPLES)
-  add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
-  target_link_libraries(kvssink_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspic)
+  if(BUILD_GSTREAMER_PLUGIN)
+    add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
+    target_link_libraries(kvssink_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspic)
+  endif()
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
   target_link_libraries(kvs_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
@@ -265,15 +266,6 @@ if(BUILD_SAMPLES)
 
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
   target_link_libraries(kvs_gstreamer_file_uploader_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES})
-
-  if(BUILD_GSTREAMER_PLUGIN)
-    if(BUILD_STATIC)
-      add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
-    else()
-      add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
-    endif()
-    target_link_libraries(gstkvssink PRIVATE ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
-  endif()  
 endif()
 
 if(BUILD_TEST)
