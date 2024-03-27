@@ -229,12 +229,16 @@ if(BUILD_JNI)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
-if(BUILD_GSTREAMER_PLUGIN)
+if(BUILD_GSTREAMER_PLUGIN OR BUILD_SAMPLES)
+  # Find GStreamer.
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
   include_directories(${OPEN_SRC_INSTALL_PREFIX}/include)
+endif()
 
+if(BUILD_GSTREAMER_PLUGIN)
+  # Build kvssink.
   if(BUILD_STATIC)
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
   else()
