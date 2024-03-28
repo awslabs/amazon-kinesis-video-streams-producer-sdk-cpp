@@ -1230,7 +1230,7 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getNumberOfPairs");
     } else {
-        pStreamEventMetadata->numberOfPairs = env->CallLongMethod(streamEventMetadata, methodId);
+        pStreamEventMetadata->numberOfPairs = env->CallByteMethod(streamEventMetadata, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
@@ -1238,19 +1238,23 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getNames");
     } else {
-        jstring retString = (jstring) env->CallObjectMethod(streamEventMetadata, methodId);
+        jobjectArray retArray = (jobjectArray) env->CallObjectMethod(streamEventMetadata, methodId);
         CHK_JVM_EXCEPTION(env);
-
-        if (retString != NULL) {
-            retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamEventMetadata->names, retChars, MAX_EVENT_CUSTOM_PAIRS + 1);
-
-            // Just in case - null terminate the copied string
-            pStreamEventMetadata->names[MAX_EVENT_CUSTOM_PAIRS] = '\0';
-
-            env->ReleaseStringUTFChars(retString, retChars);
-        } else {
-            pStreamEventMetadata->names[0] = '\0';
+        if (retArray != NULL) {
+            jsize arrayLength = env->GetArrayLength(retArray);
+            for (jsize i = 0; i < arrayLength; i++) {
+                jstring stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
+                const char *retChars = env->GetStringUTFChars(stringElement, NULL);
+                if (retChars != NULL) {
+                     if (i < MAX_EVENT_CUSTOM_PAIRS) {
+                        STRCPY(pStreamEventMetadata->names[i], retChars);
+                     } else {
+                        break;
+                     }
+                    env->ReleaseStringUTFChars(stringElement, retChars);
+                }
+                env->DeleteLocalRef(stringElement);
+            }
         }
     }
 
@@ -1258,19 +1262,23 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getValues");
     } else {
-        jstring retString = (jstring) env->CallObjectMethod(streamEventMetadata, methodId);
+        jobjectArray retArray = (jobjectArray) env->CallObjectMethod(streamEventMetadata, methodId);
         CHK_JVM_EXCEPTION(env);
-
-        if (retString != NULL) {
-            retChars = env->GetStringUTFChars(retString, NULL);
-            STRNCPY(pStreamEventMetadata->values, retChars, MAX_EVENT_CUSTOM_PAIRS + 1);
-
-            // Just in case - null terminate the copied string
-            pStreamEventMetadata->values[MAX_EVENT_CUSTOM_PAIRS] = '\0';
-
-            env->ReleaseStringUTFChars(retString, retChars);
-        } else {
-            pStreamEventMetadata->values[0] = '\0';
+        if (retArray != NULL) {
+            jsize arrayLength = env->GetArrayLength(retArray);
+            for (jsize i = 0; i < arrayLength; i++) {
+                jstring stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
+                const char *retChars = env->GetStringUTFChars(stringElement, NULL);
+                if (retChars != NULL) {
+                     if (i < MAX_EVENT_CUSTOM_PAIRS) {
+                        STRCPY(pStreamEventMetadata->values[i], retChars);
+                     } else {
+                        break;
+                     }
+                    env->ReleaseStringUTFChars(stringElement, retChars);
+                }
+                env->DeleteLocalRef(stringElement);
+            }
         }
     }
 
