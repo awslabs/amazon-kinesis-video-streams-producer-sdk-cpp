@@ -1117,3 +1117,100 @@ BOOL releaseStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBY
 
     return TRUE;
 }
+
+BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEventMetadata pStreamEventMetadata)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    jmethodID methodId = NULL;
+    CHECK(env != NULL && streamEventMetadata != NULL && pStreamEventMetadata != NULL);
+    const char *retChars;
+
+    // Load KinesisVideoFrame
+    jclass cls = env->GetObjectClass(streamEventMetadata);
+    if (cls == NULL) {
+        DLOGE("Failed to create StreamEventMetadata class.");
+        CHK(FALSE, STATUS_INVALID_OPERATION);
+    }
+
+    // Retrieve the methods and call it
+    methodId = env->GetMethodID(cls, "getVersion", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getVersion");
+    } else {
+        pStreamEventMetadata->version = env->CallIntMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getImagePrefix", "()Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getImagePrefix");
+    } else {
+        jstring retString = (jstring) env->CallObjectMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+
+        if (retString != NULL) {
+            retChars = env->GetStringUTFChars(retString, NULL);
+            STRCPY(pStreamEventMetadata->imagePrefix, retChars);
+            env->ReleaseStringUTFChars(retString, retChars);
+        }
+    }
+
+    methodId = env->GetMethodID(cls, "getNumberOfPairs", "()B");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getNumberOfPairs");
+    } else {
+        pStreamEventMetadata->numberOfPairs = env->CallByteMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getNames", "()[Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getNames");
+    } else {
+        jobjectArray retArray = (jobjectArray) env->CallObjectMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+        if (retArray != NULL) {
+            jsize arrayLength = env->GetArrayLength(retArray);
+            for (jsize i = 0; i < arrayLength; i++) {
+                jstring stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
+                const char *retChars = env->GetStringUTFChars(stringElement, NULL);
+                if (retChars != NULL) {
+                     if (i < MAX_EVENT_CUSTOM_PAIRS) {
+                        STRCPY(pStreamEventMetadata->names[i], retChars);
+                     } else {
+                        break;
+                     }
+                    env->ReleaseStringUTFChars(stringElement, retChars);
+                }
+                env->DeleteLocalRef(stringElement);
+            }
+        }
+    }
+
+    methodId = env->GetMethodID(cls, "getValues", "()[Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getValues");
+    } else {
+        jobjectArray retArray = (jobjectArray) env->CallObjectMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+        if (retArray != NULL) {
+            jsize arrayLength = env->GetArrayLength(retArray);
+            for (jsize i = 0; i < arrayLength; i++) {
+                jstring stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
+                const char *retChars = env->GetStringUTFChars(stringElement, NULL);
+                if (retChars != NULL) {
+                     if (i < MAX_EVENT_CUSTOM_PAIRS) {
+                        STRCPY(pStreamEventMetadata->values[i], retChars);
+                     } else {
+                        break;
+                     }
+                    env->ReleaseStringUTFChars(stringElement, retChars);
+                }
+                env->DeleteLocalRef(stringElement);
+            }
+        }
+    }
+
+CleanUp:
+    return STATUS_FAILED(retStatus) ? FALSE : TRUE;
+}
