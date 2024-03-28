@@ -1211,15 +1211,23 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
         CHK_JVM_EXCEPTION(env);
     }
 
-    methodId = env->GetMethodID(cls, "getImagePrefix", "()I");
+    methodId = env->GetMethodID(cls, "getImagePrefix", "()Ljava/lang/String;");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getImagePrefix");
     } else {
-        pStreamEventMetadata->imagePrefix = env->CallIntMethod(streamEventMetadata, methodId);
+        jstring retString = (jstring) env->CallObjectMethod(streamEventMetadata, methodId);
         CHK_JVM_EXCEPTION(env);
+
+        if (retString != NULL) {
+            retChars = env->GetStringUTFChars(retString, NULL);
+            STRCPY(pStreamEventMetadata->imagePrefix, retChars);
+            env->ReleaseStringUTFChars(retString, retChars);
+        } else {
+            pStreamInfo->imagePrefix[0] = '\0';
+        }
     }
 
-    methodId = env->GetMethodID(cls, "getNumberOfPairs", "()J");
+    methodId = env->GetMethodID(cls, "getNumberOfPairs", "()B");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getNumberOfPairs");
     } else {
@@ -1227,20 +1235,44 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
         CHK_JVM_EXCEPTION(env);
     }
 
-    methodId = env->GetMethodID(cls, "getNames", "()I");
+    methodId = env->GetMethodID(cls, "getNames", "()Ljava/lang/String;");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getNames");
     } else {
-        pStreamEventMetadata->names = (FRAME_FLAGS) env->CallIntMethod(streamEventMetadata, methodId);
+        jstring retString = (jstring) env->CallObjectMethod(streamEventMetadata, methodId);
         CHK_JVM_EXCEPTION(env);
+
+        if (retString != NULL) {
+            retChars = env->GetStringUTFChars(retString, NULL);
+            STRNCPY(pStreamEventMetadata->names, retChars, MAX_EVENT_CUSTOM_PAIRS + 1);
+
+            // Just in case - null terminate the copied string
+            pStreamEventMetadata->names[MAX_EVENT_CUSTOM_PAIRS] = '\0';
+
+            env->ReleaseStringUTFChars(retString, retChars);
+        } else {
+            pStreamEventMetadata->names[0] = '\0';
+        }
     }
 
-    methodId = env->GetMethodID(cls, "getValues", "()J");
+    methodId = env->GetMethodID(cls, "getValues", "()Ljava/lang/String;");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getValues");
     } else {
-        pStreamEventMetadata->values = env->CallLongMethod(streamEventMetadata, methodId);
+        jstring retString = (jstring) env->CallObjectMethod(streamEventMetadata, methodId);
         CHK_JVM_EXCEPTION(env);
+
+        if (retString != NULL) {
+            retChars = env->GetStringUTFChars(retString, NULL);
+            STRNCPY(pStreamEventMetadata->values, retChars, MAX_EVENT_CUSTOM_PAIRS + 1);
+
+            // Just in case - null terminate the copied string
+            pStreamEventMetadata->values[MAX_EVENT_CUSTOM_PAIRS] = '\0';
+
+            env->ReleaseStringUTFChars(retString, retChars);
+        } else {
+            pStreamEventMetadata->values[0] = '\0';
+        }
     }
 
 CleanUp:
