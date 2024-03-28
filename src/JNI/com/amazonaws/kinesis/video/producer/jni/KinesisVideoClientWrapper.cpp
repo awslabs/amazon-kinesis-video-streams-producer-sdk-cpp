@@ -488,10 +488,10 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
         return;
     }
 
-    if (pStreamEventMetadata == NULL)
+    if (kinesisStreamEventMetadata == NULL)
     {
-        DLOGE("pStreamEventMetadata is NULL");
-        throwNativeException(env, EXCEPTION_NAME, "pStreamEventMetadata is NULL.", STATUS_INVALID_OPERATION);
+        DLOGE("kinesisStreamEventMetadata is NULL");
+        throwNativeException(env, EXCEPTION_NAME, "kinesisStreamEventMetadata is NULL.", STATUS_INVALID_OPERATION);
         return;
     }
 
