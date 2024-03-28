@@ -1188,3 +1188,61 @@ BOOL releaseStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBY
 
     return TRUE;
 }
+
+BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEventMetadata pStreamEventMetadata)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    jmethodID methodId = NULL;
+    CHECK(env != NULL && streamEventMetadata != NULL && pStreamEventMetadata != NULL);
+
+    // Load KinesisVideoFrame
+    jclass cls = env->GetObjectClass(streamEventMetadata);
+    if (cls == NULL) {
+        DLOGE("Failed to create StreamEventMetadata class.");
+        CHK(FALSE, STATUS_INVALID_OPERATION);
+    }
+
+    // Retrieve the methods and call it
+    methodId = env->GetMethodID(cls, "getVersion", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getVersion");
+    } else {
+        pStreamEventMetadata->version = env->CallIntMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getImagePrefix", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getImagePrefix");
+    } else {
+        pStreamEventMetadata->imagePrefix = env->CallIntMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getNumberOfPairs", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getNumberOfPairs");
+    } else {
+        pStreamEventMetadata->numberOfPairs = env->CallLongMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getNames", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getNames");
+    } else {
+        pStreamEventMetadata->names = (FRAME_FLAGS) env->CallIntMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getValues", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getValues");
+    } else {
+        pStreamEventMetadata->values = env->CallLongMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+CleanUp:
+    return STATUS_FAILED(retStatus) ? FALSE : TRUE;
+}

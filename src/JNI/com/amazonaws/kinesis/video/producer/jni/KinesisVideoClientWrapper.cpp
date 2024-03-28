@@ -456,11 +456,62 @@ void KinesisVideoClientWrapper::putKinesisVideoFragmentMetadata(jlong streamHand
 
     if (STATUS_FAILED(retStatus))
     {
-        DLOGE("Failed to put a metadata with status code 0x%08x", retStatus);
-        throwNativeException(env, EXCEPTION_NAME, "Failed to put a metadata into the stream.", retStatus);
+        DLOGE("Failed to put a fragment metadata with status code 0x%08x", retStatus);
+        throwNativeException(env, EXCEPTION_NAME, "Failed to put a fragment metadata into the stream.", retStatus);
+        return;
+    }
+}
+
+void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle, jint event, jobject kinesisStreamEventMetadata)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    JNIEnv *env;
+    mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+
+    if (!IS_VALID_CLIENT_HANDLE(mClientHandle))
+    {
+        DLOGE("Invalid client object");
+        throwNativeException(env, EXCEPTION_NAME, "Invalid call after the client is freed.", STATUS_INVALID_OPERATION);
         return;
     }
 
+    if (!IS_VALID_STREAM_HANDLE(streamHandle))
+    {
+        DLOGE("Invalid stream handle 0x%016" PRIx64, (UINT64) streamHandle);
+        throwNativeException(env, EXCEPTION_NAME, "Invalid stream handle.", STATUS_INVALID_OPERATION);
+        return;
+    }
+
+    if (event >= STREAM_EVENT_TYPE_LAST || event == STREAM_EVENT_TYPE_NONE) {
+        DLOGE("Stream event is invalid");
+        throwNativeException(env, EXCEPTION_NAME, "Stream event is invalid.", STATUS_INVALID_OPERATION);
+        return;
+    }
+
+    if (pStreamEventMetadata == NULL)
+    {
+        DLOGE("pStreamEventMetadata is NULL");
+        throwNativeException(env, EXCEPTION_NAME, "pStreamEventMetadata is NULL.", STATUS_INVALID_OPERATION);
+        return;
+    }
+
+    StreamEventMetadata streamEventMetadata;
+    if (!setStreamEventMetadata(env, kinesisStreamEventMetadata, &streamEventMetadata))
+    {
+        DLOGE("Failed converting streamEventMetadata object.");
+        throwNativeException(env, EXCEPTION_NAME, "Failed converting streamEventMetadata object.", STATUS_INVALID_OPERATION);
+        return;
+    }
+
+    // Call the API
+    retStatus = ::putKinesisVideoEventMetadata(streamHandle, event, &streamEventMetadata);
+
+    if (STATUS_FAILED(retStatus))
+    {
+        DLOGE("Failed to put an event metadata with status code 0x%08x", retStatus);
+        throwNativeException(env, EXCEPTION_NAME, "Failed to put an event metadata into the stream.", retStatus);
+        return;
+    }
 }
 
 void KinesisVideoClientWrapper::getKinesisVideoStreamData(jlong streamHandle, jlong uploadHandle, jobject dataBuffer, jint offset, jint length, jobject readResult)

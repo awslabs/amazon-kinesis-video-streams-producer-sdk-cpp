@@ -16,6 +16,7 @@ BOOL setStreamingEndpoint(JNIEnv* env, jstring streamingEndpoint, PCHAR pEndpoin
 BOOL setStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBYTE* ppBuffer);
 BOOL releaseStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBYTE pBuffer);
 BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount);
+BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEventMetadata pStreamEventMetadata);
 VOID releaseTags(PTag tags);
 BOOL setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRetryStrategy pKvsRetryStrategy);
 
