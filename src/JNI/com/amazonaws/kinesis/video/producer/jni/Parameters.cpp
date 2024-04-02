@@ -172,7 +172,6 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
     pClientInfo->kvsRetryStrategyCallbacks.freeRetryStrategyFn = NULL;
     pClientInfo->kvsRetryStrategyCallbacks.executeRetryStrategyFn = NULL;
 
-
     // Load ClientInfo
     jclass cls = env->GetObjectClass(clientInfo);
     if (cls == NULL) {
