@@ -20,7 +20,8 @@ assignees: ''
 - Is the stream's data retention setting greater than 0?
 - Does your stream meet the [KVS video playback track requirements](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/video-playback-requirements.html)?
 - If there are fragment decoding errors:
-  - Are fragment timestamps accurate, in the correct order, and have no duplicates? ([ListFragments](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_reader_ListFragments.html) can be used to retrieve fragment information for a stream) - Is your application encoding the frame data using the H.264 format?
+  - Are fragment timestamps accurate, in the correct order, and have no duplicates? ([ListFragments](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_reader_ListFragments.html) can be used to retrieve fragment information for a stream)
+  - Is your application encoding the frame data using the H.264 format?
   - Does the resolution of the frames match the resolution specified in the Codec Private Data?
   - Does the H.264 profile and level of the encoded frames match the profile and level specified in the Codec Private Data?
   - Does the browser/OS support the profile/level combination?
