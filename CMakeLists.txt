@@ -94,6 +94,7 @@ endif()
 
 ############# find dependent libraries ############
 
+message("Finding pkg-config.exe and setting PKG_CONFIG_EXECUTABLE.")
 if (WIN32)
   if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
     set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
