@@ -20,8 +20,6 @@ KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
 
     CHECK(env != NULL && thiz != NULL && deviceInfo != NULL);
 
-    printf("[testing - Cpp] Entered KinesisVideoClientWrapper engine.\n");
-
     // Get and store the JVM so the callbacks can use it later
     if (env->GetJavaVM(&mJvm) != 0) {
         CHECK_EXT(FALSE, "Couldn't retrieve the JavaVM reference.");
@@ -36,21 +34,14 @@ KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
         return;
     }
 
-    printf("[testing - Cpp] Calling setDeviceInfo.\n");
-
     // Extract the DeviceInfo structure
     if (!setDeviceInfo(env, deviceInfo, &mDeviceInfo)) {
         throwNativeException(env, EXCEPTION_NAME, "Failed to set the DeviceInfo structure.", STATUS_INVALID_ARG);
         return;
     }
 
-    printf("[testing - Cpp] Calling createKinesisVideoClient.\n");
-
     // Creating the client object might return an error as well so freeing potentially allocated tags right after the call.
     retStatus = createKinesisVideoClient(&mDeviceInfo, &mClientCallbacks, &mClientHandle);
-
-    printf("[testing - Cpp] Calling releaseTags.\n");
-
     releaseTags(mDeviceInfo.tags);
     if (STATUS_FAILED(retStatus)) {
         throwNativeException(env, EXCEPTION_NAME, "Failed to create Kinesis Video client.", retStatus);

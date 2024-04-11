@@ -73,8 +73,8 @@ extern "C" {
 
         KinesisVideoClientWrapper* pWrapper = NULL;
         jlong retValue = (jlong) NULL;
-        printf("[testing - Cpp] Creating Kinesis Video client.\n");
-        printf("Creating Kinesis Video client.\n");
+
+        DLOGI("Creating Kinesis Video client.");
         CHECK(env != NULL && thiz != NULL);
 
         if (deviceInfo == NULL) {
@@ -82,11 +82,9 @@ extern "C" {
             throwNativeException(env, EXCEPTION_NAME, "DeviceInfo is NULL.", STATUS_NULL_ARG);
             goto CleanUp;
         }
-        printf("[testing - Cpp] Creating wrapper engine.\n");
+
         // Create the wrapper engine
         pWrapper = new KinesisVideoClientWrapper(env, thiz, deviceInfo);
-
-        printf("[testing - Cpp] Done creating wrapper engine.\n");
 
         // Returning the pointer as a handle
         retValue = (jlong) TO_WRAPPER_HANDLE(pWrapper);
