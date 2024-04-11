@@ -164,6 +164,17 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
 
     CHECK(env != NULL && clientInfo != NULL && pClientInfo != NULL);
 
+    // Initialize Java-unused members to null.
+    pClientInfo->kvsRetryStrategy.pRetryStrategy = NULL;
+    pClientInfo->kvsRetryStrategy.pRetryStrategyConfig = NULL;
+    pClientInfo->kvsRetryStrategy.retryStrategyType = KVS_RETRY_STRATEGY_DISABLED;
+    pClientInfo->metricLoggingPeriod = 0;
+    pClientInfo->reservedCallbackPeriod = 0;
+    pClientInfo->kvsRetryStrategyCallbacks.createRetryStrategyFn = NULL;
+    pClientInfo->kvsRetryStrategyCallbacks.getCurrentRetryAttemptNumberFn = NULL;
+    pClientInfo->kvsRetryStrategyCallbacks.freeRetryStrategyFn = NULL;
+    pClientInfo->kvsRetryStrategyCallbacks.executeRetryStrategyFn = NULL;
+
     // Load ClientInfo
     jclass cls = env->GetObjectClass(clientInfo);
     if (cls == NULL) {
