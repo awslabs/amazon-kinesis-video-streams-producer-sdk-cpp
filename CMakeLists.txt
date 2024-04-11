@@ -94,6 +94,16 @@ endif()
 
 ############# find dependent libraries ############
 
+if (WIN32)
+  if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+  elseif(EXISTS "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+  else()
+    message("pkg-config.exe not found in GStreamer installation.")
+  endif()
+endif()
+
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
 
@@ -122,15 +132,6 @@ endif()
 message("LOG4CPLUS_INCLUDE_DIR is ${LOG4CPLUS_INCLUDE_DIR}")
 message("LOG4CPLUS_LIBRARIES is ${LOG4CPLUS_LIBRARIES}")
 
-if (WIN32)
-  if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-  elseif(EXISTS "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-  else()
-    message("pkg-config.exe not found in GStreamer installation.")
-  endif()
-endif()
 
 ############# Enable Sanitizers ############
 if(${CMAKE_C_COMPILER_ID} MATCHES "GNU|Clang")
