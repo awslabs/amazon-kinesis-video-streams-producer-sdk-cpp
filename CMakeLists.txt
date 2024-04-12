@@ -72,6 +72,7 @@ if(WIN32)
     set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH};D:\\gstreamer\\1.0\\msvc_x86_64\\lib\\pkgconfig")
   else()
     message("pkgconfig path to .pc files not found in GStreamer installation.")
+    endif()
 endif()
 
 if(BUILD_DEPENDENCIES)
