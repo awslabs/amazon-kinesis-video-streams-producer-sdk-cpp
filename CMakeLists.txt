@@ -66,7 +66,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(WIN32)
-  set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:C:\gstreamer\1.0\msvc_x86_64\lib\pkgconfig")
+  set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH};C:\\gstreamer\\1.0\\msvc_x86_64\\lib\\pkgconfig")
 endif()
 
 if(BUILD_DEPENDENCIES)
@@ -76,8 +76,13 @@ if(BUILD_DEPENDENCIES)
 
   if (NOT OPEN_SRC_INSTALL_PREFIX)
     set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
-    set(ENV{PKG_CONFIG_PATH}
-          "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
+    if(WIN32)
+      set(ENV{PKG_CONFIG_PATH}
+            "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
+    else()
+      set(ENV{PKG_CONFIG_PATH}
+            "$ENV{PKG_CONFIG_PATH};${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
+    endif()
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
     set(ENV{PATH} "$ENV{PATH}:${OPEN_SRC_INSTALL_PREFIX}/bin")
   endif()
