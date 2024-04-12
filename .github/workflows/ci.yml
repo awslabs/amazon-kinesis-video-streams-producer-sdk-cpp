@@ -324,6 +324,7 @@ jobs:
           choco install nasm strawberryperl pkgconfiglite
           choco install gstreamer --version=1.22.8
           choco install gstreamer-devel --version=1.22.8
+          choco install pkgconfiglite
       - name: Build repository
         run: |
           $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin"
