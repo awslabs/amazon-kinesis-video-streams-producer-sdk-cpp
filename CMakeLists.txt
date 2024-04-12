@@ -241,9 +241,14 @@ endif()
 
 
 if(BUILD_GSTREAMER_PLUGIN)
+  pkg_check_modules(GST REQUIRED gstreamer-1.0)
+  include_directories(${GST_INCLUDE_DIRS})
+  link_directories(${GST_LIBRARY_DIRS})
+  
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
+  
   include_directories(${OPEN_SRC_INSTALL_PREFIX}/include)
 
   if(BUILD_STATIC)
