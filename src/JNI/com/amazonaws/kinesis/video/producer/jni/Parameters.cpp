@@ -158,6 +158,7 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
     STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
     const char *retChars;
+    jobject kvsRetryStrategyCallbacks = NULL;
 
     CHECK(env != NULL && clientInfo != NULL && pClientInfo != NULL);
 
@@ -256,7 +257,6 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         CHK_JVM_EXCEPTION(env);
     }
     
-    jobject kvsRetryStrategyCallbacks = NULL;
     methodId = env->GetMethodID(cls, "getKvsRetryStrategyCallbacks", "()Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategyCallbacks;");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getKvsRetryStrategyCallbacks");
@@ -281,16 +281,16 @@ VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks
         goto CleanUp;
     }
 
-    jclass cls = env->GetObjectClass(kvsRetryStrategyCallbacks);
+    cls = env->GetObjectClass(kvsRetryStrategyCallbacks);
     if (cls == NULL) {
         DLOGW("Failed to create Java kvsRetryStrategyCallbacks class.");
         nullSetCallbacks = TRUE;
         goto CleanUp;
     }
 
-.   /* *** */
+    /* *** */
     /* NOTE: All kvsRetryStrategyCallbacks must be set to NULL in order for PIC to set them to the default callbacks.*/
-.   /* *** */
+    /* *** */
 
     methodId = env->GetMethodID(cls, "createRetryStrategyFn", "(Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategyCallbacks;)V");
     if (methodId == NULL) {
