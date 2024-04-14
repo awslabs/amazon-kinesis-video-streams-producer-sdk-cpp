@@ -163,13 +163,6 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
 
     CHECK(env != NULL && clientInfo != NULL && pClientInfo != NULL);
 
-    // Initialize Java-unused members. These will be set to default values in PIC.
-    pClientInfo->kvsRetryStrategy.pRetryStrategy = NULL;
-    pClientInfo->kvsRetryStrategy.pRetryStrategyConfig = NULL;
-    pClientInfo->kvsRetryStrategy.retryStrategyType = KVS_RETRY_STRATEGY_DISABLED;
-    pClientInfo->metricLoggingPeriod = 0;
-    pClientInfo->reservedCallbackPeriod = 0;
-
     // Load ClientInfo
     jclass cls = env->GetObjectClass(clientInfo);
     if (cls == NULL) {
@@ -258,12 +251,23 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         CHK_JVM_EXCEPTION(env);
     }
 
-    // Initialize Java-unused members. These will be set to default values in PIC.
-    pClientInfo->kvsRetryStrategy.pRetryStrategy = NULL;
-    pClientInfo->kvsRetryStrategy.pRetryStrategyConfig = NULL;
-    pClientInfo->kvsRetryStrategy.retryStrategyType = KVS_RETRY_STRATEGY_DISABLED;
-    pClientInfo->metricLoggingPeriod = 0;
-    pClientInfo->reservedCallbackPeriod = 0;
+    methodId = env->GetMethodID(cls, "getMetricLoggingPeriod", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getMetricLoggingPeriod");
+        pClientInfo->metricLoggingPeriod = 0;
+    } else {
+        pClientInfo->metricLoggingPeriod = (jobject) env->CallObjectMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getReservedCallbackPeriod", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getReservedCallbackPeriod");
+        pClientInfo->reservedCallbackPeriod = 0;
+    } else {
+        pClientInfo->reservedCallbackPeriod = (jobject) env->CallObjectMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
 
     methodId = env->GetMethodID(cls, "getKvsRetryStrategy", "()Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategy;");
     if (methodId == NULL) {
@@ -291,30 +295,19 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRet
 {
     jmethodID methodId = NULL;
     jclass cls = NULL;
-    BOOL nullSetCallbacks = FALSE;
+    BOOL nullKvsRetryStrategy = FALSE;
 
     if (kvsRetryStrategy == NULL) {
-        nullSetCallbacks = TRUE;
+        nullKvsRetryStrategy = TRUE;
         goto CleanUp;
     }
 
     cls = env->GetObjectClass(kvsRetryStrategy);
     if (cls == NULL) {
         DLOGW("Failed to create Java kvsRetryStrategy class.");
-        nullSetCallbacks = TRUE;
+        nullKvsRetryStrategy = TRUE;
         goto CleanUp;
     }
-
-    // Pointer to metadata/state/details for the retry strategy.
-    // The actual data type is abstracted and will be inferred by
-    // the RetryHandlerFn
-    PRetryStrategy pRetryStrategy;
-    // Optional configuration used to build the retry strategy. Once the retry strategy is created,
-    // any changes to the config will be useless.
-    PRetryStrategyConfig pRetryStrategyConfig;
-    // Retry strategy type as defined in the above enum
-    KVS_RETRY_STRATEGY_TYPE retryStrategyType;
-
 
     methodId = env->GetMethodID(cls, "getRetryStrategy", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategy");
     if (methodId == NULL) {
@@ -324,7 +317,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRet
         // Set to Java class or member once we implement Java support.
     }
     
-    methodId = env->GetMethodID(cls, "getRetryStrategyConfig", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategy");
+    methodId = env->GetMethodID(cls, "getRetryStrategyConfig", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyConfig");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getRetryStrategyConfig, setting pRetryStrategyConfig to null.");
         pkvsRetryStrategy->pRetryStrategyConfig = NULL;
@@ -332,25 +325,21 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRet
         // Set to Java class or member once we implement Java support.
     }
 
-    methodId = env->GetMethodID(cls, "getRetryStrategy", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategy");
+    methodId = env->GetMethodID(cls, "getretryStrategyType", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyType");
     if (methodId == NULL) {
-        DLOGW("Couldn't find method id getRetryStrategy, setting pRetryStrategy to null.");
-        pkvsRetryStrategy->pRetryStrategy = NULL;
+        DLOGW("Couldn't find method id getretryStrategyType, setting retryStrategyType to EXPONENTIAL_BACKOFF_WAIT.");
+        pkvsRetryStrategy->pRetryStrategy = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
     } else {
         // Set to Java class or member once we implement Java support.
     }
 
 
-
 CleanUp:
-
-    // NOTE: If ANY RetryStrategyCallbacks are NULL, then ALL of them will be set to default callbacks in PIC.
-    if (nullSetCallbacks) {
-        DLOGI("Setting kvsRetryStrategyCallbacks functions to NULL to be set to defaults callbacks in PIC");
-        pKvsRetryStrategyCallbacks->createRetryStrategyFn = NULL;
-        pKvsRetryStrategyCallbacks->getCurrentRetryAttemptNumberFn = NULL;
-        pKvsRetryStrategyCallbacks->freeRetryStrategyFn = NULL;
-        pKvsRetryStrategyCallbacks->executeRetryStrategyFn = NULL;
+    if (nullKvsRetryStrategy) {
+        DLOGI("Setting kvsRetryStrategy members to NULL/default values.");
+        pkvsRetryStrategy->pRetryStrategy = NULL;
+        pkvsRetryStrategy->pRetryStrategyConfig = NULL;
+        pkvsRetryStrategy->pRetryStrategy = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
     }
 }
 
