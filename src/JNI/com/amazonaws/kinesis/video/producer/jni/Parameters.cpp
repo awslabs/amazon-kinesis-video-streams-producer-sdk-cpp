@@ -297,6 +297,8 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
     jclass cls = NULL;
     BOOL nullKvsRetryStrategy = FALSE;
 
+    CHECK(env != NULL && pKvsRetryStrategy != NULL);
+
     if (kvsRetryStrategy == NULL) {
         nullKvsRetryStrategy = TRUE;
         goto CleanUp;
@@ -348,6 +350,8 @@ VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks
     jmethodID methodId = NULL;
     jclass cls = NULL;
     BOOL nullSetCallbacks = FALSE;
+
+    CHECK(env != NULL && pKvsRetryStrategyCallbacks != NULL);
 
     if (kvsRetryStrategyCallbacks == NULL) {
         nullSetCallbacks = TRUE;
