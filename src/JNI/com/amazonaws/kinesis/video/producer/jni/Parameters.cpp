@@ -291,7 +291,7 @@ CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
 
-VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRetryStrategy pKvsRetryStrategy)
+VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrategy pKvsRetryStrategy)
 {
     jmethodID methodId = NULL;
     jclass cls = NULL;
@@ -312,7 +312,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRet
     methodId = env->GetMethodID(cls, "getRetryStrategy", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategy");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getRetryStrategy, setting pRetryStrategy to null.");
-        pkvsRetryStrategy->pRetryStrategy = NULL;
+        pKvsRetryStrategy->pRetryStrategy = NULL;
     } else {
         // Set to Java class or member once we implement Java support.
     }
@@ -320,7 +320,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRet
     methodId = env->GetMethodID(cls, "getRetryStrategyConfig", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyConfig");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getRetryStrategyConfig, setting pRetryStrategyConfig to null.");
-        pkvsRetryStrategy->pRetryStrategyConfig = NULL;
+        pKvsRetryStrategy->pRetryStrategyConfig = NULL;
     } else {
         // Set to Java class or member once we implement Java support.
     }
@@ -328,7 +328,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRet
     methodId = env->GetMethodID(cls, "getretryStrategyType", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyType");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getretryStrategyType, setting retryStrategyType to EXPONENTIAL_BACKOFF_WAIT.");
-        pkvsRetryStrategy->pRetryStrategy = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
+        pKvsRetryStrategy->pRetryStrategy = NULL;
     } else {
         // Set to Java class or member once we implement Java support.
     }
@@ -337,9 +337,9 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRet
 CleanUp:
     if (nullKvsRetryStrategy) {
         DLOGI("Setting kvsRetryStrategy members to NULL/default values.");
-        pkvsRetryStrategy->pRetryStrategy = NULL;
-        pkvsRetryStrategy->pRetryStrategyConfig = NULL;
-        pkvsRetryStrategy->pRetryStrategy = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
+        pKvsRetryStrategy->pRetryStrategy = NULL;
+        pKvsRetryStrategy->pRetryStrategyConfig = NULL;
+        pKvsRetryStrategy->pRetryStrategy = NULL;
     }
 }
 

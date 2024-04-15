@@ -18,5 +18,6 @@ BOOL releaseStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBY
 BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount);
 VOID releaseTags(PTag tags);
 VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRetryStrategyCallbacks pKvsRetryStrategyCallbacks);
+VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRetryStrategy pKvsRetryStrategy);
 
 #endif // __KINESIS_VIDEO_PARAMETERS_CONVERSION_H__
