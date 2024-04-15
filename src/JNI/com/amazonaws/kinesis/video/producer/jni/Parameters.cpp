@@ -256,7 +256,7 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         DLOGW("Couldn't find method id getMetricLoggingPeriod");
         pClientInfo->metricLoggingPeriod = 0;
     } else {
-        pClientInfo->metricLoggingPeriod = (jobject) env->CallObjectMethod(clientInfo, methodId);
+        pClientInfo->metricLoggingPeriod = env->CallLongMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
@@ -265,7 +265,7 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         DLOGW("Couldn't find method id getReservedCallbackPeriod");
         pClientInfo->reservedCallbackPeriod = 0;
     } else {
-        pClientInfo->reservedCallbackPeriod = (jobject) env->CallObjectMethod(clientInfo, methodId);
+        pClientInfo->reservedCallbackPeriod = env->CallLongMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
