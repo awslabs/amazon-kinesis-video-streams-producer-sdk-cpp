@@ -326,7 +326,7 @@ jobs:
           choco install gstreamer-devel --version=1.22.8
       - name: Build repository
         run: |
-          $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin"
+          $env:Path += ";C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\bin"
           cd C:\amazon-kinesis-video-streams-producer-sdk-cpp
           .github\build_windows.bat
       - name: Configure AWS Credentials
@@ -338,7 +338,7 @@ jobs:
           role-duration-seconds: 10800
       - name: Run tests
         run: |
-          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\lib;C:\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\bin'
           & "C:\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
 
   arm64-cross-compilation:
