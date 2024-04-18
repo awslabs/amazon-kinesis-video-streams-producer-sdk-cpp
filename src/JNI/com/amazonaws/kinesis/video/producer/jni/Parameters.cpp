@@ -203,17 +203,17 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         CHK_JVM_EXCEPTION(env);
     }
 
-    methodId = env->GetMethodID(cls, "getServiceConnectionTimeout", "()J");
+    methodId = env->GetMethodID(cls, "getServiceCallConnectionTimeout", "()J");
     if (methodId == NULL) {
-        DLOGW("Couldn't find method id getServiceConnectionTimeout");
+        DLOGW("Couldn't find method id getServiceCallConnectionTimeout");
     } else {
         pClientInfo->serviceCallConnectionTimeout = env->CallLongMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
-    methodId = env->GetMethodID(cls, "getServiceCompletionTimeout", "()J");
+    methodId = env->GetMethodID(cls, "getServiceCallCompletionTimeout", "()J");
     if (methodId == NULL) {
-        DLOGW("Couldn't find method id getServiceCompletionTimeout");
+        DLOGW("Couldn't find method id getServiceCallCompletionTimeout");
     } else {
         pClientInfo->serviceCallCompletionTimeout = env->CallLongMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
@@ -316,7 +316,12 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
         DLOGW("Couldn't find method id getRetryStrategy, setting pRetryStrategy to null.");
         pKvsRetryStrategy->pRetryStrategy = NULL;
     } else {
-        pKvsRetryStrategy->pRetryStrategy = env->CallLongMethod(kvsRetryStrategy, methodId);
+        if (env->CallLongMethod(kvsRetryStrategy, methodId) == 0) {
+            pKvsRetryStrategy->pRetryStrategy = NULL;
+        } else {
+            // TODO: Implement once we have support for this in Java, setting to null for safety.
+            pKvsRetryStrategy->pRetryStrategy = NULL;
+        }
     }
     
     methodId = env->GetMethodID(cls, "getRetryStrategyConfig", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyConfig");
@@ -324,15 +329,20 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
         DLOGW("Couldn't find method id getRetryStrategyConfig, setting pRetryStrategyConfig to null.");
         pKvsRetryStrategy->pRetryStrategyConfig = NULL;
     } else {
-        pKvsRetryStrategy->pRetryStrategyConfig = env->CallLongMethod(kvsRetryStrategy, methodId);
+        if (env->CallLongMethod(kvsRetryStrategy, methodId) == 0) {
+            pKvsRetryStrategy->pRetryStrategyConfig = NULL;
+        } else {
+            // TODO: Implement once we have support for this in Java, setting to null for safety.
+            pKvsRetryStrategy->pRetryStrategyConfig = NULL;
+        }
     }
 
-    methodId = env->GetMethodID(cls, "getretryStrategyType", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyType");
+    methodId = env->GetMethodID(cls, "getRetryStrategyType", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyType");
     if (methodId == NULL) {
-        DLOGW("Couldn't find method id getretryStrategyType, setting retryStrategyType to EXPONENTIAL_BACKOFF_WAIT.");
-        pKvsRetryStrategy->pRetryStrategy = NULL;
+        DLOGW("Couldn't find method id getRetryStrategyType, setting retryStrategyType to EXPONENTIAL_BACKOFF_WAIT.");
+        pKvsRetryStrategy->retryStrategyType = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
     } else {
-        pKvsRetryStrategy->pRetryStrategy = env->CallObjectMethod(kvsRetryStrategy, methodId);
+        pKvsRetryStrategy->retryStrategyType = (KVS_RETRY_STRATEGY_TYPE) env->CallIntMethod(kvsRetryStrategy, methodId);
     }
 
 
@@ -341,7 +351,7 @@ CleanUp:
         DLOGI("Setting kvsRetryStrategy members to NULL/default values.");
         pKvsRetryStrategy->pRetryStrategy = NULL;
         pKvsRetryStrategy->pRetryStrategyConfig = NULL;
-        pKvsRetryStrategy->pRetryStrategy = NULL;
+        pKvsRetryStrategy->retryStrategyType = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
     }
 }
 
