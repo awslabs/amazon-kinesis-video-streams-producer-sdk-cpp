@@ -316,7 +316,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
         DLOGW("Couldn't find method id getRetryStrategy, setting pRetryStrategy to null.");
         pKvsRetryStrategy->pRetryStrategy = NULL;
     } else {
-        // Set to Java class or member once we implement Java support.
+        pKvsRetryStrategy->pRetryStrategy = env->CallLongMethod(kvsRetryStrategy, methodId);
     }
     
     methodId = env->GetMethodID(cls, "getRetryStrategyConfig", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyConfig");
@@ -324,7 +324,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
         DLOGW("Couldn't find method id getRetryStrategyConfig, setting pRetryStrategyConfig to null.");
         pKvsRetryStrategy->pRetryStrategyConfig = NULL;
     } else {
-        // Set to Java class or member once we implement Java support.
+        pKvsRetryStrategy->pRetryStrategyConfig = env->CallLongMethod(kvsRetryStrategy, methodId);
     }
 
     methodId = env->GetMethodID(cls, "getretryStrategyType", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyType");
@@ -332,7 +332,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
         DLOGW("Couldn't find method id getretryStrategyType, setting retryStrategyType to EXPONENTIAL_BACKOFF_WAIT.");
         pKvsRetryStrategy->pRetryStrategy = NULL;
     } else {
-        // Set to Java class or member once we implement Java support.
+        pKvsRetryStrategy->pRetryStrategy = env->CallObjectMethod(kvsRetryStrategy, methodId);
     }
 
 
@@ -366,18 +366,20 @@ VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks
     }
 
     /* *** */
-    /* NOTE: All kvsRetryStrategyCallbacks must be set to NULL in order for PIC to set them to the default callbacks.*/
+    /* NOTE: If ANY of the kvsRetryStrategyCallbacks are NULL, then they will ALL be set to defaults in PIC. */
+    /*          So, below, if any are NULL, we will set them all to NULL in cleanup */
     /* *** */
 
     methodId = env->GetMethodID(cls, "createRetryStrategyFn", "(Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategyCallbacks;)V");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id createRetryStrategyFn, setting to NULL");
-        pKvsRetryStrategyCallbacks->createRetryStrategyFn = NULL;
         nullSetCallbacks = TRUE;
         goto CleanUp;
     } else {
-        // Set to Java-provided callback once we implement Java callback invocation and support setting KvsRetryStrategyCallbacks
+        // Use Java-provided callback once we implement Java callback invocation and support setting KvsRetryStrategyCallbacks
         // from the Producer Java SDK.
+        nullSetCallbacks = TRUE;
+        goto CleanUp;
     }
 
     methodId = env->GetMethodID(cls, "getCurrentRetryAttemptNumberFn", "(Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategyCallbacks;I)V");
@@ -386,8 +388,10 @@ VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks
         nullSetCallbacks = TRUE;
         goto CleanUp;
     } else {
-        // Set to Java-provided callback once we implement Java callback invocation and support setting KvsRetryStrategyCallbacks
+        // Use Java-provided callback once we implement Java callback invocation and support setting KvsRetryStrategyCallbacks
         // from the Producer Java SDK.
+        nullSetCallbacks = TRUE;
+        goto CleanUp;
     }
 
     methodId = env->GetMethodID(cls, "freeRetryStrategyFn", "(Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategyCallbacks;)V");
@@ -396,8 +400,10 @@ VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks
         nullSetCallbacks = TRUE;
         goto CleanUp;
     } else {
-        // Set to Java-provided callback once we implement Java callback invocation and support setting KvsRetryStrategyCallbacks
+        // Use Java-provided callback once we implement Java callback invocation and support setting KvsRetryStrategyCallbacks
         // from the Producer Java SDK.
+        nullSetCallbacks = TRUE;
+        goto CleanUp;
     }
     
     methodId = env->GetMethodID(cls, "executeRetryStrategyFn", "(Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategyCallbacks;J)V");
@@ -406,8 +412,10 @@ VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks
         nullSetCallbacks = TRUE;
         goto CleanUp;
     } else {
-        // Set to Java-provided callback once we implement Java callback invocation and support setting KvsRetryStrategyCallbacks
+        // Use Java-provided callback once we implement Java callback invocation and support setting KvsRetryStrategyCallbacks
         // from the Producer Java SDK.
+        nullSetCallbacks = TRUE;
+        goto CleanUp;
     }
 
 CleanUp:

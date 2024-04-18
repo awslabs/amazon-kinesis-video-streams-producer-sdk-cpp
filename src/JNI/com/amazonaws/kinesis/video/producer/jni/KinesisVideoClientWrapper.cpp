@@ -1013,6 +1013,9 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     mClientCallbacks.clientShutdownFn = NULL;
     mClientCallbacks.streamShutdownFn = NULL;
 
+    // TODO: Currently we set the shutdown callbacks to NULL.
+    // We need to expose these in the near future
+
     // Extract the method IDs for the callbacks and set a global reference
     jclass thizCls = env->GetObjectClass(thiz);
     if (thizCls == NULL) {
