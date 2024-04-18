@@ -95,6 +95,7 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
         nullptr != (private_key_path = GETENV("PRIVATE_KEY_PATH")) &&
         nullptr != (role_alias = GETENV("ROLE_ALIAS")) &&
         nullptr != (ca_cert_path = GETENV("CA_CERT_PATH"))) {
+    LOG_DEBUG("[KVS sample] Using IoT credentials.");
     // Set the IoT Credentials if provided in envvar.
     GstStructure *iot_credentials =  gst_structure_new(
             "iot-certificate",
@@ -110,7 +111,10 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort.
     } else if(nullptr != (credential_path = GETENV("AWS_CREDENTIAL_PATH"))) {
+        LOG_DEBUG("[KVS sample] Using AWS_CREDENTIAL_PATH long term credentials.");
         g_object_set(G_OBJECT(kvssink), "credential-path", credential_path, NULL);
+    } else {
+        LOG_DEBUG("[KVS sample] Using credentials set by AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars.");
     }
 }
 
@@ -222,13 +226,18 @@ int main(int argc, char *argv[])
     /* source */
     if(source_type == TEST_SOURCE) {
         source = gst_element_factory_make("videotestsrc", KVS_GST_TEST_SOURCE_NAME);
-        g_object_set(G_OBJECT(source), "is-live", TRUE, "pattern", 18, "background-color", 0xff003181, "foreground-color", 0xffff9900, NULL);
+        g_object_set(G_OBJECT(source),
+                     "is-live", TRUE,
+                     "pattern", 18,
+                     "background-color", 0xff003181,
+                     "foreground-color", 0xffff9900, NULL);
     } else if(source_type == DEVICE_SOURCE) {
         source = gst_element_factory_make("autovideosrc", KVS_GST_DEVICE_SOURCE_NAME);
     }
 
     /* clock overlay */
     clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
+    g_object_set(G_OBJECT(clock_overlay),"time-format", "%a %B %d, %Y %I:%M:%S %p", NULL);
 
     /* video convert */
     video_convert = gst_element_factory_make("videoconvert", "video_convert");
@@ -241,7 +250,9 @@ int main(int argc, char *argv[])
 
     /* encoder */
     encoder = gst_element_factory_make("x264enc", "encoder");
-    g_object_set(G_OBJECT(encoder), "bframes", 0, "key-int-max", 100, NULL);
+    g_object_set(G_OBJECT(encoder),
+                 "bframes", 0,
+                 "key-int-max", 120, NULL);
 
     /* sink filter */
     sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
