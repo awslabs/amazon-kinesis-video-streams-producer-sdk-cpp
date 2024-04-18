@@ -257,8 +257,8 @@ if(BUILD_GSTREAMER_PLUGIN)
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
   target_link_libraries(kvs_gstreamer_file_uploader_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES})
 
-  add_executable(kvssink_intermittent_sample samples/kvssink_intermittent_sample.cpp)
-  target_link_libraries(kvssink_intermittent_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES})
+  add_executable(kvssink_intermittent_sample samples/kvssink_intermittent_sample.cpp )
+  target_link_libraries(kvssink_intermittent_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspicUtils)
 
   install(
     TARGETS gstkvssink
