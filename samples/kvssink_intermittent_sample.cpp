@@ -15,6 +15,9 @@ using namespace log4cplus;
 #define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 20
 #define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 40
 
+#define KVS_GST_TEST_SOURCE_NAME "test-source"
+#define KVS_GST_DEVICE_SOURCE_NAME "device-source"
+
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
@@ -36,11 +39,11 @@ typedef struct _CustomData {
     GstElement *pipeline;
 } CustomData;
 
-void sigint_handler(int sigint){
+void sigint_handler(int sigint) {
     LOG_DEBUG("SIGINT received.  Exiting...");
     terminated = TRUE;
     cv.notify_all();
-    if(main_loop != NULL){
+    if(main_loop != NULL) {
         g_main_loop_quit(main_loop);
     }
 }
@@ -106,13 +109,13 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
         gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort.
-    } else if(nullptr != (credential_path = GETENV("AWS_CREDENTIAL_PATH"))){
+    } else if(nullptr != (credential_path = GETENV("AWS_CREDENTIAL_PATH"))) {
         g_object_set(G_OBJECT(kvssink), "credential-path", credential_path, NULL);
     }
 }
 
 // This function handles the intermittent starting and stopping of the stream in a loop.
-void stopStartLoop(GstElement *pipeline) {
+void stopStartLoop(GstElement *pipeline, GstElement *source) {
     std::mutex cv_m;
     std::unique_lock<std::mutex> lck(cv_m);
 
@@ -132,6 +135,12 @@ void stopStartLoop(GstElement *pipeline) {
         // We don't want to flush until the EOS is done to ensure all frames buffered in the pipeline have been processed.
         cv.wait(lck);
 
+        // Set videotestsrc to paused state because it does not stop producing frames upon EOS,
+        // and the frames are not cleared upon flushing.
+        if(strcmp(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
+            gst_element_set_state(source, GST_STATE_PAUSED);
+        }
+
         // Flushing to remove EOS status.
         GstEvent* flush_start = gst_event_new_flush_start();
         gst_element_send_event(pipeline, flush_start);
@@ -142,8 +151,15 @@ void stopStartLoop(GstElement *pipeline) {
         }
 
         LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds");
+        
+        // Stop the flush now that we are resuming streaming.
         GstEvent* flush_stop = gst_event_new_flush_stop(true);
         gst_element_send_event(pipeline, flush_stop);
+
+        // Set videotestsrc back to playing state.
+        if(strcmp(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
+            gst_element_set_state(source, GST_STATE_PLAYING);
+        }
     }
     LOG_DEBUG("[KVS sample] Exited stopStartLoop");
 }
@@ -205,11 +221,11 @@ int main(int argc, char *argv[])
 
     /* source */
     if(source_type == TEST_SOURCE) {
-        source = gst_element_factory_make("videotestsrc", "test-source");
-        g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
+        source = gst_element_factory_make("videotestsrc", KVS_GST_TEST_SOURCE_NAME);
+        g_object_set(G_OBJECT(source), "is-live", TRUE, "pattern", 18, "background-color", 0xff003181, "foreground-color", 0xffff9900, NULL);
     } else if(source_type == DEVICE_SOURCE) {
-        source = gst_element_factory_make("autovideosrc", "device-source");
-    } 
+        source = gst_element_factory_make("autovideosrc", KVS_GST_DEVICE_SOURCE_NAME);
+    }
 
     /* clock overlay */
     clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
@@ -225,7 +241,7 @@ int main(int argc, char *argv[])
 
     /* encoder */
     encoder = gst_element_factory_make("x264enc", "encoder");
-    g_object_set(G_OBJECT(encoder), "bframes", 0, NULL);
+    g_object_set(G_OBJECT(encoder), "bframes", 0, "key-int-max", 100, NULL);
 
     /* sink filter */
     sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
@@ -279,7 +295,7 @@ int main(int argc, char *argv[])
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
     // Start the stop/start thread for intermittent streaming.
-    std::thread stopStartThread(stopStartLoop, pipeline);
+    std::thread stopStartThread(stopStartLoop, pipeline, source);
     
     LOG_INFO("[KVS sample] Starting GStreamer main loop");
     g_main_loop_run(main_loop);

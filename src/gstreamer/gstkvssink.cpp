@@ -1188,12 +1188,23 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_EOS: {
             LOG_INFO("EOS Event received in sink for " << kvssink->stream_name);
+            
+            if(data && data->kinesis_video_stream) {
+                Frame eofr = EOFR_FRAME_INITIALIZER;
+                STATUS put_eofr_status = data->kinesis_video_stream->putFrame(eofr);
+                if(STATUS_FAILED(put_eofr_status)) {
+                    LOG_WARN("Failed to put EOFR for " << kvssink->stream_name);
+                }
+            } else {
+                LOG_WARN("NULL pointer! Failed to put EOFR for " << kvssink->stream_name);
+            }
+
 
             /* "The downstream element should forward the EOS event to its downstream peer elements.
                This way the event will eventually reach the sinks which should then post an EOS message
-               on the bus when in PLAYING." - GStreamer, Events, EOS */
-            GstMessage * message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
-            gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
+               on the bus when in PLAYING." - GStreamerDocs->Events->EOS */
+            GstMessage * message = gst_message_new_eos(GST_OBJECT_CAST (kvssink));
+            gst_element_post_message (GST_ELEMENT_CAST(kvssink), message);
             break;
         }
         default:
