@@ -12,7 +12,7 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-11
+    runs-on: macos-latest
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -44,7 +44,7 @@ jobs:
           ./tst/producerTest
 
   mac-os-build-gcc:
-    runs-on: macos-12
+    runs-on: macos-latest
     permissions:
       id-token: write
       contents: read
