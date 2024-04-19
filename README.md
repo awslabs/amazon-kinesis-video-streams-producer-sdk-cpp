@@ -191,10 +191,10 @@ The kvssink element has the following required parameters:
 
 
 ### Running kvssink Samples
-The SDK comes with two programatic GStreamer samples: `kvssink_gstreamer_sample` and `kvssink_intermittent_sample`. For more use cases, see the CLI pipeline examples at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
+The SDK comes with two programmatic GStreamer samples: `kvssink_gstreamer_sample` and `kvssink_intermittent_sample`. For more use cases, see the CLI pipeline examples at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
 
-The programtic samples require for the AWS region to be set with the `AWS_DEFAULT_REGION` environment variable. For example:
-```
+The programmatic samples require the AWS region to be set with the `AWS_DEFAULT_REGION` environment variable. For example:
+```bash
 export AWS_DEFAULT_REGION=us-west-2
 ```
 
@@ -202,12 +202,12 @@ After building the SDK, loading kvssink into the GStreamer plugin path, and sett
 
 #### kvssink Intermittent Sample
 Usage:
-```
+```bash
 ./kvssink_intermittent_sample <stream-name (optional)> <testsrc or devicesrc (optional)>
 ```
 Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, kvssink uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a stream with the provided or default name does not exist, the stream will automatically be created.
 
-The intermittent kvssink sample will stream video for 20 seconds, then pause for 40 seconds, and repeat until an inturupt signal is received. To manually adjust the streaming/paused intervals, you can change the `KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS` and `KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS` values in the *kvssink_intermittent_sample.cpp* file.
+The intermittent kvssink sample will stream video for 20 seconds, then pause for 40 seconds, and repeat until an interrupt signal is received. To manually adjust the streaming and paused intervals, you can change the `KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS` and `KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS` values in the *kvssink_intermittent_sample.cpp* file.
 
 
 ## Running in offline mode
