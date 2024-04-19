@@ -12,7 +12,7 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
