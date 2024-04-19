@@ -88,6 +88,14 @@ if(BUILD_DEPENDENCIES)
   message(STATUS "Finished building dependencies.")
 endif()
 
+if (WIN32)
+  if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+  else()
+    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+  endif()
+endif()
+
 set(BUILD_COMMON_LWS
     FALSE
     CACHE BOOL "Build ProducerC without LWS Support" FORCE)
@@ -124,14 +132,6 @@ else()
   find_package(Log4cplus REQUIRED)
   include_directories(${LOG4CPLUS_INCLUDE_DIR})
   set(Log4cplus ${LOG4CPLUS_LIBRARIES})
-endif()
-
-if (WIN32)
-  if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-  else()
-    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-  endif()
 endif()
 
 ############# Enable Sanitizers ############
