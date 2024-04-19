@@ -141,7 +141,7 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
 
         // Set videotestsrc to paused state because it does not stop producing frames upon EOS,
         // and the frames are not cleared upon flushing.
-        if(strcmp(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
+        if(STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
             gst_element_set_state(source, GST_STATE_PAUSED);
         }
 
@@ -161,7 +161,7 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
         gst_element_send_event(pipeline, flush_stop);
 
         // Set videotestsrc back to playing state.
-        if(strcmp(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
+        if(STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
             gst_element_set_state(source, GST_STATE_PLAYING);
         }
     }
@@ -178,27 +178,22 @@ int main(int argc, char *argv[])
     GstBus *bus;
     guint bus_watch_id;
     StreamSource source_type;
-    char stream_name[MAX_STREAM_NAME_LEN + 1];
+    char stream_name[MAX_STREAM_NAME_LEN + 1] = {0};
 
     gst_init(&argc, &argv);
 
 
     /* Parse input arguments */
 
-    // Check for invalid argument count.
+    // Check for invalid argument count, get stream name.
     if(argc > 3) {
         LOG_ERROR("[KVS sample] Invalid argument count, too many arguments.");
-        LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc or devicesrc>");
+        LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>");
         return -1;
-    } else if(argc < 2) {
-        LOG_ERROR("[KVS sample] Invalid argument count, not enough arguments.");
-        LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc or devicesrc>");
-        return -1;
+    } else if(argc > 1) {
+        STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
+        stream_name[MAX_STREAM_NAME_LEN] = '\0';
     }
-
-    // Get stream name.
-    STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
-    stream_name[MAX_STREAM_NAME_LEN] = '\0';
 
     // Get source type.
     if(argc > 2) {
@@ -210,7 +205,7 @@ int main(int argc, char *argv[])
             source_type = DEVICE_SOURCE;
         } else {
             LOG_ERROR("[KVS sample] Invalid source type");
-            LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (required)> <testsrc or devicesrc>");
+            LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc(optional)>");
             return -1;
         }
     } else {
@@ -265,7 +260,11 @@ int main(int argc, char *argv[])
 
     /* kvssink */
     kvssink = gst_element_factory_make("kvssink", "kvssink");
-    g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
+    if (stream_name[0] != '\0') {
+        g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
+    } else {
+        LOG_INFO("No stream name specified, using default kvssink stream name.")
+    }
     determine_aws_credentials(kvssink, stream_name);
     
 
