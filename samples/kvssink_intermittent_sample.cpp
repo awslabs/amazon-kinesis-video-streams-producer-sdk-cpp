@@ -192,7 +192,6 @@ int main(int argc, char *argv[])
         return -1;
     } else if(argc > 1) {
         STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
-        stream_name[MAX_STREAM_NAME_LEN] = '\0';
     }
 
     // Get source type.
@@ -260,10 +259,10 @@ int main(int argc, char *argv[])
 
     /* kvssink */
     kvssink = gst_element_factory_make("kvssink", "kvssink");
-    if (stream_name[0] != '\0') {
-        g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
-    } else {
+    if (IS_EMPTY_STRING(stream_name)) {
         LOG_INFO("No stream name specified, using default kvssink stream name.")
+    } else {
+        g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
     }
     determine_aws_credentials(kvssink, stream_name);
     
