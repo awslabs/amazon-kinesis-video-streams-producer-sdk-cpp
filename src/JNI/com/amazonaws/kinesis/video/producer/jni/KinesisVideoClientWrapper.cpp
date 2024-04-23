@@ -25,6 +25,9 @@ KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
         CHECK_EXT(FALSE, "Couldn't retrieve the JavaVM reference.");
     }
 
+    // Null-initialize the clientInfo struct
+    MEMSET(&mDeviceInfo.clientInfo, 0, sizeof(mDeviceInfo.clientInfo));
+
     // Set the callbacks
     if (!setCallbacks(env, thiz)) {
         throwNativeException(env, EXCEPTION_NAME, "Failed to set the callbacks.", STATUS_INVALID_ARG);
