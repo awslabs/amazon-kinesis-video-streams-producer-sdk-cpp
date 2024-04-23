@@ -312,7 +312,6 @@ BOOL setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
         CHK_JVM_EXCEPTION(env);
     }
 
-    // TODO: Test with logs that this is getting the value from Java, play around with the value.
     methodId = env->GetMethodID(cls, "getRetryStrategyType", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getRetryStrategyType, setting retryStrategyType to EXPONENTIAL_BACKOFF_WAIT.");
