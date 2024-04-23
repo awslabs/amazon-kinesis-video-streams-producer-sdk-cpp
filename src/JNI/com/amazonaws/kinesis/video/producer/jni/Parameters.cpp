@@ -280,15 +280,6 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         }
     }
     
-    // Note: kvsRetryStrategyCallbacks is not supported yet in Java, the below is a skeleton for the future implementation.
-    methodId = env->GetMethodID(cls, "getKvsRetryStrategyCallbacks", "()Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategyCallbacks;");
-    if (methodId == NULL) {
-        DLOGW("Couldn't find method id getKvsRetryStrategyCallbacks");
-    } else {
-        kvsRetryStrategyCallbacks = (jobject) env->CallObjectMethod(clientInfo, methodId);
-        CHK_JVM_EXCEPTION(env);
-    }
-
 CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
@@ -299,18 +290,11 @@ BOOL setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
     jmethodID methodId = NULL;
     jclass cls = NULL;
 
-    CHECK(env != NULL && pKvsRetryStrategy != NULL);
-
-    if (kvsRetryStrategy == NULL) {
-        goto CleanUp;
-    }
+    CHK(env != NULL && pKvsRetryStrategy != NULL, STATUS_NULL_ARG);
+    CHK_WARN(kvsRetryStrategy != NULL, STATUS_INVALID_OPERATION, "Failed to get Java kvsRetryStrategy class.");
 
     cls = env->GetObjectClass(kvsRetryStrategy);
-    if (cls == NULL) {
-        DLOGW("Failed to create Java kvsRetryStrategy class.");
-        CHK(FALSE, STATUS_INVALID_OPERATION);
-        goto CleanUp;
-    }
+    CHK_WARN(cls != NULL, STATUS_INVALID_OPERATION, "Failed to create Java kvsRetryStrategy class.");
 
     methodId = env->GetMethodID(cls, "getRetryStrategy", "()J");
     if (methodId == NULL) {
@@ -328,10 +312,10 @@ BOOL setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
         CHK_JVM_EXCEPTION(env);
     }
 
+    // TODO: Test with logs that this is getting the value from Java, play around with the value.
     methodId = env->GetMethodID(cls, "getRetryStrategyType", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getRetryStrategyType, setting retryStrategyType to EXPONENTIAL_BACKOFF_WAIT.");
-        pKvsRetryStrategy->retryStrategyType = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
     } else {
         pKvsRetryStrategy->retryStrategyType = (KVS_RETRY_STRATEGY_TYPE) env->CallIntMethod(kvsRetryStrategy, methodId);
         CHK_JVM_EXCEPTION(env);
