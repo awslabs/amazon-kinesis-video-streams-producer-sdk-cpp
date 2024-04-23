@@ -276,7 +276,9 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         kvsRetryStrategy = (jobject) env->CallObjectMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
-    setKvsRetryStrategy(env, kvsRetryStrategy, &pClientInfo->kvsRetryStrategy);
+    if (!setKvsRetryStrategy(env, kvsRetryStrategy, &pClientInfo->kvsRetryStrategy)) {
+        DLOGW("Failed getting/setting KvsRetryStrategy.");
+    }
     
     methodId = env->GetMethodID(cls, "getKvsRetryStrategyCallbacks", "()Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategyCallbacks;");
     if (methodId == NULL) {
@@ -285,14 +287,17 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         kvsRetryStrategyCallbacks = (jobject) env->CallObjectMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
-    setKvsRetryStrategyCallbacks(env, kvsRetryStrategyCallbacks, &pClientInfo->kvsRetryStrategyCallbacks);
+    if (!setKvsRetryStrategyCallbacks(env, kvsRetryStrategyCallbacks, &pClientInfo->kvsRetryStrategyCallbacks)) {
+        DLOGW("Failed getting/setting KvsRetryStrategyCallbacks.");
+    }
 
 CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
 
-VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrategy pKvsRetryStrategy)
+BOOL setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrategy pKvsRetryStrategy)
 {
+    STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
     jclass cls = NULL;
     BOOL nullKvsRetryStrategy = FALSE;
@@ -306,8 +311,9 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
 
     cls = env->GetObjectClass(kvsRetryStrategy);
     if (cls == NULL) {
-        DLOGW("Failed to create Java kvsRetryStrategy class.");
         nullKvsRetryStrategy = TRUE;
+        DLOGW("Failed to create Java kvsRetryStrategy class.");
+        CHK(FALSE, STATUS_INVALID_OPERATION);
         goto CleanUp;
     }
 
@@ -322,9 +328,10 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
             // TODO: Implement once we have support for this in Java, setting to null for safety.
             pKvsRetryStrategy->pRetryStrategy = NULL;
         }
+        CHK_JVM_EXCEPTION(env);
     }
     
-    methodId = env->GetMethodID(cls, "getRetryStrategyConfig", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyConfig");
+    methodId = env->GetMethodID(cls, "getRetryStrategyConfig", "()J");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getRetryStrategyConfig, setting pRetryStrategyConfig to null.");
         pKvsRetryStrategy->pRetryStrategyConfig = NULL;
@@ -335,6 +342,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
             // TODO: Implement once we have support for this in Java, setting to null for safety.
             pKvsRetryStrategy->pRetryStrategyConfig = NULL;
         }
+        CHK_JVM_EXCEPTION(env);
     }
 
     methodId = env->GetMethodID(cls, "getRetryStrategyType", "()Lcom/amazonaws/kinesisvideo/producer/RetryStrategyType");
@@ -343,6 +351,7 @@ VOID setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrateg
         pKvsRetryStrategy->retryStrategyType = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
     } else {
         pKvsRetryStrategy->retryStrategyType = (KVS_RETRY_STRATEGY_TYPE) env->CallIntMethod(kvsRetryStrategy, methodId);
+        CHK_JVM_EXCEPTION(env);
     }
 
 
@@ -353,10 +362,12 @@ CleanUp:
         pKvsRetryStrategy->pRetryStrategyConfig = NULL;
         pKvsRetryStrategy->retryStrategyType = KVS_RETRY_STRATEGY_EXPONENTIAL_BACKOFF_WAIT;
     }
+    return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
 
-VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRetryStrategyCallbacks pKvsRetryStrategyCallbacks)
+BOOL setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks, PKvsRetryStrategyCallbacks pKvsRetryStrategyCallbacks)
 {
+    STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
     jclass cls = NULL;
     BOOL nullSetCallbacks = FALSE;
@@ -370,8 +381,9 @@ VOID setKvsRetryStrategyCallbacks(JNIEnv *env, jobject kvsRetryStrategyCallbacks
 
     cls = env->GetObjectClass(kvsRetryStrategyCallbacks);
     if (cls == NULL) {
-        DLOGW("Failed to create Java kvsRetryStrategyCallbacks class.");
         nullSetCallbacks = TRUE;
+        DLOGW("Failed to create Java kvsRetryStrategyCallbacks class.");
+        CHK(FALSE, STATUS_INVALID_OPERATION);
         goto CleanUp;
     }
 
@@ -438,6 +450,7 @@ CleanUp:
         pKvsRetryStrategyCallbacks->freeRetryStrategyFn = NULL;
         pKvsRetryStrategyCallbacks->executeRetryStrategyFn = NULL;
     }
+    return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
 
 BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount)
