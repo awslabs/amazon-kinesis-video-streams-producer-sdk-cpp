@@ -40,7 +40,7 @@ typedef struct _CustomData {
 } CustomData;
 
 void sigint_handler(int sigint) {
-    LOG_DEBUG("SIGINT received.  Exiting...");
+    LOG_DEBUG("SIGINT received. Exiting...");
     terminated = TRUE;
     cv.notify_all();
     if(main_loop != NULL) {
