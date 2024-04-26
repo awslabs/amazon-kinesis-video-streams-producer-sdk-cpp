@@ -191,7 +191,7 @@ The kvssink element has the following required parameters:
 
 
 ### Running kvssink Samples
-The SDK comes with two programmatic GStreamer samples: `kvssink_gstreamer_sample` and `kvssink_intermittent_sample`. For more use cases, see the CLI pipeline examples at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
+The SDK comes with two programmatic GStreamer kvssink samples: `kvssink_gstreamer_sample` and `kvssink_intermittent_sample`. For more use cases, see the CLI pipeline examples at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
 
 The programmatic samples require the AWS region to be set with the `AWS_DEFAULT_REGION` environment variable. For example:
 ```bash
