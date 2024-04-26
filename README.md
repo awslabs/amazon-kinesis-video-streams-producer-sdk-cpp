@@ -97,7 +97,7 @@ cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=TRUE" ..
 ```
 
 > [!NOTE]
-> For more build configuration options, see build arguments.
+> For more build configuration options, see build arguments [TODO: ADD LINK].
 
 #### Compile:
 _Mac and Linux_
