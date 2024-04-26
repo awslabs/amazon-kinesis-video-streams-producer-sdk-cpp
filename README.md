@@ -57,15 +57,15 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ makes it easy to build an on
 ### Install GStreamer
 If building the samples or the kvssink GStreamer plugin, GStreamer libraries are required.
 
-Mac:
+_Mac_
 ```bash
 brew install gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
 ```
-Ubuntu and Raspberry Pi OS:
+_Ubuntu and Raspberry Pi OS_
 ```bash
 sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
 ```
-Windows:
+_Windows_
 ```bat
 [insert install commands]
 ```
@@ -87,11 +87,11 @@ cd amazon-kinesis-video-streams-producer-sdk-cpp/build
 ```
 #### Configure the build:
 
-Mac and Linux
+_Mac and Linux_
 ```bash
 cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 ```
-Windows
+_Windows_
 ```bat
 cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=TRUE" ..
 ```
@@ -100,17 +100,17 @@ cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=TRUE" ..
 > For more build configuration options, see build arguments.
 
 #### Compile:
-Mac and Linux
+_Mac and Linux_
 ```bash
 make
 ```
-Windows
+_Windows_
 ```bat
 nmake
 ```
 
 ### Run the Samples
-Included are samples applications for streaming and ingesting to a KVS stream. To stream to KVS, the GStreamer samples use an implemented `appsink` sink element, and the kvssink samples use the custom `kvssink` sink element.
+Included are sample applications for streaming and ingesting to a KVS stream. To stream to KVS, the GStreamer samples use an implemented `appsink` sink element, and the kvssink samples use the custom `kvssink` sink element.
 > [!TIP]
 > More on [GStreamer elements](https://gstreamer.freedesktop.org/documentation/application-development/basics/elements.html?gi-language=c).
 
@@ -130,12 +130,12 @@ export AWS_DEFAULT_REGION=us-west-2
 
 To load kvssink plugin into GStreamer, set the following environment variable from the `build` directory.
 
-Mac and Linux
+_Mac and Linux_
 ```bash
 export GST_PLUGIN_PATH=`pwd`/.
 ```
 
-Windows
+_Windows_
 ```bat
 set GST_PLUGIN_PATH=%CD%\.
 ```
