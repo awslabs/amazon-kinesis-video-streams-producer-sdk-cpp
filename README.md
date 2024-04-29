@@ -60,7 +60,7 @@ sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1
 ```
 _Windows_
 ```bat
-[insert install commands]
+[TODO: insert install commands]
 ```
 #### Verify GStreamer Installation
 Running the following command should now display information on the kvssink plugin:
@@ -97,7 +97,7 @@ cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=TRUE" ..
 ```
 
 > [!NOTE]
-> For more build configuration options, see build arguments [TODO: ADD LINK].
+> For more build configuration options, see [Cmake Arguments](#cmake-arguments).
 
 #### Compile:
 _Mac and Linux_
