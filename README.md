@@ -17,7 +17,6 @@
 * [Key Features](#key-features)
 * [Quick Start](#quick-start)
 * [Build Options](#build-options)
-* [Installing the Library](#installing-the-library)
 * [Using kvssink](#using-kvssink)
 * [Debugging](#debugging)
 * [Development](#development)
