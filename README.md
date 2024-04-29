@@ -19,15 +19,14 @@
 * [Build Options](#build-options)
 * [Installing the Library](#installing-the-library)
 * [Using kvssink](#using-kvssink)
-* [Cross-Compilation](#cross-compilation)
-* [Docker Scripts](#docker-scripts)
 * [Debugging](#debugging)
-* [FAQ](#faq)
 * [Development](#development)
 * [Related](#related)
 * [License](#license)
   
 </details>
+
+<br>
 
 ## Key Features
 * C++ SDK with sample programs
@@ -159,7 +158,7 @@ The intermittent kvssink sample will stream video for 20 seconds, then pause for
 
 <br>
 
-#### Running Sapmles in offline mode
+#### Running Samples in offline mode
 By default, the samples run in near realtime mode. To set offline mode, set streamInfo.streamCaps.streamingType to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.
 
 <br>
@@ -205,9 +204,18 @@ The SDK also tracks entry and exit of functions which increases the verbosity of
 `add_definitions(-DLOG_STREAMING)`
 Note: This log level is extremely VERBOSE and could flood the files if using file based logging strategy.
 
-## Installing the Library
+
+### Installing the Library
 If the SDK library needs to be installed on your system rather than the local `build` directory, run `make install`. This will install in the default directory such as `usr/local/lib/`, based on the system. To install in another directory, run `cmake` with the `-DCMAKE_INSTALL_PREFIX` option with the desired directory before running `make install`
 
+### Cross-Compilation
+If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See the [ci.yml](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/develop/.github/workflows/ci.yml) for an example. Every commit is tested for cross compilation.
+Please note that GStreamer is not cross-compiled as a part of the cross-compilation of the KVS-SDK, you will have to cross-compile it separately.
+
+### Docker Scripts
+The sample docker scripts for RTSP plugin, raspberry pi and linux can be found in the [Kinesis demos repository](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/tree/master/producer-cpp).
+
+<br>
 
 ## Using kvssink
 The kvssink element has the following parameters:
@@ -220,14 +228,7 @@ The kvssink element has the following parameters:
 
 For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
 
-
-## Cross-Compilation
-If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See the [ci.yml](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/develop/.github/workflows/ci.yml) for an example. Every commit is tested for cross compilation.
-Please note that GStreamer is not cross-compiled as a part of the cross-compilation of the KVS-SDK, you will have to cross-compile it separately.
-
-## Docker Scripts
-* The sample docker scripts for RTSP plugin, raspberry pi and linux can be found in the [Kinesis demos repository](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/tree/master/producer-cpp).
-
+<br>
 
 ## Debugging
 * When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure Java is installed and your environment variables are set correctly:  
@@ -240,10 +241,11 @@ Please note that GStreamer is not cross-compiled as a part of the cross-compilat
 For example, if the application created a pipeline object `GstPipeline* pipeline = gst_pipeline_new("test-pipeline")`, and you would like to see the visualized pipeline with filename pipeline, add:
 `GST_DEBUG_BIN_TO_DOT_FILE((GstBin*) pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline");`. Also ensure to set the path to where you would like the file to be stored. `export GST_DEBUG_DUMP_DOT_DIR=.`. The file generated would be a `.dot` format. Convert to PDF to check the visualized pipeline. Also, this requires `graphviz` to be installed. So make sure to install that.
 
-
-## FAQ
+### FAQ
 * Is CPP-SDK and GStreamer supported on Mac/Windows/Linux (Supported Platforms)?  
 Yes! We have FAQs and platform specific instructions for [Windows](docs/windows.md), [MacOS](docs/macos.md) and [Linux](docs/linux.md)
+
+<br>
 
 ## Development
 
