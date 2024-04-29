@@ -10,30 +10,22 @@
   <a href="https://codecov.io/gh/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp"> <img src="https://codecov.io/gh/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/branch/master/graph/badge.svg" alt="Coverage Status"> </a>
 </p>
 
-<p align="center">
-  <a href="#key-features">Key Features</a> •
-  <a href="#build">Build</a> •
-  <a href="#run">Run</a> •
-  <a href="#documentation">Documentation</a> •
-  <a href="#related">Related</a> •
-  <a href="#license">License</a>
-</p>
-
 <details open>
   
-  <summary><h2>Table of contents</h2></summary>
+  <summary><h2>Table of Contents</h2></summary>
 
 * [Key Features](#key-features)
 * [Quick Start](#quick-start)
-* [Docker image](#docker-image)
-* [Arch Linux package](#arch-linux-package)
-* [OpenWrt binary](#openwrt-binary)
-<a href="#key-features">Key Features</a>
-<a href="#build">Build</a> •
-<a href="#run">Run</a> •
-<a href="#documentation">Documentation</a> •
-<a href="#related">Related</a> •
-<a href="#license">License</a>
+* [Build Options](#build-options)
+* [Installing the Library](#installing-the-library)
+* [Using kvssink](#using-kvssink)
+* [Cross-Compilation](#cross-compilation)
+* [Docker Scripts](#docker-scripts)
+* [Debugging](#debugging)
+* [FAQ](#faq)
+* [Development](#development)
+* [Related](#related)
+* [License](#license)
   
 </details>
 
@@ -213,8 +205,8 @@ The SDK also tracks entry and exit of functions which increases the verbosity of
 `add_definitions(-DLOG_STREAMING)`
 Note: This log level is extremely VERBOSE and could flood the files if using file based logging strategy.
 
-## Installing the SDK Library
-If the library needs to be installed on your system, run `make install`. This will install in the default directory such as `usr/local/lib/`, based on the system. To install in another directory, run `cmake` with the `-DCMAKE_INSTALL_PREFIX` option with the desired directory before running `make install`
+## Installing the Library
+If the SDK library needs to be installed on your system rather than the local `build` directory, run `make install`. This will install in the default directory such as `usr/local/lib/`, based on the system. To install in another directory, run `cmake` with the `-DCMAKE_INSTALL_PREFIX` option with the desired directory before running `make install`
 
 
 ## Using kvssink
@@ -233,11 +225,11 @@ For examples of common use cases you can look at [Example: Kinesis Video Streams
 If you wish to cross-compile `CC` and `CXX` are respected when building the library and all its dependencies. See the [ci.yml](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/develop/.github/workflows/ci.yml) for an example. Every commit is tested for cross compilation.
 Please note that GStreamer is not cross-compiled as a part of the cross-compilation of the KVS-SDK, you will have to cross-compile it separately.
 
-## Dockerscripts
+## Docker Scripts
 * The sample docker scripts for RTSP plugin, raspberry pi and linux can be found in the [Kinesis demos repository](https://github.com/aws-samples/amazon-kinesis-video-streams-demos/tree/master/producer-cpp).
 
 
-## DEBUG
+## Debugging
 * When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure Java is installed and your environment variables are set correctly:  
 `export JAVA_INCLUDE_PATH2=/Library/Java/JavaVirtualMachines/<YOUR_JDK_VERSION>/Contents/Home/include` or `export JAVA_INCLUDE_PATH2=$JAVA_HOME/include` for Mac OS.  
 `export JAVA_INCLUDE_PATH2='/usr/java/<JDK_VERSION>/include'` for Linux.
