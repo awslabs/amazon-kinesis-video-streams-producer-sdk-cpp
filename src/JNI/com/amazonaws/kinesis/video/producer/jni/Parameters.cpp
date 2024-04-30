@@ -146,6 +146,7 @@ BOOL setDeviceInfo(JNIEnv *env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
         CHK_JVM_EXCEPTION(env);
 
         if (!setClientInfo(env, clientInfo, &pDeviceInfo->clientInfo)) {
+            // TODO: Consider hard failing here rather than just logging.
             DLOGW("Failed getting/setting client info.");
         }
     }
@@ -158,6 +159,8 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
     STATUS retStatus = STATUS_SUCCESS;
     jmethodID methodId = NULL;
     const char *retChars;
+    jobject kvsRetryStrategyCallbacks = NULL;
+    jobject kvsRetryStrategy = NULL;
 
     CHECK(env != NULL && clientInfo != NULL && pClientInfo != NULL);
 
@@ -168,7 +171,7 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         CHK(FALSE, STATUS_INVALID_OPERATION);
     }
 
-    // Retrieve the methods and call it
+    // Retrieve the methods and call them
     methodId = env->GetMethodID(cls, "getVersion", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getVersion");
@@ -201,17 +204,17 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         CHK_JVM_EXCEPTION(env);
     }
 
-    methodId = env->GetMethodID(cls, "getServiceConnectionTimeout", "()J");
+    methodId = env->GetMethodID(cls, "getServiceCallConnectionTimeout", "()J");
     if (methodId == NULL) {
-        DLOGW("Couldn't find method id getServiceConnectionTimeout");
+        DLOGW("Couldn't find method id getServiceCallConnectionTimeout");
     } else {
         pClientInfo->serviceCallConnectionTimeout = env->CallLongMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
     }
 
-    methodId = env->GetMethodID(cls, "getServiceCompletionTimeout", "()J");
+    methodId = env->GetMethodID(cls, "getServiceCallCompletionTimeout", "()J");
     if (methodId == NULL) {
-        DLOGW("Couldn't find method id getServiceCompletionTimeout");
+        DLOGW("Couldn't find method id getServiceCallCompletionTimeout");
     } else {
         pClientInfo->serviceCallCompletionTimeout = env->CallLongMethod(clientInfo, methodId);
         CHK_JVM_EXCEPTION(env);
@@ -249,10 +252,78 @@ BOOL setClientInfo(JNIEnv *env, jobject clientInfo, PClientInfo pClientInfo) {
         CHK_JVM_EXCEPTION(env);
     }
 
+    methodId = env->GetMethodID(cls, "getMetricLoggingPeriod", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getMetricLoggingPeriod");
+    } else {
+        pClientInfo->metricLoggingPeriod = env->CallLongMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getReservedCallbackPeriod", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getReservedCallbackPeriod");
+    } else {
+        pClientInfo->reservedCallbackPeriod = env->CallLongMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getKvsRetryStrategy", "()Lcom/amazonaws/kinesisvideo/producer/KvsRetryStrategy;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getKvsRetryStrategy");
+    } else {
+        kvsRetryStrategy = (jobject) env->CallObjectMethod(clientInfo, methodId);
+        CHK_JVM_EXCEPTION(env);
+
+        if (!setKvsRetryStrategy(env, kvsRetryStrategy, &pClientInfo->kvsRetryStrategy)) {
+            DLOGW("Failed getting/setting KvsRetryStrategy.");
+        }
+    }
+    
 CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
 
+BOOL setKvsRetryStrategy(JNIEnv *env, jobject kvsRetryStrategy, PKvsRetryStrategy pKvsRetryStrategy)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    jmethodID methodId = NULL;
+    jclass cls = NULL;
+
+    CHK(env != NULL && pKvsRetryStrategy != NULL, STATUS_NULL_ARG);
+    CHK_WARN(kvsRetryStrategy != NULL, STATUS_INVALID_OPERATION, "Failed to get Java kvsRetryStrategy class.");
+
+    cls = env->GetObjectClass(kvsRetryStrategy);
+    CHK_WARN(cls != NULL, STATUS_INVALID_OPERATION, "Failed to create Java kvsRetryStrategy class.");
+
+    methodId = env->GetMethodID(cls, "getRetryStrategy", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getRetryStrategy.");
+    } else {
+        // TODO: Implement once we have support for this in Java.
+        CHK_JVM_EXCEPTION(env);
+    }
+    
+    methodId = env->GetMethodID(cls, "getRetryStrategyConfig", "()J");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getRetryStrategyConfig.");
+    } else {
+        // TODO: Implement once we have support for this in Java.
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getRetryStrategyType", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getRetryStrategyType, setting retryStrategyType to EXPONENTIAL_BACKOFF_WAIT.");
+    } else {
+        pKvsRetryStrategy->retryStrategyType = (KVS_RETRY_STRATEGY_TYPE) env->CallIntMethod(kvsRetryStrategy, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+
+CleanUp:
+    return STATUS_FAILED(retStatus) ? FALSE : TRUE;
+}
 
 BOOL setTags(JNIEnv *env, jobjectArray tagArray, PTag* ppTags, PUINT32 pTagCount)
 {

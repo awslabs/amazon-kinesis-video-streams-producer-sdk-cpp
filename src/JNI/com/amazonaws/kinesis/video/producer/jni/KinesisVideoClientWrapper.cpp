@@ -25,6 +25,9 @@ KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
         CHECK_EXT(FALSE, "Couldn't retrieve the JavaVM reference.");
     }
 
+    // Null-initialize the clientInfo struct
+    MEMSET(&mDeviceInfo.clientInfo, 0, sizeof(mDeviceInfo.clientInfo));
+
     // Set the callbacks
     if (!setCallbacks(env, thiz)) {
         throwNativeException(env, EXCEPTION_NAME, "Failed to set the callbacks.", STATUS_INVALID_ARG);
@@ -1013,6 +1016,9 @@ BOOL KinesisVideoClientWrapper::setCallbacks(JNIEnv* env, jobject thiz)
     // We need to expose these in the near future
     mClientCallbacks.clientShutdownFn = NULL;
     mClientCallbacks.streamShutdownFn = NULL;
+
+    // TODO: Currently we set the shutdown callbacks to NULL.
+    // We need to expose these in the near future
 
     // Extract the method IDs for the callbacks and set a global reference
     jclass thizCls = env->GetObjectClass(thiz);
