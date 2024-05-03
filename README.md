@@ -166,7 +166,7 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 
 ## Build Options
 ### Considerations
-- The **kvssink** GStreamer plugin and samples and the **JNI** are _not_ built by default. To build them, include their corresponding cmake command arguments: `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
+- The **kvssink** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, include their corresponding cmake command arguments: `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
 - By default, the **dependency libraries** are installed from GitHub and built locally. To instead link to pre-installed libraries on the device, include the following cmake command argument: `cmake .. -DBUILD_DEPENDENCIES=OFF`
   - The depedency libraries are Curl, OpenSSL, and Log4Cplus.
  
