@@ -38,6 +38,7 @@ Amazon Kinesis Video Streams Producer SDK for C/C++ makes it easy to build an on
 
 ## Quick Start
 ### Required Tools
+The following packages are required to build the SDK libraries. Using a package manager such as _Homebrew_ (Mac), _APT_ (Linux), and _Chocolatey_ (Windows) is the prefered method of installation.
 * C++ Compiler (GNU or Clang recommended)
 * `git`
 * `CMake`
@@ -62,12 +63,10 @@ _Windows_
 [TODO: insert install commands]
 ```
 #### Verify GStreamer Installation
-Running the following command should now display information on the kvssink plugin:
+Run the following command to display the GStreamer version to confirm the installation was successful:
 ```
-gst-inspect-1.0 kvssink
+gst-launch-1.0 --gst-version
 ```
-If the build failed or GST_PLUGIN_PATH is not properly set, you may instead see the following output:<br>
-`No such element or plugin kvssink`
 
 <br>
 
@@ -145,6 +144,13 @@ _Windows_
 set GST_PLUGIN_PATH=%CD%\.
 ```
 
+Running the following command should now display information on the kvssink plugin:
+```
+gst-inspect-1.0 kvssink
+```
+If the build failed or GST_PLUGIN_PATH is not properly set, you may instead see the following output:<br>
+`No such element or plugin kvssink`
+
 After building the SDK, loading kvssink into the GStreamer plugin path, and setting a region, the sample executables, which are located in the `build` directory, can be run.
 
 <br>
@@ -153,7 +159,7 @@ After building the SDK, loading kvssink into the GStreamer plugin path, and sett
 ```bash
 ./kvssink_intermittent_sample <stream-name (optional)> <testsrc or devicesrc (optional)>
 ```
-Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, kvssink uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a stream with the provided or default name does not exist, the stream will automatically be created.
+Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, kvssink uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
 
 The intermittent kvssink sample will stream video for 20 seconds, then pause for 40 seconds, and repeat until an interrupt signal is received. To manually adjust the streaming and paused intervals, you can change the `KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS` and `KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS` values in the *kvssink_intermittent_sample.cpp* file.
 
@@ -219,15 +225,17 @@ The sample docker scripts for RTSP plugin, raspberry pi and linux can be found i
 <br>
 
 ## Using kvssink
-The kvssink element has the following parameters:
+The kvssink element includes the following parameters:
 
-* `stream-name` -- The name of the destination Kinesis video stream.
-* `storage-size` -- The storage size of the device in megabytes. For information about configuring device storage, see StorageInfo.
-* `access-key` -- The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path.
-* `secret-key` -- The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path.
-* `credential-path` -- A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files, see Sample Static Credential and Sample Rotating Credential. For more information on rotating credentials, see Managing Access Keys for IAM Users. You must provide either this parameter or access-key and secret-key.
+* `stream-name` -- The name of the destination Kinesis video stream. If not set, kvssink will use "DEFAULT_STREAM" as the stream name. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
+* `storage-size` -- The storage size of the device in megabytes. For information about configuring device storage, see StorageInfo. If not set, it will default to 128 MB.
+* `access-key` -- The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_ACCESS_KEY_ID environment variable.
+* `secret-key` -- The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_SECRET_ACCESS_KEY environment variable.
+* `credential-path` -- A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files, see Sample Static Credential and Sample Rotating Credential. For more information on rotating credentials, see Managing Access Keys for IAM Users. You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
 
-For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
+To see all kvssink parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#kvssink-optional-parameters)
+
+For examples of common use cases, see [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
 
 <br>
 
