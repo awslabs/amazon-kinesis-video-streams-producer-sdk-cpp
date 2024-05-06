@@ -236,16 +236,16 @@ The kvssink element includes the following parameters:
 * `secret-key` -- The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_SECRET_ACCESS_KEY environment variable.
 * `credential-path` -- A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files, see Sample Static Credential and Sample Rotating Credential. For more information on rotating credentials, see Managing Access Keys for IAM Users. You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
 
-To see all kvssink parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#kvssink-optional-parameters)
+To see all kvssink parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#kvssink-optional-parameters).
 
-For examples of common use cases, see [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
+For examples of common use cases, see [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
 
 <br>
 
 ## Troubleshooting
 
 ### Additional Platform-Specific Instructions
-We have FAQs and platform specific instructions for [Windows](docs/windows.md), [MacOS](docs/macos.md) and [Linux](docs/linux.md)
+We have FAQs and platform specific instructions for [Windows](docs/windows.md), [MacOS](docs/macos.md) and [Linux](docs/linux.md).
 
 <br>
 
