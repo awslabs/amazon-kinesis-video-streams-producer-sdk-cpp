@@ -42,8 +42,9 @@ The following packages are required to build the SDK libraries. Using a package 
 * C++ Compiler (GNU or Clang recommended)
 * `git`
 * `CMake`
-* `pkg-config`
+* `pkg-config` for _Mac_/_Linux_, `pkgconfiglite` for _Windows_
 * `m4`
+* _Windows_ only: `nasm` and `strawberryperl`
 
 <br>
 
@@ -60,11 +61,12 @@ sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1
 ```
 _Windows_
 ```bat
-[TODO: insert install commands]
+choco install gstreamer --version=1.22.8
+choco install gstreamer-devel --version=1.22.8
 ```
 #### Verify GStreamer Installation
 Run the following command to display the GStreamer version to confirm the installation was successful:
-```
+```bash
 gst-launch-1.0 --gst-version
 ```
 
@@ -89,10 +91,11 @@ _Mac and Linux_
 ```bash
 cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
 ```
-_Windows_
+_Windows_ (may need to run twice)
 ```bat
 cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=TRUE" ..
 ```
+
 
 > [!NOTE]
 > For more build configuration options, see [Cmake Arguments](#cmake-arguments).
