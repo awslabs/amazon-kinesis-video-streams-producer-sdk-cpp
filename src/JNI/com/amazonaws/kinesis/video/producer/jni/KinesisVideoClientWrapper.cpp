@@ -482,7 +482,7 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
         return;
     }
 
-    if (event >= STREAM_EVENT_TYPE_LAST || event == STREAM_EVENT_TYPE_NONE) {
+    if (event >= STREAM_EVENT_TYPE_LAST || event <= STREAM_EVENT_TYPE_NONE) {
         DLOGE("Stream event is invalid");
         throwNativeException(env, EXCEPTION_NAME, "Stream event is invalid.", STATUS_INVALID_OPERATION);
         return;
@@ -496,6 +496,8 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
     }
 
     StreamEventMetadata streamEventMetadata;
+    MEMSET(&streamEventMetadata, 0, SIZEOF(streamEventMetadata)); // Null-init the struct.    
+    
     if (!setStreamEventMetadata(env, kinesisStreamEventMetadata, &streamEventMetadata))
     {
         DLOGE("Failed converting streamEventMetadata object.");
@@ -505,6 +507,19 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
 
     // Call the API
     retStatus = ::putKinesisVideoEventMetadata(streamHandle, event, &streamEventMetadata);
+
+
+CleanUp:
+
+    // Deallocate the memory allocated for the names array.
+    if (pStreamEventMetadata->names != NULL) {
+        for (jsize i = 0; i < MAX_EVENT_CUSTOM_PAIRS; i++) {
+            if (pStreamEventMetadata->names[i] != NULL) {
+                MEMFREE(pStreamEventMetadata->names[i]);
+                pStreamEventMetadata->names[i] = NULL;
+            }
+        }
+    }
 
     if (STATUS_FAILED(retStatus))
     {
