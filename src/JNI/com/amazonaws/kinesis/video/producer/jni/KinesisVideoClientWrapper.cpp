@@ -513,10 +513,16 @@ CleanUp:
 
     // Deallocate the memory allocated for the names array.
     if (pStreamEventMetadata->names != NULL) {
+        if (pStreamEventMetadata->imagePrefix != NULL) {
+            MEMFREE(pStreamEventMetadata->imagePrefix);
+        }
+
         for (jsize i = 0; i < MAX_EVENT_CUSTOM_PAIRS; i++) {
             if (pStreamEventMetadata->names[i] != NULL) {
                 MEMFREE(pStreamEventMetadata->names[i]);
-                pStreamEventMetadata->names[i] = NULL;
+            }
+            if (pStreamEventMetadata->values[i] != NULL) {
+                MEMFREE(pStreamEventMetadata->values[i]);
             }
         }
     }
