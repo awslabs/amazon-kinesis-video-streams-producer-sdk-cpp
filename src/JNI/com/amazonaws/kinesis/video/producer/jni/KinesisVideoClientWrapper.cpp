@@ -468,6 +468,8 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
     JNIEnv *env;
     mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
 
+    printf("[TESTING] called putKinesisVideoEventMetadata in the JNI wrapper.\n");
+
     if (!IS_VALID_CLIENT_HANDLE(mClientHandle))
     {
         DLOGE("Invalid client object");
@@ -488,43 +490,46 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
         return;
     }
 
-    if (kinesisStreamEventMetadata == NULL)
-    {
-        DLOGE("kinesisStreamEventMetadata is NULL");
-        throwNativeException(env, EXCEPTION_NAME, "kinesisStreamEventMetadata is NULL.", STATUS_INVALID_OPERATION);
-        return;
-    }
-
     StreamEventMetadata streamEventMetadata;
-    MEMSET(&streamEventMetadata, 0, SIZEOF(streamEventMetadata)); // Null-init the struct.    
-    
-    if (!setStreamEventMetadata(env, kinesisStreamEventMetadata, &streamEventMetadata))
-    {
-        DLOGE("Failed converting streamEventMetadata object.");
-        throwNativeException(env, EXCEPTION_NAME, "Failed converting streamEventMetadata object.", STATUS_INVALID_OPERATION);
-        return;
+    PStreamEventMetadata pStreamEventMetadata = NULL;
+
+    if (kinesisStreamEventMetadata != NULL) {
+        MEMSET(&streamEventMetadata, 0, SIZEOF(streamEventMetadata)); // Null-init the struct.    
+        
+        if (!setStreamEventMetadata(env, kinesisStreamEventMetadata, &streamEventMetadata))
+        {
+            DLOGE("Failed converting streamEventMetadata object.");
+            throwNativeException(env, EXCEPTION_NAME, "Failed converting streamEventMetadata object.", STATUS_INVALID_OPERATION);
+            return;
+        }
+
+        pStreamEventMetadata = &streamEventMetadata;
     }
+    
 
     // Call the API
-    retStatus = ::putKinesisVideoEventMetadata(streamHandle, event, &streamEventMetadata);
+    retStatus = ::putKinesisVideoEventMetadata(streamHandle, event, pStreamEventMetadata);
 
 
 CleanUp:
 
     // Deallocate the memory allocated for the StreamEventMetadata members.
 
-    if (streamEventMetadata.imagePrefix != NULL) {
-        MEMFREE(streamEventMetadata.imagePrefix);
-    }
+    if (pStreamEventMetadata != NULL) {
+        if (pStreamEventMetadata->imagePrefix != NULL) {
+            MEMFREE(pStreamEventMetadata->imagePrefix);
+        }
 
-    for (jsize i = 0; i < MAX_EVENT_CUSTOM_PAIRS; i++) {
-        if (streamEventMetadata.names[i] != NULL) {
-            MEMFREE(streamEventMetadata.names[i]);
-        }
-        if (streamEventMetadata.values[i] != NULL) {
-            MEMFREE(streamEventMetadata.values[i]);
+        for (jsize i = 0; i < MAX_EVENT_CUSTOM_PAIRS; i++) {
+            if (pStreamEventMetadata->names[i] != NULL) {
+                MEMFREE(pStreamEventMetadata->names[i]);
+            }
+            if (pStreamEventMetadata->values[i] != NULL) {
+                MEMFREE(pStreamEventMetadata->values[i]);
+            }
         }
     }
+    
 
     if (STATUS_FAILED(retStatus))
     {
