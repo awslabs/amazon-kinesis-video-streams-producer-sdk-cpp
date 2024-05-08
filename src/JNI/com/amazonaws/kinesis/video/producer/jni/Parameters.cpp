@@ -1226,8 +1226,8 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
         CHK_JVM_EXCEPTION(env);
 
         if (retString != NULL) {
-            jsize javaStringLength = GetStringUTFLength(retString);
-            CHK(javaStringLength <= MAX_IMAGE_PREFIX_LENGTH);
+            jsize javaStringLength = env->GetStringUTFLength(retString);
+            CHK(javaStringLength <= MAX_IMAGE_PREFIX_LENGTH, STATUS_INVALID_ARG_LEN);
             pStreamEventMetadata->imagePrefix = (PCHAR)MEMCALLOC(javaStringLength + 1, SIZEOF(CHAR));
             retChars = env->GetStringUTFChars(retString, NULL);
             STRNCPY(pStreamEventMetadata->imagePrefix, retChars, javaStringLength);
@@ -1247,7 +1247,7 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getNames");
     } else {
-        if(!allocStreamEventMetadataArray(pStreamEventMetadata->names, methodId)) {
+        if(!allocStreamEventMetadataArray(env, streamEventMetadata, pStreamEventMetadata->names, methodId)) {
             DLOGW("Failed in allocStreamEventMetadataArray step for metadata names.");
         }
     }
@@ -1256,7 +1256,7 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getValues");
     } else {
-        if(!allocStreamEventMetadataArray(pStreamEventMetadata->values, methodId)) {
+        if(!allocStreamEventMetadataArray(env, streamEventMetadata, pStreamEventMetadata->values, methodId)) {
             DLOGW("Failed in allocStreamEventMetadataArray step for metadata vlaues.");
         }
     }
@@ -1265,38 +1265,43 @@ CleanUp:
     return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
 
-BOOL allocStreamEventMetadataArray(PPCHAR metaDataArray, jmethodID methodId) {
+BOOL allocStreamEventMetadataArray(JNIEnv* env, jobject streamEventMetadata, PCHAR* metaDataArray, jmethodID methodId) {
     STATUS retStatus = STATUS_SUCCESS;
     jobjectArray retArray = NULL;
     jsize namesArrayLength = NULL;
+    jstring stringElement;
+    const char *retChars;
 
-    CHK(methodId != NULL);
+
+    CHK(methodId != NULL, STATUS_NULL_ARG);
     retArray = (jobjectArray) env->CallObjectMethod(streamEventMetadata, methodId);
     CHK_JVM_EXCEPTION(env);
-    CHK(retArray != NULL);
+    CHK(retArray != NULL, STATUS_NULL_ARG);
 
     namesArrayLength = env->GetArrayLength(retArray);
 
     // Verify array returned from Java is not too long.
-    CHK(namesArrayLength <= MAX_EVENT_CUSTOM_PAIRS);
+    CHK(namesArrayLength <= MAX_EVENT_CUSTOM_PAIRS, STATUS_INVALID_ARG_LEN);
 
     // Null all elements for safety.
     MEMSET(metaDataArray, NULL, sizeof(PCHAR) * MAX_EVENT_CUSTOM_PAIRS);
             
     // Iterate through the char pointers, allocating memory for the Java string that will be copied to the char pointers.
     for (jsize i = 0; i < namesArrayLength; i++) {
-        jstring stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
-        jsize javaStringLength = GetStringUTFLength(stringElement);
-        CHK(javaStringLength >= 0); // (jsize is signed, but will be used as an unsigned SIZE_T)
-        const char *retChars = env->GetStringUTFChars(stringElement, NULL);
+        stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
+        jsize javaStringLength = env->GetStringUTFLength(stringElement);
+        CHK(javaStringLength >= 0, STATUS_INVALID_ARG); // (jsize is signed, but will be used as an unsigned SIZE_T)
+        retChars = env->GetStringUTFChars(stringElement, NULL);
 
         // Verify GetStringUTFChars success and that the name is not too long. 
-        CHK(retChars != NULL && (SIZE_T)javaStringLength <= MKV_MAX_TAG_NAME_LEN);
-        pStreamEventMetadata->names[i] = (PCHAR)MEMALLOC(javaStringLength + 1); // No need for calloc as we are filling it completely with the strncpy, minus the last char which is then set to null terminator 
-        STRCNPY(metaDataArray[i], retChars, javaStringLength);
+        CHK(retChars != NULL, STATUS_NULL_ARG);
+        CHK((SIZE_T)javaStringLength <= MKV_MAX_TAG_NAME_LEN, STATUS_INVALID_ARG_LEN);
+        
+        metaDataArray[i] = (PCHAR)MEMALLOC(javaStringLength + 1); // No need for calloc as we are filling it completely with the strncpy, minus the last char which is then set to null terminator 
+        STRNCPY(metaDataArray[i], retChars, javaStringLength);
 
         // Set last char to be a null terminator.
-        metaDataArray[i][(SIZE_T)javaStringLength] = "\0";
+        metaDataArray[i][(SIZE_T)javaStringLength] = '\0';
 
         env->ReleaseStringUTFChars(stringElement, retChars);
         retChars = NULL;

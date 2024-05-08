@@ -511,19 +511,18 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
 
 CleanUp:
 
-    // Deallocate the memory allocated for the names array.
-    if (pStreamEventMetadata->names != NULL) {
-        if (pStreamEventMetadata->imagePrefix != NULL) {
-            MEMFREE(pStreamEventMetadata->imagePrefix);
-        }
+    // Deallocate the memory allocated for the StreamEventMetadata members.
 
-        for (jsize i = 0; i < MAX_EVENT_CUSTOM_PAIRS; i++) {
-            if (pStreamEventMetadata->names[i] != NULL) {
-                MEMFREE(pStreamEventMetadata->names[i]);
-            }
-            if (pStreamEventMetadata->values[i] != NULL) {
-                MEMFREE(pStreamEventMetadata->values[i]);
-            }
+    if (streamEventMetadata.imagePrefix != NULL) {
+        MEMFREE(streamEventMetadata.imagePrefix);
+    }
+
+    for (jsize i = 0; i < MAX_EVENT_CUSTOM_PAIRS; i++) {
+        if (streamEventMetadata.names[i] != NULL) {
+            MEMFREE(streamEventMetadata.names[i]);
+        }
+        if (streamEventMetadata.values[i] != NULL) {
+            MEMFREE(streamEventMetadata.values[i]);
         }
     }
 

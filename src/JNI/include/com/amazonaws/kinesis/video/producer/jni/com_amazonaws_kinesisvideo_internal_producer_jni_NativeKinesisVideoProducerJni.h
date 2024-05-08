@@ -216,8 +216,7 @@ JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_Nat
  * Signature: (JILcom/amazonaws/kinesisvideo/internal/producer/StreamEventMetadata)V
  */
 JNIEXPORT void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_putKinesisVideoEventMetadata
-  (JNIEnv *, jobject, jlong, jint, jobject);
-
+  (JNIEnv *, jobject, jlong, jlong, jint, jobject);
 #ifdef __cplusplus
 }
 #endif

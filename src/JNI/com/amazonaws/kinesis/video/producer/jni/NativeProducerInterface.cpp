@@ -253,7 +253,7 @@ CleanUp:
     /**
      * Puts an event metadata in to the frame buffer
      */
-    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_putKinesisVideoEventMetadata(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint event, jstring metadataValue, jobject streamEventMetadata)
+    PUBLIC_API void JNICALL Java_com_amazonaws_kinesisvideo_internal_producer_jni_NativeKinesisVideoProducerJni_putKinesisVideoEventMetadata(JNIEnv* env, jobject thiz, jlong handle, jlong streamHandle, jint event, jobject streamEventMetadata)
     {
         ENTERS();
 
