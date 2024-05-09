@@ -493,9 +493,12 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
     StreamEventMetadata streamEventMetadata;
     PStreamEventMetadata pStreamEventMetadata = NULL;
 
+    printf("[TESTING] Checking for null kinesisStreamEventMetadata.\n");
+
     if (kinesisStreamEventMetadata != NULL) {
         MEMSET(&streamEventMetadata, 0, SIZEOF(streamEventMetadata)); // Null-init the struct.    
         
+        printf("[TESTING] Calling setStreamEventMetadata.\n");
         if (!setStreamEventMetadata(env, kinesisStreamEventMetadata, &streamEventMetadata))
         {
             DLOGE("Failed converting streamEventMetadata object.");
