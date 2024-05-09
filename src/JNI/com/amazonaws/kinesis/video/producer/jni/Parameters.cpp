@@ -1294,7 +1294,7 @@ BOOL allocStreamEventMetadataArray(JNIEnv* env, jobject streamEventMetadata, PCH
 
         // Verify GetStringUTFChars success and that the name is not too long. 
         CHK(retChars != NULL, STATUS_NULL_ARG);
-        CHK((SIZE_T)javaStringLength <= MKV_MAX_TAG_NAME_LEN, STATUS_INVALID_ARG_LEN);
+        CHK((SIZE_T)javaStringLength <= MKV_MAX_TAG_NAME_LEN, STATUS_INVALID_ARG_LEN); // TODO: Consider removing this check as it is already done in PIC.
 
         metaDataArray[i] = (PCHAR)MEMALLOC(javaStringLength + 1); // No need for calloc as we are filling it completely with the strncpy, minus the last char which is then set to null terminator 
         STRNCPY(metaDataArray[i], retChars, javaStringLength);
