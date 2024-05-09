@@ -787,7 +787,7 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     if (gst_ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr("Unable to set the pipeline to the playing state.\n");
         gst_object_unref(pipeline);
-	    data->stream_status = STATUS_KVS_GSTREAMER_SAMPLE_ERROR; 
+        data->stream_status = STATUS_KVS_GSTREAMER_SAMPLE_ERROR; 
         return 1;
     }
     // set timer if valid runtime provided (non-positive values are ignored)
