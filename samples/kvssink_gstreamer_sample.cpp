@@ -256,18 +256,18 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
         nullptr != (private_key_path = getenv("PRIVATE_KEY_PATH")) &&
         nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
         nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
-	// set the IoT Credentials if provided in envvar
-	GstStructure *iot_credentials =  gst_structure_new(
-			"iot-certificate",
-			"iot-thing-name", G_TYPE_STRING, data->stream_name, 
-			"endpoint", G_TYPE_STRING, iot_credential_endpoint,
-			"cert-path", G_TYPE_STRING, cert_path,
-			"key-path", G_TYPE_STRING, private_key_path,
-			"ca-path", G_TYPE_STRING, ca_cert_path,
-			"role-aliases", G_TYPE_STRING, role_alias, NULL);
-	
-	g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
-    gst_structure_free(iot_credentials);
+        // set the IoT Credentials if provided in envvar
+        GstStructure *iot_credentials =  gst_structure_new(
+                "iot-certificate",
+                "iot-thing-name", G_TYPE_STRING, data->stream_name, 
+                "endpoint", G_TYPE_STRING, iot_credential_endpoint,
+                "cert-path", G_TYPE_STRING, cert_path,
+                "key-path", G_TYPE_STRING, private_key_path,
+                "ca-path", G_TYPE_STRING, ca_cert_path,
+                "role-aliases", G_TYPE_STRING, role_alias, NULL);
+        
+        g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
+        gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort
     } else if(nullptr != (credential_path = getenv("AWS_CREDENTIAL_PATH"))){
