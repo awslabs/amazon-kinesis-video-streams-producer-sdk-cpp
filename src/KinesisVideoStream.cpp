@@ -181,7 +181,6 @@ bool KinesisVideoStream::putFragmentMetadata(const std::string &name, const std:
         LOG_ERROR("Failed to insert fragment metadata with: " << status << " for " << this->stream_name_);
         return false;
     }
-    DLOGD("Successfully put the name: %s and value: %s in the metadata", pMetadataName, pMetadataValue);
     return true;
 }
 

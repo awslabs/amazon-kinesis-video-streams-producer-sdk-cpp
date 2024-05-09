@@ -69,7 +69,7 @@ typedef struct _CustomData {
     mutex file_list_mtx;
     int put_fragment_metadata_frequency_seconds;
     int fragment_metadata_timer_id;
-    int metadata_counter = 1;
+    int metadata_counter = 0;
     bool persist_flag = true;
 
     // list of files to upload.
@@ -275,26 +275,47 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
     }
 }
 
-// Function to put fragment metadata: name, value, and persist values
-// This is a sample function. Customers can write their own put_metadata and trigger it 
-// either using the timer or some other logic. This function can contain custom logic to
-// generate the metadata. To trigger the downstream event that calls the API putKinesisVideoFragmentMetadata,
-// put_fragment_metadata must be called as shown below.
+/*
+Function to put fragment metadata: name, value, and persist values
+This is a sample function. This function alternates between putting persistent and non-persistent metadata
+until it puts maximum number (10) of metadata in a fragment. After that, it removes the timer that fires this function
+
+Customers can write their own put_metadata and trigger it either using the timer or some other logic. This function can contain custom logic to
+generate the metadata. To trigger the downstream event that calls the API putKinesisVideoFragmentMetadata,
+put_fragment_metadata must be called as shown below.
+Example:
+    <metadata_name, metadata_value, is_persistent>
+    "metadata_name_1", "metadata_value_1", 0
+    "metadata_name_2", "metadata_value_2", 1
+    "metadata_name_3", "metadata_value_3", 0
+    "metadata_name_4", "metadata_value_4", 1
+    "metadata_name_1", "metadata_value_5", 0
+    "metadata_name_2", "metadata_value_6", 1
+    "metadata_name_3", "metadata_value_7", 0
+    "metadata_name_4", "metadata_value_8", 1
+
+To remove a persistent metadata entry, call the same function with empty value
+    "metadata_name_2", "", 1
+*/ 
 static void put_metadata(GstElement* element) {
     std::ostringstream metadata_name_stream, metadata_value_stream;
 
-    metadata_name_stream << "metadata_name_" << data_global.metadata_counter;
-    metadata_value_stream << "metadata_value_" << data_global.metadata_counter;
-    
-    data_global.metadata_counter++;
+    ++data_global.metadata_counter;
     data_global.persist_flag = !data_global.persist_flag;
 
-    if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
-        LOG_WARN("Failed to put fragment metadata, going to stop the timer that sends the metadata");
+    metadata_name_stream << "metadata_name_" << data_global.metadata_counter;
+    metadata_value_stream << "metadata_value_" << data_global.metadata_counter;
+
+    // All even metadata_value_n are persistent, all odd ones are non-persistent. 
+    if (data_global.metadata_counter == 2 * MAX_FRAGMENT_METADATA_COUNT) {
         if (data_global.fragment_metadata_timer_id != 0) {
             g_source_remove(data_global.fragment_metadata_timer_id);
-            LOG_TRACE("Removing the put_metadata timer");
+            LOG_WARN("Removing the put_metadata timer as the the max capacity for metadata in a fragment is reached");
         }
+    }
+
+    if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
+        LOG_WARN("Failed to put fragment metadata with name:" << metadata_name_stream.str() << " and value:" << metadata_value_stream.str());
     }
 }
 
