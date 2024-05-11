@@ -484,9 +484,10 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
         return;
     }
 
-    if (event >= STREAM_EVENT_TYPE_LAST || event <= STREAM_EVENT_TYPE_NONE) {
-        DLOGE("Stream event is invalid");
-        throwNativeException(env, EXCEPTION_NAME, "Stream event is invalid.", STATUS_INVALID_OPERATION);
+    // Check for a negative STREAM_EVENT_TYPE coming from Java.
+    if (event < STREAM_EVENT_TYPE_NONE) {
+        DLOGE("STREAM_EVENT_TYPE cannot be negative.");
+        throwNativeException(env, EXCEPTION_NAME, "STREAM_EVENT_TYPE cannot be negative.", STATUS_INVALID_OPERATION);
         return;
     }
 
