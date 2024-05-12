@@ -188,7 +188,7 @@ bool KinesisVideoStream::putFragmentMetadata(const std::string &name, const std:
 bool KinesisVideoStream::putEventMetadata(STREAM_EVENT_TYPE event, PStreamEventMetadata pStreamEventMetadata){
     STATUS status = ::putKinesisVideoEventMetadata(stream_handle_, event, pStreamEventMetadata);
     if (STATUS_FAILED(status)) {
-        LOG_ERROR("Failed to insert fragment metadata with: " << status << " for " << this->stream_name_);
+        LOG_ERROR("Failed to put event: " << status << " for " << this->stream_name_);
         return false;
     }
 
