@@ -1165,21 +1165,20 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 LOG_WARN("Event structure is invalid or it contains invalid field: " << std::string(gst_structure_to_string (structure)) << " for " << kvssink->stream_name);
                 goto CleanUp;
             }
-
-            LOG_INFO("received kvs-add-metadata event for " << kvssink->stream_name);
+            LOG_TRACE("Received kvs-add-metadata event for " << kvssink->stream_name);
 
             metadata_name = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_NAME));
             metadata_value = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE));
             is_persist = persistent;
 
             bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
-
+ 
             gst_event_unref (event);
             event = NULL;
 
             if (!result) {
                 ret = FALSE;
-                LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist << " for " << kvssink->stream_name);
+                LOG_WARN("Failed to putFragmentMetadata for name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist << " for " << kvssink->stream_name);
             }
             
             break;

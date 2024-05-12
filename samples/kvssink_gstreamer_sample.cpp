@@ -281,13 +281,13 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 /*
 This function creates a GstStructure and uses it to trigger the GST_EVENT_CUSTOM_DOWNSTREAM for put_fragment_metadata
 */
-static bool put_fragment_metadata(GstElement* element, const std::string name, const std::string value, bool persistent) {
+bool put_fragment_metadata(GstElement* element, const std::string name, const std::string value, bool persistent) {
   GstStructure *metadata = gst_structure_new_empty(KVS_ADD_METADATA_G_STRUCT_NAME);
   gst_structure_set(metadata, KVS_ADD_METADATA_NAME, G_TYPE_STRING, name.c_str(), 
                   KVS_ADD_METADATA_VALUE, G_TYPE_STRING, value.c_str(), 
                   KVS_ADD_METADATA_PERSISTENT, G_TYPE_BOOLEAN, persistent, NULL);
   GstEvent* event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, metadata);
-  LOG_TRACE("Emit the put_fragment_metadata event with name: " << name << " , value: " << value << " , persistent: " << persistent);
+  LOG_TRACE("Emit the put_fragment_metadata event with structure: " << std::string(gst_structure_to_string (metadata)));
   return gst_element_send_event(element, event);
 }
 
@@ -330,7 +330,7 @@ static void put_metadata(GstElement* element) {
             LOG_WARN("Removing the put_metadata timer as the the max capacity for metadata in a fragment is reached");
         }
     }
-    
+
     if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
         LOG_WARN("Failed to put fragment metadata with name:" << metadata_name_stream.str() << " and value:" << metadata_value_stream.str());
     }
