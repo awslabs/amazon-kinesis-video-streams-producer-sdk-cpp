@@ -1,4 +1,4 @@
-log4cplus.rootLogger=DEBUG, KvsConsoleAppender, KvsFileAppender
+log4cplus.rootLogger=TRACE, KvsConsoleAppender, KvsFileAppender
 
 #log4cplus.logger.MemoryCheck=TRACE, KvsConsoleAppender
 

@@ -163,6 +163,7 @@ static bool resolution_supported(GstCaps *src_caps, GstCaps *query_caps_raw, Gst
 static void eos_cb(GstElement *sink, GstMessage *message, CustomData *data) {
     if (data->fragment_metadata_timer_id != 0) {
         g_source_remove(data->fragment_metadata_timer_id);
+        data->fragment_metadata_timer_id = 0;
         LOG_TRACE("Removing the put_metadata timer");
     }
     if (data->streamSource == FILE_SOURCE) {
@@ -187,6 +188,7 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 
     if (data->fragment_metadata_timer_id != 0) {
         g_source_remove(data->fragment_metadata_timer_id);
+        data->fragment_metadata_timer_id = 0;
         LOG_TRACE("Removing the put_metadata timer");
     }
 
@@ -234,6 +236,7 @@ void sigint_handler(int sigint){
     
     if (data_global.fragment_metadata_timer_id != 0) {
         g_source_remove(data_global.fragment_metadata_timer_id);
+        data_global.fragment_metadata_timer_id = 0;
         LOG_TRACE("Removing the put_metadata timer");
     }
 
@@ -276,6 +279,19 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 }
 
 /*
+This function creates a GstStructure and uses it to trigger the GST_EVENT_CUSTOM_DOWNSTREAM
+*/
+static bool put_fragment_metadata(GstElement* element, const std::string name, const std::string value, bool persistent) {
+  GstStructure *metadata = gst_structure_new_empty(KVS_ADD_METADATA_G_STRUCT_NAME);
+  gst_structure_set(metadata, KVS_ADD_METADATA_NAME, G_TYPE_STRING, name.c_str(), 
+                  KVS_ADD_METADATA_VALUE, G_TYPE_STRING, value.c_str(), 
+                  KVS_ADD_METADATA_PERSISTENT, G_TYPE_BOOLEAN, persistent, NULL);
+  GstEvent* event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, metadata);
+  LOG_TRACE("Emit the put_fragment_metadata event with name: " << name << " , value: " << value << " , persistent: " << persistent);
+  return gst_element_send_event(element, event);
+}
+
+/*
 Function to put fragment metadata: name, value, and persist values
 This is a sample function. This function alternates between putting persistent and non-persistent metadata
 until it puts maximum number (10) of metadata in a fragment. After that, it removes the timer that fires this function
@@ -310,10 +326,11 @@ static void put_metadata(GstElement* element) {
     if (data_global.metadata_counter == 2 * MAX_FRAGMENT_METADATA_COUNT) {
         if (data_global.fragment_metadata_timer_id != 0) {
             g_source_remove(data_global.fragment_metadata_timer_id);
+            data_global.fragment_metadata_timer_id = 0;
             LOG_WARN("Removing the put_metadata timer as the the max capacity for metadata in a fragment is reached");
         }
     }
-
+    
     if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
         LOG_WARN("Failed to put fragment metadata with name:" << metadata_name_stream.str() << " and value:" << metadata_value_stream.str());
     }

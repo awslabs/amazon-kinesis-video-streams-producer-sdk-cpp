@@ -212,13 +212,5 @@ struct _KvsSinkMetric {
     bool on_first_frame;
 };
 
-static bool put_fragment_metadata(GstElement* element, const std::string name, const std::string value, bool persistent) {
-  GstStructure *metadata = gst_structure_new_empty(KVS_ADD_METADATA_G_STRUCT_NAME);
-  gst_structure_set(metadata, KVS_ADD_METADATA_NAME, G_TYPE_STRING, name.c_str(), 
-                  KVS_ADD_METADATA_VALUE, G_TYPE_STRING, value.c_str(), 
-                  KVS_ADD_METADATA_PERSISTENT, G_TYPE_BOOLEAN, persistent, NULL);
-  GstEvent* event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, metadata);
-  return gst_element_send_event(element, event);
-}
 
 #endif /* __GST_KVS_SINK_H__ */
