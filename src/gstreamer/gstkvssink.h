@@ -144,6 +144,8 @@ struct _GstKvsSink {
     guint                       num_streams;
     guint                       num_audio_streams;
     guint                       num_video_streams;
+
+
     std::unique_ptr<Credentials> credentials_;
     std::shared_ptr<KvsSinkCustomData> data;
 };

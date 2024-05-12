@@ -256,17 +256,17 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
         nullptr != (private_key_path = getenv("PRIVATE_KEY_PATH")) &&
         nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
         nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
-        // set the IoT Credentials if provided in envvar
-        GstStructure *iot_credentials =  gst_structure_new(
-                "iot-certificate",
-                "iot-thing-name", G_TYPE_STRING, data->stream_name, 
-                "endpoint", G_TYPE_STRING, iot_credential_endpoint,
-                "cert-path", G_TYPE_STRING, cert_path,
-                "key-path", G_TYPE_STRING, private_key_path,
-                "ca-path", G_TYPE_STRING, ca_cert_path,
-                "role-aliases", G_TYPE_STRING, role_alias, NULL);
-        
-        g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
+	// set the IoT Credentials if provided in envvar
+	GstStructure *iot_credentials =  gst_structure_new(
+			"iot-certificate",
+			"iot-thing-name", G_TYPE_STRING, data->stream_name, 
+			"endpoint", G_TYPE_STRING, iot_credential_endpoint,
+			"cert-path", G_TYPE_STRING, cert_path,
+			"key-path", G_TYPE_STRING, private_key_path,
+			"ca-path", G_TYPE_STRING, ca_cert_path,
+			"role-aliases", G_TYPE_STRING, role_alias, NULL);
+	
+	g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
         gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort
@@ -418,7 +418,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     LOG_DEBUG("Streaming with live source and width: " << width << ", height: " << height << ", fps: " << framerate
                                                        << ", bitrateInKBPS" << bitrateInKBPS);
 
-    GstElement *source_filter, *filter, *h264parse, *encoder, *source, *video_convert;
+    GstElement *source_filter, *filter, *kvssink, *h264parse, *encoder, *source, *video_convert;
 
     /* create the elements */
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
@@ -429,6 +429,11 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     filter = gst_element_factory_make("capsfilter", "encoder_filter");
     if (!filter) {
         LOG_ERROR("Failed to create capsfilter (2)");
+        return 1;
+    }
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
+    if (!kvssink) {
+        LOG_ERROR("Failed to create kvssink");
         return 1;
     }
     h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
@@ -625,7 +630,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     return 0;
 }
 
-int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
+int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
     // process runtime if provided
     if (argc == 5){
       if ((0 == STRCMPI(argv[3], "-runtime")) ||
@@ -637,9 +642,10 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
 	  }
       }
     }
-    GstElement *filter, *depay, *source, *h264parse;
+    GstElement *filter, *kvssink, *depay, *source, *h264parse;
 
     filter = gst_element_factory_make("capsfilter", "filter");
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
     depay = gst_element_factory_make("rtph264depay", "depay");
     source = gst_element_factory_make("rtspsrc", "source");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
@@ -687,13 +693,14 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
     return 0;
 }
 
-int gstreamer_file_source_init(CustomData *data, GstElement *pipeline, GstElement *kvssink) {
+int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
 
     GstElement *demux, *filesrc, *h264parse, *filter, *queue;
     string file_suffix;
     string file_path = data->file_list.at(data->current_file_idx).path;
 
     filter = gst_element_factory_make("capsfilter", "filter");
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
     filesrc = gst_element_factory_make("filesrc", "filesrc");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
     queue = gst_element_factory_make("queue", "queue");
@@ -763,34 +770,28 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     /* init GStreamer */
     gst_init(&argc, &argv);
 
-    GstElement *pipeline, *kvssink;
+    GstElement *pipeline;
     int ret;
     GstStateChangeReturn gst_ret;
 
     // Reset first frame pts
     data->first_pts = GST_CLOCK_TIME_NONE;
 
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
-    if (!kvssink) {
-        LOG_ERROR("Failed to create kvssink");
-        return 1;
-    }
-
     switch (data->streamSource) {
         case LIVE_SOURCE:
             LOG_INFO("Streaming from live source");
             pipeline = gst_pipeline_new("live-kinesis-pipeline");
-            ret = gstreamer_live_source_init(argc, argv, data, pipeline, kvssink);
+            ret = gstreamer_live_source_init(argc, argv, data, pipeline);
             break;
         case RTSP_SOURCE:
             LOG_INFO("Streaming from rtsp source");
             pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
-            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline, kvssink);
+            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline);
             break;
         case FILE_SOURCE:
             LOG_INFO("Streaming from file source");
             pipeline = gst_pipeline_new("file-kinesis-pipeline");
-            ret = gstreamer_file_source_init(data, pipeline, kvssink);
+            ret = gstreamer_file_source_init(data, pipeline);
             break;
     }
 
