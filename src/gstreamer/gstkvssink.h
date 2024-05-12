@@ -36,7 +36,6 @@
 #include <string.h>
 #include <mutex>
 #include <atomic>
-#include <tuple>
 #include <gst/base/gstcollectpads.h>
 #include <unordered_set>
 
@@ -73,8 +72,6 @@ typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
 typedef struct _KvsSinkCustomData KvsSinkCustomData;
 typedef struct _KvsSinkMetric KvsSinkMetric;
-
-typedef std::tuple<std::string, std::string, bool> (*SupportImagesCallback)();
 
 /* all information needed for one track */
 typedef struct _GstKvsSinkTrackData {
@@ -146,9 +143,6 @@ struct _GstKvsSink {
     guint                       num_streams;
     guint                       num_audio_streams;
     guint                       num_video_streams;
-    
-    SupportImagesCallback      support_images_callback;
-  
     std::unique_ptr<Credentials> credentials_;
     std::shared_ptr<KvsSinkCustomData> data;
 };
@@ -178,8 +172,6 @@ struct _KvsSinkCustomData {
             frame_count(0),
             first_pts(GST_CLOCK_TIME_NONE),
             producer_start_time(GST_CLOCK_TIME_NONE),
-            fragment_metadata_count(0),
-            persisted_fragment_metadata_count(0),
             streamingStopped(false) {}
     std::unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     std::shared_ptr<KinesisVideoStream> kinesis_video_stream;
@@ -191,8 +183,6 @@ struct _KvsSinkCustomData {
     bool use_original_pts;
     bool get_metrics;
     uint32_t frame_count;
-    uint32_t fragment_metadata_count;
-    uint32_t persisted_fragment_metadata_count;
     bool on_first_frame;
     std::atomic<bool> streamingStopped;
     uint64_t frame_pts;
@@ -219,14 +209,5 @@ struct _KvsSinkMetric {
     uint64_t frame_pts;
     bool on_first_frame;
 };
-
-static bool inline put_fragment_metadata(GstElement* element, const std::string name, const std::string value, bool persistent) {
-  GstStructure *metadata = gst_structure_new_empty(KVS_ADD_METADATA_G_STRUCT_NAME);
-  gst_structure_set(metadata, KVS_ADD_METADATA_NAME, G_TYPE_STRING, name.c_str(), 
-                  KVS_ADD_METADATA_VALUE, G_TYPE_STRING, value.c_str(), 
-                  KVS_ADD_METADATA_PERSISTENT, G_TYPE_BOOLEAN, persistent, NULL);
-  GstEvent* event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, metadata);
-  return gst_element_send_event(element, event);
-}
 
 #endif /* __GST_KVS_SINK_H__ */
