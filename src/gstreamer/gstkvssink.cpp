@@ -181,7 +181,7 @@ enum {
     PROP_STREAM_TAGS,
     PROP_FILE_START_TIME,
     PROP_DISABLE_BUFFER_CLIPPING,
-    PROP_SUPPORT_IMAGES_CALLBACK,
+    PROP_GENERATE_IMAGES,
     PROP_USE_ORIGINAL_PTS,
     PROP_GET_METRICS,
     PROP_ALLOW_CREATE_STREAM,
@@ -666,9 +666,9 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                            "Set to true only if your src/mux elements produce GST_CLOCK_TIME_NONE for segment start times.  It is non-standard behavior to set this to true, only use if there are known issues with your src/mux segment start/stop times.", DEFAULT_DISABLE_BUFFER_CLIPPING,
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
-    g_object_class_install_property (gobject_class, PROP_SUPPORT_IMAGES_CALLBACK,
-                                     g_param_spec_pointer ("support-images-callback", "Support images",
-                                                           "Set to true only if you want to enable KVS events in fragment metadata.",
+    g_object_class_install_property (gobject_class, PROP_GENERATE_IMAGES,
+                                     g_param_spec_pointer ("generate-images", "Generate images for every key frame",
+                                                           "Set to true only if you want to enable generating images.",
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_USE_ORIGINAL_PTS,
@@ -905,8 +905,8 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
         case PROP_STORAGE_SIZE:
             kvssink->storage_size = g_value_get_uint (value);
             break;
-        case PROP_SUPPORT_IMAGES_CALLBACK:
-            kvssink->support_images_callback = (SupportImagesCallback) g_value_get_pointer(value);
+        case PROP_GENERATE_IMAGES:
+            kvssink->generate_images = g_value_get_boolean(value);
             break;
         case PROP_STOP_STREAM_TIMEOUT:
             kvssink->stop_stream_timeout = g_value_get_uint (value);
@@ -1054,8 +1054,8 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
         case PROP_STORAGE_SIZE:
             g_value_set_uint (value, kvssink->storage_size);
             break;
-        case PROP_SUPPORT_IMAGES_CALLBACK:
-            g_value_set_pointer (value, (gpointer) kvssink->support_images_callback);
+        case PROP_GENERATE_IMAGES:
+            g_value_set_boolean (value, kvssink->generate_images);
             break;
         case PROP_STOP_STREAM_TIMEOUT:
             g_value_set_uint (value, kvssink->stop_stream_timeout);
@@ -1384,10 +1384,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                                      std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
 
-        if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags) && kvssink->support_images_callback != NULL) {
-            std::tuple<std::string, std::string, bool> metadata = kvssink->support_images_callback();
-            put_fragment_metadata(GST_ELEMENT_CAST (kvssink), std::get<0>(metadata), std::get<1>(metadata), 
-                    std::get<2>(metadata));
+        if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags) && kvssink->generate_images) {
+            data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
         }
     }
     else {

@@ -599,7 +599,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     gst_caps_unref(h264_caps);
 
     /* configure kvssink */
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, "support-images-callback", (gpointer) get_images_metadata, NULL);
+    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
     determine_credentials(kvssink, data);
 
     /* build the pipeline */
