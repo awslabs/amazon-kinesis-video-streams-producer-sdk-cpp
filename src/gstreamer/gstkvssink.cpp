@@ -92,6 +92,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_RECALCULATE_METRICS TRUE
 #define DEFAULT_DISABLE_BUFFER_CLIPPING FALSE
 #define DEFAULT_USE_ORIGINAL_PTS FALSE
+#define DEFAULT_GENERATE_IMAGES FALSE
 #define DEFAULT_ENABLE_METRICS FALSE
 #define DEFAULT_STREAM_FRAMERATE 25
 #define DEFAULT_STREAM_FRAMERATE_HIGH_DENSITY 100
@@ -667,8 +668,8 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_GENERATE_IMAGES,
-                                     g_param_spec_pointer ("generate-images", "Generate images for every key frame",
-                                                           "Set to true only if you want to enable generating images.",
+                                     g_param_spec_boolean ("generate-images", "Generate images for every key frame",
+                                                           "Set to true only if you want to enable generating images.", DEFAULT_GENERATE_IMAGES,
                                                            (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (gobject_class, PROP_USE_ORIGINAL_PTS,
