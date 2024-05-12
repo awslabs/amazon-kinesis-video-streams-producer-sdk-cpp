@@ -212,5 +212,4 @@ struct _KvsSinkMetric {
     bool on_first_frame;
 };
 
-
 #endif /* __GST_KVS_SINK_H__ */

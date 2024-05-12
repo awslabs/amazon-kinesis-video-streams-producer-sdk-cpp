@@ -279,7 +279,7 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 }
 
 /*
-This function creates a GstStructure and uses it to trigger the GST_EVENT_CUSTOM_DOWNSTREAM
+This function creates a GstStructure and uses it to trigger the GST_EVENT_CUSTOM_DOWNSTREAM for put_fragment_metadata
 */
 static bool put_fragment_metadata(GstElement* element, const std::string name, const std::string value, bool persistent) {
   GstStructure *metadata = gst_structure_new_empty(KVS_ADD_METADATA_G_STRUCT_NAME);
