@@ -257,8 +257,6 @@ CleanUp:
     {
         ENTERS();
 
-        printf("[TESTING] Calling NativeKinesisVideoProducerJni_putKinesisVideoEventMetadata\n");
-
         DLOGS("Putting Kinesis Video event metadata for stream 0x%016" PRIx64 ".", streamHandle);
         CHECK(env != NULL && thiz != NULL);
 

@@ -468,8 +468,6 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
     JNIEnv *env;
     mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
 
-    printf("[TESTING] called putKinesisVideoEventMetadata in the JNI wrapper.\n");
-
     if (!IS_VALID_CLIENT_HANDLE(mClientHandle))
     {
         DLOGE("Invalid client object");
@@ -494,12 +492,9 @@ void KinesisVideoClientWrapper::putKinesisVideoEventMetadata(jlong streamHandle,
     StreamEventMetadata streamEventMetadata;
     PStreamEventMetadata pStreamEventMetadata = NULL;
 
-    printf("[TESTING] Checking for null kinesisStreamEventMetadata.\n");
-
     if (kinesisStreamEventMetadata != NULL) {
         MEMSET(&streamEventMetadata, 0, SIZEOF(streamEventMetadata)); // Null-init the struct.    
         
-        printf("[TESTING] Calling setStreamEventMetadata.\n");
         if (!setStreamEventMetadata(env, kinesisStreamEventMetadata, &streamEventMetadata))
         {
             DLOGE("Failed converting streamEventMetadata object.");

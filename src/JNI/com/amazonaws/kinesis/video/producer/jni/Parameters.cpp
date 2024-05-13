@@ -1201,8 +1201,6 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
     CHECK(env != NULL && streamEventMetadata != NULL && pStreamEventMetadata != NULL);
     const char *retChars;
 
-    printf("[TESTING] Entered setStreamEventMetadata.\n");
-
     // Load KinesisVideoFrame
     jclass cls = env->GetObjectClass(streamEventMetadata);
     if (cls == NULL) {
@@ -1274,8 +1272,6 @@ BOOL allocStreamEventMetadataArray(JNIEnv* env, jobject streamEventMetadata, PCH
     jstring stringElement;
     const char *retChars;
 
-    printf("[TESTING] Called allocStreamEventMetadataArray.\n");
-
     CHK(methodId != NULL, STATUS_NULL_ARG);
     retArray = (jobjectArray) env->CallObjectMethod(streamEventMetadata, methodId);
     CHK_JVM_EXCEPTION(env);
@@ -1292,7 +1288,6 @@ BOOL allocStreamEventMetadataArray(JNIEnv* env, jobject streamEventMetadata, PCH
             
     // Iterate through the char pointers, allocating memory for the Java string that will be copied to the char pointers.
     for (jsize i = 0; i < namesArrayLength; i++) {
-        printf("[TESTING] processing metadata array element.\n");
         stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
         jsize javaStringLength = env->GetStringUTFLength(stringElement);
         CHK(javaStringLength >= 0, STATUS_INVALID_ARG); // (jsize is signed, but will be used as an unsigned SIZE_T)
@@ -1306,8 +1301,6 @@ BOOL allocStreamEventMetadataArray(JNIEnv* env, jobject streamEventMetadata, PCH
 
         // Set last char to be a null terminator.
         metaDataArray[i][(SIZE_T)javaStringLength] = '\0';
-
-        printf("[TESTING] The name/value string is: %s\n", metaDataArray[i]);
 
         env->ReleaseStringUTFChars(stringElement, retChars);
         retChars = NULL;
