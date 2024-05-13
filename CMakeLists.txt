@@ -65,15 +65,6 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-if(WIN32)
-  if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\lib\\pkgconfig")
-    set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH};C:\\gstreamer\\1.0\\msvc_x86_64\\lib\\pkgconfig")
-  elseif(EXISTS "D:\\gstreamer\\1.0\\msvc_x86_64\\lib\\pkgconfig")
-    set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH};D:\\gstreamer\\1.0\\msvc_x86_64\\lib\\pkgconfig")
-  else()
-    message("pkgconfig path to .pc files not found in GStreamer installation.")
-    endif()
-endif()
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
@@ -82,16 +73,12 @@ if(BUILD_DEPENDENCIES)
 
   if (NOT OPEN_SRC_INSTALL_PREFIX)
     set(OPEN_SRC_INSTALL_PREFIX ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/local)
-    if(WIN32)
-      set(ENV{PKG_CONFIG_PATH}
-            "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
-    else()
-      set(ENV{PKG_CONFIG_PATH}
-            "$ENV{PKG_CONFIG_PATH};${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
-    endif()
+    set(ENV{PKG_CONFIG_PATH}
+          "$ENV{PKG_CONFIG_PATH}:${OPEN_SRC_INSTALL_PREFIX}/lib/pkgconfig")
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPEN_SRC_INSTALL_PREFIX})
     set(ENV{PATH} "$ENV{PATH}:${OPEN_SRC_INSTALL_PREFIX}/bin")
   endif()
+
 
   message(STATUS "Begin building dependencies.")
 
@@ -106,17 +93,6 @@ if(BUILD_DEPENDENCIES)
 endif()
 
 ############# find dependent libraries ############
-
-# message("Finding pkg-config.exe and setting PKG_CONFIG_EXECUTABLE.")
-# if (WIN32)
-#   if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-#     set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-#   elseif(EXISTS "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-#     set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
-#   else()
-#     message("pkg-config.exe not found in GStreamer installation.")
-#   endif()
-# endif()
 
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
@@ -146,6 +122,13 @@ endif()
 message("LOG4CPLUS_INCLUDE_DIR is ${LOG4CPLUS_INCLUDE_DIR}")
 message("LOG4CPLUS_LIBRARIES is ${LOG4CPLUS_LIBRARIES}")
 
+if (WIN32)
+  if(EXISTS "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+    set(PKG_CONFIG_EXECUTABLE "C:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+  else()
+    set(PKG_CONFIG_EXECUTABLE "D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe")
+  endif()
+endif()
 
 ############# Enable Sanitizers ############
 if(${CMAKE_C_COMPILER_ID} MATCHES "GNU|Clang")
@@ -247,14 +230,9 @@ endif()
 
 
 if(BUILD_GSTREAMER_PLUGIN)
-  pkg_check_modules(GST REQUIRED gstreamer-1.0)
-  include_directories(${GST_INCLUDE_DIRS})
-  link_directories(${GST_LIBRARY_DIRS})
-  
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
-  
   include_directories(${OPEN_SRC_INSTALL_PREFIX}/include)
 
   if(BUILD_STATIC)
