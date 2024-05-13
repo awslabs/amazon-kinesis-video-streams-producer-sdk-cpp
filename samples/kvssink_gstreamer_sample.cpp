@@ -664,7 +664,7 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
     gst_caps_unref(h264_caps);
 
     // configure kvssink
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
+    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, "generate-images", TRUE, NULL);
     determine_credentials(kvssink, data);
     
     // configure rtspsrc
@@ -733,7 +733,7 @@ int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
     gst_caps_unref(h264_caps);
 
     // configure kvssink
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "streaming-type", STREAMING_TYPE_OFFLINE, "storage-size", 128, NULL);
+    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "streaming-type", STREAMING_TYPE_OFFLINE, "storage-size", 128, "generate-images", TRUE, NULL);
     determine_credentials(kvssink, data);
 
     // configure filesrc
