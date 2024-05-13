@@ -922,7 +922,7 @@ int main(int argc, char *argv[]) {
                     } else if(stream_status == STATUS_KVS_GSTREAMER_SAMPLE_INTERRUPTED){
 		        LOG_ERROR("File upload interrupted.  Terminating.");
 		        continue_uploading = false;
-		    } else { // non fatal case.  retry upload
+		    }else { // non fatal case.  retry upload
                         LOG_ERROR("stream error occurred: " << stream_status << ". Terminating.");
                         do_retry = true;
                     }
