@@ -5,8 +5,8 @@
 #include <vector>
 #include <stdlib.h>
 #include <mutex>
-#include <IotCertCredentialProvider.h>
 #include <thread>
+#include <com/amazonaws/kinesis/video/client/Include.h>
 #include "include.h"
 
 using namespace std;
@@ -107,9 +107,7 @@ typedef struct _CustomData {
     volatile StreamSource streamSource;
 
     string rtsp_url;
-
-    unique_ptr<Credentials> credential;
-
+    
     uint64_t synthetic_dts;
 
     bool use_absolute_fragment_times;
