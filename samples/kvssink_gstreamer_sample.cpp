@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <mutex>
 #include <IotCertCredentialProvider.h>
-#include "gstreamer/gstkvssink.h"
 #include <thread>
 #include "include.h"
 

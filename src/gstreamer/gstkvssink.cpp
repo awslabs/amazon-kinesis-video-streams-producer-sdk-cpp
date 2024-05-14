@@ -117,6 +117,11 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_CREDENTIAL_FILE_PATH ".kvs/credential"
 #define DEFAULT_FRAME_DURATION_MS 2
 
+#define KVS_ADD_METADATA_G_STRUCT_NAME "kvs-add-metadata"
+#define KVS_ADD_METADATA_NAME "name"
+#define KVS_ADD_METADATA_VALUE "value"
+#define KVS_ADD_METADATA_PERSISTENT "persist"
+
 #define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CPP-CLIENT"
 
 #define DEFAULT_AUDIO_TRACK_NAME "audio"

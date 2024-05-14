@@ -63,11 +63,6 @@ G_BEGIN_DECLS
 #define KVSSINK_USER_AGENT_POSTFIX_VERSION "UNKNOWN"
 #endif
 
-#define KVS_ADD_METADATA_G_STRUCT_NAME "kvs-add-metadata"
-#define KVS_ADD_METADATA_NAME "name"
-#define KVS_ADD_METADATA_VALUE "value"
-#define KVS_ADD_METADATA_PERSISTENT "persist"
-
 typedef struct _GstKvsSink GstKvsSink;
 typedef struct _GstKvsSinkClass GstKvsSinkClass;
 typedef struct _KvsSinkCustomData KvsSinkCustomData;
