@@ -121,6 +121,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define KVS_ADD_METADATA_NAME "name"
 #define KVS_ADD_METADATA_VALUE "value"
 #define KVS_ADD_METADATA_PERSISTENT "persist"
+
 #define KVS_CLIENT_USER_AGENT_NAME "AWS-SDK-KVS-CPP-CLIENT"
 
 #define DEFAULT_AUDIO_TRACK_NAME "audio"
@@ -1161,29 +1162,30 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             gboolean persistent;
             bool is_persist;
 
-            if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME)) {
-                goto CleanUp;
-            }
-
-            LOG_INFO("received kvs-add-metadata event for " << kvssink->stream_name);
-            if (NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
+            if (!gst_structure_has_name(structure, KVS_ADD_METADATA_G_STRUCT_NAME) || 
+                NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_NAME) ||
                 NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
                 !gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
-
-                LOG_WARN("Event structure contains invalid field: " << std::string(gst_structure_to_string (structure)) << " for " << kvssink->stream_name);
+                ret = FALSE;
+                LOG_WARN("Event structure is invalid or it contains an invalid field(s): " << std::string(gst_structure_to_string (structure)) << " for " << kvssink->stream_name);
                 goto CleanUp;
             }
+            LOG_TRACE("Received kvs-add-metadata event for " << kvssink->stream_name);
 
             metadata_name = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_NAME));
             metadata_value = std::string(gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE));
             is_persist = persistent;
 
             bool result = data->kinesis_video_stream->putFragmentMetadata(metadata_name, metadata_value, is_persist);
-            if (!result) {
-                LOG_WARN("Failed to putFragmentMetadata. name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist << " for " << kvssink->stream_name);
-            }
+ 
             gst_event_unref (event);
             event = NULL;
+
+            if (!result) {
+                ret = FALSE;
+                LOG_WARN("Failed to putFragmentMetadata for name: " << metadata_name << ", value: " << metadata_value << ", persistent: " << is_persist << " for " << kvssink->stream_name);
+            }
+            
             break;
         }
         case GST_EVENT_EOS: {
