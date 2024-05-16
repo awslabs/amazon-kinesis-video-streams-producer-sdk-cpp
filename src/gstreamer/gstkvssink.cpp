@@ -1167,7 +1167,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 NULL == gst_structure_get_string(structure, KVS_ADD_METADATA_VALUE) ||
                 !gst_structure_get_boolean(structure, KVS_ADD_METADATA_PERSISTENT, &persistent)) {
                 ret = FALSE;
-                LOG_WARN("Event structure is invalid or it contains invalid field: " << std::string(gst_structure_to_string (structure)) << " for " << kvssink->stream_name);
+                LOG_WARN("Event structure is invalid or it contains an invalid field(s): " << std::string(gst_structure_to_string (structure)) << " for " << kvssink->stream_name);
                 goto CleanUp;
             }
             LOG_TRACE("Received kvs-add-metadata event for " << kvssink->stream_name);
