@@ -418,7 +418,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     LOG_DEBUG("Streaming with live source and width: " << width << ", height: " << height << ", fps: " << framerate
                                                        << ", bitrateInKBPS" << bitrateInKBPS);
 
-    GstElement *source_filter, *filter, *kvssink, *h264parse, *encoder, *source, *video_convert;
+    GstElement *source_filter, *filter, *h264parse, *encoder, *source, *video_convert;
 
     /* create the elements */
     source_filter = gst_element_factory_make("capsfilter", "source_filter");
@@ -429,11 +429,6 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     filter = gst_element_factory_make("capsfilter", "encoder_filter");
     if (!filter) {
         LOG_ERROR("Failed to create capsfilter (2)");
-        return 1;
-    }
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
-    if (!kvssink) {
-        LOG_ERROR("Failed to create kvssink");
         return 1;
     }
     h264parse = gst_element_factory_make("h264parse", "h264parse"); // needed to enforce avc stream format
@@ -630,7 +625,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     return 0;
 }
 
-int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
+int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
     // process runtime if provided
     if (argc == 5){
       if ((0 == STRCMPI(argv[3], "-runtime")) ||
@@ -642,10 +637,9 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
 	  }
       }
     }
-    GstElement *filter, *kvssink, *depay, *source, *h264parse;
+    GstElement *filter, *depay, *source, *h264parse;
 
     filter = gst_element_factory_make("capsfilter", "filter");
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
     depay = gst_element_factory_make("rtph264depay", "depay");
     source = gst_element_factory_make("rtspsrc", "source");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
@@ -693,14 +687,13 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
     return 0;
 }
 
-int gstreamer_file_source_init(CustomData *data, GstElement *pipeline) {
+int gstreamer_file_source_init(CustomData *data, GstElement *pipeline, GstElement *kvssink) {
 
     GstElement *demux, *filesrc, *h264parse, *filter, *queue;
     string file_suffix;
     string file_path = data->file_list.at(data->current_file_idx).path;
 
     filter = gst_element_factory_make("capsfilter", "filter");
-    kvssink = gst_element_factory_make("kvssink", "kvssink");
     filesrc = gst_element_factory_make("filesrc", "filesrc");
     h264parse = gst_element_factory_make("h264parse", "h264parse");
     queue = gst_element_factory_make("queue", "queue");
@@ -770,28 +763,34 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     /* init GStreamer */
     gst_init(&argc, &argv);
 
-    GstElement *pipeline;
+    GstElement *pipeline, *kvssink;
     int ret;
     GstStateChangeReturn gst_ret;
 
     // Reset first frame pts
     data->first_pts = GST_CLOCK_TIME_NONE;
 
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
+    if (!kvssink) {
+        LOG_ERROR("Failed to create kvssink");
+        return 1;
+    }
+
     switch (data->streamSource) {
         case LIVE_SOURCE:
             LOG_INFO("Streaming from live source");
             pipeline = gst_pipeline_new("live-kinesis-pipeline");
-            ret = gstreamer_live_source_init(argc, argv, data, pipeline);
+            ret = gstreamer_live_source_init(argc, argv, data, pipeline, kvssink);
             break;
         case RTSP_SOURCE:
             LOG_INFO("Streaming from rtsp source");
             pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
-            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline);
+            ret = gstreamer_rtsp_source_init(argc, argv, data, pipeline, kvssink);
             break;
         case FILE_SOURCE:
             LOG_INFO("Streaming from file source");
             pipeline = gst_pipeline_new("file-kinesis-pipeline");
-            ret = gstreamer_file_source_init(data, pipeline);
+            ret = gstreamer_file_source_init(data, pipeline, kvssink);
             break;
     }
 
@@ -922,7 +921,7 @@ int main(int argc, char *argv[]) {
                     } else if(stream_status == STATUS_KVS_GSTREAMER_SAMPLE_INTERRUPTED){
 		        LOG_ERROR("File upload interrupted.  Terminating.");
 		        continue_uploading = false;
-		    }else { // non fatal case.  retry upload
+		    } else { // non fatal case.  retry upload
                         LOG_ERROR("stream error occurred: " << stream_status << ". Terminating.");
                         do_retry = true;
                     }
