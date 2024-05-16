@@ -256,17 +256,17 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
         nullptr != (private_key_path = getenv("PRIVATE_KEY_PATH")) &&
         nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
         nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
-        // set the IoT Credentials if provided in envvar
-        GstStructure *iot_credentials =  gst_structure_new(
-                "iot-certificate",
-                "iot-thing-name", G_TYPE_STRING, data->stream_name, 
-                "endpoint", G_TYPE_STRING, iot_credential_endpoint,
-                "cert-path", G_TYPE_STRING, cert_path,
-                "key-path", G_TYPE_STRING, private_key_path,
-                "ca-path", G_TYPE_STRING, ca_cert_path,
-                "role-aliases", G_TYPE_STRING, role_alias, NULL);
-        
-        g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
+	// set the IoT Credentials if provided in envvar
+	GstStructure *iot_credentials =  gst_structure_new(
+			"iot-certificate",
+			"iot-thing-name", G_TYPE_STRING, data->stream_name, 
+			"endpoint", G_TYPE_STRING, iot_credential_endpoint,
+			"cert-path", G_TYPE_STRING, cert_path,
+			"key-path", G_TYPE_STRING, private_key_path,
+			"ca-path", G_TYPE_STRING, ca_cert_path,
+			"role-aliases", G_TYPE_STRING, role_alias, NULL);
+	
+	g_object_set(G_OBJECT (kvssink), "iot-certificate", iot_credentials, NULL);
         gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort
@@ -331,6 +331,18 @@ static void put_metadata(GstElement* element) {
     if (!put_fragment_metadata(element, metadata_name_stream.str(), metadata_value_stream.str(), data_global.persist_flag)) {
         LOG_WARN("Failed to put fragment metadata with name:" << metadata_name_stream.str() << " and value:" << metadata_value_stream.str());
     }
+}
+
+std::tuple<std::string, std::string, bool> get_images_metadata() {
+    std::ostringstream metadata_name_stream, metadata_value_stream;
+    std::tuple<std::string, std::string, bool> images_metadata;
+
+    metadata_name_stream << "support_images_name_" << data_global.metadata_counter;
+    metadata_value_stream << "support_images_value_" << data_global.metadata_counter;
+    
+    data_global.metadata_counter++;
+
+    return std::make_tuple(metadata_name_stream.str(), metadata_value_stream.str(), false);
 }
 
 int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline, GstElement *kvssink) {
@@ -587,7 +599,7 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     gst_caps_unref(h264_caps);
 
     /* configure kvssink */
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
+    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, "generate-images", TRUE, NULL);
     determine_credentials(kvssink, data);
 
     /* build the pipeline */
@@ -646,7 +658,7 @@ int gstreamer_rtsp_source_init(int argc, char *argv[], CustomData *data, GstElem
     gst_caps_unref(h264_caps);
 
     // configure kvssink
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, NULL);
+    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "storage-size", 128, "generate-images", TRUE, NULL);
     determine_credentials(kvssink, data);
     
     // configure rtspsrc
@@ -714,7 +726,7 @@ int gstreamer_file_source_init(CustomData *data, GstElement *pipeline, GstElemen
     gst_caps_unref(h264_caps);
 
     // configure kvssink
-    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "streaming-type", STREAMING_TYPE_OFFLINE, "storage-size", 128, NULL);
+    g_object_set(G_OBJECT(kvssink), "stream-name", data->stream_name, "streaming-type", STREAMING_TYPE_OFFLINE, "storage-size", 128, "generate-images", TRUE, NULL);
     determine_credentials(kvssink, data);
 
     // configure filesrc

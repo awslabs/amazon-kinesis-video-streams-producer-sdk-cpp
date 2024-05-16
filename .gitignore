@@ -3,7 +3,6 @@
 .github/github_deploy_key.enc
 .idea
 build
-media
 cmake-build-debug/
 cmake-build-release/
 doc/
