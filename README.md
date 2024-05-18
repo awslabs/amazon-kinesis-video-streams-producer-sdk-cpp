@@ -82,7 +82,9 @@ Please note that GStreamer is not cross-compiled as a part of the cross-compilat
 #### CMake Arguments
 You can pass the following options to `cmake ..`.
 
-* `-DBUILD_GSTREAMER_PLUGIN` -- Build kvssink GStreamer plugin
+* `-DBUILD_GSTREAMER_PLUGIN` -- Build kvssink GStreamer plugin. Default is OFF.
+* `-DBUILD_STATIC` -- Build as static libraries. Default is OFF.
+* `-DBUILD_GSTREAMER_PLUGIN_STATIC` -- If building GStreamer plugin, build it as a static library. Default is BUILD_STATIC.
 * `-DBUILD_JNI` -- Build C++ wrapper for JNI to expose the functionality to Java/Android
 * `-DBUILD_DEPENDENCIES` -- Build depending libraries from source
 * `-DBUILD_TEST=TRUE` -- Build unit/integration tests, may be useful for confirm support for your device. `./tst/producerTest`
