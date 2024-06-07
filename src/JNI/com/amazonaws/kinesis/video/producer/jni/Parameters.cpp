@@ -1267,7 +1267,7 @@ CleanUp:
 BOOL allocStreamEventMetadataArray(JNIEnv* env, jobject streamEventMetadata, PCHAR* metaDataArray, jmethodID methodId) {
     STATUS retStatus = STATUS_SUCCESS;
     jobjectArray retArray = NULL;
-    jsize namesArrayLength = 0;
+    jsize arrayLength = 0;
     jstring stringElement;
     const char *retChars;
 
@@ -1276,17 +1276,17 @@ BOOL allocStreamEventMetadataArray(JNIEnv* env, jobject streamEventMetadata, PCH
     CHK_JVM_EXCEPTION(env);
     CHK(retArray != NULL, STATUS_NULL_ARG);
 
-    namesArrayLength = env->GetArrayLength(retArray);
+    arrayLength = env->GetArrayLength(retArray);
 
     // Verify array returned from Java is not too long.
     // NOTE: This check will already be done in PIC, but can do it here to safely alloc/delloc memory here in JNI.
-    CHK(namesArrayLength <= MAX_EVENT_CUSTOM_PAIRS, STATUS_MAX_FRAGMENT_METADATA_COUNT);
+    CHK(arrayLength <= MAX_EVENT_CUSTOM_PAIRS, STATUS_MAX_FRAGMENT_METADATA_COUNT);
 
     // Null all elements for safety.
     MEMSET(metaDataArray, NULL, sizeof(PCHAR) * MAX_EVENT_CUSTOM_PAIRS);
             
     // Iterate through the char pointers, allocating memory for the Java string that will be copied to the char pointers.
-    for (jsize i = 0; i < namesArrayLength; i++) {
+    for (jsize i = 0; i < arrayLength; i++) {
         stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
         jsize javaStringLength = env->GetStringUTFLength(stringElement);
         CHK(javaStringLength >= 0, STATUS_INVALID_ARG); // (jsize is signed, but will be used as an unsigned SIZE_T)
