@@ -20,7 +20,8 @@ BOOL setDeviceInfo(JNIEnv *env, jobject deviceInfo, PDeviceInfo pDeviceInfo)
         CHK(FALSE, STATUS_INVALID_OPERATION);
     }
 
-    // Retrieve the methods and call it
+    // Retrieve the methods and call them
+
     methodId = env->GetMethodID(cls, "getVersion", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getVersion");
@@ -437,7 +438,8 @@ BOOL setStreamInfo(JNIEnv* env, jobject streamInfo, PStreamInfo pStreamInfo)
         CHK(FALSE, STATUS_INVALID_OPERATION);
     }
 
-    // Retrieve the methods and call it
+    // Retrieve the methods and call them
+
     methodId = env->GetMethodID(cls, "getVersion", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getVersion");
@@ -842,7 +844,8 @@ BOOL setFrame(JNIEnv* env, jobject kinesisVideoFrame, PFrame pFrame)
         CHK(FALSE, STATUS_INVALID_OPERATION);
     }
 
-    // Retrieve the methods and call it
+    // Retrieve the methods and call them
+
     methodId = env->GetMethodID(cls, "getVersion", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getVersion");
@@ -933,7 +936,8 @@ BOOL setFragmentAck(JNIEnv* env, jobject fragmentAck, PFragmentAck pFragmentAck)
         CHK(FALSE, STATUS_INVALID_OPERATION);
     }
 
-    // Retrieve the methods and call it
+    // Retrieve the methods and call them
+
     methodId = env->GetMethodID(cls, "getVersion", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getVersion");
@@ -1002,7 +1006,8 @@ BOOL setStreamDescription(JNIEnv* env, jobject streamDescription, PStreamDescrip
         CHK(FALSE, STATUS_INVALID_OPERATION);
     }
 
-    // Retrieve the methods and call it
+    // Retrieve the methods and call them
+
     methodId = env->GetMethodID(cls, "getVersion", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getVersion");
@@ -1187,4 +1192,131 @@ BOOL releaseStreamDataBuffer(JNIEnv* env, jobject dataBuffer, UINT32 offset, PBY
     env->ReleaseByteArrayElements((jbyteArray) dataBuffer, (jbyte*) (pBuffer - offset), 0);
 
     return TRUE;
+}
+
+BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEventMetadata pStreamEventMetadata)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    jmethodID methodId = NULL;
+    CHECK(env != NULL && streamEventMetadata != NULL && pStreamEventMetadata != NULL);
+    const char *retChars;
+
+    // Load KinesisVideoFrame
+    jclass cls = env->GetObjectClass(streamEventMetadata);
+    if (cls == NULL) {
+        DLOGE("Failed to create StreamEventMetadata class.");
+        CHK(FALSE, STATUS_INVALID_OPERATION);
+    }
+
+    // Retrieve the methods and call them
+
+    methodId = env->GetMethodID(cls, "getVersion", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getVersion");
+    } else {
+        pStreamEventMetadata->version = env->CallIntMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getImagePrefix", "()Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getImagePrefix");
+    } else {
+        jstring retString = (jstring) env->CallObjectMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+
+        if (retString != NULL) {
+            jsize javaStringLength = env->GetStringUTFLength(retString);
+            pStreamEventMetadata->imagePrefix = (PCHAR)MEMCALLOC(javaStringLength + 1, SIZEOF(CHAR));
+            retChars = env->GetStringUTFChars(retString, NULL);
+            STRNCPY(pStreamEventMetadata->imagePrefix, retChars, javaStringLength);
+            env->ReleaseStringUTFChars(retString, retChars);
+        }
+    }
+
+    methodId = env->GetMethodID(cls, "getNumberOfPairs", "()I");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getNumberOfPairs");
+    } else {
+        pStreamEventMetadata->numberOfPairs = env->CallByteMethod(streamEventMetadata, methodId);
+        CHK_JVM_EXCEPTION(env);
+    }
+
+    methodId = env->GetMethodID(cls, "getNames", "()[Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getNames");
+    } else {
+        if(!allocStreamEventMetadataArray(env, streamEventMetadata, pStreamEventMetadata->names, methodId)) {
+            DLOGW("Failed in allocStreamEventMetadataArray step for metadata names.");
+        }
+    }
+
+    methodId = env->GetMethodID(cls, "getValues", "()[Ljava/lang/String;");
+    if (methodId == NULL) {
+        DLOGW("Couldn't find method id getValues");
+    } else {
+        if(!allocStreamEventMetadataArray(env, streamEventMetadata, pStreamEventMetadata->values, methodId)) {
+            DLOGW("Failed in allocStreamEventMetadataArray step for metadata vlaues.");
+        }
+    }
+
+CleanUp:
+    return STATUS_FAILED(retStatus) ? FALSE : TRUE;
+}
+
+BOOL allocStreamEventMetadataArray(JNIEnv* env, jobject streamEventMetadata, PCHAR* metaDataArray, jmethodID methodId) {
+    STATUS retStatus = STATUS_SUCCESS;
+    jobjectArray retArray = NULL;
+    jsize arrayLength = 0;
+    jstring stringElement;
+    const char *retChars;
+
+    CHK(methodId != NULL, STATUS_NULL_ARG);
+    retArray = (jobjectArray) env->CallObjectMethod(streamEventMetadata, methodId);
+    CHK_JVM_EXCEPTION(env);
+    CHK(retArray != NULL, STATUS_NULL_ARG);
+
+    arrayLength = env->GetArrayLength(retArray);
+
+    // Verify array returned from Java is not too long.
+    // NOTE: This check will already be done in PIC, but can do it here to safely alloc/delloc memory here in JNI.
+    CHK(arrayLength <= MAX_EVENT_CUSTOM_PAIRS, STATUS_MAX_FRAGMENT_METADATA_COUNT);
+
+    // Null all elements for safety.
+    MEMSET(metaDataArray, NULL, sizeof(PCHAR) * MAX_EVENT_CUSTOM_PAIRS);
+            
+    // Iterate through the char pointers, allocating memory for the Java string that will be copied to the char pointers.
+    for (jsize i = 0; i < arrayLength; i++) {
+        stringElement = (jstring) env->GetObjectArrayElement(retArray, i);
+        jsize javaStringLength = env->GetStringUTFLength(stringElement);
+        CHK(javaStringLength >= 0, STATUS_INVALID_ARG); // (jsize is signed, but will be used as an unsigned SIZE_T)
+        retChars = env->GetStringUTFChars(stringElement, NULL);
+
+        // Verify GetStringUTFChars success.
+        CHK(retChars != NULL, STATUS_NULL_ARG);
+
+        metaDataArray[i] = (PCHAR)MEMALLOC(javaStringLength + 1); // No need for calloc as we are filling it completely with the strncpy, minus the last char which is then set to null terminator 
+        STRNCPY(metaDataArray[i], retChars, javaStringLength);
+
+        // Set last char to be a null terminator.
+        metaDataArray[i][(SIZE_T)javaStringLength] = '\0';
+
+        env->ReleaseStringUTFChars(stringElement, retChars);
+        retChars = NULL;
+        env->DeleteLocalRef(stringElement);
+        stringElement = NULL;
+    }
+    
+
+CleanUp:
+
+    if (retChars != NULL) {
+        env->ReleaseStringUTFChars(stringElement, retChars);
+    }
+
+    if (stringElement != NULL) {
+        env->DeleteLocalRef(stringElement);
+    }
+
+    return STATUS_FAILED(retStatus) ? FALSE : TRUE;
 }
