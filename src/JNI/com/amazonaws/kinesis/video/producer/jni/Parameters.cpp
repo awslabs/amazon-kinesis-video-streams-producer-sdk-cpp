@@ -1227,7 +1227,6 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
 
         if (retString != NULL) {
             jsize javaStringLength = env->GetStringUTFLength(retString);
-            CHK(javaStringLength <= MAX_IMAGE_PREFIX_LENGTH, STATUS_INVALID_ARG_LEN);
             pStreamEventMetadata->imagePrefix = (PCHAR)MEMCALLOC(javaStringLength + 1, SIZEOF(CHAR));
             retChars = env->GetStringUTFChars(retString, NULL);
             STRNCPY(pStreamEventMetadata->imagePrefix, retChars, javaStringLength);
