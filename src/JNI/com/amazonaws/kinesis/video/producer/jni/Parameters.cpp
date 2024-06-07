@@ -1234,7 +1234,7 @@ BOOL setStreamEventMetadata(JNIEnv* env, jobject streamEventMetadata, PStreamEve
         }
     }
 
-    methodId = env->GetMethodID(cls, "getNumberOfPairs", "()B");
+    methodId = env->GetMethodID(cls, "getNumberOfPairs", "()I");
     if (methodId == NULL) {
         DLOGW("Couldn't find method id getNumberOfPairs");
     } else {
