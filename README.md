@@ -187,22 +187,28 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
   - The depedency libraries are Curl, OpenSSL, and Log4Cplus.
  
 ### CMake Arguments
-You can pass the following options to `cmake ..`.
+You can pass the following CMake options:
 
-* `-DBUILD_GSTREAMER_PLUGIN` -- Build kvssink GStreamer plugin
-* `-DBUILD_JNI` -- Build C++ wrapper for JNI to expose the functionality to Java/Android
-* `-DBUILD_DEPENDENCIES` -- Build depending libraries from source
-* `-DBUILD_TEST=TRUE` -- Build unit/integration tests, may be useful for confirm support for your device. `./tst/producerTest`
-* `-DCODE_COVERAGE` --  Enable coverage reporting
-* `-DCOMPILER_WARNINGS` -- Enable all compiler warnings
-* `-DADDRESS_SANITIZER` -- Build with AddressSanitizer
-* `-DMEMORY_SANITIZER` --  Build with MemorySanitizer
-* `-DTHREAD_SANITIZER` -- Build with ThreadSanitizer
-* `-DUNDEFINED_BEHAVIOR_SANITIZER` Build with UndefinedBehaviorSanitizer
-* `-DALIGNED_MEMORY_MODEL` Build for aligned memory model only devices. Default is OFF.
-* `-DBUILD_LOG4CPLUS_HOST` Specify host-name for log4cplus for cross-compilation. Default is OFF.
-* `-DCONSTRAINED_DEVICE` Set the thread stack size to 0.5MB, needed for Alpine builds
+| Option	                  | Default Value | Description	 |    
+|:--------------------------|:-------------:|:-------------|
+| BUILD_GSTREAMER_PLUGIN             | OFF | Build the kvssink Gstream plugin
+| BUILD_JNI                          | OFF | Build C++ wrapper for JNI to expose the functionality to Java/Android
+| BUILD_DEPENDENCIES                 | ON  | Build depending libraries from source
+| BUILD_TEST                         | OFF | Build unit/integration tests, may be useful to confirm support for your device, to run tests:       `./tst/producerTest`
+| CODE_COVERAGE                      | OFF | Enable coverage reporting
+| COMPILER_WARNINGS                  | OFF | Enable all compiler warnings
+| ADDRESS_SANITIZER                  | OFF | Build with AddressSanitizer
+| MEMORY_SANITIZER                   | OFF | Build with MemorySanitizer
+| THREAD_SANITIZER                   | OFF | Build with ThreadSanitizer
+| UNDEFINED_BEHAVIOR_SANITIZER       | OFF | Build with UndefinedBehaviorSanitizer
+| ALIGNED_MEMORY_MODEL               | OFF | Build for aligned memory model only devices
+| BUILD_LOG4CPLUS_HOST               | OFF | Specify host-name for log4cplus for cross-compilation
+| CONSTRAINED_DEVICE                 | OFF | Set the thread stack size to 0.5MB, needed for Alpine builds
 
+These options can be set as arguments to the `cmake` command, for example:
+```
+cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF
+```
 
 ### Setting the Log Level
 To set a log level, update the log level value [here](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/blob/master/kvs_log_configuration#L1).
