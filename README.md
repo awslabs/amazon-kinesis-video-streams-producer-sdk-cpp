@@ -17,7 +17,7 @@
 * [Key Features](#key-features)
 * [Quick Start](#quick-start)
 * [Build Options](#build-options)
-* [Using kvssink](#using-kvssink)
+* [Configuring kvssink](#configuring-kvssink)
 * [Troubleshooting](#troubleshooting)
 * [Development](#development)
 * [Related](#related)
@@ -161,17 +161,28 @@ gst-inspect-1.0 kvssink
 If the build failed or GST_PLUGIN_PATH is not properly set, you may instead see the following output:<br>
 `No such element or plugin kvssink`
 
-After building the SDK, loading kvssink into the GStreamer plugin path, and setting a region, the sample executables, which are located in the `build` directory, can be run.
+After building the SDK, loading kvssink into the GStreamer plugin path, and setting a region, the sample executables, which are located in the `build` directory, can be run. For example:
+```
+./kvssink_gstreamer_sample MyStreamName
+```
+To stream from file with this sample, download a test video file and append the file name after the stream name in the run command:
+```
+wget https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
+```
+```
+./kvssink_gstreamer_sample MyStreamName ./sample.mp4
+```
 
 <br>
 
 **Running the kvssink Intermittent Sample**
-```bash
-./kvssink_intermittent_sample <stream-name (optional)> <testsrc or devicesrc (optional)>
-```
-Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, kvssink uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
 
 The intermittent kvssink sample will stream video for 20 seconds, then pause for 40 seconds, and repeat until an interrupt signal is received. To manually adjust the streaming and paused intervals, you can change the `KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS` and `KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS` values in the *kvssink_intermittent_sample.cpp* file.
+
+```bash
+./kvssink_intermittent_sample <stream-name> <testsrc or devicesrc (optional)>
+```
+Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, kvssink uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
 
 <br>
 
@@ -240,7 +251,7 @@ The sample docker scripts for RTSP plugin, raspberry pi and linux can be found i
 
 <br>
 
-## Using kvssink
+## Configuring kvssink
 The kvssink GStreamer element includes the following parameters:
 
 | Parameter	             | Default           | Description	|
