@@ -350,7 +350,7 @@ static void put_metadata(GstElement* element) {
 }
 
 static void deliver_images(GstElement* element) {
-    if (!put_event_metadata(element, STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, pStreamEventMetadata)) {
+    if (!put_event_metadata(element, STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL)) {
         g_source_remove(data_global.deliver_images_timer_id);
         data_global.deliver_images_timer_id = 0;
         LOG_WARN("Failed to deliver image, removing timer");
