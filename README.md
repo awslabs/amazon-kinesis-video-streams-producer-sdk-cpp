@@ -189,21 +189,21 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 ### CMake Arguments
 You can pass the following CMake options:
 
-| Option	                  | Default Value | Description	 |    
-|:--------------------------|:-------------:|:-------------|
-| BUILD_GSTREAMER_PLUGIN             | OFF | Build the kvssink Gstream plugin
-| BUILD_JNI                          | OFF | Build C++ wrapper for JNI to expose the functionality to Java/Android
-| BUILD_DEPENDENCIES                 | ON  | Build depending libraries from source
-| BUILD_TEST                         | OFF | Build unit/integration tests, may be useful to confirm support for your device, to run tests:       `./tst/producerTest`
-| CODE_COVERAGE                      | OFF | Enable coverage reporting
-| COMPILER_WARNINGS                  | OFF | Enable all compiler warnings
-| ADDRESS_SANITIZER                  | OFF | Build with AddressSanitizer
-| MEMORY_SANITIZER                   | OFF | Build with MemorySanitizer
-| THREAD_SANITIZER                   | OFF | Build with ThreadSanitizer
-| UNDEFINED_BEHAVIOR_SANITIZER       | OFF | Build with UndefinedBehaviorSanitizer
-| ALIGNED_MEMORY_MODEL               | OFF | Build for aligned memory model only devices
-| BUILD_LOG4CPLUS_HOST               | OFF | Specify host-name for log4cplus for cross-compilation
-| CONSTRAINED_DEVICE                 | OFF | Set the thread stack size to 0.5MB, needed for Alpine builds
+| Option	                     | Default       | Description	|
+|:-----------------------------|:-------------:|:-------------|
+| BUILD_GSTREAMER_PLUGIN       | OFF           | Build the kvssink Gstream plugin
+| BUILD_JNI                    | OFF           | Build C++ wrapper for JNI to expose the functionality to Java/Android
+| BUILD_DEPENDENCIES           | ON            | Build depending libraries from source
+| BUILD_TEST                   | OFF           | Build unit/integration tests, may be useful to confirm support for your device, to run tests:       `./tst/producerTest`
+| CODE_COVERAGE                | OFF           | Enable coverage reporting
+| COMPILER_WARNINGS            | OFF           | Enable all compiler warnings
+| ADDRESS_SANITIZER            | OFF           | Build with AddressSanitizer
+| MEMORY_SANITIZER             | OFF           | Build with MemorySanitizer
+| THREAD_SANITIZER             | OFF           | Build with ThreadSanitizer
+| UNDEFINED_BEHAVIOR_SANITIZER | OFF           | Build with UndefinedBehaviorSanitizer
+| ALIGNED_MEMORY_MODEL         | OFF           | Build for aligned memory model only devices
+| BUILD_LOG4CPLUS_HOST         | OFF           | Specify host-name for log4cplus for cross-compilation
+| CONSTRAINED_DEVICE           | OFF           | Set the thread stack size to 0.5MB, needed for Alpine builds
 
 These options can be set as arguments to the `cmake` command, for example:
 ```
@@ -241,15 +241,18 @@ The sample docker scripts for RTSP plugin, raspberry pi and linux can be found i
 <br>
 
 ## Using kvssink
-The kvssink element includes the following parameters:
+The kvssink GStreamer element includes the following parameters:
 
-* `stream-name` -- The name of the destination Kinesis video stream. If not set, kvssink will use "DEFAULT_STREAM" as the stream name. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
-* `storage-size` -- The storage size of the device in megabytes. For information about configuring device storage, see StorageInfo. If not set, it will default to 128 MB.
-* `access-key` -- The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_ACCESS_KEY_ID environment variable.
-* `secret-key` -- The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_SECRET_ACCESS_KEY environment variable.
-* `credential-path` -- A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files, see Sample Static Credential and Sample Rotating Credential. For more information on rotating credentials, see Managing Access Keys for IAM Users. You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
+| Parameter	             | Default           | Description	|
+|:-----------------------|:-----------------:|:------------|
+| stream&#x2011;name     | 'DEFAULT_STREAM'  | The name of the destination Kinesis video stream. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
+| aws&#x2011;region      | 'us-west-2'       | The region specfified by this paramter will be used if the AWS_DEFAULT_REGION environment variable is not set.
+| storage&#x2011;size    | 128               | The storage size of the device in megabytes. For information about configuring device storage, see [StorageInfo](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producer-reference-structures-producer.html#producer-reference-structures-producer-storageinfo).
+| access&#x2011;key      | N/A               | The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_ACCESS_KEY_ID environment variable.
+| secret&#x2011;key      | N/A               | The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_SECRET_ACCESS_KEY environment variable.
+| credential&#x2011;path | '.kvs/credential' | A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files and more information, see [Provide credentials to kvssink](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#credentials-to-kvssink). You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
 
-To see all kvssink parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#kvssink-optional-parameters).
+To see all kvssink parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html).
 
 For examples of common use cases, see [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
 
