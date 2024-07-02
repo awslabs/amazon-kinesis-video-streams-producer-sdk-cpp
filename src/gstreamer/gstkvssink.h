@@ -110,7 +110,6 @@ struct _GstKvsSink {
     gboolean                    recalculate_metrics;
     gboolean                    allow_create_stream;
     gboolean                    disable_buffer_clipping;
-    gboolean                    generate_images;
     guint                       framerate;
     guint                       avg_bandwidth_bps;
     guint                       buffer_duration_seconds;
