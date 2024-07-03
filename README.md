@@ -17,7 +17,7 @@
 * [Key Features](#key-features)
 * [Quick Start](#quick-start)
 * [Build Options](#build-options)
-* [Configuring kvssink](#configuring-kvssink)![image](https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp/assets/85728496/43a7b558-c89b-4bdf-9f05-41fe9a11df77)
+* [Configuring kvssink](#configuring-kvssink)
 * [Troubleshooting](#troubleshooting)
 * [Development](#development)
 * [Related](#related)
