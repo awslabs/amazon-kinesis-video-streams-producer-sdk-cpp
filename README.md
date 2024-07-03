@@ -191,6 +191,13 @@ By default, the samples run in near realtime mode. To set offline mode, set stre
 
 <br>
 
+### Viewing the Sample Footage
+Check the ingested video stream to confirm successful streaming using either the [AWS KVS Console](https://console.aws.amazon.com/kinesisvideo/home/#/streams/) or the [KVS Media Viewer](https://aws-samples.github.io/amazon-kinesis-video-streams-media-viewer/).
+
+If playback issues are encountered, pleaser refer to the playback requirements under [GetHLSStreamingSessionURL](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_reader_GetHLSStreamingSessionURL.html) or [GetDASHStreamingSessionURL](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_reader_GetDASHStreamingSessionURL.html) and to the [Troubleshooting HLS Issues](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/hls-playback.html#how-hls-ex1-ts) guide.
+
+<br>
+
 ## Build Options
 ### Considerations
 - The **kvssink** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, include their corresponding cmake command arguments: `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
