@@ -165,7 +165,7 @@ After building the SDK, loading kvssink into the GStreamer plugin path, and sett
 ```
 ./kvssink_gstreamer_sample MyStreamName
 ```
-To stream from file with this sample, download a test video file and append the file name after the stream name in the run command:
+To stream from file with this sample, you can download a test video file and append the file name after the stream name in the sample run command:
 ```
 wget https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
 ```
@@ -205,7 +205,7 @@ If playback issues are encountered, pleaser refer to the playback requirements u
   - The depedency libraries are Curl, OpenSSL, and Log4Cplus.
  
 ### CMake Arguments
-You can pass the following CMake options:
+You can pass the following additional CMake options:
 
 | Option	                     | Default       | Description	|
 |:-----------------------------|:-------------:|:-------------|
