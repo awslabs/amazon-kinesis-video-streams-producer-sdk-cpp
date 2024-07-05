@@ -79,8 +79,8 @@ jobs:
       id-token: write
       contents: read
     env:
-      CC: /usr/local/bin/gcc-13
-      CXX: /usr/local/bin/g++-13
+      CC: /usr/local/bin/gcc-12
+      CXX: /usr/local/bin/g++-12
       AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
