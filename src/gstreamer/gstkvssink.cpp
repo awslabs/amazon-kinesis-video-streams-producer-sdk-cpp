@@ -1162,7 +1162,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_CUSTOM_DOWNSTREAM: {
             const GstStructure *structure = gst_event_get_structure(event);
-            uint32_t imagesEvent;
+            uint32_t streamMetadataEvent;
             gboolean persistent;
             PStreamEventMetadata pStreamEventMetadata;
 
@@ -1186,12 +1186,12 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
                 }
             
             } else if (gst_structure_has_name(structure, KVS_ADD_EVENT_METADATA_G_STRUCT_NAME) &&
-                gst_structure_get_uint(structure, KVS_ADD_EVENT_METADATA_EVENT, &imagesEvent) &&
+                gst_structure_get_uint(structure, KVS_ADD_EVENT_METADATA_EVENT, &streamMetadataEvent) &&
                 gst_structure_get(structure, KVS_ADD_EVENT_METADATA_STREAM_EVENT_METADATA, G_TYPE_POINTER, &pStreamEventMetadata, NULL)) {
 
                 LOG_TRACE("Received kvs-add-event-metadata event for " << kvssink->stream_name);
  
-                if(!data->kinesis_video_stream->putEventMetadata(imagesEvent, pStreamEventMetadata)) {
+                if(!data->kinesis_video_stream->putEventMetadata(streamMetadataEvent, pStreamEventMetadata)) {
                     ret = FALSE;
                     LOG_WARN("Failed to putEventMetadata for " << kvssink->stream_name);
                 }
