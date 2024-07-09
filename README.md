@@ -126,6 +126,24 @@ Included are sample applications for streaming and ingesting to a KVS stream. To
 
 <br>
 
+#### AWS Authentication
+In your terminal, export AWS credentials for your IAM user or role and the region your stream is located in. The samples will default to us-west-2 if the region is not specified. The sample applications do not support IMDS credentials.
+
+```
+export AWS_ACCESS_KEY_ID=YourAccessKey
+export AWS_SECRET_ACCESS_KEY=YourSecretKey
+
+export AWS_DEFAULT_REGION=YourAWSRegion
+```
+
+If you're using temporary AWS credentials, also export your session token:
+
+```
+export AWS_SESSION_TOKEN=YourSessionToken
+```
+
+<br>
+
 #### GStreamer appsink Samples
 To stream media from the device's camera and audio sources, create a stream in the [AWS KVS console](https://console.aws.amazon.com/kinesisvideo/home) and run the following sample:
 ```bash
