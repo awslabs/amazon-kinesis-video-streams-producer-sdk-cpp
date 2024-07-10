@@ -295,9 +295,9 @@ bool put_fragment_metadata(GstElement* element, const std::string name, const st
 /*
 This function creates a GstStructure and uses it to trigger the GST_EVENT_CUSTOM_DOWNSTREAM for put_event_metadata
 */
-bool put_event_metadata(GstElement* element, const uint32_t imagesEvent, const PStreamEventMetadata pStreamEventMetadata) {
+bool put_event_metadata(GstElement* element, const uint32_t metadataEvent, const PStreamEventMetadata pStreamEventMetadata) {
   GstStructure *metadata = gst_structure_new_empty(KVS_ADD_EVENT_METADATA_G_STRUCT_NAME);
-  gst_structure_set(metadata, KVS_ADD_EVENT_METADATA_EVENT, G_TYPE_UINT, imagesEvent, 
+  gst_structure_set(metadata, KVS_ADD_EVENT_METADATA_EVENT, G_TYPE_UINT, metadataEvent, 
                   KVS_ADD_EVENT_METADATA_STREAM_EVENT_METADATA, G_TYPE_POINTER, pStreamEventMetadata, NULL);
   GstEvent* event = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, metadata);
   LOG_TRACE("Emit the images to be delivered event with structure: " << std::string(gst_structure_to_string (metadata)));
@@ -349,8 +349,13 @@ static void put_metadata(GstElement* element) {
     }
 }
 
+/*
+Function to deliver images by calling put_event_metadata. Customers can write their own "deliver_images" or other similar function
+to put event metadata. Currently this function is being called every five seconds using a timer. This logic can be modified
+and the trigger for this function can also be customized by the customer
+*/
 static void deliver_images(GstElement* element) {
-    if (!put_event_metadata(element, STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL)) {
+    if (!put_event_metadata(element, STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL)) {
         g_source_remove(data_global.deliver_images_timer_id);
         data_global.deliver_images_timer_id = 0;
         LOG_WARN("Failed to deliver image, removing timer");
