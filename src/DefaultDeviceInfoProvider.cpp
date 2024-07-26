@@ -41,7 +41,7 @@ DefaultDeviceInfoProvider::DefaultDeviceInfoProvider(const std::string &custom_u
     device_info_.tagCount = 0;
 
     // Set storage info
-    device_info.clientInfo.automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
+    // device_info_.clientInfo.automaticStreamingFlags = AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS;
 
     device_info_.storageInfo.version = STORAGE_INFO_CURRENT_VERSION;
     device_info_.storageInfo.storageType = DEVICE_STORAGE_TYPE_IN_MEM;
