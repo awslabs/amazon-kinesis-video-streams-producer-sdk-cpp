@@ -72,7 +72,7 @@ public:
             API_CALL_CACHE_TYPE api_call_caching,
             uint64_t caching_update_period);
 
-    virtual ~DefaultCallbackProvider();
+    ~DefaultCallbackProvider() = default;
 
     callback_t getCallbacks() override;
 
@@ -443,7 +443,19 @@ protected:
     /**
      * Stores all callbacks from PIC
      */
-    PClientCallbacks client_callbacks_;
+    class CallbackProviderResources {
+    public:
+        CallbackProviderResources() : client_callbacks_(nullptr) {}
+        ~CallbackProviderResources() {
+            if (client_callbacks_ != nullptr) {
+                freeCallbacksProvider(&client_callbacks_);
+            }
+        }
+  
+        PClientCallbacks client_callbacks_;
+    };
+  
+    std::unique_ptr<CallbackProviderResources> resources_;
 
     /**
      * Stores all auth callbacks from C++
