@@ -406,7 +406,8 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         : region_(region),
           service_(std::string(KINESIS_VIDEO_SERVICE_NAME)),
           control_plane_uri_(control_plane_uri),
-          cert_path_(cert_path) {
+          cert_path_(cert_path),
+          resources_(new CallbackProviderResources()) {
     STATUS retStatus = STATUS_SUCCESS;
     client_callback_provider_ = std::move(client_callback_provider);
     stream_callback_provider_ = std::move(stream_callback_provider);
@@ -439,20 +440,16 @@ DefaultCallbackProvider::DefaultCallbackProvider(
             STRING_TO_PCHAR(cert_path),
             STRING_TO_PCHAR (user_agent_name),
             STRING_TO_PCHAR(custom_user_agent_),
-            &client_callbacks_))) {
+            &resources_->client_callbacks_))) {
         std::stringstream status_strstrm;
         status_strstrm << std::hex << retStatus;
         LOG_AND_THROW("Unable to create default callback provider. Error status: 0x" + status_strstrm.str());
     }
-    auth_callbacks_ = credentials_provider_->getCallbacks(client_callbacks_);
-    addStreamCallbacks(client_callbacks_, &stream_callbacks_);
-    addProducerCallbacks(client_callbacks_, &producer_callbacks_);
-    setPlatformCallbacks(client_callbacks_, &platform_callbacks_);
-    createContinuousRetryStreamCallbacks(client_callbacks_, &pContinuoutsRetryStreamCallbacks);
-}
-
-DefaultCallbackProvider::~DefaultCallbackProvider() {
-    freeCallbacksProvider(&client_callbacks_);
+    auth_callbacks_ = credentials_provider_->getCallbacks(resources_->client_callbacks_);
+    addStreamCallbacks(resources_->client_callbacks_, &stream_callbacks_);
+    addProducerCallbacks(resources_->client_callbacks_, &producer_callbacks_);
+    setPlatformCallbacks(resources_->client_callbacks_, &platform_callbacks_);
+    createContinuousRetryStreamCallbacks(resources_->client_callbacks_, &pContinuoutsRetryStreamCallbacks);
 }
 
 StreamCallbacks DefaultCallbackProvider::getStreamCallbacks() {
@@ -493,7 +490,7 @@ PlatformCallbacks DefaultCallbackProvider::getPlatformCallbacks() {
 }
 
 DefaultCallbackProvider::callback_t DefaultCallbackProvider::getCallbacks() {
-    return *client_callbacks_;
+    return *resources_->client_callbacks_;
 }
 
 GetStreamingTokenFunc DefaultCallbackProvider::getStreamingTokenCallback() {
