@@ -406,7 +406,7 @@ DefaultCallbackProvider::DefaultCallbackProvider(
         : region_(region),
           service_(std::string(KINESIS_VIDEO_SERVICE_NAME)),
           control_plane_uri_(control_plane_uri),
-          cert_path_(cert_path)
+          cert_path_(cert_path),
           resources_(new CallbackProviderResources()) {
     STATUS retStatus = STATUS_SUCCESS;
     client_callback_provider_ = std::move(client_callback_provider);
