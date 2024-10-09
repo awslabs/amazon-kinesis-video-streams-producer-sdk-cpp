@@ -301,7 +301,7 @@ jobs:
           git config --system core.longpaths true
           cd D:\producer
           dir
-          .github/build_windows.bat
+          .\build_windows.bat
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
