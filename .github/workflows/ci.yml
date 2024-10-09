@@ -300,6 +300,7 @@ jobs:
           $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin'
           git config --system core.longpaths true
           cd D:\producer
+          dir
           .github/build_windows.bat
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
