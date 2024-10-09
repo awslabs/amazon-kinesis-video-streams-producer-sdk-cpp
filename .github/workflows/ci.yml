@@ -286,6 +286,9 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
+      - name: Move repository
+        run: |
+          move amazon-kinesis-video-streams-producer-sdk-cpp ..
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
