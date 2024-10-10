@@ -3,7 +3,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
-project(KinesisVideoProducerCpp VERSION 3.4.1)
+project(KinesisVideoProducerCpp VERSION 3.4.2)
 
 set(CMAKE_CXX_STANDARD 11)
 include(GNUInstallDirs)
