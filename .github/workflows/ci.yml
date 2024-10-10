@@ -12,7 +12,7 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -44,7 +44,7 @@ jobs:
           ./tst/producerTest
 
   mac-os-build-gcc:
-    runs-on: macos-12
+    runs-on: macos-13
     permissions:
       id-token: write
       contents: read
@@ -286,6 +286,10 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
+      - name: Move repository
+        run: |
+          mkdir C:\producer
+          Move-Item -Path "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\*" -Destination "D:\producer"
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
@@ -293,9 +297,11 @@ jobs:
           choco install gstreamer-devel --version=1.22.8
       - name: Build repository
         run: |
-          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin'
           git config --system core.longpaths true
-          .github/build_windows.bat
+          cd D:\producer
+          dir
+          .\build_windows.bat
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
@@ -305,8 +311,8 @@ jobs:
           role-duration-seconds: 10800
       - name: Run tests
         run: |
-          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\lib;D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\open-source\local\bin'
-          & "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\build\tst\producerTest.exe" 
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin'
+          & "D:\producer\build\tst\producerTest.exe" 
 
   arm64-cross-compilation:
     runs-on: ubuntu-20.04
