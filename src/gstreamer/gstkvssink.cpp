@@ -1536,7 +1536,7 @@ init_track_data(GstKvsSink *kvssink) {
             caps = gst_pad_get_allowed_caps(collect_data->pad);
             
             if (caps == NULL) {
-                LOG_AND_THROW("Error, GStreamer pad returned NULL caps for stream: " << kvssink->stream_name);
+                LOG_AND_THROW("Error, GStreamer pad returned NULL caps. Pad has no peer for stream: " << kvssink->stream_name);
             }
             
             media_type = gst_structure_get_name(gst_caps_get_structure(caps, 0));
