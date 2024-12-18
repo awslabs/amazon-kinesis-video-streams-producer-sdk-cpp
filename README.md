@@ -85,6 +85,7 @@ You can pass the following options to `cmake ..`.
 * `-DBUILD_GSTREAMER_PLUGIN` -- Build kvssink GStreamer plugin
 * `-DBUILD_JNI` -- Build C++ wrapper for JNI to expose the functionality to Java/Android
 * `-DBUILD_DEPENDENCIES` -- Build depending libraries from source
+* `-DBUILD_PRODUCER_C` -- Build KVS Producer C library from source. Default is ON.
 * `-DBUILD_TEST=TRUE` -- Build unit/integration tests, may be useful for confirm support for your device. `./tst/producerTest`
 * `-DCODE_COVERAGE` --  Enable coverage reporting
 * `-DCOMPILER_WARNINGS` -- Enable all compiler warnings

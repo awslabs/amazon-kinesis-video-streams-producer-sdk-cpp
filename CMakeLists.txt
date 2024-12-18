@@ -14,6 +14,7 @@ option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
+option(BUILD_PRODUCER_C "Whether or not to build KVS Producer C library from source" ON)
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
 option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
 
@@ -100,7 +101,7 @@ set(BUILD_COMMON_CURL
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
 
-if(BUILD_DEPENDENCIES)
+if (BUILD_PRODUCER_C)
   set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
   if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
     file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
