@@ -81,7 +81,7 @@ gst-launch-1.0 --gst-version
 
 ### Download
 ```bash
-git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git
+git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-cpp.git --single-branch -b master kvs-producer-cpp-sdk
 ```
 
 <br>
@@ -123,8 +123,6 @@ nmake
 Included are sample applications for streaming and ingesting to a KVS stream. To stream to KVS, the GStreamer samples use an implemented `appsink` sink element, and the kvssink samples use the custom `kvssink` sink element.
 > [!TIP]
 > More on [GStreamer elements](https://gstreamer.freedesktop.org/documentation/application-development/basics/elements.html?gi-language=c).
-
-<br>
 
 #### AWS Authentication
 In your terminal, export AWS credentials for your IAM user or role and the region your stream is located in. The samples will default to us-west-2 if the region is not specified. The sample applications do not support IMDS credentials.
@@ -201,11 +199,6 @@ The intermittent kvssink sample will stream video for 20 seconds, then pause for
 ./kvssink_intermittent_sample <stream-name> <testsrc or devicesrc (optional)>
 ```
 Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, kvssink uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
-
-<br>
-
-#### Running Samples in offline mode
-By default, the samples run in near-real-time mode. To set offline mode, set streamInfo.streamCaps.streamingType to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.
 
 <br>
 
