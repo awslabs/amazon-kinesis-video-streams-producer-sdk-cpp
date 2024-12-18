@@ -89,8 +89,8 @@ git clone https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-c
 ### Build
 #### Prepare a build directory in the newly checked out repository:
 ```bash
-mkdir -p amazon-kinesis-video-streams-producer-sdk-cpp/build
-cd amazon-kinesis-video-streams-producer-sdk-cpp/build
+mkdir -p kvs-producer-cpp-sdk/build
+cd kvs-producer-cpp-sdk/build
 ```
 #### Configure the build:
 
