@@ -17,7 +17,7 @@
 * [Key Features](#key-features)
 * [Quick Start](#quick-start)
 * [Build Options](#build-options)
-* [Configuring kvssink](#configuring-kvssink)
+* [Configuring `kvssink`](#configuring-kvssink)
 * [Troubleshooting](#troubleshooting)
 * [Development](#development)
 * [Related](#related)
@@ -29,7 +29,7 @@
 
 ## Key Features
 * C++ SDK with sample programs
-* GStreamer plugin (kvssink) and samples
+* GStreamer plugin (`kvssink`) and samples
 * Java Native Interface (JNI)
 
 > [!NOTE]
@@ -56,7 +56,7 @@ The following packages are required to build the SDK libraries. Using a package 
 <br>
 
 ### Install GStreamer
-If building the samples or the kvssink GStreamer plugin, GStreamer libraries are required.
+If building the samples or the `kvssink` GStreamer plugin, GStreamer libraries are required.
 
 _Mac_
 ```bash
@@ -120,7 +120,7 @@ nmake
 <br>
 
 ### Run the Samples
-Included are sample applications for streaming and ingesting to a KVS stream. To stream to KVS, the GStreamer samples use an implemented `appsink` sink element, and the kvssink samples use the custom `kvssink` sink element.
+Included are sample applications for streaming and ingesting to a KVS stream. To stream to KVS, the GStreamer samples use an implemented `appsink` sink element, and the "kvssink" samples use the custom `kvssink` sink element.
 > [!TIP]
 > More on [GStreamer elements](https://gstreamer.freedesktop.org/documentation/application-development/basics/elements.html?gi-language=c).
 
@@ -142,7 +142,7 @@ export AWS_SESSION_TOKEN=YourSessionToken
 
 <br>
 
-#### GStreamer appsink Samples
+#### GStreamer `appsink` Samples
 To stream media from the device's camera and audio sources, create a stream in the [AWS KVS console](https://console.aws.amazon.com/kinesisvideo/home) and run the following sample:
 ```bash
 ./kvs_gstreamer_audio_video_sample <your-stream-name>
@@ -150,7 +150,7 @@ To stream media from the device's camera and audio sources, create a stream in t
 
 <br>
 
-#### kvssink Samples
+#### `kvssink` Samples
 The SDK comes with two programmatic GStreamer samples: `kvssink_gstreamer_sample` and `kvssink_intermittent_sample`. For more use cases, see the CLI pipeline examples at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
 
 The programmatic samples require the AWS region to be set with the `AWS_DEFAULT_REGION` environment variable. For example:
@@ -158,7 +158,7 @@ The programmatic samples require the AWS region to be set with the `AWS_DEFAULT_
 export AWS_DEFAULT_REGION=us-west-2
 ```
 
-To load kvssink plugin into GStreamer, set the following environment variable from the `build` directory.
+To load the `kvssink` plugin into GStreamer, set the following environment variable from the `build` directory.
 
 _Mac and Linux_
 ```bash
@@ -170,14 +170,14 @@ _Windows_
 set GST_PLUGIN_PATH=%CD%\.
 ```
 
-Running the following command should now display information on the kvssink plugin:
+Running the following command should now display information on the `kvssink` plugin:
 ```
 gst-inspect-1.0 kvssink
 ```
 If the build failed or GST_PLUGIN_PATH is not properly set, you may instead see the following output:<br>
 `No such element or plugin kvssink`
 
-After building the SDK, loading kvssink into the GStreamer plugin path, and setting a region, the sample executables, which are located in the `build` directory, can be run. For example:
+After building the SDK, loading `kvssink` into the GStreamer plugin path, and setting a region, the sample executables, which are located in the `build` directory, can be run. For example:
 ```
 ./kvssink_gstreamer_sample MyStreamName
 ```
@@ -191,14 +191,14 @@ wget https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sampl
 
 <br>
 
-**Running the kvssink Intermittent Sample**
+**Running the `kvssink` Intermittent Sample**
 
-The intermittent kvssink sample will stream video for 20 seconds, then pause for 40 seconds, and repeat until an interrupt signal is received. To manually adjust the streaming and paused intervals, you can change the `KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS` and `KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS` values in the *kvssink_intermittent_sample.cpp* file.
+The intermittent `kvssink` sample will stream video for 20 seconds, then pause for 40 seconds, and repeat until an interrupt signal is received. To manually adjust the streaming and paused intervals, you can change the `KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS` and `KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS` values in the *kvssink_intermittent_sample.cpp* file.
 
 ```bash
 ./kvssink_intermittent_sample <stream-name> <testsrc or devicesrc (optional)>
 ```
-Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, kvssink uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
+Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, `kvssink` uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a KVS stream with the provided or default name does not exist, the stream will automatically be created.
 
 <br>
 
@@ -211,7 +211,7 @@ If playback issues are encountered, pleaser refer to the playback requirements u
 
 ## Build Options
 ### Considerations
-- The **kvssink** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, include their corresponding cmake command arguments: `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
+- The **`kvssink`** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, include their corresponding cmake command arguments: `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
 - By default, the **dependency libraries** are installed from GitHub and built locally. To instead link to pre-installed libraries on the device, include the following cmake command argument: `cmake .. -DBUILD_DEPENDENCIES=OFF`
   - The dependency libraries are Curl, OpenSSL, and Log4Cplus.
  
@@ -220,7 +220,7 @@ You can pass the following additional CMake options:
 
 | Option	                     | Default       | Description	|
 |:-----------------------------|:-------------:|:-------------|
-| BUILD_GSTREAMER_PLUGIN       | OFF           | Build the kvssink GStreamer plugin
+| BUILD_GSTREAMER_PLUGIN       | OFF           | Build the `kvssink` GStreamer plugin
 | BUILD_JNI                    | OFF           | Build C++ wrapper for JNI to expose the functionality to Java/Android
 | BUILD_DEPENDENCIES           | ON            | Build depending libraries from source
 | BUILD_TEST                   | OFF           | Build unit/integration tests, may be useful to confirm support for your device, to run tests:       `./tst/producerTest`
@@ -269,8 +269,8 @@ The sample docker scripts for RTSP plugin, Raspberry Pi and Linux can be found i
 
 <br>
 
-## Configuring kvssink
-The kvssink GStreamer element includes the following parameters:
+## Configuring `kvssink`
+The `kvssink` GStreamer element includes the following parameters:
 
 | Parameter	             | Default           | Description	|
 |:-----------------------|:-----------------:|:------------|
@@ -279,9 +279,9 @@ The kvssink GStreamer element includes the following parameters:
 | storage&#x2011;size    | 128               | The storage size of the device in mebibytes (MiB). For information about configuring device storage, see [StorageInfo](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producer-reference-structures-producer.html#producer-reference-structures-producer-storageinfo).
 | access&#x2011;key      | N/A               | The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_ACCESS_KEY_ID environment variable.
 | secret&#x2011;key      | N/A               | The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_SECRET_ACCESS_KEY environment variable.
-| credential&#x2011;path | '.kvs/credential' | A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files and more information, see [Provide credentials to kvssink](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#credentials-to-kvssink). You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
+| credential&#x2011;path | '.kvs/credential' | A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files and more information, see [Provide credentials to `kvssink`](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#credentials-to-kvssink). You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
 
-To see all kvssink parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html).
+To see all `kvssink` parameters, see [AWS Docs - `kvssink` Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html).
 
 For examples of common use cases, see [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
 
