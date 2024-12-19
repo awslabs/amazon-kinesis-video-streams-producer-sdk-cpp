@@ -279,9 +279,9 @@ The `kvssink` GStreamer element includes the following parameters:
 | storage&#x2011;size    | 128               | The storage size of the device in mebibytes (MiB). For information about configuring device storage, see [StorageInfo](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producer-reference-structures-producer.html#producer-reference-structures-producer-storageinfo).
 | access&#x2011;key      | N/A               | The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_ACCESS_KEY_ID environment variable.
 | secret&#x2011;key      | N/A               | The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_SECRET_ACCESS_KEY environment variable.
-| credential&#x2011;path | '.kvs/credential' | A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files and more information, see [Provide credentials to `kvssink`](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#credentials-to-kvssink). You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
+| credential&#x2011;path | '.kvs/credential' | A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files and more information, see [Provide credentials to kvssink](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#credentials-to-kvssink). You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
 
-To see all `kvssink` parameters, see [AWS Docs - `kvssink` Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html).
+To see all `kvssink` parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html).
 
 For examples of common use cases, see [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
 
