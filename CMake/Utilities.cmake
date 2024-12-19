@@ -35,7 +35,6 @@ function(build_dependency lib_name)
       gtest
       jsmn
       openssl
-      curl
       mbedtls
       autoconf
       automake
