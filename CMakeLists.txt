@@ -57,6 +57,11 @@ endif()
 add_definitions(-DKVS_CA_CERT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/certs/cert.pem")
 add_definitions(-DCMAKE_DETECTED_CACERT_PATH)
 
+# Instruct Producer C to build Curl with Position Independent Code (-fpic).
+# This is to allow a static Curl build to link with to a shared Producer Cpp build.
+if(BUILD_STATIC AND BUILD_FORCE_GSTREAMER_PLUGIN_SHARED)
+  set(CURL_POSITION_INDEPENDENT_CODE TRUE)
+endif()
 
 if(BUILD_DEPENDENCIES)
   if(NOT EXISTS ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
