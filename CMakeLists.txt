@@ -12,7 +12,7 @@ include(GNUInstallDirs)
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
 option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/Android" OFF)
 option(BUILD_STATIC "Build with static linkage" OFF)
-option(BUILD_FORCE_GSTREAMER_PLUGIN_SHARED "If building with static linkage, build the kvssink GStreamer plugin as a shared library" OFF)
+option(BUILD_FORCE_KVSSINK_SHARED "If building with static linkage, build the kvssink GStreamer plugin as a shared library" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
@@ -59,7 +59,7 @@ add_definitions(-DCMAKE_DETECTED_CACERT_PATH)
 
 # Instruct Producer C to build Curl with Position Independent Code (-fpic).
 # This is to allow a static Curl build to link with to a shared Producer Cpp build.
-if(BUILD_STATIC AND BUILD_FORCE_GSTREAMER_PLUGIN_SHARED)
+if(BUILD_STATIC AND BUILD_FORCE_KVSSINK_SHARED)
   set(CURL_POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
@@ -220,7 +220,7 @@ if(BUILD_GSTREAMER_PLUGIN)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
 
-  if(BUILD_STATIC AND (NOT BUILD_FORCE_GSTREAMER_PLUGIN_SHARED))
+  if(BUILD_STATIC AND (NOT BUILD_FORCE_KVSSINK_SHARED))
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
   else()
     add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
