@@ -51,6 +51,22 @@ The following packages are required to build the SDK libraries. Using a package 
 * `m4`
 * _Windows_ only: `nasm` and `strawberryperl`
 
+_Mac_
+```bash
+brew install git cmake pkgconf m4
+```
+
+_Linux_
+```bash
+sudo apt update
+sudo apt install git cmake pkgconf m4
+```
+
+_Windows_
+```bat
+choco install git cmake pkgconfiglite nasm strawberryperl
+```
+
 <br>
 
 ### Install GStreamer
@@ -66,8 +82,7 @@ sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1
 ```
 _Windows_
 ```bat
-choco install gstreamer --version=1.22.8
-choco install gstreamer-devel --version=1.22.8
+choco install gstreamer --version=1.22.8 gstreamer-devel --version=1.22.8
 ```
 #### Verify GStreamer Installation
 Run the following command to display the GStreamer version to confirm the installation was successful:
