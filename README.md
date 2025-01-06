@@ -43,7 +43,7 @@ For more info on KVS please see [AWS KVS Documentation](https://docs.aws.amazon.
 
 ## Quick Start
 ### Required Tools
-The following packages are required to build the SDK libraries. Using a package manager such as _Homebrew_ (Mac), _APT_ (Linux), and _Chocolatey_ (Windows) is the prefered method of installation.
+The following packages are required to build the SDK libraries. Using a package manager such as [_Homebrew_](https://brew.sh/) (Mac), [_APT_](https://en.wikipedia.org/wiki/APT_(software)) (Linux), and [_Chocolatey_](https://chocolatey.org/install) (Windows) is the prefered method of installation.
 * C++ Compiler (GNU or Clang recommended)
 * `git`
 * `CMake`
@@ -89,7 +89,9 @@ Run the following command to display the GStreamer version to confirm the instal
 ```bash
 gst-launch-1.0 --gst-version
 ```
-
+`
+GStreamer Core Library version 1.24.9
+`
 <br>
 
 ### Download
@@ -118,7 +120,7 @@ cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=TRUE" ..
 
 
 > [!NOTE]
-> For more build configuration options, see [Cmake Arguments](#cmake-arguments).
+> For more build configuration options, see [CMake Arguments](#cmake-arguments).
 
 #### Compile:
 _Mac and Linux_
@@ -156,7 +158,7 @@ export AWS_SESSION_TOKEN=YourSessionToken
 <br>
 
 #### GStreamer `appsink` Samples
-To stream media from the device's camera and audio sources, create a stream in the [AWS KVS console](https://console.aws.amazon.com/kinesisvideo/home) and run the following sample:
+To stream media from the device's camera and microphone sources, create a stream in the [AWS KVS console](https://console.aws.amazon.com/kinesisvideo/home) and run the following sample:
 ```bash
 ./kvs_gstreamer_audio_video_sample <your-stream-name>
 ```
@@ -224,9 +226,8 @@ If playback issues are encountered, pleaser refer to the playback requirements u
 
 ## Build Options
 ### Considerations
-- The **`kvssink`** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, include their corresponding cmake command arguments: `cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_JNI=TRUE`
-- By default, the **dependency libraries** are installed from GitHub and built locally. To instead link to pre-installed libraries on the device, include the following cmake command argument: `cmake .. -DBUILD_DEPENDENCIES=OFF`
-  - The dependency libraries are Curl, OpenSSL, and Log4Cplus.
+- The **`kvssink`** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, use their corresponding cmake command options: `-DBUILD_GSTREAMER_PLUGIN=ON` and `-DBUILD_JNI=TRUE`.
+- By default, the **dependency libraries** (Curl, OpenSSL, and Log4Cplus) are installed from GitHub and built locally. To instead link to pre-installed libraries on the device, include the following cmake command argument: `cmake .. -DBUILD_DEPENDENCIES=OFF`
  
 ### CMake Arguments
 You can pass the following additional CMake options:
