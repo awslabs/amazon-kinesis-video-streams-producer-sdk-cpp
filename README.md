@@ -42,6 +42,8 @@ For more info on KVS please see [AWS KVS Documentation](https://docs.aws.amazon.
 <br>
 
 ## Quick Start
+The following instructions describe the SDK and samples setup for Mac, Linux, and Windows platforms. For dedicated Raspberry Pi instructions, see [Use the C++ producer SDK on Raspberry Pi](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producersdk-cpp-rpi.html)
+
 ### Required Tools
 The following packages are required to build the SDK libraries. Using a package manager such as [_Homebrew_](https://brew.sh/) (Mac), [_APT_](https://en.wikipedia.org/wiki/APT_(software)) (Linux), and [_Chocolatey_](https://chocolatey.org/install) (Windows) is the prefered method of installation.
 * C++ Compiler (GNU or Clang recommended)
