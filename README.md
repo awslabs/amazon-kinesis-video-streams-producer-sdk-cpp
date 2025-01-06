@@ -111,11 +111,11 @@ cd kvs-producer-cpp-sdk/build
 
 _Mac and Linux_
 ```bash
-cmake -DBUILD_GSTREAMER_PLUGIN=TRUE ..
+cmake -DBUILD_GSTREAMER_PLUGIN=ON ..
 ```
 _Windows_ (may need to run twice)
 ```bat
-cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=TRUE" ..
+cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=ON" ..
 ```
 
 
@@ -226,7 +226,7 @@ If playback issues are encountered, pleaser refer to the playback requirements u
 
 ## Build Options
 ### Considerations
-- The **`kvssink`** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, use their corresponding cmake command options: `-DBUILD_GSTREAMER_PLUGIN=ON` and `-DBUILD_JNI=TRUE`.
+- The **`kvssink`** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, use their corresponding cmake command options: `-DBUILD_GSTREAMER_PLUGIN=ON` and `-DBUILD_JNI=ON`.
 - By default, the **dependency libraries** (Curl, OpenSSL, and Log4Cplus) are installed from GitHub and built locally. To instead link to pre-installed libraries on the device, include the following cmake command argument: `cmake .. -DBUILD_DEPENDENCIES=OFF`
  
 ### CMake Arguments
@@ -311,13 +311,18 @@ We have FAQs and platform specific instructions for [Windows](docs/windows.md), 
 ### Debugging
 
 #### Build Issues
+* Clean Build: When modifying the build configuration between builds, ensure the appropriate files from the previous build are removed before running `cmake` for the next build. A simple way to ensure all the previous build's files are removed is to delete all the directories created during the build. To do so, run the following in the project's root folder:
+```
+rm -rf build dependency open-source
+```
 * If you are running into issues building libcurl on M1 Mac, you can try `brew unlink openssl`.
-* When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure Java is installed and your environment variables are set correctly:  
+* When building the JNI, if you run into a cmake error `Could NOT find JNI (missing: JAVA_INCLUDE_PATH JAVA_INCLUDE_PATH2 JAVA_AWT_INCLUDE_PATH)`, make sure Java (version 8 or 11) is installed and your environment variables are set correctly:  
 `export JAVA_INCLUDE_PATH2=/Library/Java/JavaVirtualMachines/<YOUR_JDK_VERSION>/Contents/Home/include` or `export JAVA_INCLUDE_PATH2=$JAVA_HOME/include` for Mac OS.  
 `export JAVA_INCLUDE_PATH2='/usr/java/<JDK_VERSION>/include'` for Linux.
 
 #### Playback Issues
 * If you are successfully streaming but run into issue with playback. You can do `export KVS_DEBUG_DUMP_DATA_FILE_DIR=/path/to/directory` before streaming. Producer will then dump MKV files into that path. The file is exactly what KVS will receive. You can use [MKVToolNIX](https://mkvtoolnix.download/index.html) to check that everything looks correct. You can also try to play the MKV file in compatible players.
+* See [AWS Docs - Playback issues](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producersdk-cpp-rpi-playback.html#rpi-troubleshoot-playback) for more troubleshooting guidance.
 #### GStreamer Issues
 
 * If you would like to visualize the GStreamer pipeline being constructed in a GStreamer application, include the following after the elements have been linked:
