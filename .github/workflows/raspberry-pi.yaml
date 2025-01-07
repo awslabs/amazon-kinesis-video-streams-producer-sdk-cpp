@@ -78,7 +78,7 @@ jobs:
                 gst-launch-1.0 -v videotestsrc is-live=true \
                 ! video/x-raw,framerate=10/1,width=640,height=480 \
                 ! clockoverlay time-format="%a %B %d, %Y %I:%M:%S %p" \
-                ! x264enc bframes=0 key-int-max=10 \
+                ! x264enc bframes=0 key-int-max=10 tune=zerolatency \
                 ! h264parse \
                 ! kvssink stream-name="cpp-producer-rpi-${{ matrix.os }}"
               EXIT_CODE=$?
