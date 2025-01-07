@@ -32,11 +32,6 @@ endfunction()
 # build library from source
 function(build_dependency lib_name)
   set(supported_libs
-      gtest
-      jsmn
-      openssl
-      curl
-      mbedtls
       autoconf
       automake
       log4cplus)
