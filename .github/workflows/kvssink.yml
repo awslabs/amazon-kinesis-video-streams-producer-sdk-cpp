@@ -1,0 +1,68 @@
+name: kvssink checks
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+  pull_request:
+    branches:
+      - develop
+      - master
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - os: Ubuntu 22.04
+            image: public.ecr.aws/ubuntu/ubuntu:22.04_stable
+          - os: Ubuntu 20.04
+            image: public.ecr.aws/ubuntu/ubuntu:20.04_stable
+      fail-fast: false
+
+    name: kvssink unit tests on ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y automake build-essential cmake git \
+            gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
+            gstreamer1.0-tools \
+            libcurl4-openssl-dev libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev liblog4cplus-dev \
+            libssl-dev pkg-config
+
+      - name: Setup build directory
+        run: |
+          mkdir -p build
+          cd build
+
+      - name: Build kvssink unit tests
+        working-directory: ./build
+        run: |
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_TEST=ON -DCMAKE_BUILD_TYPE=Debug -DALIGNED_MEMORY_MODEL=ON
+          make -j$(nproc)
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 10800
+
+      - name: Run the unit tests
+        working-directory: ./build
+        run: |
+          export GST_PLUGIN_PATH=`pwd`
+          ./tst/gstkvsplugintest 

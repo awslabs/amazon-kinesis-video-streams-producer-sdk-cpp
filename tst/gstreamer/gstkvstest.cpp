@@ -12,45 +12,60 @@ static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
                                                                    ));
 static char const *accessKey;
 static char const *secretKey;
+static char const *sessionToken;
 
 static GstElement *
 setup_kinesisvideoproducersink(void)
 {
     GstElement *kinesisvideoproducersink;
-    GST_DEBUG ("Setup kinesisvideoproducersink");
+    GST_DEBUG("Setup kinesisvideoproducersink");
     kinesisvideoproducersink = gst_check_setup_element ("kvssink");
+    fail_unless(kinesisvideoproducersink != nullptr, "Failed to create kvssink element (is GST_PLUGIN_PATH set?)");
+
     g_object_set(G_OBJECT (kinesisvideoproducersink),
                  "access-key", accessKey,
                  "secret-key", secretKey,
+                 "session-token", sessionToken,
                  NULL);
+
+    // https://gitlab.freedesktop.org/gstreamer/gst-docs/-/issues/91
+    // Use gst_element_request_pad_simple in newer GStreamer versions
+    GstPad *sinkpad = gst_element_get_request_pad(kinesisvideoproducersink, "video_0");
+    fail_unless(sinkpad != nullptr, "Failed to request video pad");
+    gst_object_unref(sinkpad);
+
     return kinesisvideoproducersink;
 }
 
 static void
 cleanup_kinesisvideoproducersink(GstElement * kinesisvideoproducersink)
 {
+    GstPad *sinkpad = gst_element_get_static_pad(kinesisvideoproducersink, "video_0");
+    if (sinkpad) {
+        gst_element_release_request_pad(kinesisvideoproducersink, sinkpad);
+        gst_object_unref(sinkpad);
+    }
 
-    gst_check_teardown_src_pad (kinesisvideoproducersink);
     gst_check_teardown_element (kinesisvideoproducersink);
 }
 
-GST_START_TEST(kvsproducersinktestplay)
+GST_START_TEST(kvsproducersinktestplayandstop)
     {
-        GstElement *pElement =
-                setup_kinesisvideoproducersink();
-        fail_unless_equals_int(gst_element_set_state(pElement, GST_STATE_PLAYING), GST_STATE_CHANGE_ASYNC);
+        GstElement *pElement = setup_kinesisvideoproducersink();
+
+        // Set up source pad
+        GstPad *srcpad = gst_check_setup_src_pad_by_name(pElement, &srctemplate, "video_0");
+        fail_unless(srcpad != nullptr, "Failed to setup source pad");
+        gst_pad_set_active(srcpad, TRUE);
+
+        // Set to PLAYING state (NULL -> PLAYING)
+        fail_unless_equals_int(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pElement, GST_STATE_PLAYING));
+
+        // Set back to NULL state (PLAYING -> NULL)
+        fail_unless_equals_int(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pElement, GST_STATE_NULL));
+
+        gst_pad_set_active(srcpad, FALSE);
         cleanup_kinesisvideoproducersink(pElement);
-
-    }
-GST_END_TEST;
-
-GST_START_TEST(kvsproducersinktestpause)
-    {
-        GstElement *pElement =
-                setup_kinesisvideoproducersink();
-        fail_unless_equals_int(gst_element_set_state(pElement, GST_STATE_PAUSED), GST_STATE_CHANGE_ASYNC);
-        cleanup_kinesisvideoproducersink(pElement);
-
     }
 GST_END_TEST;
 
@@ -60,7 +75,7 @@ GST_START_TEST(kvsproducersinktestplaytopausetoplay)
                 setup_kinesisvideoproducersink();
         GstPad *srcpad;
 
-        srcpad = gst_check_setup_src_pad_by_name (pElement, &srctemplate, "sink");
+        srcpad = gst_check_setup_src_pad_by_name (pElement, &srctemplate, "video_0");
 
         gst_pad_set_active (srcpad, TRUE);
 
@@ -206,7 +221,7 @@ GST_START_TEST(check_playing_to_paused_and_back_to_playing)
                 setup_kinesisvideoproducersink();
         GstPad *srcpad;
 
-        srcpad = gst_check_setup_src_pad_by_name (pElement, &srctemplate, "sink");
+        srcpad = gst_check_setup_src_pad_by_name (pElement, &srctemplate, "video_0");
 
         gst_pad_set_active (srcpad, TRUE);
 
@@ -221,16 +236,37 @@ GST_START_TEST(check_playing_to_paused_and_back_to_playing)
     }
 GST_END_TEST;
 
+GST_START_TEST(test_check_credentials)
+    {
+        ck_abort_msg("Required environment variables (ACCESS_KEY and/or SECRET_KEY) are not set");
+    }
+GST_END_TEST;
+
 //Verify all State change events and direct state set events.
 
 Suite *gst_kinesisvideoproducer_suite(void) {
     Suite *s = suite_create("GstKinesisVideoSinkPlugin");
     TCase *tc = tcase_create("AllStateChangeTests");
-    accessKey = getenv(ACCESS_KEY_ENV_VAR);
-    secretKey = getenv(SECRET_KEY_ENV_VAR);
 
-    tcase_add_test(tc, kvsproducersinktestplay);
-    tcase_add_test(tc, kvsproducersinktestpause);
+    accessKey = GETENV(ACCESS_KEY_ENV_VAR);
+    secretKey = GETENV(SECRET_KEY_ENV_VAR);
+    sessionToken = GETENV(SESSION_TOKEN_ENV_VAR);
+
+    accessKey = accessKey ? accessKey : "";
+    secretKey = secretKey ? secretKey : "";
+    sessionToken = sessionToken ? sessionToken : "";
+
+    // Check if required environment variables are set
+    if (accessKey[0] == '\0' || secretKey[0] == '\0') {
+        TCase *tc_env = tcase_create("Credentials check");
+        tcase_add_test_raise_signal(tc_env, test_check_credentials, SIGABRT);
+        suite_add_tcase(s, tc_env);
+
+        // Return the suite with only this failing test
+        return s;
+    }
+
+    tcase_add_test(tc, kvsproducersinktestplayandstop);
     tcase_add_test(tc, kvsproducersinktestplaytopausetoplay);
     tcase_add_test(tc, kvsproducersinkteststop);
     tcase_add_test(tc, check_properties_are_passed_correctly);
