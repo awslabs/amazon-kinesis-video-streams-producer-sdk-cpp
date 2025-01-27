@@ -40,7 +40,7 @@ jobs:
             gstreamer1.0-tools \
             libcurl4-openssl-dev libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev liblog4cplus-dev \
-            libssl-dev pkg-config
+            libssl-dev pkg-config valgrind
 
       - name: Setup build directory
         run: |
@@ -66,3 +66,18 @@ jobs:
         run: |
           export GST_PLUGIN_PATH=`pwd`
           GST_DEBUG=4 ./tst/gstkvsplugintest 
+
+      - name: Run the unit tests with valgrind
+        working-directory: ./build
+        run: |
+          export GST_PLUGIN_PATH=`pwd`
+          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes \
+            --verbose --log-file=valgrind-out.txt ./tst/gstkvsplugintest
+
+          if grep -q "All heap blocks were freed -- no leaks are possible" valgrind-out.txt; then
+            echo "No memory leaks detected"
+          else
+            echo "Memory leaks detected. Review the valgrind output:"
+            cat valgrind-out.txt
+            exit 1
+          fi

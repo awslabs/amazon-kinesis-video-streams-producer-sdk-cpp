@@ -212,12 +212,14 @@ GST_START_TEST(check_properties_are_passed_correctly)
 
         g_object_get(G_OBJECT (pElement), "stream-name", &str_val, NULL);
         assert_equals_string(TEST_STREAM_NAME.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "retention-period", &uint_val, NULL);
         assert_equals_uint64(TEST_RETENTION_PERIOD, uint_val);
         g_object_get(G_OBJECT (pElement), "streaming-type", &uint_val, NULL);
         assert_equals_uint64(TEST_STREAMING_TYPE, uint_val);
         g_object_get(G_OBJECT (pElement), "content-type", &str_val, NULL);
         assert_equals_string(TEST_CONTENT_TYPE.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "max-latency", &uint_val, NULL);
         assert_equals_uint64(TEST_MAX_LATENCY, uint_val);
         g_object_get(G_OBJECT (pElement), "fragment-duration", &uint_val, NULL);
@@ -248,16 +250,21 @@ GST_START_TEST(check_properties_are_passed_correctly)
         assert_equals_uint64(TEST_CONNECTION_STALENESS, uint_val);
         g_object_get(G_OBJECT (pElement), "codec-id", &str_val, NULL);
         assert_equals_string(TEST_CODEC_ID.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "track-name", &str_val, NULL);
         assert_equals_string(TEST_TRACK_NAME.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "access-key", &str_val, NULL);
         assert_equals_string(TEST_ACCESS_KEY.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "secret-key", &str_val, NULL);
         assert_equals_string(TEST_SECRET_KEY.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "rotation-period", &uint_val, NULL);
         assert_equals_uint64(TEST_ROTATION_PERIOD, uint_val);
         g_object_get(G_OBJECT (pElement), "log-config", &str_val, NULL);
         assert_equals_string(TEST_LOG_CONFIG.c_str(), str_val);
+        g_free(str_val);
 
         cleanup_kinesisvideoproducersink(pElement);
 
