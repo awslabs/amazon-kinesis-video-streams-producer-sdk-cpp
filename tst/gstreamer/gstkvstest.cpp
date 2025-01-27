@@ -94,8 +94,10 @@ GST_START_TEST(kvsproducersinktestplaytopausetoplay)
         gst_pad_push_event(srcpad, gst_event_new_caps (gst_caps_from_string("video/x-h264,stream-format=avc,alignment=au,codec_data=abc")));
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PAUSED_TO_PLAYING), GST_STATE_CHANGE_SUCCESS);
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PLAYING_TO_PAUSED), GST_STATE_CHANGE_SUCCESS);
-        cleanup_kinesisvideoproducersink(pElement);
 
+        gst_pad_set_active (srcpad, FALSE);
+
+        cleanup_kinesisvideoproducersink(pElement);
     }
 GST_END_TEST;
 
@@ -290,6 +292,9 @@ GST_START_TEST(check_playing_to_paused_and_back_to_playing)
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PAUSED_TO_PLAYING), GST_STATE_CHANGE_SUCCESS);
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PLAYING_TO_PAUSED), GST_STATE_CHANGE_SUCCESS);
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PAUSED_TO_PLAYING), GST_STATE_CHANGE_SUCCESS);
+
+        gst_pad_set_active (srcpad, FALSE);
+
         cleanup_kinesisvideoproducersink(pElement);
     }
 GST_END_TEST;
