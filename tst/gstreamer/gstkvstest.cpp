@@ -52,6 +52,8 @@ cleanup_kinesisvideoproducersink(GstElement * kinesisvideoproducersink)
 
     gst_check_teardown_element (kinesisvideoproducersink);
 
+    fail_unless_equals_int(STATUS_SUCCESS, RESET_INSTRUMENTED_ALLOCATORS());
+
     cout << "cleanup_kinesisvideoproducersink() end" << endl;
 }
 
@@ -303,6 +305,7 @@ GST_END_TEST;
 Suite *gst_kinesisvideoproducer_suite(void) {
     Suite *s = suite_create("GstKinesisVideoSinkPlugin");
     TCase *tc = tcase_create("AllStateChangeTests");
+    tcase_set_timeout(tc, 15);  // 15 second timeout per test
 
     accessKey = GETENV(ACCESS_KEY_ENV_VAR);
     secretKey = GETENV(SECRET_KEY_ENV_VAR);
