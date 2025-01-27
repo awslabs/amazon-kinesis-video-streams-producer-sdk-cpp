@@ -65,4 +65,4 @@ jobs:
         working-directory: ./build
         run: |
           export GST_PLUGIN_PATH=`pwd`
-          ./tst/gstkvsplugintest 
+          GST_DEBUG=4 ./tst/gstkvsplugintest 
