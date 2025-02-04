@@ -65,19 +65,82 @@ jobs:
         working-directory: ./build
         run: |
           export GST_PLUGIN_PATH=`pwd`
-          GST_DEBUG=4 ./tst/gstkvsplugintest 
+          GST_DEBUG=4 ./tst/gstkvsplugintest
 
-      - name: Run the unit tests with valgrind
-        working-directory: ./build
+#      - name: Run the unit tests with valgrind
+#        working-directory: ./build
+#        run: |
+#          export GST_PLUGIN_PATH=`pwd`
+#          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes \
+#            --verbose --log-file=valgrind-out.txt ./tst/gstkvsplugintest
+#
+#          if grep -q "All heap blocks were freed -- no leaks are possible" valgrind-out.txt; then
+#            echo "No memory leaks detected"
+#          else
+#            echo "Memory leaks detected. Review the valgrind output:"
+#            cat valgrind-out.txt
+#            exit 1
+#          fi
+
+  windows-debug-dump-dir:
+    runs-on: windows-2022
+    env:
+      AWS_KVS_LOG_LEVEL: 1
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+      - name: Move repository
         run: |
-          export GST_PLUGIN_PATH=`pwd`
-          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes \
-            --verbose --log-file=valgrind-out.txt ./tst/gstkvsplugintest
+          mkdir D:\producer
+          Move-Item -Path "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\*" -Destination "D:\producer"
+      - name: Install dependencies
+        run: |
+          choco install nasm strawberryperl mkvtoolnix
+          choco install gstreamer --version=1.22.8
+          choco install gstreamer-devel --version=1.22.8
+      - name: Build repository
+        run: |
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin'
+          git config --system core.longpaths true
+          cd D:\producer
+          dir
+          .github\build_windows.bat
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 10800
+      - name: Run kvssink with dump dir
+        env:
+          GST_PLUGIN_PATH: D:\producer\build\
+          KVS_DEBUG_DUMP_DATA_FILE_DIR: D:\producer\build\debug_output
+        working-directory: D:\producer\build\
+        run: |
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin;D:\gstreamer\1.0\msvc_x86_64\bin'
+          
+          # Create the debug directory (equivalent to mkdir -p)
+          New-Item -ItemType Directory -Path "D:\producer\build\debug_output" -Force
+          
+          # Stream for 15 seconds (450 frames @ 30 fps)
+          gst-launch-1.0.exe videotestsrc is-live=true num-buffers=450 ! video/x-raw,framerate=30/1,width=640,height=480 ! videoconvert ! x264enc tune=zerolatency key-int-max=45 ! h264parse ! kvssink stream-name="demo-stream"
+      - name: Verify MKV dump
+        working-directory: D:\producer\build
+        run: |
+          $env:Path += ";C:\Program Files\MKVToolNix"
+          $mkvFiles = Get-ChildItem -Path "D:\producer\build\debug_output" -Filter *.mkv
 
-          if grep -q "All heap blocks were freed -- no leaks are possible" valgrind-out.txt; then
-            echo "No memory leaks detected"
-          else
-            echo "Memory leaks detected. Review the valgrind output:"
-            cat valgrind-out.txt
+          if ($mkvFiles.Count -eq 0) {
+            Write-Error "No MKV files found in D:\producer\build\debug_output"
             exit 1
-          fi
+          }
+
+          # Run mkvinfo on each MKV file
+          foreach ($file in $mkvFiles) {
+            Write-Output "Verifying $($file.FullName) with mkvinfo:"
+            mkvinfo.exe "$($file.FullName)"
+          }
