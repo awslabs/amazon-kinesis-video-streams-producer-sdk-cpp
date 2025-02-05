@@ -366,8 +366,10 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                     session_token_str,
                                                     std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
         credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
-    } else {
+    } else if (kvssink->credential_file_path != nullptr && static_cast<bool>(std::ifstream(kvssink->credential_file_path))) {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
+    } else {
+        throw runtime_error("Could not find any AWS credentials!");
     }
 
     // Handle env for providing CP URL
