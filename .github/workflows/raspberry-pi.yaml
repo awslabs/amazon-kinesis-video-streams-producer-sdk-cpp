@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
       id-token: write
@@ -70,7 +70,7 @@ jobs:
               make -j$(nproc)
 
               export GST_PLUGIN_PATH=$(pwd)
-          
+
               set +e  # Disable exit on error for the timeout command
               timeout --preserve-status --signal=SIGINT --kill-after=15s 30s \
                 gst-launch-1.0 -v videotestsrc is-live=true \
@@ -81,10 +81,10 @@ jobs:
                 ! kvssink stream-name="cpp-producer-rpi-${{ matrix.os }}"
               EXIT_CODE=$?
               set -e  # Re-enable exit on error
-          
+
               # 0: Process exited after interrupt with code 0
               # 1: Process exited with error code 1
-              # 137: Process killed by SIGKILL (if the --kill-after timeout is reached) 
+              # 137: Process killed by SIGKILL (if the --kill-after timeout is reached)
               echo "Command exited with code: $EXIT_CODE"
               if [ $EXIT_CODE -ne 0 ]; then
                 echo "Command did not exit gracefully after interrupt."
