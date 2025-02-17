@@ -18,10 +18,10 @@ jobs:
         include:
           # Debian 11
           - os: bullseye
-            image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bullseye
+            image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bullseye@sha256:72311cfece0656c91407b4fd982f5aaf0eded0fee477de58281e82ab67f4478f
           # Debian 12
           - os: bookworm
-            image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bookworm
+            image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bookworm@sha256:0632946b7dc03ec3d9f7aeef9df4287affb3d6fe413f0e5dfd11c2b73466a845
       fail-fast: false
 
     name: Build on ${{ matrix.os }}
@@ -61,7 +61,7 @@ jobs:
                 gstreamer1.0-tools gstreamer1.0-omx-generic \
                 libcurl4-openssl-dev libgstreamer1.0-dev \
                 libgstreamer-plugins-base1.0-dev liblog4cplus-dev \
-                libssl-dev pkg-config
+                libssl-dev pkg-config openssl
 
               mkdir -p build
               cd build
