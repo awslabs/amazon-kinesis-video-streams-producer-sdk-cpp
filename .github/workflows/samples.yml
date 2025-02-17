@@ -124,11 +124,11 @@ jobs:
         run: |
           # Equivalent to set -x
           Set-PSDebug -Trace 1
-          
+
           $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin;D:\gstreamer\1.0\msvc_x86_64\bin'
-          
+
           mkdir D:\producer\debug_output
-          
+
           Invoke-WebRequest -Uri https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4 -OutFile sample.mp4
           dir
           $exePath = Join-Path $PWD ${{ matrix.sample.name }}.exe
@@ -139,14 +139,14 @@ jobs:
         working-directory: ./build/debug_output
         run: |
           shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
-          
+
           ls -tlrh
           mkvfiles=(*.mkv)
           if [ ${#mkvfiles[@]} -eq 0 ]; then
             echo "No MKV files found in debug_output"
             exit 1
           fi
-          
+
           for file in "${mkvfiles[@]}"; do
             echo "Verifying $file with mkvinfo (verbose and hexdump):"
             mkvinfo -v -X "$file"
@@ -171,15 +171,16 @@ jobs:
           }
 
   multistream-sample:
-    name: Multistream sample on Mac
-    runs-on: macos-13
+    name: Multistream sample on Ubuntu 22.04
+    runs-on: ubuntu-latest
+    container: public.ecr.aws/ubuntu/ubuntu:22.04_stable
     timeout-minutes: 30
 
     env:
       AWS_KVS_LOG_LEVEL: 2
       KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
       GST_PLUGIN_PATH: ${{ github.workspace }}/build
-      DEBIAN_FRONTEND: noninteractive
+      KVS_STREAM_NAME_BASE: demo-stream-producer-cpp-ubuntu-22.04-ci-kvs_gstreamer_multistream_sample
 
     permissions:
       id-token: write
@@ -191,14 +192,31 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install gstreamer log4cplus mkvtoolnix coreutils
-          brew install --cask docker
+          apt-get update
+          apt-get install -y git cmake build-essential pkg-config libssl-dev libcurl4-openssl-dev \
+            liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-ugly gstreamer1.0-tools curl mkvtoolnix libgstrtspserver-1.0
+
+      - name: Build GST RTSP Server Test Launch Sample
+        run: |
+          set -x
+          git clone --no-checkout --filter=blob:none --depth=1 -b 1.22 https://gitlab.freedesktop.org/gstreamer/gstreamer.git
+          cd gstreamer
+          git sparse-checkout init cone
+          git sparse-checkout set "subprojects/gst-rtsp-server/examples/test-launch.c"
+          git checkout
+          cd subprojects/gst-rtsp-server/examples
+          gcc -o test-launch test-launch.c `pkg-config --cflags --libs gstreamer-rtsp-server-1.0`
+          mv ./test-launch $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE
+          rm -rf gstreamer
 
       - name: Build samples
         run: |
           mkdir build && cd build
           mkdir -p $KVS_DEBUG_DUMP_DATA_FILE_DIR
-          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF -DALIGNED_MEMORY_MODEL=ON
           make -j$(nproc)
 
       - name: Configure AWS Credentials
@@ -214,32 +232,32 @@ jobs:
         run: |
           set -x
 
-          open -a /Applications/Docker.app --args --unattended --accept-license
-          echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
-          while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+          export PIPELINE_8554="videotestsrc is-live=true \
+            ! textoverlay text=rtsp://127.0.0.1:8554/test \
+            ! video/x-raw,height=480,width=640,framerate=10/1 \
+            ! x264enc tune=zerolatency bitrate=512 key-int-max=25 \
+            ! h264parse \
+            ! rtph264pay name=pay0 pt=96"
+          export PIPELINE_8555="videotestsrc is-live=true \
+            ! textoverlay text=rtsp://127.0.0.1:8555/test \
+            ! video/x-raw,height=480,width=640,framerate=10/1 \
+            ! x264enc tune=zerolatency bitrate=512 key-int-max=25 \
+            ! h264parse \
+            ! rtph264pay name=pay0 pt=96"
 
-          sudo ln -s ~/.docker/run/docker.sock /var/run/docker.sock
-          
-          docker run -d --rm -it -e RTSP_PROTOCOLS=tcp -p 8554:8554 bluenviron/mediamtx:latest
-          docker run -d --rm -it -e RTSP_PROTOCOLS=tcp -p 8555:8554 bluenviron/mediamtx:latest
-          
-          (
-            ffmpeg -re -f lavfi -i "testsrc=size=640x480:rate=10" -vcodec libx264 -x264-params keyint=25 -f rtsp rtsp://localhost:8554/mystream
-          ) &
-          (
-            ffmpeg -re -f lavfi -i "testsrc=size=640x480:rate=10" -vcodec libx264 -x264-params keyint=25 -f rtsp rtsp://localhost:8555/mystream
-          ) &
-          
-          echo "rtsp://0.0.0.0:8554/mystream" > rtsp-urls.txt
-          echo "rtsp://0.0.0.0:8555/mystream" >> rtsp-urls.txt
-          
+          "$GITHUB_WORKSPACE"/test-launch -p 8554 "${PIPELINE_8554}" &
+          "$GITHUB_WORKSPACE"/test-launch -p 8555 "${PIPELINE_8555}" &
+
+          echo "rtsp://127.0.0.1:8554/test" > rtsp-urls.txt
+          echo "rtsp://127.0.0.1:8555/test" >> rtsp-urls.txt
+
           sleep 10
-          gst-discoverer-1.0 rtsp://0.0.0.0:8554/mystream
-          gst-discoverer-1.0 rtsp://0.0.0.0:8555/mystream
-          
+          gst-discoverer-1.0 "rtsp://127.0.0.1:8554/test"
+          gst-discoverer-1.0 "rtsp://127.0.0.1:8555/test"
+
           set +e  # Disable exit on error for the timeout command
-          gtimeout --preserve-status --signal=SIGINT --kill-after=15s 30s \
-            ./kvs_gstreamer_multistream_sample demo-stream-producer-cpp-macos-13-ci-kvs_gstreamer_multistream_sample rtsp-urls.txt
+          timeout --preserve-status --signal=SIGINT --kill-after=15s 30s \
+            ./kvs_gstreamer_multistream_sample "${KVS_STREAM_NAME_BASE}" rtsp-urls.txt
           EXIT_CODE=$?
           set -e  # Re-enable exit on error
 
@@ -265,21 +283,22 @@ jobs:
             exit 1
           fi
           
+          # Since there are 2 streams, check for the presence of two different prefixed MKV files
           found_0=0
           found_1=0
         
           for file in "${mkvfiles[@]}"; do
-            if [[ "$file" == demo-stream-producer-cpp-macos-13-ci-kvs_gstreamer_multistream_sample_0* ]]; then
+            if [[ "$file" == ${KVS_STREAM_NAME_BASE}_0* ]]; then
               found_0=1
-            elif [[ "$file" == demo-stream-producer-cpp-macos-13-ci-kvs_gstreamer_multistream_sample_1* ]]; then
+            elif [[ "$file" == ${KVS_STREAM_NAME_BASE}_1* ]]; then
               found_1=1
             fi
           done
         
           if [ $found_0 -eq 0 ] || [ $found_1 -eq 0 ]; then
             echo "Expected at least one file starting with each prefix:"
-            echo "  - demo-stream-producer-cpp-macos-13-ci-kvs_gstreamer_multistream_sample_0"
-            echo "  - demo-stream-producer-cpp-macos-13-ci-kvs_gstreamer_multistream_sample_1"
+            echo "  - ${KVS_STREAM_NAME_BASE}_0"
+            echo "  - ${KVS_STREAM_NAME_BASE}_1"
             exit 1
           fi
           

@@ -261,6 +261,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
         buffer->pts += data->producer_start_time_map[stream_handle_key] - data->first_pts_map[stream_handle_key];
 
+        // Construct a monotonically increasing DTS if GStreamer doesn't provide one
         if (!GST_BUFFER_DTS_IS_VALID(buffer)) {
             buffer->dts = data->last_dts_map[stream_handle_key] + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
         }
