@@ -1338,6 +1338,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                 buf->pts = buf->dts;
             }
         } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
+            // Construct a monotonically increasing DTS if GStreamer doesn't provide one
             buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
         }
 
