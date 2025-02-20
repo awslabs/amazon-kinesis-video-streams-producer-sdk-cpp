@@ -137,6 +137,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
+#define INTERNAL_CHECK_PREFIX           "Assertion failed:"
+
 namespace KvsSinkSignals {
     guint err_signal_id;
     guint ack_signal_id;
@@ -261,6 +263,9 @@ void closed(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE uploa
 void kinesis_video_producer_init(GstKvsSink *kvssink)
 {
     auto data = kvssink->data;
+
+    KVSSINK_THROW_IF_NULL(kvssink->stream_name);
+
     unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size,
                                                         kvssink->stop_stream_timeout,
                                                         kvssink->service_connection_timeout,
@@ -302,11 +307,11 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         }
 
     } else {
-        access_key_str = string(kvssink->access_key);
-        secret_key_str = string(kvssink->secret_key);
+        access_key_str = kvssink->access_key ? string(kvssink->access_key) : "";
+        secret_key_str = kvssink->secret_key ? string(kvssink->secret_key) : "";
     }
 
-    // Handle session token seperately, since this is optional with long term credentials
+    // Handle session token separately, since this is optional with long term credentials
     if (0 == strcmp(kvssink->session_token, DEFAULT_SESSION_TOKEN)) {
         session_token_str = "";
         if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
@@ -370,6 +375,9 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         LOG_INFO("Getting URL from env for " << kvssink->stream_name);
         control_plane_uri_str = string(control_plane_uri);
     }
+
+    KVSSINK_THROW_IF_NULL(kvssink->user_agent);
+
     LOG_INFO("User agent string: " << kvssink->user_agent);
     data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
                                                                     std::move(client_callback_provider),
@@ -422,6 +430,14 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
             // no-op because default setup is for video only
             break;
     }
+
+    // StreamDefinition takes in C++ strings, check the gchar* for nullptr before constructing
+    KVSSINK_THROW_IF_NULL(kvssink->stream_name);
+    KVSSINK_THROW_IF_NULL(kvssink->content_type);
+    KVSSINK_THROW_IF_NULL(kvssink->user_agent);
+    KVSSINK_THROW_IF_NULL(kvssink->kms_key_id);
+    KVSSINK_THROW_IF_NULL(kvssink->codec_id);
+    KVSSINK_THROW_IF_NULL(kvssink->track_name);
 
     unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(kvssink->stream_name,
             hours(kvssink->retention_period_hours),
@@ -476,10 +492,16 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
             create_kinesis_video_stream(kvssink);
             break;
         } catch (runtime_error &err) {
+            ostringstream oss;
+            oss << "Failed to create stream. Error: " << err.what();
+            err_msg = oss.str();
+
+            // Don't retry if the error is an internal error
+            if (STRNCMP(INTERNAL_CHECK_PREFIX, err.what(), STRLEN(INTERNAL_CHECK_PREFIX)) == 0) {
+                return false;
+            }
+
             if (--retry_count == 0) {
-                ostringstream oss;
-                oss << "Failed to create stream. Error: " << err.what();
-                err_msg = oss.str();
                 ret = false;
                 do_retry = false;
             } else {
@@ -1570,6 +1592,8 @@ init_track_data(GstKvsSink *kvssink) {
 
     g_free(video_content_type);
     g_free(audio_content_type);
+
+    KVSSINK_THROW_IF_NULL(kvssink->content_type);
 }
 
 static GstStateChangeReturn
