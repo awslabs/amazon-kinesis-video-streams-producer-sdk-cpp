@@ -492,19 +492,16 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
             create_kinesis_video_stream(kvssink);
             break;
         } catch (runtime_error &err) {
+            ostringstream oss;
+            oss << "Failed to create stream. Error: " << err.what();
+            err_msg = oss.str();
 
             // Don't retry if the error is an internal error
             if (STRNCMP(INTERNAL_CHECK_PREFIX, err.what(), STRLEN(INTERNAL_CHECK_PREFIX)) == 0) {
-                ostringstream oss;
-                oss << "Failed to create stream. Error: " << err.what();
-                err_msg = oss.str();
                 return false;
             }
 
             if (--retry_count == 0) {
-                ostringstream oss;
-                oss << "Failed to create stream. Error: " << err.what();
-                err_msg = oss.str();
                 ret = false;
                 do_retry = false;
             } else {

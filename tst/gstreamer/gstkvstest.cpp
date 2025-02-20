@@ -111,7 +111,7 @@ GST_START_TEST(kvsproducersinkteststop)
     }
 GST_END_TEST;
 
-GST_START_TEST(check_stream_name_null_handled)
+GST_START_TEST(check_kvssink_null_stream_name_fails_init_play)
     {
         GstElement *kinesisvideoproducersink;
 
@@ -119,6 +119,7 @@ GST_START_TEST(check_stream_name_null_handled)
         kinesisvideoproducersink = gst_check_setup_element ("kvssink");
         fail_unless(kinesisvideoproducersink != nullptr, "Failed to create kvssink element");
 
+        // Set stream-name to null. Only possible programmatically, not through gst-parse-launch-1.0 command
         g_object_set(G_OBJECT (kinesisvideoproducersink),
             "stream-name", nullptr,
             NULL);
@@ -132,7 +133,7 @@ GST_START_TEST(check_stream_name_null_handled)
     }
 GST_END_TEST;
 
-GST_START_TEST(check_no_pads_content_type_set_correctly)
+GST_START_TEST(check_kvssink_no_pads_fails_to_play)
     {
         GstElement *kinesisvideoproducersink;
 
@@ -301,7 +302,27 @@ GST_END_TEST;
 
 GST_START_TEST(test_check_credentials)
     {
-        ck_abort_msg("Required environment variables (ACCESS_KEY and/or SECRET_KEY) are not set");
+        CHAR missingVars[128] = {0};
+        SIZE_T missingVarsLen = 0;
+
+        if (accessKey[0] == '\0') {
+            SNPRINTF(missingVars + missingVarsLen, SIZEOF(missingVars) - missingVarsLen, "%s", ACCESS_KEY_ENV_VAR);
+            missingVarsLen = STRNLEN(missingVars, SIZEOF(missingVars));
+        }
+
+        if (secretKey[0] == '\0') {
+            if (missingVarsLen > 0) {
+                STRNCAT(missingVars, " and ", SIZEOF(missingVars) - missingVarsLen - 1);
+                missingVarsLen = STRNLEN(missingVars, SIZEOF(missingVars));
+            }
+            STRNCAT(missingVars, SECRET_KEY_ENV_VAR, SIZEOF(missingVars) - missingVarsLen - 1);
+            missingVarsLen = STRNLEN(missingVars, SIZEOF(missingVars));
+        }
+
+        ck_abort_msg("Required environment variable%s %s %s not set",
+                     STRCHR(missingVars, ' ') ? "s" : "",
+                     missingVars,
+                     STRCHR(missingVars, ' ') ? "are" : "is");
     }
 GST_END_TEST;
 
@@ -321,6 +342,7 @@ Suite *gst_kinesisvideoproducer_suite(void) {
     sessionToken = sessionToken ? sessionToken : "";
 
     // Check if required environment variables are set
+    // Note: Session token can be empty if permanent credentials are used
     if (accessKey[0] == '\0' || secretKey[0] == '\0') {
         TCase *tc_env = tcase_create("Credentials check");
         tcase_add_test_raise_signal(tc_env, test_check_credentials, SIGABRT);
@@ -330,8 +352,8 @@ Suite *gst_kinesisvideoproducer_suite(void) {
         return s;
     }
 
-    tcase_add_test(tc, check_stream_name_null_handled);
-    tcase_add_test(tc, check_no_pads_content_type_set_correctly);
+    tcase_add_test(tc, check_kvssink_null_stream_name_fails_init_play);
+    tcase_add_test(tc, check_kvssink_no_pads_fails_to_play);
     tcase_add_test(tc, kvsproducersinktestplayandstop);
     tcase_add_test(tc, kvsproducersinktestplaytopausetoplay);
     tcase_add_test(tc, kvsproducersinkteststop);
