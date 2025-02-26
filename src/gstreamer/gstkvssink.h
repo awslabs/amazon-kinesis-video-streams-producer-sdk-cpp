@@ -36,6 +36,7 @@
 #include <string.h>
 #include <mutex>
 #include <atomic>
+#include <fstream>
 #include <gst/base/gstcollectpads.h>
 #include <unordered_set>
 
