@@ -365,6 +365,7 @@ jobs:
 
           if [[ $EXIT_CODE -ne 0 ]]; then
             echo "gst-launch-1.0 exited with status: $EXIT_CODE"
+            exit $EXIT_CODE
           fi
 
       - name: Verify MKV dump in WSL
