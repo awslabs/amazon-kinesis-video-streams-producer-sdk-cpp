@@ -416,6 +416,7 @@ jobs:
           
           if [[ EXIT_CODE -ne 0 ]]; then
             echo "${{ matrix.sample.name }} exited with code: $EXIT_CODE"
+            exit $EXIT_CODE
           fi
 
       - name: Verify MKV dump exists (WSL)
