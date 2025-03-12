@@ -1538,7 +1538,15 @@ init_track_data(GstKvsSink *kvssink) {
             if (caps == NULL) {
                 LOG_AND_THROW("Error, GStreamer pad returned NULL caps. Pad has no peer for stream: " << kvssink->stream_name);
             }
-            
+
+            if (gst_caps_is_empty(caps)) {
+                LOG_AND_THROW("Error, GStreamer caps are empty for stream: " << kvssink->stream_name);
+            }
+
+            gchar *caps_str = gst_caps_to_string(caps);
+            LOG_INFO("GStreamer caps: " << caps_str);
+            g_free(caps_str);
+                        
             media_type = gst_structure_get_name(gst_caps_get_structure(caps, 0));
             if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_H264, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
                 // default codec id is for h264 video.
