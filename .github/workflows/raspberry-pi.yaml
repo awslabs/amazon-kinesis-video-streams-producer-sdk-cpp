@@ -49,7 +49,7 @@ jobs:
         env:
           AWS_KVS_LOG_LEVEL: 2
         run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace --memory=4g\
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace --memory=16g\
             -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
             -e AWS_SESSION_TOKEN -e AWS_REGION -e AWS_KVS_LOG_LEVEL \
             --platform linux/arm64 \
