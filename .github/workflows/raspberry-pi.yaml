@@ -77,9 +77,9 @@ jobs:
               echo "Listing contents of build directory:"
               ls -l
           
-              # Running 'make' under QEMU inside GitHub Actions has shown instability,
+              # Running -make- under QEMU inside GitHub Actions has shown instability,
               # with random segmentation faults occurring sporadically. This could be 
-              # due to QEMU's emulation overhead, memory constraints, or transient 
+              # due to QEMU-s emulation overhead, memory constraints, or transient 
               # issues in the GitHub-hosted environment. To mitigate these failures, 
               # we retry the build up to 5 times before considering it a hard failure.
 
@@ -90,7 +90,7 @@ jobs:
                 echo "Attempt $attempt of $max_retries..."
 
                 set +e  # Temporarily disable exit on error
-                make
+                make -j
                 exit_code=$?
                 set -e  # Re-enable exit on error
               
