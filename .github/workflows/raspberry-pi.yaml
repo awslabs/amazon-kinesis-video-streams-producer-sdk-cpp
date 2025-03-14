@@ -69,7 +69,36 @@ jobs:
               cd build
 
               cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF -DALIGNED_MEMORY_MODEL=ON
-              make
+          
+              # Running 'make' under QEMU inside GitHub Actions has shown instability,
+              # with random segmentation faults occurring sporadically. This could be 
+              # due to QEMU's emulation overhead, memory constraints, or transient 
+              # issues in the GitHub-hosted environment. To mitigate these failures, 
+              # we retry the build up to 5 times before considering it a hard failure.
+
+              max_retries=5
+              attempt=0
+              while [ $attempt -lt $max_retries ]; do
+                attempt=$((attempt + 1))
+                echo "Attempt $attempt of $max_retries..."
+
+                set +e  # Temporarily disable exit on error
+                make -j
+                exit_code=$?
+                set -e  # Re-enable exit on error
+              
+                if [ $exit_code -eq 0 ]; then
+                  break
+                fi
+              
+                echo "Build failed with exit code $exit_code - retrying..."
+                sleep 5
+              done
+              
+              if [ $exit_code -ne 0 ]; then
+                echo "Build failed after $max_retries attempts."
+                exit 1
+              fi
 
               export GST_PLUGIN_PATH=$(pwd)
 
