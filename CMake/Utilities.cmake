@@ -9,7 +9,7 @@ function(fetch_repo lib_name)
     return()
   endif()
 
-  if (WIN32)
+  if (WIN32 OR NOT PARALLEL_BUILD)
     set(PARALLEL_BUILD "")  # No parallel build for Windows
   else()
     set(PARALLEL_BUILD "--parallel")  # Enable parallel builds for Unix-like systems
@@ -81,7 +81,7 @@ function(build_dependency lib_name)
 
   file(REMOVE_RECURSE ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/lib${lib_name})
 
-  if (WIN32)
+  if (WIN32 OR NOT PARALLEL_BUILD)
     set(PARALLEL_BUILD "")  # No parallel build for Windows
   else()
     set(PARALLEL_BUILD "--parallel")  # Enable parallel builds for Unix-like systems

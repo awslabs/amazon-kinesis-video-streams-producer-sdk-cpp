@@ -237,6 +237,7 @@ You can pass the following additional CMake options:
 | Option	                      | Default       | Description	|
 |:-----------------------------|:-------------:|:-------------|
 | BUILD_GSTREAMER_PLUGIN       | OFF           | Build the `kvssink` GStreamer plugin
+| PARALLEL_BUILD               | ON            | When building dependencies, use multiple CPU cores in parallel (speeds up the build). Not available in Windows.
 | BUILD_JNI                    | OFF           | Build C++ wrapper for JNI to expose the functionality to Java/Android
 | BUILD_JNI_ONLY               | OFF           | Build only the JNI. C++ Producer will not be built. Requires Java installed.
 | BUILD_DEPENDENCIES           | ON            | Build depending libraries from source
