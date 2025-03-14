@@ -230,14 +230,15 @@ If playback issues are encountered, pleaser refer to the playback requirements u
 ### Considerations
 - The **`kvssink`** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, use their corresponding cmake command options: `-DBUILD_GSTREAMER_PLUGIN=ON` and `-DBUILD_JNI=ON`.
 - By default, the **dependency libraries** (Curl, OpenSSL, and Log4Cplus) are installed from GitHub and built locally. To instead link to pre-installed libraries on the device, include the following cmake command argument: `cmake .. -DBUILD_DEPENDENCIES=OFF`
- 
+
 ### CMake Arguments
 You can pass the following additional CMake options:
 
-| Option	                     | Default       | Description	|
+| Option	                      | Default       | Description	|
 |:-----------------------------|:-------------:|:-------------|
 | BUILD_GSTREAMER_PLUGIN       | OFF           | Build the `kvssink` GStreamer plugin
 | BUILD_JNI                    | OFF           | Build C++ wrapper for JNI to expose the functionality to Java/Android
+| BUILD_JNI_ONLY               | OFF           | Build only the JNI. C++ Producer will not be built. Requires Java installed.
 | BUILD_DEPENDENCIES           | ON            | Build depending libraries from source
 | BUILD_TEST                   | OFF           | Build unit/integration tests, may be useful to confirm support for your device, to run tests:       `./tst/producerTest`
 | CODE_COVERAGE                | OFF           | Enable coverage reporting
