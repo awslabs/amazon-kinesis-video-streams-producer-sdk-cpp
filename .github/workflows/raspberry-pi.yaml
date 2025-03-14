@@ -90,7 +90,7 @@ jobs:
                 echo "Attempt $attempt of $max_retries..."
 
                 set +e  # Temporarily disable exit on error
-                make -j
+                make
                 exit_code=$?
                 set -e  # Re-enable exit on error
               
