@@ -69,6 +69,13 @@ jobs:
               cd build
 
               cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF -DALIGNED_MEMORY_MODEL=ON
+              if [ $? -ne 0 ]; then
+                echo "CMake configuration failed!"
+                exit 1
+              fi
+
+              echo "Listing contents of build directory:"
+              ls -l
           
               # Running 'make' under QEMU inside GitHub Actions has shown instability,
               # with random segmentation faults occurring sporadically. This could be 
