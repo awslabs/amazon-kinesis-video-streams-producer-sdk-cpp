@@ -203,14 +203,16 @@ if (NOT BUILD_JNI_ONLY)
       RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 endif()
 
-if(BUILD_JNI OR BUILD_JNI_ONLY)
+if (BUILD_JNI_ONLY)
   set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
   set(BUILD_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
   fetch_repo(kvspic ${BUILD_ARGS})
   add_subdirectory("${DEPENDENCY_DOWNLOAD_PATH}/libkvspic/kvspic-src")
   file(GLOB PIC_HEADERS "${pic_project_SOURCE_DIR}/src/*/include")
   include_directories("${PIC_HEADERS}")
+endif()
 
+if(BUILD_JNI OR BUILD_JNI_ONLY)
   find_package(JNI REQUIRED)
   include_directories(${JNI_INCLUDE_DIRS})
 
