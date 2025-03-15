@@ -9,7 +9,8 @@ set(CMAKE_CXX_STANDARD 11)
 include(GNUInstallDirs)
 
 # User Flags
-option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
+#TODO: Undo this.
+option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" ON)
 option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/Android" OFF)
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
@@ -123,6 +124,8 @@ if (WIN32)
 else()
   find_package(Log4cplus REQUIRED)
   include_directories(${LOG4CPLUS_INCLUDE_DIR})
+  message("LOG4CPLUS_INCLUDE_DIR: ${LOG4CPLUS_INCLUDE_DIR}")
+  message("LOG4CPLUS_LIBRARIES: ${LOG4CPLUS_LIBRARIES}")
   set(Log4cplus ${LOG4CPLUS_LIBRARIES})
 endif()
 
@@ -235,6 +238,10 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
   target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
+
+  add_executable(kvssink_file_buffer_sample samples/kvssink_file_buffer_sample.cpp)
+  target_link_libraries(kvssink_file_buffer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
 endif()
 
 if(BUILD_TEST)
