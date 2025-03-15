@@ -24,9 +24,11 @@
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
-/* Modify these values to change start/stop interval. */
 #define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 20
 #define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 40
+
+
+#define FILE_BUFFER_TIME_SECONDS 5
 
 #define KVS_GST_TEST_SOURCE_NAME "test-source"
 #define KVS_GST_DEVICE_SOURCE_NAME "device-source"
@@ -54,6 +56,11 @@ typedef struct _CustomData {
     GMainLoop *main_loop;
     GstElement *pipeline;
 } CustomData;
+
+typedef struct _Gop{
+    guint64 startTs_ms; // Start timestamp of this GoP (I-frame timestamp)
+    PSingleList pPFramesTsList_ms; // P-frames associated with this GoP
+} Gop;
 
 void sigint_handler(int sigint) {
     LOG_DEBUG("SIGINT received. Exiting...");
@@ -449,24 +456,95 @@ static GstFlowReturn on_new_sample(GstElement *sink, gpointer user_data) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     guint64 now_ms = (guint64)tv.tv_sec * 1000 + (tv.tv_usec / 1000);
+    bool isKeyFrame;
 
+    PSingleList pGopList = (PSingleList) user_data;
+
+    
     // Use that timestamp in the filename
     snprintf(filename, sizeof(filename), "frames/frame_%" G_GUINT64_FORMAT ".h264", now_ms);
+
+    // 
 
     // Get buffer from sample
     buffer = gst_sample_get_buffer(sample);
     if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+        isKeyFrame = !GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
         FILE *file = fopen(filename, "wb");
         if (file) {
             fwrite(map.data, 1, map.size, file);
             fclose(file);
             // g_print("Saved frame to: %s\n", filename);
+
+            // If on a keyframe, make a new GoP object and add it to the list.
+            if(isKeyFrame) {
+                // DLOGE("Keyframe detected, creating new GoP object");
+
+                // Make a new GoP object.
+                Gop* newGop = (Gop *)calloc(1, sizeof(Gop));
+                newGop->startTs_ms = now_ms;
+                
+                singleListCreate(&(newGop->pPFramesTsList_ms));
+                singleListInsertItemTail(pGopList, (UINT64) newGop);
+            } else {
+                // DLOGE("Not a keyframe, not creating new GoP object");
+
+                // Add the timestamp to the P-Frames list of the latest GoP object.
+                PSingleListNode pTailNode = NULL;
+
+                singleListGetTailNode(pGopList, &pTailNode);
+
+                singleListInsertItemTail(((Gop *)pTailNode->data)->pPFramesTsList_ms, now_ms);
+
+            }
         } else {
             g_printerr("Failed to open file for writing: %s\n", filename);
         }
 
         gst_buffer_unmap(buffer, &map);
+
     }
+
+    // Now let's check if there are GoP objects whose frames are all older than FILE_BUFFER_TIME_SECONDS.
+    // If so, remove them from the list and delete the frame file.
+    // Can uncomment the "isKeyFrame" to reduce frequency of checks, but buffer might end up being 1 GoP longer than necessary.
+    // if(isKeyFrame) {
+        PSingleListNode pNode = NULL;
+        singleListGetHeadNode(pGopList, &pNode);
+        PSingleListNode pNextNode = pNode->pNext;
+
+        DLOGE("Checking for frames to delete...");
+
+        while(pNode != NULL && pNextNode != NULL) {
+            DLOGE("Checking frame...");
+
+            Gop* pGop = (Gop *) pNode->data;
+            Gop* pNextGop = (Gop *) pNextNode->data;
+
+            // If the next GoP's start timestamp is within the FILE_BUFFER_TIME_SECONDS, then we can delete this GoP.
+            // This logic allows for FILE_BUFFER_TIME_SECONDS to be exceeded to ensure we don't hold fewer frames than FILE_BUFFER_TIME_SECONDS
+            // in the cases where the FILE_BUFFER_TIME_SECONDS threshold lays in the middle of a GoP; we do not want to discard such a GoP.
+            if((now_ms - pNextGop->startTs_ms) >= (FILE_BUFFER_TIME_SECONDS * 1000)) {
+                DLOGE("Deleting a frame file...");
+
+                // Delete the frame file.
+                memset(filename, 0, sizeof(filename));
+                snprintf(filename, sizeof(filename), "frames/frame_%" G_GUINT64_FORMAT ".h264", pGop->startTs_ms);
+                remove(filename);
+
+                singleListFree(pGop->pPFramesTsList_ms);
+                singleListDeleteNode(pGopList, pNode);
+                free(pGop);
+                pNode = NULL;
+
+            } else {
+                DLOGE("Oldest frame does not exceed the interval");
+                break;
+            }
+            pNode = pNextNode;
+            pNextNode = pNextNode->pNext;
+        }
+    // }
 
     gst_sample_unref(sample);
     return GST_FLOW_OK;
@@ -496,6 +574,34 @@ int main(int argc, char *argv[])
     DLOGE("Initializing GStreamer...");
 
     gst_init(&argc, &argv);
+
+
+
+
+
+    PSingleList pGopList = NULL;
+    singleListCreate(&pGopList);
+
+
+
+
+    // Empty the buffer directory
+    DIR *dir = opendir("frames");
+    if (dir) {
+        struct dirent *ent;
+        while ((ent = readdir(dir)) != NULL) {
+            if (ends_with(ent->d_name, ".h264") && strncmp(ent->d_name, "frame_", 6) == 0) {
+                gchar *fullpath = g_strdup_printf("frames/%s", ent->d_name);
+                remove(fullpath);
+                g_free(fullpath);
+            }
+        }
+        closedir(dir);
+    } else {
+        g_printerr("Failed to open frames directory: %s\n", strerror(errno));
+    }
+
+
 
 
     /* Parse input arguments */
@@ -598,7 +704,7 @@ int main(int argc, char *argv[])
     }
 
     g_object_set(G_OBJECT(appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
-    g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), NULL);
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), pGopList);
 
     // Populate data struct.
     customData.main_loop = main_loop;
@@ -608,10 +714,12 @@ int main(int argc, char *argv[])
     DLOGE("Creating GStreamer bus...");
     // Add a message handler.
     bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
+    DLOGE("Created bus.");
     bus_watch_id = gst_bus_add_watch(bus, bus_call, &customData);
+    DLOGE("Added bus watch.");
     gst_object_unref(bus);
 
-    DLOGD("Adding elements to pipeline...");
+    DLOGE("Adding elements to pipeline...");
     // Add elements into the pipeline.
     gst_bin_add_many(GST_BIN(pipeline),
                         // source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL);
@@ -620,25 +728,25 @@ int main(int argc, char *argv[])
     // Link the elements together.
     // if(!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL)) {
     if(!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, appsink, NULL)) {
-        LOG_ERROR("[KVS sample] Elements could not be linked");
+        DLOGE("[KVS sample] Elements could not be linked");
         gst_object_unref(pipeline);
         return -1;
     }
 
     // Set the pipeline to playing state.
-    LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds");
+    DLOGE("[KVS sample] Starting stream to KVS for %lu seconds", KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS);
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
     // Start the stop/start thread for intermittent streaming.
     std::thread stopStartThread(stopStartLoop, pipeline, source);
     
-    LOG_INFO("[KVS sample] Starting GStreamer main loop");
+    DLOGE("[KVS sample] Starting GStreamer main loop");
     g_main_loop_run(main_loop);
 
     stopStartThread.join();
 
     // Application terminated, cleanup.
-    LOG_INFO("[KVS sample] Streaming terminated, cleaning up");
+    DLOGE("[KVS sample] Streaming terminated, cleaning up");
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(GST_OBJECT(pipeline));
     g_source_remove(bus_watch_id);
