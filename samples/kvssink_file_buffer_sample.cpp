@@ -24,11 +24,11 @@
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
-#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 20
-#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 40
+#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 12
+#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 30
 
 
-#define FILE_BUFFER_TIME_SECONDS 5
+#define FILE_BUFFER_TIME_SECONDS 6
 
 #define KVS_GST_TEST_SOURCE_NAME "test-source"
 #define KVS_GST_DEVICE_SOURCE_NAME "device-source"
@@ -40,8 +40,8 @@ GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
 std::atomic<bool> terminated(FALSE);
 std::condition_variable cv;
 
-GstElement *file_valve = gst_element_factory_make("valve", "file_valve");
-GstElement *live_valve = gst_element_factory_make("valve", "live_valve");
+GstElement *file_valve;
+GstElement *live_valve;
 
 static guint frame_count = 0;  // Counter for frame numbering
 
@@ -269,7 +269,7 @@ void sendBufferedFrames() {
         const gchar *pathname = (const gchar*) g_ptr_array_index(files, i);
         const gchar *base = g_path_get_basename(pathname);
         guint64 val = g_ascii_strtoull(base + 6, NULL, 10);
-        // g_print("Sorted i=%d: %s => %" G_GUINT64_FORMAT "\n", i, base, val);
+        g_print("Sorted i=%d: %s => %" G_GUINT64_FORMAT "\n", i, base, val);
     }
 
 
@@ -313,7 +313,7 @@ void sendBufferedFrames() {
         // DTS can match PTS if you do not have separate decode times:
         GST_BUFFER_DTS(buffer) = bufferPts;
 
-        // DLOGE("Pushing buffer with PTS: %" GST_TIME_FORMAT "\n", GST_TIME_ARGS(bufferPts));
+        DLOGW("Pushing buffer with PTS: %" GST_TIME_FORMAT "\n", GST_TIME_ARGS(bufferPts));
 
         // 6) Push the buffer into appsrc
         GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(appsrc), buffer);
@@ -322,6 +322,8 @@ void sendBufferedFrames() {
             break; // or continue
         }
     }
+
+    DLOGW("Sendign EOS to buffer kvssink");
 
     // 7) Signal EOS - done sending frames
     gst_app_src_end_of_stream(GST_APP_SRC(appsrc));
@@ -442,8 +444,8 @@ void onCameraEvent(GstElement *pipeline, GstElement *source, guint64 eventDurati
         }
 
         // Close the valve to kvssink, open the valve to the file buffer.
-        g_object_set(file_valve, "drop", FALSE, NULL);
         g_object_set(live_valve, "drop", TRUE, NULL);
+        g_object_set(file_valve, "drop", FALSE, NULL);
 
 
         // Reset kvssink (won't need to do this once kvssink supports start/stop). <- TODO
@@ -734,14 +736,28 @@ int main(int argc, char *argv[])
     /* sink filter */
     sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
     sink_caps = gst_caps_new_simple("video/x-h264",
-                                    "stream-format", G_TYPE_STRING, "byte-stream",
                                     "alignment", G_TYPE_STRING, "au",
                                     NULL);
     g_object_set(G_OBJECT(sink_filter), "caps", sink_caps, NULL);
     gst_caps_unref(sink_caps);
+    
+
+    GstElement* fileFilter = gst_element_factory_make("capsfilter", "fileFilter");
+    sink_caps = gst_caps_new_simple("video/x-h264", "stream-format", G_TYPE_STRING, "byte-stream", NULL);
+    g_object_set(G_OBJECT(sink_filter), "caps", sink_caps, NULL);
+    gst_caps_unref(sink_caps);
+
 
     /* tee */
     tee = gst_element_factory_make("tee", "t");
+
+
+    /* Separate parser formats for the two sources */
+    // GstElement* parse_file = gst_element_factory_make("h264parse", "parse_file");
+    // g_object_set(parse_file, "stream-format", "byte-stream", NULL);
+
+    GstElement* parse_live = gst_element_factory_make("h264parse", "parse_live");
+    g_object_set(parse_live, "stream-format", "avc", NULL);
 
     /* Branch 1: queue + valve -> appsink */
     GstElement *queue_file = gst_element_factory_make("queue", "queue_file");
@@ -804,8 +820,8 @@ int main(int argc, char *argv[])
                  source, clock_overlay, video_convert,
                  source_filter, encoder, sink_filter, 
                  tee,
-                 queue_file, file_valve, appsink,
-                 queue_live, live_valve, kvssink,
+                 queue_file, file_valve, fileFilter, appsink,
+                 queue_live, live_valve, parse_live, kvssink,
                  NULL);
 
 
@@ -818,13 +834,13 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (!gst_element_link_many(tee, queue_file, file_valve, appsink, NULL)) {
+    if (!gst_element_link_many(tee, queue_file, file_valve, fileFilter, appsink, NULL)) {
         LOG_ERROR("Could not link file branch");
         gst_object_unref(pipeline);
         return -1;
     }
 
-    if (!gst_element_link_many(tee, queue_live, live_valve, kvssink, NULL)) {
+    if (!gst_element_link_many(tee, queue_live, live_valve, parse_live, kvssink, NULL)) {
         LOG_ERROR("Could not link live branch");
         gst_object_unref(pipeline);
         return -1;
