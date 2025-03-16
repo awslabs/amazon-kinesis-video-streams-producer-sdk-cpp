@@ -449,14 +449,14 @@ void onCameraEvent(GstElement *pipeline, GstElement *source, guint64 eventDurati
 
 
         // Reset kvssink (won't need to do this once kvssink supports start/stop). <- TODO
-        GstElement *kvssink = gst_bin_get_by_name(GST_BIN(pipeline), "kvssink");
-        if (!kvssink) {
-            g_printerr("Error: Could not find kvssink element in pipeline\n");
-            return;
-        }
-        gst_element_set_state(kvssink, GST_STATE_NULL);
-        gst_element_set_state(kvssink, GST_STATE_PLAYING);
-        gst_object_unref(kvssink);
+        // GstElement *kvssink = gst_bin_get_by_name(GST_BIN(pipeline), "kvssink");
+        // if (!kvssink) {
+        //     g_printerr("Error: Could not find kvssink element in pipeline\n");
+        //     return;
+        // }
+        // gst_element_set_state(kvssink, GST_STATE_NULL);
+        // gst_element_set_state(kvssink, GST_STATE_PLAYING);
+        // gst_object_unref(kvssink);
 
 
 
@@ -574,10 +574,10 @@ static GstFlowReturn on_new_sample(GstElement *sink, gpointer user_data) {
         singleListGetHeadNode(pGopList, &pNode);
         PSingleListNode pNextNode = pNode->pNext;
 
-        DLOGE("Checking for frames to delete...");
+        // DLOGE("Checking for frames to delete...");
 
         while(pNode != NULL && pNextNode != NULL) {
-            DLOGE("Checking frame...");
+            // DLOGE("Checking frame...");
 
             Gop* pGop = (Gop *) pNode->data;
             Gop* pNextGop = (Gop *) pNextNode->data;
@@ -586,7 +586,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, gpointer user_data) {
             // This logic allows for FILE_BUFFER_TIME_SECONDS to be exceeded to ensure we don't hold fewer frames than FILE_BUFFER_TIME_SECONDS
             // in the cases where the FILE_BUFFER_TIME_SECONDS threshold lays in the middle of a GoP; we do not want to discard such a GoP.
             if((now_ms - pNextGop->startTs_ms) >= (FILE_BUFFER_TIME_SECONDS * 1000)) {
-                DLOGE("Deleting a frame file...");
+                // DLOGE("Deleting a frame file...");
 
                 // Delete the frame file.
                 memset(filename, 0, sizeof(filename));
