@@ -40,6 +40,9 @@ GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
 std::atomic<bool> terminated(FALSE);
 std::condition_variable cv;
 
+GstElement *file_valve = gst_element_factory_make("valve", "file_valve");
+GstElement *live_valve = gst_element_factory_make("valve", "live_valve");
+
 static guint frame_count = 0;  // Counter for frame numbering
 
 
@@ -164,6 +167,8 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
 
 
 
+// Use a mutex to synchronize onCameraEvent to only one thread at a time.
+std::mutex cameraEventMutex;
 
 
 
@@ -363,6 +368,32 @@ void sendBufferedFrames() {
     gst_object_unref(pipeline);
 
     g_ptr_array_free(files, TRUE);
+
+    // Empty the frames directory
+    dir = opendir("frames");
+    if (dir) {
+        struct dirent *ent;
+        while ((ent = readdir(dir)) != NULL) {
+            // Skip "." and ".."
+            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+                continue;
+            }
+
+            // Build the full path: "frames/<filename>"
+            gchar *fullpath = g_strdup_printf("frames/%s", ent->d_name);
+    
+            // Attempt to remove the file
+            if (remove(fullpath) != 0) {
+                g_printerr("Failed to remove %s: %s\n", fullpath, strerror(errno));
+            }
+    
+            g_free(fullpath);
+        }
+        closedir(dir);
+    } else {
+        g_printerr("Failed to open frames directory: %s\n", strerror(errno));
+    }
+
 }
 
 
@@ -370,47 +401,62 @@ void sendBufferedFrames() {
 
 
 
+void onCameraEvent(GstElement *pipeline, GstElement *source, guint64 eventDurationSeconds) {
+    // std::mutex cv_m;
+    // std::unique_lock<std::mutex> lck(cv_m);
 
+    // get event start time.
+    // struct timeval tv;
+    // gettimeofday(&tv, NULL);
+    // guint64 eventStartTime = (guint64)tv.tv_sec * 1000 + (tv.tv_usec / 1000);
 
+    auto eventStartTime = std::chrono::steady_clock::now();
 
-
-
-
-// This function handles the intermittent starting and stopping of the stream in a loop.
-void stopStartLoop(GstElement *pipeline, GstElement *source) {
     std::mutex cv_m;
     std::unique_lock<std::mutex> lck(cv_m);
 
+
+    // Wait to acquire cameraEventMutex lock. It wll release once it falls out of scope when the function exits.
+    std::lock_guard<std::mutex> lock(cameraEventMutex);
+
     // while(!terminated) {
-        // Using cv.wait_for to break sleep early upon signal interrupt.
-        if(cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
-            // break;
+
+        // Close the valve to the file buffer, open the valve to kvssink.
+        g_object_set(file_valve, "drop", TRUE, NULL);
+        g_object_set(live_valve, "drop", FALSE, NULL);
+
+        
+        // This will block until all buffered frames have been sent to kvssink.
+        sendBufferedFrames();
+
+        // Calculate how much more time we need to wait before ending this event's live stream.
+        auto elapsed = std::chrono::steady_clock::now() - eventStartTime;
+        auto remainingDuration = std::chrono::seconds(eventDurationSeconds) - std::chrono::duration_cast<std::chrono::seconds>(elapsed);
+        if (remainingDuration <= std::chrono::seconds(0)) { // Ensure remaining time is not negative, set to zero if it is.
+            remainingDuration = std::chrono::seconds(0);
+        }
+
+        // Wait for the remaining duration, exit early if application was terminated.
+        if (cv.wait_for(lck, remainingDuration) != std::cv_status::timeout) {
             return;
         }
 
-        LOG_INFO("[KVS sample] Stopping stream to KVS for " << KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS << " seconds");
+        // Close the valve to kvssink, open the valve to the file buffer.
+        g_object_set(file_valve, "drop", FALSE, NULL);
+        g_object_set(live_valve, "drop", TRUE, NULL);
 
-        // EOS event pushes frames buffered by the h264enc element down to kvssink.
-        GstEvent* eos = gst_event_new_eos();
-        gst_element_send_event(pipeline, eos);
 
-        // Wait for the EOS event to return from kvssink to the bus which means all elements are done handling the EOS.
-        // We don't want to flush until the EOS is done to ensure all frames buffered in the pipeline have been processed.
-        cv.wait(lck);
-
-        // Set videotestsrc to paused state because it does not stop producing frames upon EOS,
-        // and the frames are not cleared upon flushing.
-        if(STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
-            gst_element_set_state(source, GST_STATE_PAUSED);
+        // Reset kvssink (won't need to do this once kvssink supports start/stop). <- TODO
+        GstElement *kvssink = gst_bin_get_by_name(GST_BIN(pipeline), "kvssink");
+        if (!kvssink) {
+            g_printerr("Error: Could not find kvssink element in pipeline\n");
+            return;
         }
+        gst_element_set_state(kvssink, GST_STATE_NULL);
+        gst_element_set_state(kvssink, GST_STATE_PLAYING);
+        gst_object_unref(kvssink);
 
 
-
-        sendBufferedFrames();
-
-
-
-        
 
         // Flushing to remove EOS status.
         // GstEvent* flush_start = gst_event_new_flush_start();
@@ -436,7 +482,20 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
 }
 
 
+void cameraEventScheduler(GstElement *pipeline, GstElement *source) {
+    std::mutex cv_m;
+    std::unique_lock<std::mutex> lck(cv_m);
+    
+    while(!terminated) {
+        // Wait for some time before triggering an event, exit early if app was terminated.
+        if(cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
+            // break;
+            return;
+        }
 
+        onCameraEvent(pipeline, source, KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS);
+    }
+}
 
 
 /* Callback function that processes incoming frames */
@@ -564,7 +623,8 @@ int main(int argc, char *argv[])
     signal(SIGINT, sigint_handler);
 
     CustomData customData;
-    GstElement *pipeline, *source, *clock_overlay, *video_convert, *source_filter, *encoder, *sink_filter, *kvssink, *appsink;
+    GstElement *pipeline, *source, *clock_overlay, *video_convert, *source_filter,
+               *encoder, *sink_filter, *kvssink, *appsink, *tee;
     GstCaps *source_caps, *sink_caps;
     GstBus *bus;
     guint bus_watch_id;
@@ -680,25 +740,44 @@ int main(int argc, char *argv[])
     g_object_set(G_OBJECT(sink_filter), "caps", sink_caps, NULL);
     gst_caps_unref(sink_caps);
 
+    /* tee */
+    tee = gst_element_factory_make("tee", "t");
+
+    /* Branch 1: queue + valve -> appsink */
+    GstElement *queue_file = gst_element_factory_make("queue", "queue_file");
+    file_valve = gst_element_factory_make("valve", "file_valve");
+
+    appsink = gst_element_factory_make("appsink", "appsink");
+    g_object_set(G_OBJECT(appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), pGopList);
+
+
+    /* Branch 2: queue + valve -> kvssink */
+    GstElement *queue_live = gst_element_factory_make("queue", "queue_live");
+    live_valve = gst_element_factory_make("valve", "live_valve");
+
+    /* kvssink */
+    kvssink = gst_element_factory_make("kvssink", "kvssink");
+    if (IS_EMPTY_STRING(stream_name)) {
+        LOG_INFO("No stream name specified, using default kvssink stream name.")
+    } else {
+        g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
+    }
+    determine_aws_credentials(kvssink, stream_name);
+
+    if(!kvssink) {
+        LOG_ERROR("[KVS sample] Failed to create kvssink element");
+        return -1;
+    }
+
     appsink = gst_element_factory_make("appsink", "appsink");
 
-    // /* kvssink */
-    // kvssink = gst_element_factory_make("kvssink", "kvssink");
-    // if (IS_EMPTY_STRING(stream_name)) {
-    //     LOG_INFO("No stream name specified, using default kvssink stream name.")
-    // } else {
-    //     g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
-    // }
-    // determine_aws_credentials(kvssink, stream_name);
 
-    /* Check that GStreamer elements were all successfully created */
-
-    // if(!kvssink) {
-    //     LOG_ERROR("[KVS sample] Failed to create kvssink element");
-    //     return -1;
-    // }
-
-    if(!pipeline || !source || !clock_overlay || !video_convert || !source_filter || !encoder || !sink_filter || !appsink){
+    if (!pipeline || !source || !clock_overlay || !video_convert || 
+        !source_filter || !encoder || !sink_filter || !tee ||
+        !queue_file || !file_valve || !appsink ||
+        !queue_live || !live_valve)
+    {
         LOG_ERROR("[KVS sample] Not all GStreamer elements could be created.");
         return -1;
     }
@@ -722,28 +801,51 @@ int main(int argc, char *argv[])
     DLOGE("Adding elements to pipeline...");
     // Add elements into the pipeline.
     gst_bin_add_many(GST_BIN(pipeline),
-                        // source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL);
-                        source, clock_overlay, video_convert, source_filter, encoder, sink_filter, appsink, NULL);
+                 source, clock_overlay, video_convert,
+                 source_filter, encoder, sink_filter, 
+                 tee,
+                 queue_file, file_valve, appsink,
+                 queue_live, live_valve, kvssink,
+                 NULL);
+
 
     // Link the elements together.
-    // if(!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL)) {
-    if(!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, appsink, NULL)) {
-        DLOGE("[KVS sample] Elements could not be linked");
+
+    if (!gst_element_link_many(source, clock_overlay, video_convert,
+        source_filter, encoder, sink_filter, tee, NULL)) {
+        LOG_ERROR("Could not link main chain");
         gst_object_unref(pipeline);
         return -1;
     }
+
+    if (!gst_element_link_many(tee, queue_file, file_valve, appsink, NULL)) {
+        LOG_ERROR("Could not link file branch");
+        gst_object_unref(pipeline);
+        return -1;
+    }
+
+    if (!gst_element_link_many(tee, queue_live, live_valve, kvssink, NULL)) {
+        LOG_ERROR("Could not link live branch");
+        gst_object_unref(pipeline);
+        return -1;
+    }
+
+    g_object_set(file_valve, "drop", FALSE, NULL);
+    g_object_set(live_valve, "drop", TRUE, NULL);
+
 
     // Set the pipeline to playing state.
     DLOGE("[KVS sample] Starting stream to KVS for %lu seconds", KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS);
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
     // Start the stop/start thread for intermittent streaming.
-    std::thread stopStartThread(stopStartLoop, pipeline, source);
-    
+    std::thread cameraEventSchedulerThread(cameraEventScheduler, pipeline, source);
+
     DLOGE("[KVS sample] Starting GStreamer main loop");
     g_main_loop_run(main_loop);
 
-    stopStartThread.join();
+    cameraEventSchedulerThread.join();
+
 
     // Application terminated, cleanup.
     DLOGE("[KVS sample] Streaming terminated, cleaning up");
