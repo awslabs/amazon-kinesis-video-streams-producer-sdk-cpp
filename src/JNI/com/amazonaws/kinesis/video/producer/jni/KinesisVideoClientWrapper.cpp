@@ -55,29 +55,30 @@ KinesisVideoClientWrapper::KinesisVideoClientWrapper(JNIEnv* env,
 KinesisVideoClientWrapper::~KinesisVideoClientWrapper()
 {
     STATUS retStatus = STATUS_SUCCESS;
+    JNIEnv *env;
+
+    if (mJvm == NULL) {
+        return;
+    }
+
+    mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+
     if (IS_VALID_CLIENT_HANDLE(mClientHandle))
     {
         if (STATUS_FAILED(retStatus = freeKinesisVideoClient(&mClientHandle))) {
             DLOGE("Failed to free the producer client object");
-            JNIEnv *env;
-            mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
-            throwNativeException(env, EXCEPTION_NAME, "Failed to free the producer client object.", retStatus);
+            if (env != NULL) {
+                throwNativeException(env, EXCEPTION_NAME, "Failed to free the producer client object.", retStatus);
+            }
             return;
         }
     }
-}
 
-void KinesisVideoClientWrapper::deleteGlobalRef(JNIEnv* env)
-{
-    // Release the global reference to JNI object
-    if (mGlobalJniObjRef != NULL) {
+    // You cannot log anything after this!
+    if (env != NULL && mGlobalJniObjRef != NULL) {
         env->DeleteGlobalRef(mGlobalJniObjRef);
+        mGlobalJniObjRef = NULL;
     }
-}
-
-jobject KinesisVideoClientWrapper::getGlobalRef()
-{
-    return mGlobalJniObjRef;
 }
 
 void KinesisVideoClientWrapper::stopKinesisVideoStreams()
@@ -2623,22 +2624,37 @@ AUTH_INFO_TYPE KinesisVideoClientWrapper::authInfoTypeFromInt(UINT32 authInfoTyp
 VOID KinesisVideoClientWrapper::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt, ...)
 {
     JNIEnv *env;
-    BOOL detached = FALSE;
+    BOOL attached = FALSE;
     STATUS retStatus = STATUS_SUCCESS;
     jstring jstrTag = NULL, jstrFmt = NULL, jstrBuffer = NULL;
     CHAR buffer[MAX_LOG_MESSAGE_LENGTH];
+    va_list list;
+    INT32 envState;
 
-    CHECK(mJvm != NULL && mGlobalJniObjRef != NULL);
+    // Prevent infinite logging loops if mGlobalJniObjRef has already been freed
+    if (mGlobalJniObjRef == NULL) {
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(buffer, MAX_LOG_MESSAGE_LENGTH, fmt, args);
+        va_end(args);
 
-    INT32 envState = mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
+        // Print debug info
+        std::cout << "logPrintFunc called after free! "
+                  << "Level: " << level << ", Tag: " << (tag ? tag : "NULL")
+                  << ", Message: " << buffer << std::endl;
+
+        CHK(FALSE, STATUS_SUCCESS);
+    }
+    CHK(mJvm != NULL && mGlobalJniObjRef != NULL, STATUS_SUCCESS);
+
+    envState = mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
     if (envState == JNI_EDETACHED) {
         if (mJvm->AttachCurrentThread((PVOID*) &env, NULL) != 0) {
             goto CleanUp;
         }
-        detached = TRUE;
+        attached = TRUE;
     }
-    
-    va_list list;
+
     va_start(list, fmt);
     vsnprintf(buffer, MAX_LOG_MESSAGE_LENGTH, fmt, list);
     va_end(list);
@@ -2685,7 +2701,7 @@ CleanUp:
     }
 
     // Detach the thread if we have attached it to JVM
-    if (detached) {
+    if (attached) {
         mJvm->DetachCurrentThread();
     }   
 }
