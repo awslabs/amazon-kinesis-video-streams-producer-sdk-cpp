@@ -1517,6 +1517,10 @@ init_track_data(GstKvsSink *kvssink) {
     gchar *video_content_type = NULL, *audio_content_type = NULL;
     const gchar *media_type;
 
+    if (kvssink == NULL || kvssink->collect == NULL || kvssink->data == NULL) {
+        LOG_AND_THROW("Error initializing track data: kvssink, kvssink->collect, or kvssink->data is NULL.");
+    }
+
     for (walk = kvssink->collect->data; walk != NULL; walk = g_slist_next (walk)) {
         GstKvsSinkTrackData *kvs_sink_track_data = (GstKvsSinkTrackData *) walk->data;
 
@@ -1530,6 +1534,19 @@ init_track_data(GstKvsSink *kvssink) {
 
             // extract media type from GstCaps to check whether it's h264 or h265
             caps = gst_pad_get_allowed_caps(collect_data->pad);
+            
+            if (caps == NULL) {
+                LOG_AND_THROW("Error, GStreamer pad returned NULL caps. Pad has no peer for stream: " << kvssink->stream_name);
+            }
+
+            if (gst_caps_is_empty(caps)) {
+                LOG_AND_THROW("Error, GStreamer caps are empty for stream: " << kvssink->stream_name);
+            }
+
+            gchar *caps_str = gst_caps_to_string(caps);
+            LOG_INFO("GStreamer caps: " << caps_str);
+            g_free(caps_str);
+                        
             media_type = gst_structure_get_name(gst_caps_get_structure(caps, 0));
             if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_H264, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
                 // default codec id is for h264 video.
@@ -1540,7 +1557,7 @@ init_track_data(GstKvsSink *kvssink) {
                 video_content_type = g_strdup(MKV_H265_CONTENT_TYPE);
             } else {
                 // no-op, should result in a caps negotiation error before getting here.
-                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink" << " for " << kvssink->stream_name);
+                LOG_AND_THROW("Error, media type " << media_type << " not accepted by kvssink" << " for " << kvssink->stream_name);
             }
             gst_caps_unref(caps);
 
