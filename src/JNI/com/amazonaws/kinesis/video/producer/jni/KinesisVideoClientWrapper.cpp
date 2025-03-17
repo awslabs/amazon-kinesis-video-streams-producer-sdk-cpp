@@ -2645,7 +2645,7 @@ VOID KinesisVideoClientWrapper::logPrintFunc(UINT32 level, PCHAR tag, PCHAR fmt,
 
         CHK(FALSE, STATUS_SUCCESS);
     }
-    CHK(mJvm != NULL && mGlobalJniObjRef != NULL, STATUS_SUCCESS);
+    CHK(mJvm != NULL, STATUS_SUCCESS);
 
     envState = mJvm->GetEnv((PVOID*) &env, JNI_VERSION_1_6);
     if (envState == JNI_EDETACHED) {
