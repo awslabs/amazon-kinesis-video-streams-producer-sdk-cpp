@@ -536,6 +536,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 DLOGW("Sending buffered frames...");
                 for (auto it = pGopList->pHead; it != NULL; it = it->pNext) {
                     Gop* pGop = (Gop *) it->data;
+                    DLOGW("Putting buffered frame with ts: %lu", pGop->pIFrame->presentationTs);
                     data->kinesis_video_stream->putFrame(*pGop->pIFrame);
     
                     free(pGop->pIFrame->frameData);
@@ -544,6 +545,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
                     for (auto it2 = pGop->pPFrames->pHead; it2 != NULL; it2 = it2->pNext) {
                         Frame* pPFrame = (Frame *) it2->data;
+                        DLOGW("Putting buffered frame with ts: %lu", pPFrame->presentationTs);
                         data->kinesis_video_stream->putFrame(*pPFrame);
                         free(pPFrame->frameData);
                     }
@@ -554,12 +556,14 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 }
                 // Clear the GoP list (will also free the GoP nodes).
                 singleListClear(pGopList, TRUE);
+                DLOGW("Done sending buffered frames...");
 
             }
 
             // DLOGW("PTS: %lu", buffer->pts);
             // DLOGW("DTS: %lu", buffer->dts);
             // Send the live frame.
+            DLOGW("Putting live frame with ts: %lu", buffer->pts);
             put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts), kinesis_video_flags);
 
         }
