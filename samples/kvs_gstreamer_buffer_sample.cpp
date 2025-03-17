@@ -54,11 +54,11 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define KVS_GST_TEST_SOURCE_NAME "test-source"
 #define KVS_GST_DEVICE_SOURCE_NAME "device-source"
 
-#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 12
-#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 12
+#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 8
+#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 30
 
 
-#define FILE_BUFFER_TIME_SECONDS 6
+#define FILE_BUFFER_TIME_SECONDS 8
 
 
 
@@ -309,18 +309,24 @@ void cameraEventScheduler() {
     std::unique_lock<std::mutex> lck(cv_m);
     
     while(!terminated) {
+
+        DLOGI("Waiting to set eventTriggered to true.");
         // Wait for some time before triggering an event, exit early if app was terminated.
         if(cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             // break;
             return;
         }
+        DLOGI("Setting eventTriggered to true.");
         eventTriggered = true;
 
         if(cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             // break;
             return;
         }
+        DLOGI("Setting eventTriggered to false.");
         eventTriggered = false;
+        DLOGI("Set eventTriggered to false.");
+
     }
 }
 
@@ -448,6 +454,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
 
         if(!eventTriggered) {
+
             if(CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
                 // DLOGE("Keyframe detected, creating new GoP object");
     
@@ -460,9 +467,8 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 create_and_allocate_kinesis_video_frame(newGop->pIFrame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts), kinesis_video_flags, info.data, info.size);
     
                 singleListCreate(&(newGop->pPFrames));
+
                 singleListInsertItemTail(pGopList, (UINT64) newGop);
-
-
 
                 // Now let's check if there are GoP objects whose frames are all older than FILE_BUFFER_TIME_SECONDS.
                 // If so, remove them from the list and delete the frame file.
@@ -484,7 +490,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                         // This logic allows for FILE_BUFFER_TIME_SECONDS to be exceeded to ensure we don't hold fewer frames than FILE_BUFFER_TIME_SECONDS
                         // in the cases where the FILE_BUFFER_TIME_SECONDS threshold lays in the middle of a GoP; we do not want to discard such a GoP.
                         if((now_ms - pNextGop->pIFrame->presentationTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND) >= (FILE_BUFFER_TIME_SECONDS * 1000)) {
-                            // DLOGE("Deleting a buffered GoP...");
+                            DLOGE("Deleting a buffered GoP...");
 
                             singleListFree(pGop->pPFrames); // Free the P-Frames.
                             free(pGop->pIFrame); // Free the I-Frame.
@@ -511,39 +517,36 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 // Add the timestamp to the P-Frames list of the latest GoP object.
                 PSingleListNode pTailNode = NULL;
     
-                // Make a new Frame object.
-                Frame* pPFrame = (Frame *) calloc(1, sizeof(Frame));
-                create_and_allocate_kinesis_video_frame(pPFrame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts), kinesis_video_flags, info.data, info.size);
-    
                 singleListGetTailNode(pGopList, &pTailNode);
-                singleListInsertItemTail(((Gop *)pTailNode->data)->pPFrames, (UINT64) pPFrame);
-    
+
+                if(pTailNode != NULL) {
+                    // Make a new Frame object.
+                    Frame* pPFrame = (Frame *) calloc(1, sizeof(Frame));
+                    create_and_allocate_kinesis_video_frame(pPFrame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts), kinesis_video_flags, info.data, info.size);
+
+                    singleListInsertItemTail(((Gop *)pTailNode->data)->pPFrames, (UINT64) pPFrame);
+                }
             }
         } else {
-            DLOGW("Event triggered, sending buffered frames...");
+            // DLOGW("Event triggered, sending buffered frames...");
             // Handle event: send buffered frames, send live frame.
 
             // Send buffered frames.
             if (pGopList->pHead != NULL) {
+                DLOGW("Sending buffered frames...");
                 for (auto it = pGopList->pHead; it != NULL; it = it->pNext) {
-                    DLOGW("Here 1");
                     Gop* pGop = (Gop *) it->data;
                     data->kinesis_video_stream->putFrame(*pGop->pIFrame);
     
-                    DLOGW("Here 2");
                     free(pGop->pIFrame->frameData);
                     // Free the I-Frame.
                     free(pGop->pIFrame);
-                    DLOGW("Here 2.5");
 
                     for (auto it2 = pGop->pPFrames->pHead; it2 != NULL; it2 = it2->pNext) {
-                        DLOGW("Here 3");
                         Frame* pPFrame = (Frame *) it2->data;
-                        DLOGW("Here 3.5");
                         data->kinesis_video_stream->putFrame(*pPFrame);
                         free(pPFrame->frameData);
                     }
-                    DLOGW("Here 4");
 
                     // Free the PFrames list (will also free the Frame nodes).
                     singleListFree(pGop->pPFrames);
@@ -551,15 +554,13 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 }
                 // Clear the GoP list (will also free the GoP nodes).
                 singleListClear(pGopList, TRUE);
-                DLOGW("Here 5");
 
             }
 
-            DLOGW("PTS: %lu", buffer->pts);
-            DLOGW("DTS: %lu", buffer->dts);
+            // DLOGW("PTS: %lu", buffer->pts);
+            // DLOGW("DTS: %lu", buffer->dts);
             // Send the live frame.
-            // put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
-            // std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
+            put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts), kinesis_video_flags);
 
         }
 
