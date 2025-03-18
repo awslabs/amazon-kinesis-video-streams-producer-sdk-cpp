@@ -45,6 +45,14 @@ jobs:
 
   mac-os-build-gcc:
     runs-on: macos-13
+    strategy:
+      matrix:
+        parallel-build:
+          - ON
+          - OFF
+
+      fail-fast: false
+
     permissions:
       id-token: write
       contents: read
@@ -62,10 +70,17 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DCMAKE_INSTALL_PREFIX=.
-          make
-          make install
+          cmake .. -DBUILD_TEST=TRUE -DCMAKE_INSTALL_PREFIX=. -DPARALLEL_BUILD=${{ matrix.parallel-build }}
+
+          if [[ "${{ matrix.parallel-build }}" == 'ON' ]]; then
+            make
+            make -j install
+          else
+            make
+            make install
+          fi
       - name: Configure AWS Credentials
+        if: ${{ matrix.parallel-build == 'ON' }} # Only need to run the tests once
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -73,6 +88,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           role-duration-seconds: 10800
       - name: Run tests
+        if: ${{ matrix.parallel-build == 'ON' }}
         run: |
           cd build
           ./tst/producerTest
@@ -242,6 +258,15 @@ jobs:
 
   ubuntu-gcc:
     runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        parallel-build:
+          - ON
+          - OFF
+
+      fail-fast: false
+
     env:
       AWS_KVS_LOG_LEVEL: 2
       CC: gcc
@@ -260,10 +285,16 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
-          make
-          make install
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=. -DPARALLEL_BUILD=${{ matrix.parallel-build }}
+          
+          if [[ "${{ matrix.parallel-build }}" == 'ON' ]]; then
+            make -j install
+          else
+            make install
+          fi
+
       - name: Configure AWS Credentials
+        if: ${{ matrix.parallel-build == 'ON' }} # Only need to run the tests once
         uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -271,6 +302,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           role-duration-seconds: 10800
       - name: Run tests
+        if: ${{ matrix.parallel-build == 'ON' }}
         run: |
           cd build
           ulimit -c unlimited -S
