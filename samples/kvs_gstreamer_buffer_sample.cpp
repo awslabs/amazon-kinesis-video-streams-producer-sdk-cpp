@@ -16,11 +16,11 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 
 // Modify these parameters to configure the buffer and event streaming behavior.
-#define CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS 20 // Duration of live streaming to KVS upon an event.
-#define CAMERA_EVENT_COOLDOWN_SECONDS             30 // How long for the event scheduler to wait between triggering events.
-#define STREAM_BUFFER_DURATION_SECONDS            10 // How long to store buffered GoPs for. It is guaranteed that the buffer will be at least this long,
+#define CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS 30 // Duration of live streaming to KVS upon an event.
+#define CAMERA_EVENT_COOLDOWN_SECONDS             90 // How long for the event scheduler to wait between triggering events.
+#define STREAM_BUFFER_DURATION_SECONDS            30 // How long to store buffered GoPs for. It is guaranteed that the buffer will be at least this long,
                                                      // but the buffer may be longer to contain the I-frame associated with buffered P-frames.
-
+                                                    
 // Stream definition parameters.
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
 #define DEFAULT_KMS_KEY_ID ""
@@ -193,12 +193,10 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     STATUS curr_stream_status = data->stream_status.load();
     GstSample *sample = nullptr;
     GstMapInfo info;
-    struct timeval tv;
-    guint64 now_ms;
+    uint64_t now_ms;
 
-    //  Get current time.
-    gettimeofday(&tv, NULL);
-    now_ms = (guint64)tv.tv_sec * 1000 + (tv.tv_usec / 1000);
+    // Get current time.
+    now_ms = (uint64_t) std::chrono::duration_cast<std::chrono::milliseconds>(systemCurrentTime().time_since_epoch()).count();
 
     if (STATUS_FAILED(curr_stream_status)) {
         LOG_ERROR("Received stream error: " << curr_stream_status);
@@ -611,6 +609,7 @@ int init_and_run_gstreamer_pipeline(int argc, char* argv[], CustomData *data) {
     // Free resources.
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
+    g_source_remove(bus_watch_id);
     g_main_loop_unref(main_loop);
     main_loop = NULL;
     return 0;
