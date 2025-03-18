@@ -262,7 +262,7 @@ jobs:
           set -e  # Re-enable exit on error
 
           # 130 (128 + 2): Process killed by SIGINT
-          # 137: Process killed by SIGKILL (if the --kill-after timeout is reached) 
+          # 137: Process killed by SIGKILL (if the --kill-after timeout is reached)
           echo "Command exited with code: $EXIT_CODE"
           if [ $EXIT_CODE -ne 130 ]; then
             echo "Command did not exit gracefully after interrupt."
@@ -275,18 +275,18 @@ jobs:
         working-directory: ./build/debug_output
         run: |
           shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
-          
+
           ls -tlrh
           mkvfiles=(*.mkv)
           if [ ${#mkvfiles[@]} -eq 0 ]; then
             echo "No MKV files found in debug_output"
             exit 1
           fi
-          
+
           # Since there are 2 streams, check for the presence of two different prefixed MKV files
           found_0=0
           found_1=0
-        
+
           for file in "${mkvfiles[@]}"; do
             if [[ "$file" == ${KVS_STREAM_NAME_BASE}_0* ]]; then
               found_0=1
@@ -294,16 +294,144 @@ jobs:
               found_1=1
             fi
           done
-        
+
           if [ $found_0 -eq 0 ] || [ $found_1 -eq 0 ]; then
             echo "Expected at least one file starting with each prefix:"
             echo "  - ${KVS_STREAM_NAME_BASE}_0"
             echo "  - ${KVS_STREAM_NAME_BASE}_1"
             exit 1
           fi
-          
+
           for file in "${mkvfiles[@]}"; do
             echo "Verifying $file with mkvinfo (verbose and hexdump):"
             mkvinfo -v -X "$file"
           done
         shell: bash
+
+  wsl-sample-checks:
+    name: WSL ${{ matrix.image }} - ${{ matrix.sample.name }}
+
+    strategy:
+      matrix:
+        sample:
+          - name: kvs_gstreamer_audio_video_sample
+            args: -f sample.mp4
+          - name: kvs_gstreamer_file_uploader_sample
+            args: sample.mp4 0 audio-video
+          - name: kvs_gstreamer_sample
+            args: sample.mp4
+          - name: kvssink_gstreamer_sample
+            args: sample.mp4
+        image:
+          - Ubuntu-22.04
+          - Ubuntu-24.04
+
+      fail-fast: false
+
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    permissions:
+      id-token: write
+      contents: read
+
+    defaults:
+      run:
+        shell: wsl-bash {0}  # Automatically uses wsl-bash for each run step
+
+    steps:
+      - uses: Vampire/setup-wsl@v4
+        with:
+          distribution: ${{ matrix.image }}
+          additional-packages: |
+            automake
+            build-essential
+            cmake
+            git
+            gstreamer1.0-plugins-base-apps
+            gstreamer1.0-plugins-bad
+            gstreamer1.0-plugins-good
+            gstreamer1.0-plugins-ugly
+            gstreamer1.0-tools
+            libcurl4-openssl-dev
+            libgstreamer1.0-dev
+            libgstreamer-plugins-base1.0-dev
+            liblog4cplus-dev
+            libssl-dev
+            pkg-config
+            mkvtoolnix
+          use-cache: 'false' # Cache entry for Ubuntu 22.04 and 24.04 are the same (conflict)
+
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Move repository in WSL
+        run: |
+          # Copy to ~/kvs-cpp-repo for simplicity
+          # Note: Can't move due to no permissions
+          REPO_NAME=$(basename ${{ github.repository }})
+          cp -r /mnt/d/a/$REPO_NAME/$REPO_NAME ~/kvs-cpp-repo
+
+      - name: Build samples in WSL
+        run: |
+          mkdir -p ~/kvs-cpp-repo/build
+          cd ~/kvs-cpp-repo/build
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DALIGNED_MEMORY_MODEL=ON -DBUILD_DEPENDENCIES=OFF
+          make -j$(nproc)
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 900
+
+      - name: Run ${{ matrix.sample.name }} (WSL)
+        run: |
+          cd ~/kvs-cpp-repo/build
+          export KVS_DEBUG_DUMP_DATA_FILE_DIR=~/kvs-cpp-repo/build/debug_output
+          mkdir "$KVS_DEBUG_DUMP_DATA_FILE_DIR"
+          export GST_PLUGIN_PATH=~/kvs-cpp-repo/build
+          export AWS_KVS_LOG_LEVEL=2
+
+          curl -fsSL -o sample.mp4 https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
+
+          # Note: `env.` syntax to reference credentials to have GitHub Actions inject
+          # the secret values into these environment variables before the command runs,
+          # since the WSL shell doesn't have access to GitHub's environment variables
+          export AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }}
+          export AWS_SESSION_TOKEN=${{ env.AWS_SESSION_TOKEN }}
+          export AWS_DEFAULT_REGION=${{ env.AWS_DEFAULT_REGION }}
+          
+          set +e  # Disable exit on error for the timeout command
+          ./${{ matrix.sample.name }} demo-stream-producer-cpp-wsl-${{ matrix.image }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+          
+          unset AWS_ACCESS_KEY_ID
+          unset AWS_SECRET_ACCESS_KEY
+          unset AWS_SESSION_TOKEN
+          
+          if [[ EXIT_CODE -ne 0 ]]; then
+            echo "${{ matrix.sample.name }} exited with code: $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+
+      - name: Verify MKV dump exists (WSL)
+        run: |
+          cd ~/kvs-cpp-repo/build/debug_output
+          shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
+
+          ls -tlrh
+          mkvfiles=(*.mkv)
+          if [ ${#mkvfiles[@]} -eq 0 ]; then
+            echo "No MKV files found in debug_output"
+            exit 1
+          fi
+
+          for file in "${mkvfiles[@]}"; do
+            echo "Verifying $file with mkvinfo (verbose and hexdump):"
+            mkvinfo -v -X "$file"
+          done
