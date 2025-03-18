@@ -53,25 +53,21 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 
 atomic<bool> eventTriggered(false);
-
 std::atomic<bool> terminated(FALSE);
-std::condition_variable cv;
+std::condition_variable terminationCv;
 
-std::atomic<bool> g_mainLoopRunning(true);
-std::condition_variable g_mainLoopCV;
+GMainLoop *main_loop;
 
 typedef struct _CustomData {
 
     _CustomData():
             synthetic_dts(0),
             stream_status(STATUS_SUCCESS),
-            main_loop(NULL),
             first_pts(GST_CLOCK_TIME_NONE),
             use_absolute_fragment_times(true) {
         producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
     }
 
-    GMainLoop *main_loop;
     unique_ptr<Credentials> credential;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
@@ -218,10 +214,9 @@ SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREA
         terminate_pipeline = true;
     }
 
-    if (terminate_pipeline && data->main_loop != NULL) {
+    if (terminate_pipeline && main_loop != NULL) {
         LOG_WARN("Terminating pipeline due to unrecoverable stream error: " << status_code);
-        cv.notify_all();
-        g_main_loop_quit(data->main_loop);
+        g_main_loop_quit(main_loop);
     }
 
     return STATUS_SUCCESS;
@@ -251,34 +246,9 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 void sigint_handler(int sigint) {
     LOG_DEBUG("SIGINT received. Exiting...");
     terminated = TRUE;
-    cv.notify_all();
-}
-
-void endStreamingSample(GstElement* pipeline) {
-    std::mutex cv_m;
-    std::unique_lock<std::mutex> lck(cv_m);
-    
-    cv.wait(lck, [] { return terminated.load(); });
-    LOG_DEBUG("Shutting down stream...");
-
-    // Send an EOS event to the pipeline to allow for remaining frames to go through.
-    // The main loop will be quit by the bus EOS message handling.
-    if (pipeline != NULL) {
-        gst_element_send_event(pipeline, gst_event_new_eos());
-    } else {
-        // Else, quit the main loop if it is still running.
-
-        if (main_loop != NULL) {
-            g_main_loop_quit(main_loop); // (idempotent)
-        }
-    }
-
-    // Now wait for the main loop to quit, using the condition variable.
-    std::unique_lock<std::mutex> lk(g_mainLoopMutex);
-    auto timeout = std::chrono::seconds(5);
-    // Wait until g_mainLoopRunning becomes false.
-    if (!g_mainLoopCV.wait_for(lk, timeout, [] { return !g_mainLoopRunning.load(); })) {
-
+    terminationCv.notify_all();
+    if (main_loop != NULL) {
+        g_main_loop_quit(main_loop);
     }
 }
 
@@ -300,15 +270,13 @@ void cameraEventScheduler() {
 
         DLOGI("Waiting to set eventTriggered to true.");
         // Wait for some time before triggering an event, exit early if app was terminated.
-        if(cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
-            // break;
+        if(terminationCv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             return;
         }
         DLOGI("Setting eventTriggered to true.");
         eventTriggered = true;
 
-        if(cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
-            // break;
+        if(terminationCv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             return;
         }
         DLOGI("Setting eventTriggered to false.");
@@ -419,57 +387,16 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
 
         if(!eventTriggered) {
-
-            if(CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
-                // DLOGE("Keyframe detected, creating new GoP object");
-    
+            if(CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {    
                 // Make a new GoP object.
                 Gop* newGop = (Gop *)calloc(1, sizeof(Gop));
                 
                 // Make a new Frame object.
                 newGop->pIFrame = (Frame *) calloc(1, sizeof(Frame));
 
-                create_and_allocate_kinesis_video_frame(newGop->pIFrame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts), kinesis_video_flags, info.data, info.size);
-    
+                create_and_allocate_kinesis_video_frame(newGop->pIFrame, nanoseconds(buffer->pts), nanoseconds(buffer->pts), kinesis_video_flags, info.data, info.size);
                 singleListCreate(&(newGop->pPFrames));
-
                 singleListInsertItemTail(pGopList, (UINT64) newGop);
-
-                // Now let's check if there are GoP objects whose frames are all older than FILE_BUFFER_TIME_SECONDS.
-                // If so, remove them from the list and delete the frame file.
-                // Can uncomment the "isKeyFrame" to reduce frequency of checks, but buffer might end up being 1 GoP longer than necessary.
-                // if(isKeyFrame) {
-                    PSingleListNode pNode = NULL;
-                    singleListGetHeadNode(pGopList, &pNode);
-                    PSingleListNode pNextNode = pNode->pNext;
-
-                    // DLOGE("Checking for frames to delete...");
-
-                    while(pNode != NULL && pNextNode != NULL) {
-                        // DLOGE("Checking frame...");
-
-                        Gop* pGop = (Gop *) pNode->data;
-                        Gop* pNextGop = (Gop *) pNextNode->data;
-
-                        // If the next GoP's start timestamp is within the FILE_BUFFER_TIME_SECONDS, then we can delete this GoP.
-                        // This logic allows for FILE_BUFFER_TIME_SECONDS to be exceeded to ensure we don't hold fewer frames than FILE_BUFFER_TIME_SECONDS
-                        // in the cases where the FILE_BUFFER_TIME_SECONDS threshold lays in the middle of a GoP; we do not want to discard such a GoP.
-                        if((now_ms - pNextGop->pIFrame->presentationTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND) >= (FILE_BUFFER_TIME_SECONDS * 1000)) {
-                            DLOGE("Deleting a buffered GoP...");
-
-                            singleListFree(pGop->pPFrames); // Free the P-Frames.
-                            free(pGop->pIFrame); // Free the I-Frame.
-                            free(pGop); // DeleteNode does not free the node data, so free the GoP.
-                            singleListDeleteNode(pGopList, pNode); // Remove the node.
-                            pNode = NULL;
-
-                        } else {
-                            DLOGE("Oldest frame does not exceed the interval");
-                            break;
-                        }
-                        pNode = pNextNode;
-                        pNextNode = pNextNode->pNext;
-                    }
             } else {
                 // DLOGE("Not a keyframe, not creating new GoP object");
     
@@ -481,12 +408,52 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 if(pTailNode != NULL) {
                     // Make a new Frame object.
                     Frame* pPFrame = (Frame *) calloc(1, sizeof(Frame));
-                    create_and_allocate_kinesis_video_frame(pPFrame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts), kinesis_video_flags, info.data, info.size);
+
+                    create_and_allocate_kinesis_video_frame(pPFrame, nanoseconds(buffer->pts), nanoseconds(buffer->pts), kinesis_video_flags, info.data, info.size);
 
                     singleListInsertItemTail(((Gop *)pTailNode->data)->pPFrames, (UINT64) pPFrame);
                 }
             }
-        } else {
+
+            // Now let's check if there are GoP objects whose frames are all older than FILE_BUFFER_TIME_SECONDS.
+            // If so, remove them from the list and delete the frame file.
+            // Can uncomment the "isKeyFrame" to reduce frequency of checks, but buffer might end up being 1 GoP longer than necessary.
+            // if(isKeyFrame) {
+
+            PSingleListNode pNode = NULL;
+            singleListGetHeadNode(pGopList, &pNode);
+
+            // DLOGE("Checking for frames to delete...");
+
+            while(pNode != NULL && pNode->pNext != NULL) {
+                // DLOGE("Checking frame...");
+
+                PSingleListNode pNextNode = pNode->pNext;
+                Gop* pGop = (Gop *) pNode->data;
+                Gop* pNextGop = (Gop *) pNextNode->data;
+
+                // If the next GoP's start timestamp is within the FILE_BUFFER_TIME_SECONDS, then we can delete this GoP.
+                // This logic allows for FILE_BUFFER_TIME_SECONDS to be exceeded to ensure we don't hold fewer frames than FILE_BUFFER_TIME_SECONDS
+                // in the cases where the FILE_BUFFER_TIME_SECONDS threshold lays in the middle of a GoP; we do not want to discard such a GoP.
+                if((now_ms - pNextGop->pIFrame->presentationTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND) >= (FILE_BUFFER_TIME_SECONDS * 1000)) {
+                    DLOGE("Deleting a buffered GoP...");
+
+                    singleListFree(pGop->pPFrames); // Free the P-Frames.
+                    free(pGop->pIFrame); // Free the I-Frame.
+                    free(pGop); // DeleteNode does not free the node data, so free the GoP.
+                    singleListDeleteNode(pGopList, pNode); // Remove the node.
+                    pNode = NULL;
+
+                } else {
+                    DLOGE("Oldest frame does not exceed the interval");
+                    break;
+                }
+                pNode = pNextNode;
+                pNextNode = pNextNode->pNext;
+            }
+
+        } else { // Event triggered.
+            // Handle event: send buffered frames, send live frame.
 
             // DLOGW("Event triggered, sending buffered frames...");
             // Handle event: send buffered frames, send live frame.
@@ -543,14 +510,12 @@ CleanUp:
 
 static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
 {
-    GMainLoop *loop = (GMainLoop *) ((CustomData *)data)->main_loop;
-
     switch(GST_MESSAGE_TYPE(msg)) {
         case GST_MESSAGE_EOS: {
             LOG_DEBUG("[KVS sample] Received EOS message");
-            terminated = true;
-            cv.notify_all();
-            g_main_loop_quit(loop);
+            if (main_loop != NULL) {
+                g_main_loop_quit(main_loop);
+            }
             break;
         }
 
@@ -563,9 +528,10 @@ static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
 
             LOG_ERROR("[KVS sample] GStreamer error: " << error->message);
             g_error_free(error);
-            terminated = true;
-            cv.notify_all();
-            g_main_loop_quit(loop);
+
+            if (main_loop != NULL) {
+                g_main_loop_quit(main_loop);
+            }
             break;
         }
 
@@ -835,19 +801,24 @@ int init_and_run_gstreamer_pipeline(int argc, char* argv[], CustomData *data) {
         return 1;
     }
 
-    data->main_loop = g_main_loop_new(NULL, FALSE);
-    g_main_loop_run(data->main_loop);
+    main_loop = g_main_loop_new(NULL, FALSE);
+    g_main_loop_run(main_loop);
+
+    // Notify waiting threads we are done streaming.
+    terminated = true;
+    terminationCv.notify_all();
 
     // Free resources.
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
-    g_main_loop_unref(data->main_loop);
-    data->main_loop = NULL;
+    g_main_loop_unref(main_loop);
+    main_loop = NULL;
     return 0;
 }
 
 int main(int argc, char* argv[]) {
     signal(SIGINT, sigint_handler);
+    main_loop = NULL;
 
     PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
@@ -884,8 +855,6 @@ int main(int argc, char* argv[]) {
     // KVS and for live streaming to KVS to begin.
     std::thread cameraEventSchedulerThread(cameraEventScheduler);
 
-    std::thread endStreamingSampleThread(endStreamingSample, );
-
     // Initialize GStreamer, construct pipeline, and begin streaming.
     if (init_and_run_gstreamer_pipeline(argc, argv, &data) != 0) {
         LOG_ERROR("Failed to initialize gstreamer");
@@ -893,14 +862,11 @@ int main(int argc, char* argv[]) {
     }
 
     cameraEventSchedulerThread.join();
-    endStreamingSampleThread.join();
 
     if (STATUS_SUCCEEDED(stream_status)) {
-        LOG_ERROR("STATUS_SUCCEEDED");
-        // if stream_status is success after eos, send out remaining frames.
+        // If stream_status is success after eos, send out remaining frames.
         data.kinesis_video_stream->stopSync();
     } else {
-        LOG_ERROR("Not STATUS_SUCCEEDED");
         data.kinesis_video_stream->stop();
     }
 
