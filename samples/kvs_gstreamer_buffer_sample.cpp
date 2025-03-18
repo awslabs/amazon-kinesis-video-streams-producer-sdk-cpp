@@ -14,15 +14,6 @@ using namespace std::chrono;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-int gstreamer_init(int, char **);
-
-#ifdef __cplusplus
-}
-#endif
 
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
@@ -50,28 +41,30 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_CREDENTIAL_ROTATION_SECONDS 3600
 #define DEFAULT_CREDENTIAL_EXPIRATION_SECONDS 180
 
-
+#define DEFAULT_STREAM_NAME "DEFAULT_STREAM_NAME"
 #define KVS_GST_TEST_SOURCE_NAME "test-source"
 #define KVS_GST_DEVICE_SOURCE_NAME "device-source"
 
+// Modify these parameters to configure the buffer and event streaming behavior.
 #define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 8
 #define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 30
-
-
 #define FILE_BUFFER_TIME_SECONDS 8
 
 
 
+atomic<bool> eventTriggered(false);
+
+std::atomic<bool> terminated(FALSE);
+std::condition_variable cv;
+
+std::atomic<bool> g_mainLoopRunning(true);
+std::condition_variable g_mainLoopCV;
+
 typedef struct _CustomData {
 
     _CustomData():
-            h264_stream_supported(false),
             synthetic_dts(0),
-            last_unpersisted_file_idx(0),
             stream_status(STATUS_SUCCESS),
-            base_pts(0),
-            max_frame_pts(0),
-            key_frame_pts(0),
             main_loop(NULL),
             first_pts(GST_CLOCK_TIME_NONE),
             use_absolute_fragment_times(true) {
@@ -79,46 +72,19 @@ typedef struct _CustomData {
     }
 
     GMainLoop *main_loop;
+    unique_ptr<Credentials> credential;
     unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     shared_ptr<KinesisVideoStream> kinesis_video_stream;
     bool stream_started;
-    bool h264_stream_supported;
     char *stream_name;
-    mutex file_list_mtx;
-
-    // index of file in file_list that application is currently trying to upload.
-    uint32_t current_file_idx;
-
-    // index of last file in file_list that haven't been persisted.
-    atomic_uint last_unpersisted_file_idx;
 
     // stores any error status code reported by StreamErrorCallback.
     atomic_uint stream_status;
 
-    // Since each file's timestamp start at 0, need to add all subsequent file's timestamp to base_pts starting from the
-    // second file to avoid fragment overlapping. When starting a new putMedia session, this should be set to 0.
-    // Unit: ns
-    uint64_t base_pts;
-
-    // Max pts in a file. This will be added to the base_pts for the next file. When starting a new putMedia session,
-    // this should be set to 0.
-    // Unit: ns
-    uint64_t max_frame_pts;
-
-    // When uploading file, store the pts of frames that has flag FRAME_FLAG_KEY_FRAME. When the entire file has been uploaded,
-    // key_frame_pts contains the timetamp of the last fragment in the file. key_frame_pts is then stored into last_fragment_ts
-    // of the file.
-    // Unit: ns
-    uint64_t key_frame_pts;
-
-    // Used in file uploading only. Assuming frame timestamp are relative. Add producer_start_time to each frame's
-    // timestamp to convert them to absolute timestamp. This way fragments dont overlap after token rotation when doing
-    // file uploading.
+    // Assuming frame timestamp are relative. Add producer_start_time to each frame's
+    // timestamp to convert them to absolute timestamp. This way fragments dont overlap after token rotation.
     uint64_t producer_start_time;
 
-    string rtsp_url;
-
-    unique_ptr<Credentials> credential;
 
     uint64_t synthetic_dts;
 
@@ -127,6 +93,7 @@ typedef struct _CustomData {
     // Pts of first video frame
     uint64_t first_pts;
 
+    // This is the memory buffer for the stream.
     SingleList* pGoPList;
 } CustomData;
 
@@ -253,6 +220,7 @@ SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREA
 
     if (terminate_pipeline && data->main_loop != NULL) {
         LOG_WARN("Terminating pipeline due to unrecoverable stream error: " << status_code);
+        cv.notify_all();
         g_main_loop_quit(data->main_loop);
     }
 
@@ -280,18 +248,38 @@ SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STR
 }  // namespace com;
 
 
-
-atomic<bool> eventTriggered(false);
-std::atomic<bool> terminated(FALSE);
-std::condition_variable cv;
-
 void sigint_handler(int sigint) {
     LOG_DEBUG("SIGINT received. Exiting...");
     terminated = TRUE;
     cv.notify_all();
-    // if(main_loop != NULL) {
-    //     g_main_loop_quit(main_loop);
-    // }
+}
+
+void endStreamingSample(GstElement* pipeline) {
+    std::mutex cv_m;
+    std::unique_lock<std::mutex> lck(cv_m);
+    
+    cv.wait(lck, [] { return terminated.load(); });
+    LOG_DEBUG("Shutting down stream...");
+
+    // Send an EOS event to the pipeline to allow for remaining frames to go through.
+    // The main loop will be quit by the bus EOS message handling.
+    if (pipeline != NULL) {
+        gst_element_send_event(pipeline, gst_event_new_eos());
+    } else {
+        // Else, quit the main loop if it is still running.
+
+        if (main_loop != NULL) {
+            g_main_loop_quit(main_loop); // (idempotent)
+        }
+    }
+
+    // Now wait for the main loop to quit, using the condition variable.
+    std::unique_lock<std::mutex> lk(g_mainLoopMutex);
+    auto timeout = std::chrono::seconds(5);
+    // Wait until g_mainLoopRunning becomes false.
+    if (!g_mainLoopCV.wait_for(lk, timeout, [] { return !g_mainLoopRunning.load(); })) {
+
+    }
 }
 
 typedef enum _StreamSource {
@@ -330,37 +318,15 @@ void cameraEventScheduler() {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-static void eos_cb(GstElement *sink, CustomData *data) {
-    // bookkeeping base_pts. add 1ms to avoid overlap.
-    data->base_pts += + data->max_frame_pts + duration_cast<nanoseconds>(milliseconds(1)).count();
-    data->max_frame_pts = 0;
-
-    LOG_DEBUG("Terminating pipeline due to EOS");
-    g_main_loop_quit(data->main_loop);
-}
-
 void create_and_allocate_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
     void *data, size_t len) {
 frame->flags = flags;
 frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
 frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-// set duration to 0 due to potential high spew from rtsp streams
 frame->duration = 0;
 frame->size = static_cast<UINT32>(len);
-
 frame->frameData = (uint8_t*) malloc(frame->size);
 memcpy(frame->frameData, data, frame->size);
-
 frame->trackId = DEFAULT_TRACK_ID;
 }
 
@@ -369,7 +335,6 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
     frame->presentationTs = static_cast<UINT64>(pts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
-    // set duration to 0 due to potential high spew from rtsp streams
     frame->duration = 0;
     frame->size = static_cast<UINT32>(len);
     frame->frameData = reinterpret_cast<PBYTE>(data);
@@ -505,12 +470,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                         pNode = pNextNode;
                         pNextNode = pNextNode->pNext;
                     }
-                // }
-
-
-
-
-
             } else {
                 // DLOGE("Not a keyframe, not creating new GoP object");
     
@@ -528,6 +487,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 }
             }
         } else {
+
             // DLOGW("Event triggered, sending buffered frames...");
             // Handle event: send buffered frames, send live frame.
 
@@ -560,21 +520,11 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
             }
 
-            // DLOGW("PTS: %lu", buffer->pts);
-            // DLOGW("DTS: %lu", buffer->dts);
             // Send the live frame.
             DLOGW("Putting live frame with ts: %lu", buffer->pts);
             put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->pts), kinesis_video_flags);
 
         }
-
-        // DLOGW("PTS: %lu", buffer->pts);
-        // DLOGW("DTS: %lu", buffer->dts);
-
-        // put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(buffer->pts),
-        //     std::chrono::nanoseconds(buffer->dts), kinesis_video_flags);
-        
-
 
     }
 
@@ -593,85 +543,38 @@ CleanUp:
 
 static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
 {
-    // GMainLoop *loop = (GMainLoop *) ((CustomData *)data)->main_loop;
-    // GstElement *pipeline = (GstElement *) ((CustomData *)data)->pipeline;
+    GMainLoop *loop = (GMainLoop *) ((CustomData *)data)->main_loop;
 
-    // switch(GST_MESSAGE_TYPE(msg)) {
-    //     case GST_MESSAGE_EOS: {
-    //         LOG_DEBUG("[KVS sample] Received EOS message");
-    //         cv.notify_all();
-    //         break;
-    //     }
+    switch(GST_MESSAGE_TYPE(msg)) {
+        case GST_MESSAGE_EOS: {
+            LOG_DEBUG("[KVS sample] Received EOS message");
+            terminated = true;
+            cv.notify_all();
+            g_main_loop_quit(loop);
+            break;
+        }
 
-    //     case GST_MESSAGE_ERROR: {
-    //         gchar  *debug;
-    //         GError *error;
+        case GST_MESSAGE_ERROR: {
+            gchar  *debug;
+            GError *error;
 
-    //         gst_message_parse_error(msg, &error, &debug);
-    //         g_free(debug);
+            gst_message_parse_error(msg, &error, &debug);
+            g_free(debug);
 
-    //         LOG_ERROR("[KVS sample] GStreamer error: " << error->message);
-    //         g_error_free(error);
+            LOG_ERROR("[KVS sample] GStreamer error: " << error->message);
+            g_error_free(error);
+            terminated = true;
+            cv.notify_all();
+            g_main_loop_quit(loop);
+            break;
+        }
 
-    //         g_main_loop_quit(loop);
-    //         break;
-    //     }
-
-    //     default: {
-    //         break;
-    //     }
-    // }
+        default: {
+            break;
+        }
+    }
 
     return TRUE;
-}
-
-
-static bool format_supported_by_source(GstCaps *src_caps, GstCaps *query_caps, int width, int height, int framerate) {
-    gst_caps_set_simple(query_caps,
-                        "width", G_TYPE_INT, width,
-                        "height", G_TYPE_INT, height,
-                        "framerate", GST_TYPE_FRACTION, framerate, 1,
-                        NULL);
-    bool is_match = gst_caps_can_intersect(query_caps, src_caps);
-
-    // in case the camera has fps as 10000000/333333
-    if(!is_match) {
-        gst_caps_set_simple(query_caps,
-                            "framerate", GST_TYPE_FRACTION_RANGE, framerate, 1, framerate+1, 1,
-                            NULL);
-        is_match = gst_caps_can_intersect(query_caps, src_caps);
-    }
-
-    return is_match;
-}
-
-static bool resolution_supported(GstCaps *src_caps, GstCaps *query_caps_raw, GstCaps *query_caps_h264,
-                                 CustomData &data, int width, int height, int framerate) {
-    if (query_caps_h264 && format_supported_by_source(src_caps, query_caps_h264, width, height, framerate)) {
-        LOG_DEBUG("src supports h264")
-        data.h264_stream_supported = true;
-    } else if (query_caps_raw && format_supported_by_source(src_caps, query_caps_raw, width, height, framerate)) {
-        LOG_DEBUG("src supports raw")
-        data.h264_stream_supported = false;
-    } else {
-        return false;
-    }
-    return true;
-}
-
-/* This function is called when an error message is posted on the bus */
-static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
-    GError *err;
-    gchar *debug_info;
-
-    /* Print error details on the screen */
-    gst_message_parse_error(msg, &err, &debug_info);
-    g_printerr("Error received from element %s: %s\n", GST_OBJECT_NAME (msg->src), err->message);
-    g_printerr("Debugging information: %s\n", debug_info ? debug_info : "none");
-    g_clear_error(&err);
-    g_free(debug_info);
-
-    g_main_loop_quit(data->main_loop);
 }
 
 void kinesis_video_init(CustomData *data) {
@@ -794,29 +697,13 @@ void kinesis_video_stream_init(CustomData *data) {
     LOG_DEBUG("Stream is ready");
 }
 
-
 int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElement *pipeline) {
 
-    GstElement *source, *clock_overlay, *video_convert, *source_filter, *encoder, *sink_filter, *appsink;
-
+    GstElement *source, *clock_overlay, *video_convert, *source_filter, *encoder, *parser, *sink_filter, *appsink;
     GstCaps *source_caps, *sink_caps;
-
-    GstBus *bus;
-    guint bus_watch_id;
-
     StreamSource source_type;
 
      /* Parse input arguments */
-
-    //  DLOGE("Parsing input arguments...");
-    //  // Check for invalid argument count, get stream name.
-    //  if(argc > 3) {
-    //      LOG_ERROR("[KVS sample] Invalid argument count, too many arguments.");
-    //      LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>");
-    //      return -1;
-    //  } else if(argc > 1) {
-    //      STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
-    //  }
  
      // Get source type.
      if(argc > 2) {
@@ -828,7 +715,8 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
              source_type = DEVICE_SOURCE;
          } else {
              LOG_ERROR("[KVS sample] Invalid source type");
-             LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc(optional)>");
+             LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>");
+             LOG_INFO("[KVS sample] Example usage: " << argv[0] << " myStreamName testsrc");
              return -1;
          }
      } else {
@@ -836,11 +724,9 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
          source_type = TEST_SOURCE;
      }
  
- 
+
      /* Create GStreamer elements */
- 
-     DLOGE("Create GStreamer elements");
- 
+  
      /* source */
      if(source_type == TEST_SOURCE) {
          source = gst_element_factory_make("videotestsrc", KVS_GST_TEST_SOURCE_NAME);
@@ -872,74 +758,61 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
                   "bframes", 0,
                   "key-int-max", 120, NULL);     
  
-                  
-    GstElement* parse = gst_element_factory_make("h264parse", "parse");
+    /* h.264 parser */ 
+    parser = gst_element_factory_make("h264parse", "parser");
  
-     /* sink filter */
-     sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
-     sink_caps = gst_caps_new_simple("video/x-h264",
-                                     "alignment", G_TYPE_STRING, "au",
-                                     "stream-format", G_TYPE_STRING, "avc",
-                                     NULL);
-     g_object_set(G_OBJECT(sink_filter), "caps", sink_caps, NULL);
-     gst_caps_unref(sink_caps);
- 
- 
-     appsink = gst_element_factory_make("appsink", "appsink");
- 
-     if (!pipeline || !source || !clock_overlay || !video_convert || 
-         !source_filter || !encoder || !sink_filter || !parse || !appsink)
-     {
-         LOG_ERROR("[KVS sample] Not all GStreamer elements could be created.");
-         return -1;
-     }
- 
-     g_object_set(G_OBJECT(appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
-     g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), data);
+    /* sink caps filter */
+    sink_filter = gst_element_factory_make("capsfilter", "sink-filter");
+    sink_caps = gst_caps_new_simple("video/x-h264",
+                                    "alignment", G_TYPE_STRING, "au",
+                                    "stream-format", G_TYPE_STRING, "avc",
+                                    NULL);
+    g_object_set(G_OBJECT(sink_filter), "caps", sink_caps, NULL);
+    gst_caps_unref(sink_caps);
 
-     
-    DLOGE("GStreamer elements created successfully.");
-    DLOGE("Creating GStreamer bus...");
-    // Add a message handler.
-    bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
-    DLOGE("Created bus.");
-    bus_watch_id = gst_bus_add_watch(bus, bus_call, &data);
-    DLOGE("Added bus watch.");
-    gst_object_unref(bus);
+    /* appsink */
+    appsink = gst_element_factory_make("appsink", "appsink");
+    g_object_set(G_OBJECT(appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
+    g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), data);
 
-    DLOGE("Adding elements to pipeline...");
+
+    if (!pipeline || !source || !clock_overlay || !video_convert || 
+        !source_filter || !encoder || !sink_filter || !parser || !appsink)
+    {
+        LOG_ERROR("[KVS sample] Not all GStreamer elements could be created.");
+        return -1;
+    }
+
     // Add elements into the pipeline.
     gst_bin_add_many(GST_BIN(pipeline),
                  source, clock_overlay, video_convert,
-                 source_filter, encoder, sink_filter, parse, appsink,
+                 source_filter, encoder, sink_filter, parser, appsink,
                  NULL);
 
-
     // Link the elements together.
-
     if (!gst_element_link_many(source, clock_overlay, video_convert,
-        source_filter, encoder, sink_filter, parse, appsink, NULL)) {
-        LOG_ERROR("Could not link main chain");
+        source_filter, encoder, sink_filter, parser, appsink, NULL)) {
+        LOG_ERROR("Elements could not be linked");
         gst_object_unref(pipeline);
         return -1;
     }
 
-
     return 0;
 }
 
-int gstreamer_init(int argc, char* argv[], CustomData *data) {
+int init_and_run_gstreamer_pipeline(int argc, char* argv[], CustomData *data) {
 
-    /* init GStreamer */
-    gst_init(&argc, &argv);
-
-    GstElement *pipeline;
     int ret;
+    GstElement *pipeline;
     GstStateChangeReturn gst_ret;
+    GstBus *bus;
+    guint bus_watch_id;
 
-    // Reset first frame pts
+    // Initialize GStreamer.
+    gst_init(&argc, &argv);
+        
+    // Reset first frame pts.
     data->first_pts = GST_CLOCK_TIME_NONE;
-
 
     LOG_INFO("Streaming from live source");
     pipeline = gst_pipeline_new("live-kinesis-pipeline");
@@ -949,13 +822,12 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
         return ret;
     }
 
-    /* Instruct the bus to emit signals for each received message, and connect to the interesting signals */
-    // GstBus *bus = gst_element_get_bus(pipeline);
-    // gst_bus_add_signal_watch(bus);
-    // g_signal_connect (G_OBJECT(bus), "message::error", (GCallback) error_cb, data);
-    // gst_object_unref(bus);
+    // Add a bus message handler.
+    bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
+    bus_watch_id = gst_bus_add_watch(bus, bus_call, &data);
+    gst_object_unref(bus);
 
-    /* start streaming */
+    // Start streaming.
     gst_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (gst_ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr("Unable to set the pipeline to the playing state.\n");
@@ -966,8 +838,7 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
     data->main_loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(data->main_loop);
 
-    /* free resources */
-    // gst_bus_remove_signal_watch(bus);
+    // Free resources.
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
     g_main_loop_unref(data->main_loop);
@@ -976,57 +847,60 @@ int gstreamer_init(int argc, char* argv[], CustomData *data) {
 }
 
 int main(int argc, char* argv[]) {
+    signal(SIGINT, sigint_handler);
+
     PropertyConfigurator::doConfigure("../kvs_log_configuration");
-
-    if (argc < 2) {
-        LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name rtsp-url\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
-        return 1;
-    }
-
-    const int PUTFRAME_FAILURE_RETRY_COUNT = 3;
 
     CustomData data;
     char stream_name[MAX_STREAM_NAME_LEN + 1];
     int ret = 0;
-    int file_retry_count = PUTFRAME_FAILURE_RETRY_COUNT;
     STATUS stream_status = STATUS_SUCCESS;
 
-    STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
+    // Parse the stream name from program argument.
+    if (argc > 1) {
+        LOG_INFO("Stream name specified: " << argv[1]);
+        STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
+    } else {
+        LOG_INFO("No stream name specified, using default stream name: " << DEFAULT_STREAM_NAME);
+        STRNCPY(stream_name, DEFAULT_STREAM_NAME, MAX_STREAM_NAME_LEN);
+    }
     stream_name[MAX_STREAM_NAME_LEN] = '\0';
     data.stream_name = stream_name;
 
+    // Initialize the GoP buffer linked list.
     data.pGoPList = NULL;
     singleListCreate(&data.pGoPList);
 
-
-    /* init Kinesis Video */
+    // Initialize Kinesis Video Client and Stream constructs.
     try{
         kinesis_video_init(&data);
         kinesis_video_stream_init(&data);
     } catch (runtime_error &err) {
-        LOG_ERROR("Failed to initialize kinesis video with an exception: " << err.what());
+        LOG_ERROR("Failed to initialize Kinesis Video with an exception: " << err.what());
         return 1;
     }
 
-    bool do_retry = true;
-
+    // This thread will trigger events during streaming, prompting the buffer to be sent to
+    // KVS and for live streaming to KVS to begin.
     std::thread cameraEventSchedulerThread(cameraEventScheduler);
 
-    if (gstreamer_init(argc, argv, &data) != 0) {
+    std::thread endStreamingSampleThread(endStreamingSample, );
+
+    // Initialize GStreamer, construct pipeline, and begin streaming.
+    if (init_and_run_gstreamer_pipeline(argc, argv, &data) != 0) {
         LOG_ERROR("Failed to initialize gstreamer");
         return 1;
     }
 
     cameraEventSchedulerThread.join();
+    endStreamingSampleThread.join();
 
     if (STATUS_SUCCEEDED(stream_status)) {
+        LOG_ERROR("STATUS_SUCCEEDED");
         // if stream_status is success after eos, send out remaining frames.
         data.kinesis_video_stream->stopSync();
     } else {
+        LOG_ERROR("Not STATUS_SUCCEEDED");
         data.kinesis_video_stream->stop();
     }
 
