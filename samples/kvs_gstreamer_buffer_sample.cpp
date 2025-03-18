@@ -9,8 +9,6 @@
 #include <mutex>
 #include <IotCertCredentialProvider.h>
 
-using namespace std;
-using namespace std::chrono;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
@@ -58,10 +56,10 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 /* Global Variable Definitions */
 /* *************************** */
 
-atomic<bool> appTerminated(FALSE);
-condition_variable appTerminationCv;
+std::atomic<bool> appTerminated(FALSE);
+std::condition_variable appTerminationCv;
 
-atomic<bool> cameraEventTriggered(false);
+std::atomic<bool> cameraEventTriggered(false);
 
 GMainLoop *main_loop; // Declared globally to simplify sigint_handler logic.
 
@@ -84,17 +82,17 @@ typedef struct _CustomData {
             stream_status(STATUS_SUCCESS),
             first_pts(GST_CLOCK_TIME_NONE),
             use_absolute_fragment_times(true) {
-        producer_start_time = chrono::duration_cast<nanoseconds>(systemCurrentTime().time_since_epoch()).count();
+        producer_start_time = std::chrono::duration_cast<std::chrono::nanoseconds>(systemCurrentTime().time_since_epoch()).count();
     }
 
-    unique_ptr<Credentials> credential;
-    unique_ptr<KinesisVideoProducer> kinesis_video_producer;
-    shared_ptr<KinesisVideoStream> kinesis_video_stream;
+    std::unique_ptr<Credentials> credential;
+    std::unique_ptr<KinesisVideoProducer> kinesis_video_producer;
+    std::shared_ptr<KinesisVideoStream> kinesis_video_stream;
     bool stream_started;
     char *stream_name;
 
     // stores any error status code reported by StreamErrorCallback.
-    atomic_uint stream_status;
+    std::atomic_uint stream_status;
 
     // Assuming frame timestamp are relative. Add producer_start_time to each frame's
     // timestamp to convert them to absolute timestamp. This way fragments dont overlap after token rotation.
@@ -155,7 +153,7 @@ void cameraEventScheduler() {
 
 // Use this function when writing frames to the memory buffer. We need to allocate memory for and copy the frames received by
 // appsink because the frame is freed after its new-sample appsink callback invocation.
-void create_and_allocate_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
+void create_and_allocate_kinesis_video_frame(Frame *frame, const std::chrono::nanoseconds &pts, const std::chrono::nanoseconds &dts, FRAME_FLAGS flags,
                                                 void *data, size_t len) {
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
@@ -168,7 +166,7 @@ void create_and_allocate_kinesis_video_frame(Frame *frame, const nanoseconds &pt
     memcpy(frame->frameData, data, frame->size);
 }
 
-void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
+void create_kinesis_video_frame(Frame *frame, const std::chrono::nanoseconds &pts, const std::chrono::nanoseconds &dts, FRAME_FLAGS flags,
                                 void *data, size_t len) {
     frame->flags = flags;
     frame->decodingTs = static_cast<UINT64>(dts.count()) / DEFAULT_TIME_UNIT_IN_NANOS;
@@ -180,7 +178,7 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
 }
 
 // Populates Frame struct and it sends to KVS Producer.
-bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
+bool put_frame(std::shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const std::chrono::nanoseconds &pts, const std::chrono::nanoseconds &dts, FRAME_FLAGS flags) {
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
     return kinesis_video_stream->putFrame(frame);
@@ -269,7 +267,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 newGop->pIFrame = (Frame *) calloc(1, sizeof(Frame));
 
                 // Copy the frame sample buffer data to the new Frame allocation since it will be freed by GStreamer after we process it.
-                create_and_allocate_kinesis_video_frame(newGop->pIFrame, nanoseconds(gst_buffer->pts), nanoseconds(gst_buffer->pts), kinesis_video_flags, info.data, info.size);
+                create_and_allocate_kinesis_video_frame(newGop->pIFrame, std::chrono::nanoseconds(gst_buffer->pts), std::chrono::nanoseconds(gst_buffer->pts), kinesis_video_flags, info.data, info.size);
                 singleListCreate(&(newGop->pPFrames));
                 singleListInsertItemTail(pGopList, (UINT64) newGop);
 
@@ -313,7 +311,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                     Frame* pPFrame = (Frame *) calloc(1, sizeof(Frame));
 
                     // Copy the frame sample buffer data to the new Frame allocation since it will be freed by GStreamer after we process it.
-                    create_and_allocate_kinesis_video_frame(pPFrame, nanoseconds(gst_buffer->pts), nanoseconds(gst_buffer->pts), kinesis_video_flags, info.data, info.size);
+                    create_and_allocate_kinesis_video_frame(pPFrame, std::chrono::nanoseconds(gst_buffer->pts), std::chrono::nanoseconds(gst_buffer->pts), kinesis_video_flags, info.data, info.size);
                     singleListInsertItemTail(((Gop *)pTailNode->data)->pPFrames, (UINT64) pPFrame);
                 }
             }
@@ -423,22 +421,19 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 void kinesis_video_init(CustomData *data);
 
 void kinesis_video_stream_init(CustomData *data) {
-    /* create a test stream */
-    map<string, string> tags;
-
     STREAMING_TYPE streaming_type = DEFAULT_STREAMING_TYPE;
     data->use_absolute_fragment_times = DEFAULT_ABSOLUTE_FRAGMENT_TIMES;
 
-    unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
+    std::unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
         data->stream_name,
-        hours(DEFAULT_RETENTION_PERIOD_HOURS),
+        std::chrono::hours(DEFAULT_RETENTION_PERIOD_HOURS),
         NULL,
         DEFAULT_KMS_KEY_ID,
         streaming_type,
         DEFAULT_CONTENT_TYPE,
-        duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
-        milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
-        milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
+        std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::seconds(DEFAULT_MAX_LATENCY_SECONDS)),
+        std::chrono::milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
+        std::chrono::milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
         DEFAULT_KEY_FRAME_FRAGMENTATION,
         DEFAULT_FRAME_TIMECODES,
         data->use_absolute_fragment_times,
@@ -449,9 +444,9 @@ void kinesis_video_stream_init(CustomData *data) {
         0,
         DEFAULT_STREAM_FRAMERATE,
         DEFAULT_AVG_BANDWIDTH_BPS,
-        seconds(DEFAULT_BUFFER_DURATION_SECONDS),
-        seconds(DEFAULT_REPLAY_DURATION_SECONDS),
-        seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
+        std::chrono::seconds(DEFAULT_BUFFER_DURATION_SECONDS),
+        std::chrono::seconds(DEFAULT_REPLAY_DURATION_SECONDS),
+        std::chrono::seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
         DEFAULT_CODEC_ID,
         DEFAULT_TRACKNAME,
         nullptr,
@@ -664,7 +659,7 @@ int main(int argc, char* argv[]) {
     try{
         kinesis_video_init(&data);
         kinesis_video_stream_init(&data);
-    } catch (runtime_error &err) {
+    } catch (std::runtime_error &err) {
         LOG_ERROR("Failed to initialize Kinesis Video with an exception: " << err.what());
         return 1;
     }
@@ -856,17 +851,17 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
 /* Initializes KVS Producer client with the callbacks. */
 void kinesis_video_init(CustomData *data) {
-    unique_ptr<DeviceInfoProvider> device_info_provider(new SampleDeviceInfoProvider());
-    unique_ptr<ClientCallbackProvider> client_callback_provider(new SampleClientCallbackProvider());
-    unique_ptr<StreamCallbackProvider> stream_callback_provider(new SampleStreamCallbackProvider(
+    std::unique_ptr<DeviceInfoProvider> device_info_provider(new SampleDeviceInfoProvider());
+    std::unique_ptr<ClientCallbackProvider> client_callback_provider(new SampleClientCallbackProvider());
+    std::unique_ptr<StreamCallbackProvider> stream_callback_provider(new SampleStreamCallbackProvider(
             reinterpret_cast<UINT64>(data)));
 
     char const *accessKey;
     char const *secretKey;
     char const *sessionToken;
     char const *defaultRegion;
-    string defaultRegionStr;
-    string sessionTokenStr;
+    std::string defaultRegionStr;
+    std::string sessionTokenStr;
 
     char const *iot_get_credential_endpoint;
     char const *cert_path;
@@ -874,12 +869,12 @@ void kinesis_video_init(CustomData *data) {
     char const *role_alias;
     char const *ca_cert_path;
 
-    unique_ptr<CredentialProvider> credential_provider;
+    std::unique_ptr<CredentialProvider> credential_provider;
 
     if (nullptr == (defaultRegion = getenv(DEFAULT_REGION_ENV_VAR))) {
         defaultRegionStr = DEFAULT_AWS_REGION;
     } else {
-        defaultRegionStr = string(defaultRegion);
+        defaultRegionStr = std::string(defaultRegion);
     }
     LOG_INFO("Using region: " << defaultRegionStr);
 
@@ -889,14 +884,14 @@ void kinesis_video_init(CustomData *data) {
         LOG_INFO("Using aws credentials for Kinesis Video Streams");
         if (nullptr != (sessionToken = getenv(SESSION_TOKEN_ENV_VAR))) {
             LOG_INFO("Session token detected.");
-            sessionTokenStr = string(sessionToken);
+            sessionTokenStr = std::string(sessionToken);
         } else {
             LOG_INFO("No session token was detected.");
             sessionTokenStr = "";
         }
 
-        data->credential.reset(new Credentials(string(accessKey),
-                                                string(secretKey),
+        data->credential.reset(new Credentials(std::string(accessKey),
+                                                std::string(secretKey),
                                                 sessionTokenStr,
                                                 std::chrono::seconds(DEFAULT_CREDENTIAL_EXPIRATION_SECONDS)));
         credential_provider.reset(new SampleCredentialProvider(*data->credential.get()));
