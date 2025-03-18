@@ -18,7 +18,8 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 // Modify these parameters to configure the buffer and event streaming behavior.
 #define CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS 20 // Duration of live streaming to KVS upon an event.
 #define CAMERA_EVENT_COOLDOWN_SECONDS             30 // How long for the event scheduler to wait between triggering events.
-#define STREAM_BUFFER_DURATION_SECONDS            10 // How long before .
+#define STREAM_BUFFER_DURATION_SECONDS            10 // How long to store buffered GoPs for. It is guaranteed that the buffer will be at least this long,
+                                                     // but the buffer may be longer to contain the I-frame associated with buffered P-frames.
 
 // Stream definition parameters.
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
