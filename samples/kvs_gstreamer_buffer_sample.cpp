@@ -677,8 +677,8 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
              LOG_INFO("[KVS sample] Using device source (autovideosrc)");
              source_type = DEVICE_SOURCE;
          } else {
-             LOG_ERROR("[KVS sample] Invalid source type.\n"
-                << std::string(55, ' ') << "Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>\n"
+             LOG_ERROR("[KVS sample] Invalid source type...\n"
+                << std::string(55, ' ') << "Usage: " << std::string(8, ' ') << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>\n"
                 << std::string(55, ' ') << "Example Usage: " << argv[0] << " myStreamName testsrc");
             return -1;
              return -1;
@@ -830,8 +830,8 @@ int main(int argc, char* argv[]) {
     // Validate there are no extra program arguments.
     if (argc > maxArgCount) {
         LOG_ERROR("[KVS sample] Invalid input. Program arguments count ("
-            << argc << ") exceeds max supported count (" << maxArgCount << ").\n"
-            << std::string(55, ' ') << "Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>\n"
+            << argc << ") exceeds max supported count (" << maxArgCount << ")...\n"
+            << std::string(55, ' ') << "Usage: " << std::string(8, ' ') << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>\n"
             << std::string(55, ' ') << "Example Usage: " << argv[0] << " myStreamName testsrc");
         return -1;
     }
