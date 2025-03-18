@@ -651,7 +651,7 @@ void kinesis_video_stream_init(CustomData *data) {
         DEFAULT_TRACKNAME,
         nullptr,
         0));
-        
+
     data->kinesis_video_stream = data->kinesis_video_producer->createStreamSync(std::move(stream_definition));
 
     // reset state
@@ -667,9 +667,8 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
     GstCaps *source_caps, *sink_caps;
     StreamSource source_type;
 
-     /* Parse input arguments */
  
-     // Get source type.
+     // Parse program argument for source type.
      if(argc > 2) {
          if(0 == STRCMPI(argv[2], "testsrc")) {
              LOG_INFO("[KVS sample] Using test source (videotestsrc)");
@@ -678,9 +677,10 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
              LOG_INFO("[KVS sample] Using device source (autovideosrc)");
              source_type = DEVICE_SOURCE;
          } else {
-             LOG_ERROR("[KVS sample] Invalid source type");
-             LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>");
-             LOG_INFO("[KVS sample] Example usage: " << argv[0] << " myStreamName testsrc");
+             LOG_ERROR("[KVS sample] Invalid source type.\n"
+                << std::string(55, ' ') << "Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>\n"
+                << std::string(55, ' ') << "Example Usage: " << argv[0] << " myStreamName testsrc");
+            return -1;
              return -1;
          }
      } else {
@@ -824,7 +824,17 @@ int main(int argc, char* argv[]) {
     CustomData data;
     char stream_name[MAX_STREAM_NAME_LEN + 1];
     int ret = 0;
+    int maxArgCount = 3;
     STATUS stream_status = STATUS_SUCCESS;
+
+    // Validate there are no extra program arguments.
+    if (argc > maxArgCount) {
+        LOG_ERROR("[KVS sample] Invalid input. Program arguments count ("
+            << argc << ") exceeds max supported count (" << maxArgCount << ").\n"
+            << std::string(55, ' ') << "Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>\n"
+            << std::string(55, ' ') << "Example Usage: " << argv[0] << " myStreamName testsrc");
+        return -1;
+    }
 
     // Parse the stream name from program argument.
     if (argc > 1) {
@@ -859,6 +869,8 @@ int main(int argc, char* argv[]) {
         LOG_ERROR("Failed to initialize gstreamer");
         return 1;
     }
+    
+    // End of stream. The GMainLoop has exited.
 
     cameraEventSchedulerThread.join();
 
