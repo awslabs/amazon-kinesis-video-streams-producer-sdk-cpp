@@ -46,9 +46,9 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define KVS_GST_DEVICE_SOURCE_NAME "device-source"
 
 // Modify these parameters to configure the buffer and event streaming behavior.
-#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 8
-#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 30
-#define FILE_BUFFER_TIME_SECONDS 8
+#define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 20
+#define KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS 60
+#define FILE_BUFFER_TIME_SECONDS 10
 
 
 
@@ -323,6 +323,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     STATUS curr_stream_status = data->stream_status.load();
     GstSample *sample = nullptr;
     GstMapInfo info;
+    bool isKeyFrame;
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -388,6 +389,8 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
         if(!eventTriggered) {
             if(CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {    
+                DLOGE("Kkeyframe, creating new GoP object");
+
                 // Make a new GoP object.
                 Gop* newGop = (Gop *)calloc(1, sizeof(Gop));
                 
@@ -397,6 +400,40 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 create_and_allocate_kinesis_video_frame(newGop->pIFrame, nanoseconds(buffer->pts), nanoseconds(buffer->pts), kinesis_video_flags, info.data, info.size);
                 singleListCreate(&(newGop->pPFrames));
                 singleListInsertItemTail(pGopList, (UINT64) newGop);
+
+                // Now let's check if there are GoP objects whose frames are all older than FILE_BUFFER_TIME_SECONDS.
+                // If so, remove them from the list and delete the frame file.
+                // Can uncomment the "isKeyFrame" to reduce frequency of checks, but buffer might end up being 1 GoP longer than necessary.
+                // if(isKeyFrame) {
+                PSingleListNode pNode = NULL;
+                singleListGetHeadNode(pGopList, &pNode);
+
+                // DLOGE("Checking for frames to delete...");
+
+                while(pNode != NULL && pNode->pNext != NULL) {
+                    // DLOGE("Checking frame...");
+
+                    PSingleListNode pNextNode = pNode->pNext;
+                    Gop* pGop = (Gop *) pNode->data;
+                    Gop* pNextGop = (Gop *) pNextNode->data;
+
+                    // If the next GoP's start timestamp is within the FILE_BUFFER_TIME_SECONDS, then we can delete this GoP.
+                    // This logic allows for FILE_BUFFER_TIME_SECONDS to be exceeded to ensure we don't hold fewer frames than FILE_BUFFER_TIME_SECONDS
+                    // in the cases where the FILE_BUFFER_TIME_SECONDS threshold lays in the middle of a GoP; we do not want to discard such a GoP.
+                    if((now_ms - pNextGop->pIFrame->presentationTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND) >= (FILE_BUFFER_TIME_SECONDS * 1000)) {
+                        DLOGE("Deleting a buffered GoP...");
+                        singleListFree(pGop->pPFrames); // Free the P-Frames.
+                        free(pGop->pIFrame); // Free the I-Frame.
+                        free(pGop); // DeleteNode does not free the node data, so free the GoP.
+                        singleListDeleteNode(pGopList, pNode); // Remove the node.
+                        pNode = NULL;
+                    } else {
+                        DLOGE("Oldest GoP does not exceed the interval.");
+                        break;
+                    }
+                    pNode = pNextNode;
+                    pNextNode = pNextNode->pNext;
+                }
             } else {
                 // DLOGE("Not a keyframe, not creating new GoP object");
     
@@ -413,43 +450,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
                     singleListInsertItemTail(((Gop *)pTailNode->data)->pPFrames, (UINT64) pPFrame);
                 }
-            }
-
-            // Now let's check if there are GoP objects whose frames are all older than FILE_BUFFER_TIME_SECONDS.
-            // If so, remove them from the list and delete the frame file.
-            // Can uncomment the "isKeyFrame" to reduce frequency of checks, but buffer might end up being 1 GoP longer than necessary.
-            // if(isKeyFrame) {
-
-            PSingleListNode pNode = NULL;
-            singleListGetHeadNode(pGopList, &pNode);
-
-            // DLOGE("Checking for frames to delete...");
-
-            while(pNode != NULL && pNode->pNext != NULL) {
-                // DLOGE("Checking frame...");
-
-                PSingleListNode pNextNode = pNode->pNext;
-                Gop* pGop = (Gop *) pNode->data;
-                Gop* pNextGop = (Gop *) pNextNode->data;
-
-                // If the next GoP's start timestamp is within the FILE_BUFFER_TIME_SECONDS, then we can delete this GoP.
-                // This logic allows for FILE_BUFFER_TIME_SECONDS to be exceeded to ensure we don't hold fewer frames than FILE_BUFFER_TIME_SECONDS
-                // in the cases where the FILE_BUFFER_TIME_SECONDS threshold lays in the middle of a GoP; we do not want to discard such a GoP.
-                if((now_ms - pNextGop->pIFrame->presentationTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND) >= (FILE_BUFFER_TIME_SECONDS * 1000)) {
-                    DLOGE("Deleting a buffered GoP...");
-
-                    singleListFree(pGop->pPFrames); // Free the P-Frames.
-                    free(pGop->pIFrame); // Free the I-Frame.
-                    free(pGop); // DeleteNode does not free the node data, so free the GoP.
-                    singleListDeleteNode(pGopList, pNode); // Remove the node.
-                    pNode = NULL;
-
-                } else {
-                    DLOGE("Oldest frame does not exceed the interval");
-                    break;
-                }
-                pNode = pNextNode;
-                pNextNode = pNextNode->pNext;
             }
 
         } else { // Event triggered.
