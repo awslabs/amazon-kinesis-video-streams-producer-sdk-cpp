@@ -512,6 +512,16 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
      /* source filter */
      source_filter = gst_element_factory_make("capsfilter", "source-filter");
      source_caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "I420", NULL);
+
+     // Specify resolution and framerate if using test source.
+     if (source_type == TEST_SOURCE) {
+        gst_caps_set_simple(source_caps,
+            "width",     G_TYPE_INT,    1280,
+            "height",    G_TYPE_INT,    720,
+            "framerate", GST_TYPE_FRACTION, 30, 1,
+            NULL);
+    }
+
      g_object_set(G_OBJECT(source_filter), "caps", source_caps, NULL);
      gst_caps_unref(source_caps);
  
