@@ -7,6 +7,7 @@
 
 #include <jni.h>                  // Basic native API
 #include <string.h>
+#include <iostream>
 
 #define EXCEPTION_NAME "com/amazonaws/kinesisvideo/producer/ProducerException"
 
