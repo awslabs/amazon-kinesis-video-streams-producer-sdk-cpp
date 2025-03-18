@@ -14,8 +14,13 @@ using namespace std::chrono;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
 
-
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
+
+
+// Modify these parameters to configure the buffer and event streaming behavior.
+#define CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS 20 // Duration of live streaming to KVS upon an event.
+#define CAMERA_EVENT_COOLDOWN_SECONDS             30 // How long for the event scheduler to wait between triggering events.
+#define STREAM_BUFFER_DURATION_SECONDS            10 // How long before .
 
 // Stream definition parameters.
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
@@ -48,19 +53,31 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define KVS_GST_TEST_SOURCE_NAME "test-source"
 #define KVS_GST_DEVICE_SOURCE_NAME "device-source"
 
-// Modify these parameters to configure the buffer and event streaming behavior.
-#define CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS 20 // Duration of live streaming to KVS upon an event.
-#define CAMERA_EVENT_COOLDOWN_SECONDS             30 // How long for the event scheduler to wait between triggering events.
-#define STREAM_BUFFER_DURATION_SECONDS            10 // How long before .
 
-
-atomic<bool> cameraEventTriggered(false);
+/* *************************** */
+/* Global Variable Definitions */
+/* *************************** */
 
 atomic<bool> appTerminated(FALSE);
 condition_variable appTerminationCv;
 
+atomic<bool> cameraEventTriggered(false);
+
 GMainLoop *main_loop; // Declared globally to simplify sigint_handler logic.
 
+// Input source types.
+typedef enum _StreamSource {
+    TEST_SOURCE, // Will use videotestsrc GStreamer element.
+    DEVICE_SOURCE // Will use autovideosrc GStreamer element.
+} StreamSource;
+
+// Group of Pictures (GoP) structure containing an I-frame and a list of P-Frames.
+typedef struct _Gop{
+    Frame* pIFrame;
+    PSingleList pPFrames; // P-frames associated with this GoP
+} Gop;
+
+// Application data to pass to GStreamer and Producer callbacks.
 typedef struct _CustomData {
     _CustomData():
             synthetic_dts(0),
@@ -94,176 +111,20 @@ typedef struct _CustomData {
     SingleList* pGopList;
 } CustomData;
 
-namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
-class SampleClientCallbackProvider : public ClientCallbackProvider {
-public:
 
-    UINT64 getCallbackCustomData() override {
-        return reinterpret_cast<UINT64> (this);
-    }
-
-    StorageOverflowPressureFunc getStorageOverflowPressureCallback() override {
-        return storageOverflowPressure;
-    }
-
-    static STATUS storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes);
-};
-
-class SampleStreamCallbackProvider : public StreamCallbackProvider {
-    UINT64 custom_data_;
-public:
-    SampleStreamCallbackProvider(UINT64 custom_data) : custom_data_(custom_data) {}
-
-    UINT64 getCallbackCustomData() override {
-        return custom_data_;
-    }
-
-    StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
-        return streamConnectionStaleHandler;
-    };
-
-    StreamErrorReportFunc getStreamErrorReportCallback() override {
-        return streamErrorReportHandler;
-    };
-
-    DroppedFrameReportFunc getDroppedFrameReportCallback() override {
-        return droppedFrameReportHandler;
-    };
-
-    FragmentAckReceivedFunc getFragmentAckReceivedCallback() override {
-        return fragmentAckReceivedHandler;
-    };
-
-private:
-    static STATUS
-    streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                 UINT64 last_buffering_ack);
-
-    static STATUS
-    streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
-                             STATUS status_code);
-
-    static STATUS
-    droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                              UINT64 dropped_frame_timecode);
-
-    static STATUS
-    fragmentAckReceivedHandler( UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck);
-};
-
-class SampleCredentialProvider : public StaticCredentialProvider {
-    // Test rotation period is 40 second for the grace period.
-    const std::chrono::duration<uint64_t> ROTATION_PERIOD = std::chrono::seconds(DEFAULT_CREDENTIAL_ROTATION_SECONDS);
-public:
-    SampleCredentialProvider(const Credentials &credentials) :
-            StaticCredentialProvider(credentials) {}
-
-    void updateCredentials(Credentials &credentials) override {
-        // Copy the stored creds forward
-        credentials = credentials_;
-
-        // Update only the expiration
-        auto now_time = std::chrono::duration_cast<std::chrono::seconds>(
-                systemCurrentTime().time_since_epoch());
-        auto expiration_seconds = now_time + ROTATION_PERIOD;
-        credentials.setExpiration(std::chrono::seconds(expiration_seconds.count()));
-        LOG_INFO("New credentials expiration is " << credentials.getExpiration().count());
-    }
-};
-
-class SampleDeviceInfoProvider : public DefaultDeviceInfoProvider {
-public:
-    device_info_t getDeviceInfo() override {
-        auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
-        // Set the storage size to 128mb
-        device_info.storageInfo.storageSize = 128 * 1024 * 1024;
-        return device_info;
-    }
-};
-
-STATUS
-SampleClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes) {
-    UNUSED_PARAM(custom_handle);
-    LOG_WARN("Reporting storage overflow. Bytes remaining " << remaining_bytes);
-    return STATUS_SUCCESS;
-}
-
-STATUS SampleStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
-                                                                  STREAM_HANDLE stream_handle,
-                                                                  UINT64 last_buffering_ack) {
-    LOG_WARN("Reporting stream stale. Last ACK received " << last_buffering_ack);
-    return STATUS_SUCCESS;
-}
-
-STATUS
-SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                                       UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status_code) {
-    LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: "
-                                                           << status_code);
-    CustomData *data = reinterpret_cast<CustomData *>(custom_data);
-    bool terminate_pipeline = false;
-
-    // Terminate pipeline if error is not retriable or if error is retriable but we are streaming file.
-    // When streaming file, we choose to terminate the pipeline on error because the easiest way to recover
-    // is to stream the file from the beginning again.
-    // In realtime streaming, retriable error can be handled underneath. Otherwise terminate pipeline
-    // and store error status if error is fatal.
-    if ((!IS_RETRIABLE_ERROR(status_code) && !IS_RECOVERABLE_ERROR(status_code))) {
-        data->stream_status = status_code;
-        terminate_pipeline = true;
-    }
-
-    if (terminate_pipeline && main_loop != NULL) {
-        LOG_WARN("Terminating pipeline due to unrecoverable stream error: " << status_code);
-        g_main_loop_quit(main_loop);
-    }
-
-    return STATUS_SUCCESS;
-}
-
-STATUS
-SampleStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                                        UINT64 dropped_frame_timecode) {
-    LOG_WARN("Reporting dropped frame. Frame timecode " << dropped_frame_timecode);
-    return STATUS_SUCCESS;
-}
-
-STATUS
-SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
-                                                         UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck) {
-    CustomData *data = reinterpret_cast<CustomData *>(custom_data);
-    LOG_DEBUG("Reporting fragment ack received. Ack timecode " << pFragmentAck->timestamp);
-    return STATUS_SUCCESS;
-}
-
-}  // namespace video
-}  // namespace kinesis
-}  // namespace amazonaws
-}  // namespace com;
-
+/* *************************** */
+/* Global Function Definitions */
+/* *************************** */
 
 void sigint_handler(int sigint) {
-    LOG_DEBUG("SIGINT received. Exiting...");
+    LOG_INFO("SIGINT received. Terminating application.");
     appTerminated = TRUE;
     appTerminationCv.notify_all();
     if (main_loop != NULL) {
         g_main_loop_quit(main_loop);
     }
 }
-
-// Input source types.
-typedef enum _StreamSource {
-    TEST_SOURCE, // Will use videotestsrc GStreamer element.
-    DEVICE_SOURCE // Will use autovideosrc GStreamer element.
-} StreamSource;
-
-// Group of Picture (GoP) structure containing an I-frame and a list of P-Frames.
-typedef struct _Gop{
-    Frame* pIFrame;
-    PSingleList pPFrames; // P-frames associated with this GoP
-} Gop;
 
 // Triggers camera events which kicks-off sending buffered frames to and live-streaming to KVS.
 void cameraEventScheduler() {
@@ -272,14 +133,18 @@ void cameraEventScheduler() {
     
     while(!appTerminated) {
 
-        DLOGI("Waiting %lu seconds before triggering a camera event.", CAMERA_EVENT_COOLDOWN_SECONDS);
-        // Wait for some time before triggering an event, exit early if app was terminated.
+        LOG_INFO("Waiting " << CAMERA_EVENT_COOLDOWN_SECONDS << " seconds before triggering a camera event.");
+
+        // Wait for the specified time before triggering an event, exit early if app was terminated.
         if(appTerminationCv.wait_for(lck, std::chrono::seconds(CAMERA_EVENT_COOLDOWN_SECONDS)) != std::cv_status::timeout) {
             return;
         }
         cameraEventTriggered = true;
 
-        DLOGI("Camera event triggered, will send all frames currenlty in the buffer and live-stream new frames for %lu seconds.", CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS);
+        LOG_INFO("Camera event triggered, will send all frames currenlty in the buffer and live-stream new frames for " <<
+                    CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS << " seconds.");
+        
+        // Wait for the specified time before ending the event to stop live-streaming to KVS.
         if(appTerminationCv.wait_for(lck, std::chrono::seconds(CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS)) != std::cv_status::timeout) {
             return;
         }
@@ -459,10 +324,9 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
             // Send buffered frames if the buffer list is populated.
             if (pGopList->pHead != NULL) {
-                DLOGW("Sending buffered frames...");
+                LOG_INFO("Sending buffered frames...");
                 for (auto it = pGopList->pHead; it != NULL; it = it->pNext) {
                     Gop* pGop = (Gop *) it->data;
-                    DLOGW("Putting buffered frame with ts: %lu", pGop->pIFrame->presentationTs);
                     data->kinesis_video_stream->putFrame(*pGop->pIFrame);
     
                     // PutFrame synchonously makes a copy of the frame data in the Producer, free our buffer's frame's data.
@@ -471,7 +335,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
 
                     for (auto it2 = pGop->pPFrames->pHead; it2 != NULL; it2 = it2->pNext) {
                         Frame* pPFrame = (Frame *) it2->data;
-                        DLOGW("Putting buffered frame with ts: %lu", pPFrame->presentationTs);
+                        LOG_DEBUG("Putting buffered frame with ts: " << pPFrame->presentationTs);
                         data->kinesis_video_stream->putFrame(*pPFrame);
                         free(pPFrame->frameData);
                         // pPFrame will be freed when we free the pPFrames list.
@@ -483,14 +347,14 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
                 }
                 // Clear the GoP list (will also free the pGoP nodes).
                 singleListClear(pGopList, TRUE);
-                DLOGW("Done sending buffered frames...");
+                LOG_INFO("Done sending buffered frames...");
 
             }
             // Now that we cleared the buffer list, it will no longer be populated for this camera event, will jump straight to the below
             // putFrame call to send live frames until the event is over.
 
             // Send the live frame.
-            DLOGW("Putting live frame with ts: %lu", gst_buffer->pts);
+            LOG_DEBUG("Putting live frame with ts: " << gst_buffer->pts);
             put_frame(data->kinesis_video_stream, info.data, info.size, std::chrono::nanoseconds(gst_buffer->pts), std::chrono::nanoseconds(gst_buffer->pts), kinesis_video_flags);
 
         }
@@ -544,78 +408,19 @@ static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
     return TRUE;
 }
 
-void kinesis_video_init(CustomData *data) {
-    unique_ptr<DeviceInfoProvider> device_info_provider(new SampleDeviceInfoProvider());
-    unique_ptr<ClientCallbackProvider> client_callback_provider(new SampleClientCallbackProvider());
-    unique_ptr<StreamCallbackProvider> stream_callback_provider(new SampleStreamCallbackProvider(
-            reinterpret_cast<UINT64>(data)));
+// KVS Producer callbacks
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
+    class SampleClientCallbackProvider;
+    class SampleStreamCallbackProvider;
+    class SampleCredentialProvider;
+    class SampleDeviceInfoProvider;
+}  // namespace video
+}  // namespace kinesis
+}  // namespace amazonaws
+}  // namespace com
 
-    char const *accessKey;
-    char const *secretKey;
-    char const *sessionToken;
-    char const *defaultRegion;
-    string defaultRegionStr;
-    string sessionTokenStr;
-
-    char const *iot_get_credential_endpoint;
-    char const *cert_path;
-    char const *private_key_path;
-    char const *role_alias;
-    char const *ca_cert_path;
-
-    unique_ptr<CredentialProvider> credential_provider;
-
-    if (nullptr == (defaultRegion = getenv(DEFAULT_REGION_ENV_VAR))) {
-        defaultRegionStr = DEFAULT_AWS_REGION;
-    } else {
-        defaultRegionStr = string(defaultRegion);
-    }
-    LOG_INFO("Using region: " << defaultRegionStr);
-
-    if (nullptr != (accessKey = getenv(ACCESS_KEY_ENV_VAR)) &&
-        nullptr != (secretKey = getenv(SECRET_KEY_ENV_VAR))) {
-
-        LOG_INFO("Using aws credentials for Kinesis Video Streams");
-        if (nullptr != (sessionToken = getenv(SESSION_TOKEN_ENV_VAR))) {
-            LOG_INFO("Session token detected.");
-            sessionTokenStr = string(sessionToken);
-        } else {
-            LOG_INFO("No session token was detected.");
-            sessionTokenStr = "";
-        }
-
-        data->credential.reset(new Credentials(string(accessKey),
-                                               string(secretKey),
-                                               sessionTokenStr,
-                                               std::chrono::seconds(DEFAULT_CREDENTIAL_EXPIRATION_SECONDS)));
-        credential_provider.reset(new SampleCredentialProvider(*data->credential.get()));
-
-    } else if (nullptr != (iot_get_credential_endpoint = getenv("IOT_GET_CREDENTIAL_ENDPOINT")) &&
-               nullptr != (cert_path = getenv("CERT_PATH")) &&
-               nullptr != (private_key_path = getenv("PRIVATE_KEY_PATH")) &&
-               nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
-               nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
-        LOG_INFO("Using IoT credentials for Kinesis Video Streams");
-        credential_provider.reset(new IotCertCredentialProvider(iot_get_credential_endpoint,
-                                                                cert_path,
-                                                                private_key_path,
-                                                                role_alias,
-                                                                ca_cert_path,
-                                                                data->stream_name));
-
-    } else {
-        LOG_AND_THROW("No valid credential method was found");
-    }
-
-    data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
-                                                                    std::move(client_callback_provider),
-                                                                    std::move(stream_callback_provider),
-                                                                    std::move(credential_provider),
-                                                                    API_CALL_CACHE_TYPE_ALL,
-                                                                    defaultRegionStr);
-
-    LOG_DEBUG("Client is ready");
-}
+// Initializes KVS Producer client with the callbacks.
+void kinesis_video_init(CustomData *data);
 
 void kinesis_video_stream_init(CustomData *data) {
     /* create a test stream */
@@ -815,6 +620,10 @@ int init_and_run_gstreamer_pipeline(int argc, char* argv[], CustomData *data) {
     return 0;
 }
 
+
+/* **** */
+/* Main */
+/* **** */
 int main(int argc, char* argv[]) {
     signal(SIGINT, sigint_handler);
     main_loop = NULL;
@@ -885,4 +694,236 @@ int main(int argc, char* argv[]) {
     data.kinesis_video_producer->freeStream(data.kinesis_video_stream);
 
     return 0;
+}
+
+
+
+
+/* ********************** */
+/* Additional Definitions */
+/* ********************** */
+
+/* KVS Producer callbacks */
+namespace com { namespace amazonaws { namespace kinesis { namespace video {
+
+    class SampleClientCallbackProvider : public ClientCallbackProvider {
+    public:
+    
+        UINT64 getCallbackCustomData() override {
+            return reinterpret_cast<UINT64> (this);
+        }
+    
+        StorageOverflowPressureFunc getStorageOverflowPressureCallback() override {
+            return storageOverflowPressure;
+        }
+    
+        static STATUS storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes);
+    };
+    
+    class SampleStreamCallbackProvider : public StreamCallbackProvider {
+        UINT64 custom_data_;
+    public:
+        SampleStreamCallbackProvider(UINT64 custom_data) : custom_data_(custom_data) {}
+    
+        UINT64 getCallbackCustomData() override {
+            return custom_data_;
+        }
+    
+        StreamConnectionStaleFunc getStreamConnectionStaleCallback() override {
+            return streamConnectionStaleHandler;
+        };
+    
+        StreamErrorReportFunc getStreamErrorReportCallback() override {
+            return streamErrorReportHandler;
+        };
+    
+        DroppedFrameReportFunc getDroppedFrameReportCallback() override {
+            return droppedFrameReportHandler;
+        };
+    
+        FragmentAckReceivedFunc getFragmentAckReceivedCallback() override {
+            return fragmentAckReceivedHandler;
+        };
+    
+    private:
+        static STATUS
+        streamConnectionStaleHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                     UINT64 last_buffering_ack);
+    
+        static STATUS
+        streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, UINT64 errored_timecode,
+                                 STATUS status_code);
+    
+        static STATUS
+        droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                  UINT64 dropped_frame_timecode);
+    
+        static STATUS
+        fragmentAckReceivedHandler( UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                    UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck);
+    };
+    
+    class SampleCredentialProvider : public StaticCredentialProvider {
+        // Test rotation period is 40 second for the grace period.
+        const std::chrono::duration<uint64_t> ROTATION_PERIOD = std::chrono::seconds(DEFAULT_CREDENTIAL_ROTATION_SECONDS);
+    public:
+        SampleCredentialProvider(const Credentials &credentials) :
+                StaticCredentialProvider(credentials) {}
+    
+        void updateCredentials(Credentials &credentials) override {
+            // Copy the stored creds forward
+            credentials = credentials_;
+    
+            // Update only the expiration
+            auto now_time = std::chrono::duration_cast<std::chrono::seconds>(
+                    systemCurrentTime().time_since_epoch());
+            auto expiration_seconds = now_time + ROTATION_PERIOD;
+            credentials.setExpiration(std::chrono::seconds(expiration_seconds.count()));
+            LOG_INFO("New credentials expiration is " << credentials.getExpiration().count());
+        }
+    };
+    
+    class SampleDeviceInfoProvider : public DefaultDeviceInfoProvider {
+    public:
+        device_info_t getDeviceInfo() override {
+            auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
+            // Set the storage size to 128mb
+            device_info.storageInfo.storageSize = 128 * 1024 * 1024;
+            return device_info;
+        }
+    };
+    
+    STATUS
+    SampleClientCallbackProvider::storageOverflowPressure(UINT64 custom_handle, UINT64 remaining_bytes) {
+        UNUSED_PARAM(custom_handle);
+        LOG_WARN("Reporting storage overflow. Bytes remaining " << remaining_bytes);
+        return STATUS_SUCCESS;
+    }
+    
+    STATUS SampleStreamCallbackProvider::streamConnectionStaleHandler(UINT64 custom_data,
+                                                                      STREAM_HANDLE stream_handle,
+                                                                      UINT64 last_buffering_ack) {
+        LOG_WARN("Reporting stream stale. Last ACK received " << last_buffering_ack);
+        return STATUS_SUCCESS;
+    }
+    
+    STATUS
+    SampleStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                                           UPLOAD_HANDLE upload_handle, UINT64 errored_timecode, STATUS status_code) {
+        LOG_ERROR("Reporting stream error. Errored timecode: " << errored_timecode << " Status: "
+                                                               << status_code);
+        CustomData *data = reinterpret_cast<CustomData *>(custom_data);
+        bool terminate_pipeline = false;
+    
+        // Terminate pipeline if error is not retriable or if error is retriable but we are streaming file.
+        // When streaming file, we choose to terminate the pipeline on error because the easiest way to recover
+        // is to stream the file from the beginning again.
+        // In realtime streaming, retriable error can be handled underneath. Otherwise terminate pipeline
+        // and store error status if error is fatal.
+        if ((!IS_RETRIABLE_ERROR(status_code) && !IS_RECOVERABLE_ERROR(status_code))) {
+            data->stream_status = status_code;
+            terminate_pipeline = true;
+        }
+    
+        if (terminate_pipeline && main_loop != NULL) {
+            LOG_WARN("Terminating pipeline due to unrecoverable stream error: " << status_code);
+            g_main_loop_quit(main_loop);
+        }
+    
+        return STATUS_SUCCESS;
+    }
+    
+    STATUS
+    SampleStreamCallbackProvider::droppedFrameReportHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                                            UINT64 dropped_frame_timecode) {
+        LOG_WARN("Reporting dropped frame. Frame timecode " << dropped_frame_timecode);
+        return STATUS_SUCCESS;
+    }
+    
+    STATUS
+    SampleStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle,
+                                                             UPLOAD_HANDLE upload_handle, PFragmentAck pFragmentAck) {
+        CustomData *data = reinterpret_cast<CustomData *>(custom_data);
+        LOG_DEBUG("Reporting fragment ack received. Ack timecode " << pFragmentAck->timestamp);
+        return STATUS_SUCCESS;
+    }
+    
+}  // namespace video
+}  // namespace kinesis
+}  // namespace amazonaws
+}  // namespace com;
+
+
+/* Initializes KVS Producer client with the callbacks. */
+void kinesis_video_init(CustomData *data) {
+    unique_ptr<DeviceInfoProvider> device_info_provider(new SampleDeviceInfoProvider());
+    unique_ptr<ClientCallbackProvider> client_callback_provider(new SampleClientCallbackProvider());
+    unique_ptr<StreamCallbackProvider> stream_callback_provider(new SampleStreamCallbackProvider(
+            reinterpret_cast<UINT64>(data)));
+
+    char const *accessKey;
+    char const *secretKey;
+    char const *sessionToken;
+    char const *defaultRegion;
+    string defaultRegionStr;
+    string sessionTokenStr;
+
+    char const *iot_get_credential_endpoint;
+    char const *cert_path;
+    char const *private_key_path;
+    char const *role_alias;
+    char const *ca_cert_path;
+
+    unique_ptr<CredentialProvider> credential_provider;
+
+    if (nullptr == (defaultRegion = getenv(DEFAULT_REGION_ENV_VAR))) {
+        defaultRegionStr = DEFAULT_AWS_REGION;
+    } else {
+        defaultRegionStr = string(defaultRegion);
+    }
+    LOG_INFO("Using region: " << defaultRegionStr);
+
+    if (nullptr != (accessKey = getenv(ACCESS_KEY_ENV_VAR)) &&
+        nullptr != (secretKey = getenv(SECRET_KEY_ENV_VAR))) {
+
+        LOG_INFO("Using aws credentials for Kinesis Video Streams");
+        if (nullptr != (sessionToken = getenv(SESSION_TOKEN_ENV_VAR))) {
+            LOG_INFO("Session token detected.");
+            sessionTokenStr = string(sessionToken);
+        } else {
+            LOG_INFO("No session token was detected.");
+            sessionTokenStr = "";
+        }
+
+        data->credential.reset(new Credentials(string(accessKey),
+                                                string(secretKey),
+                                                sessionTokenStr,
+                                                std::chrono::seconds(DEFAULT_CREDENTIAL_EXPIRATION_SECONDS)));
+        credential_provider.reset(new SampleCredentialProvider(*data->credential.get()));
+
+    } else if (nullptr != (iot_get_credential_endpoint = getenv("IOT_GET_CREDENTIAL_ENDPOINT")) &&
+                nullptr != (cert_path = getenv("CERT_PATH")) &&
+                nullptr != (private_key_path = getenv("PRIVATE_KEY_PATH")) &&
+                nullptr != (role_alias = getenv("ROLE_ALIAS")) &&
+                nullptr != (ca_cert_path = getenv("CA_CERT_PATH"))) {
+        LOG_INFO("Using IoT credentials for Kinesis Video Streams");
+        credential_provider.reset(new IotCertCredentialProvider(iot_get_credential_endpoint,
+                                                                cert_path,
+                                                                private_key_path,
+                                                                role_alias,
+                                                                ca_cert_path,
+                                                                data->stream_name));
+
+    } else {
+        LOG_AND_THROW("No valid credential method was found");
+    }
+
+    data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
+                                                                    std::move(client_callback_provider),
+                                                                    std::move(stream_callback_provider),
+                                                                    std::move(credential_provider),
+                                                                    API_CALL_CACHE_TYPE_ALL,
+                                                                    defaultRegionStr);
+
+    LOG_DEBUG("Client is ready");
 }
