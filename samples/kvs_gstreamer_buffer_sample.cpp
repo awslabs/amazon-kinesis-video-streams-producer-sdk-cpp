@@ -20,7 +20,13 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define CAMERA_EVENT_COOLDOWN_SECONDS             90 // How long for the event scheduler to wait between triggering events.
 #define STREAM_BUFFER_DURATION_SECONDS            30 // How long to store buffered GoPs for. It is guaranteed that the buffer will be at least this long,
                                                      // but the buffer may be longer to contain the I-frame associated with buffered P-frames.
-                                                    
+
+
+#define DEFAULT_KVS_PRODUCER_STORAGE_SIZE (128 * 1024 * 1024) // Size of the allocated KVS Producer content store buffer. You may have to increase this
+                                                 // if STREAM_BUFFER_DURATION_SECONDS is long, or if network conditions are poor because
+                                                 // the fragment acks will be able to keep up with the frequent putFrame calls when
+                                                 // streaming from the buffer upon an event.
+                              
 // Stream definition parameters.
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
 #define DEFAULT_KMS_KEY_ID ""
@@ -405,7 +411,7 @@ static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
     return TRUE;
 }
 
-// KVS Producer callbacks
+// KVS Producer providers and callbacks
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
     class SampleClientCallbackProvider;
     class SampleStreamCallbackProvider;
@@ -708,7 +714,7 @@ int main(int argc, char* argv[]) {
 /* Additional Definitions */
 /* ********************** */
 
-/* KVS Producer callbacks */
+/* KVS Producer providers and callbacks */
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
     class SampleClientCallbackProvider : public ClientCallbackProvider {
@@ -793,7 +799,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
         device_info_t getDeviceInfo() override {
             auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
             // Set the storage size to 128mb
-            device_info.storageInfo.storageSize = 128 * 1024 * 1024;
+            device_info.storageInfo.storageSize = DEFAULT_KVS_PRODUCER_STORAGE_SIZE;
             return device_info;
         }
     };
