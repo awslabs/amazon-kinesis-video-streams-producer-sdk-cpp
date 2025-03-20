@@ -15,17 +15,20 @@ using namespace log4cplus;
 LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 
 
+#define DEFAULT_CONTENT_STORE_SIZE_BYTES (128 * 1024 * 1024)
+
 // Modify these parameters to configure the buffer and event streaming behavior.
 #define CAMERA_EVENT_LIVE_STREAM_DURATION_SECONDS 30 // Duration of live streaming to KVS upon an event.
 #define CAMERA_EVENT_COOLDOWN_SECONDS             90 // How long for the event scheduler to wait between triggering events.
 #define STREAM_BUFFER_DURATION_SECONDS            30 // How long to store buffered GoPs for. It is guaranteed that the buffer will be at least this long,
                                                      // but the buffer may be longer to contain the I-frame associated with buffered P-frames.
 
+// Size of the allocated KVS Producer content store buffer. You may have to increase this
+// if STREAM_BUFFER_DURATION_SECONDS is long, or if network conditions are poor because
+// the fragment acks will be able to keep up with the frequent putFrame calls when
+// streaming from the buffer upon an event.
+#define KVS_CONTENT_STORE_SIZE_BYTES DEFAULT_CONTENT_STORE_SIZE_BYTES 
 
-#define DEFAULT_KVS_PRODUCER_STORAGE_SIZE (128 * 1024 * 1024) // Size of the allocated KVS Producer content store buffer. You may have to increase this
-                                                 // if STREAM_BUFFER_DURATION_SECONDS is long, or if network conditions are poor because
-                                                 // the fragment acks will be able to keep up with the frequent putFrame calls when
-                                                 // streaming from the buffer upon an event.
                               
 // Stream definition parameters.
 #define DEFAULT_RETENTION_PERIOD_HOURS 2
@@ -799,7 +802,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
         device_info_t getDeviceInfo() override {
             auto device_info = DefaultDeviceInfoProvider::getDeviceInfo();
             // Set the storage size to 128mb
-            device_info.storageInfo.storageSize = DEFAULT_KVS_PRODUCER_STORAGE_SIZE;
+            device_info.storageInfo.storageSize = KVS_CONTENT_STORE_SIZE_BYTES;
             return device_info;
         }
     };
