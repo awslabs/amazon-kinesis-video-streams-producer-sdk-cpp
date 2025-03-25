@@ -59,7 +59,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 1800
 
       - name: Run the unit tests
         working-directory: ./build
@@ -108,7 +108,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 1800
 
       - name: Run kvssink with dump dir
         env:
@@ -184,7 +184,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 1800
 
       - name: Run kvssink with dump dir
         env:
@@ -245,7 +245,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 1800
       - name: Run kvssink with dump dir
         env:
           GST_PLUGIN_PATH: D:\producer\build\

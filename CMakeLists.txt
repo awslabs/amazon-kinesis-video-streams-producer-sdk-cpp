@@ -166,13 +166,12 @@ include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 include_directories(${LOG4CPLUS_INCLUDE_DIR})
+link_directories(${OPEN_SRC_INSTALL_PREFIX}/lib)
 
 if (NOT BUILD_JNI_ONLY)
   install(
     DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
     DESTINATION .)
-
-  link_directories(${OPEN_SRC_INSTALL_PREFIX}/lib)
 
   add_library(KinesisVideoProducer ${LINKAGE} ${PRODUCER_CPP_SOURCE_FILES})
   target_link_libraries(

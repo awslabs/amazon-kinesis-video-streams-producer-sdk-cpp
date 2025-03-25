@@ -43,7 +43,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 1800
 
       - name: Build and Test
         env:
