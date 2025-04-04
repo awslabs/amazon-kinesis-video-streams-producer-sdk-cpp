@@ -1,0 +1,437 @@
+name: Producer CPP Sample Checks
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+  pull_request:
+    branches:
+      - develop
+      - master
+
+jobs:
+  sample-checks:
+    name: ${{ matrix.runner.id }} - ${{ matrix.sample.name }}
+
+    strategy:
+      matrix:
+        sample:
+          - name: kvs_gstreamer_audio_video_sample
+            args: -f sample.mp4
+          - name: kvs_gstreamer_file_uploader_sample
+            args: sample.mp4 0 audio-video
+          - name: kvs_gstreamer_sample
+            args: sample.mp4
+          - name: kvssink_gstreamer_sample
+            args: sample.mp4
+        runner:
+          - id: macos-13
+            image: macos-13
+
+          - id: ubuntu-22.04
+            image: ubuntu-latest
+            docker: public.ecr.aws/ubuntu/ubuntu:22.04_stable
+
+          - id: ubuntu-20.04
+            image: ubuntu-latest
+            docker: public.ecr.aws/ubuntu/ubuntu:20.04_stable
+
+          - id: windows-2022
+            image: windows-2022
+
+      fail-fast: false
+
+    runs-on: ${{ matrix.runner.image }}
+    container: ${{ matrix.runner.docker || '' }}
+    timeout-minutes: 30
+
+    env:
+      AWS_KVS_LOG_LEVEL: 2
+      KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
+      DEBIAN_FRONTEND: noninteractive
+      GST_PLUGIN_PATH: ${{ github.workspace }}/build
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install gstreamer log4cplus mkvtoolnix
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          apt-get update
+          apt-get install -y git cmake build-essential pkg-config libssl-dev libcurl4-openssl-dev \
+            liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-ugly gstreamer1.0-tools curl mkvtoolnix
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install nasm strawberryperl pkgconfiglite mkvtoolnix
+          choco install gstreamer --version=1.22.8
+          choco install gstreamer-devel --version=1.22.8
+
+      - name: Build samples (Linux & Mac)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: |
+          mkdir build && cd build
+          mkdir -p $KVS_DEBUG_DUMP_DATA_FILE_DIR
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF
+          make -j$(nproc)
+
+      - name: Build samples (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin'
+          mkdir D:\producer
+          Move-Item -Path "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\*" -Destination "D:\producer"
+          cd D:\producer
+          git config --system core.longpaths true
+          dir
+          .github\build_windows.bat
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 10800
+
+      - name: Run ${{ matrix.sample.name }} (Linux & Mac)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        working-directory: ./build
+        run: |
+          curl -fsSL -o sample.mp4 https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
+          ./${{ matrix.sample.name }} demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+
+      - name: Run ${{ matrix.sample.name }} (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GST_PLUGIN_PATH: D:\producer\build
+          KVS_DEBUG_DUMP_DATA_FILE_DIR: D:\producer\debug_output
+        working-directory: D:\producer\build
+        run: |
+          # Equivalent to set -x
+          Set-PSDebug -Trace 1
+
+          $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin;D:\gstreamer\1.0\msvc_x86_64\bin'
+
+          mkdir D:\producer\debug_output
+
+          Invoke-WebRequest -Uri https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4 -OutFile sample.mp4
+          dir
+          $exePath = Join-Path $PWD ${{ matrix.sample.name }}.exe
+          & $exePath demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+
+      - name: Verify MKV dump exists (Mac & Linux)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        working-directory: ./build/debug_output
+        run: |
+          shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
+
+          ls -tlrh
+          mkvfiles=(*.mkv)
+          if [ ${#mkvfiles[@]} -eq 0 ]; then
+            echo "No MKV files found in debug_output"
+            exit 1
+          fi
+
+          for file in "${mkvfiles[@]}"; do
+            echo "Verifying $file with mkvinfo (verbose and hexdump):"
+            mkvinfo -v -X "$file"
+          done
+        shell: bash
+
+      - name: Verify MKV dump exists (Windows)
+        if: runner.os == 'Windows'
+        working-directory: D:\producer\build
+        run: |
+          $env:Path += ";C:\Program Files\MKVToolNix"
+          dir D:\producer\debug_output
+          $mkvFiles = Get-ChildItem -Path "D:\producer\debug_output" -Filter *.mkv
+          if ($mkvFiles.Count -eq 0) {
+            Write-Error "No MKV files found in D:\producer\build\debug_output"
+            exit 1
+          }
+          # Run mkvinfo on each MKV file
+          foreach ($file in $mkvFiles) {
+            Write-Output "Verifying $($file.FullName) with mkvinfo (verbose and hexdump):"
+            mkvinfo.exe -v -X "$($file.FullName)"
+          }
+
+  multistream-sample:
+    name: Multistream sample on Ubuntu 22.04
+    runs-on: ubuntu-latest
+    container: public.ecr.aws/ubuntu/ubuntu:22.04_stable
+    timeout-minutes: 30
+
+    env:
+      AWS_KVS_LOG_LEVEL: 2
+      KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
+      GST_PLUGIN_PATH: ${{ github.workspace }}/build
+      KVS_STREAM_NAME_BASE: demo-stream-producer-cpp-ubuntu-22.04-ci-kvs_gstreamer_multistream_sample
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y git cmake build-essential pkg-config libssl-dev libcurl4-openssl-dev \
+            liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-ugly gstreamer1.0-tools curl mkvtoolnix libgstrtspserver-1.0
+
+      - name: Build GST RTSP Server Test Launch Sample
+        run: |
+          set -x
+          git clone --no-checkout --filter=blob:none --depth=1 -b 1.22 https://github.com/GStreamer/gstreamer.git
+          cd gstreamer
+          git sparse-checkout init cone
+          git sparse-checkout set "subprojects/gst-rtsp-server/examples/test-launch.c"
+          git checkout
+          cd subprojects/gst-rtsp-server/examples
+          gcc -o test-launch test-launch.c `pkg-config --cflags --libs gstreamer-rtsp-server-1.0`
+          mv ./test-launch $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE
+          rm -rf gstreamer
+
+      - name: Build samples
+        run: |
+          mkdir build && cd build
+          mkdir -p $KVS_DEBUG_DUMP_DATA_FILE_DIR
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF -DALIGNED_MEMORY_MODEL=ON
+          make -j$(nproc)
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 10800
+
+      - name: Run multistream sample
+        working-directory: ./build
+        run: |
+          set -x
+
+          export PIPELINE_8554="videotestsrc is-live=true \
+            ! textoverlay text=rtsp://127.0.0.1:8554/test \
+            ! video/x-raw,height=480,width=640,framerate=10/1 \
+            ! x264enc tune=zerolatency bitrate=512 key-int-max=25 \
+            ! h264parse \
+            ! rtph264pay name=pay0 pt=96"
+          export PIPELINE_8555="videotestsrc is-live=true \
+            ! textoverlay text=rtsp://127.0.0.1:8555/test \
+            ! video/x-raw,height=480,width=640,framerate=10/1 \
+            ! x264enc tune=zerolatency bitrate=512 key-int-max=25 \
+            ! h264parse \
+            ! rtph264pay name=pay0 pt=96"
+
+          "$GITHUB_WORKSPACE"/test-launch -p 8554 "${PIPELINE_8554}" &
+          "$GITHUB_WORKSPACE"/test-launch -p 8555 "${PIPELINE_8555}" &
+
+          echo "rtsp://127.0.0.1:8554/test" > rtsp-urls.txt
+          echo "rtsp://127.0.0.1:8555/test" >> rtsp-urls.txt
+
+          sleep 10
+          gst-discoverer-1.0 "rtsp://127.0.0.1:8554/test"
+          gst-discoverer-1.0 "rtsp://127.0.0.1:8555/test"
+
+          set +e  # Disable exit on error for the timeout command
+          timeout --preserve-status --signal=SIGINT --kill-after=15s 30s \
+            ./kvs_gstreamer_multistream_sample "${KVS_STREAM_NAME_BASE}" rtsp-urls.txt
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+
+          # 130 (128 + 2): Process killed by SIGINT
+          # 137: Process killed by SIGKILL (if the --kill-after timeout is reached)
+          echo "Command exited with code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 130 ]; then
+            echo "Command did not exit gracefully after interrupt."
+            exit 1
+          fi
+
+        shell: bash
+
+      - name: Verify MKV dump exists
+        working-directory: ./build/debug_output
+        run: |
+          shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
+
+          ls -tlrh
+          mkvfiles=(*.mkv)
+          if [ ${#mkvfiles[@]} -eq 0 ]; then
+            echo "No MKV files found in debug_output"
+            exit 1
+          fi
+
+          # Since there are 2 streams, check for the presence of two different prefixed MKV files
+          found_0=0
+          found_1=0
+
+          for file in "${mkvfiles[@]}"; do
+            if [[ "$file" == ${KVS_STREAM_NAME_BASE}_0* ]]; then
+              found_0=1
+            elif [[ "$file" == ${KVS_STREAM_NAME_BASE}_1* ]]; then
+              found_1=1
+            fi
+          done
+
+          if [ $found_0 -eq 0 ] || [ $found_1 -eq 0 ]; then
+            echo "Expected at least one file starting with each prefix:"
+            echo "  - ${KVS_STREAM_NAME_BASE}_0"
+            echo "  - ${KVS_STREAM_NAME_BASE}_1"
+            exit 1
+          fi
+
+          for file in "${mkvfiles[@]}"; do
+            echo "Verifying $file with mkvinfo (verbose and hexdump):"
+            mkvinfo -v -X "$file"
+          done
+        shell: bash
+
+  wsl-sample-checks:
+    name: WSL ${{ matrix.image }} - ${{ matrix.sample.name }}
+
+    strategy:
+      matrix:
+        sample:
+          - name: kvs_gstreamer_audio_video_sample
+            args: -f sample.mp4
+          - name: kvs_gstreamer_file_uploader_sample
+            args: sample.mp4 0 audio-video
+          - name: kvs_gstreamer_sample
+            args: sample.mp4
+          - name: kvssink_gstreamer_sample
+            args: sample.mp4
+        image:
+          - Ubuntu-22.04
+          - Ubuntu-24.04
+
+      fail-fast: false
+
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    permissions:
+      id-token: write
+      contents: read
+
+    defaults:
+      run:
+        shell: wsl-bash {0}  # Automatically uses wsl-bash for each run step
+
+    steps:
+      - uses: Vampire/setup-wsl@v4
+        with:
+          distribution: ${{ matrix.image }}
+          additional-packages: |
+            automake
+            build-essential
+            cmake
+            git
+            gstreamer1.0-plugins-base-apps
+            gstreamer1.0-plugins-bad
+            gstreamer1.0-plugins-good
+            gstreamer1.0-plugins-ugly
+            gstreamer1.0-tools
+            libcurl4-openssl-dev
+            libgstreamer1.0-dev
+            libgstreamer-plugins-base1.0-dev
+            liblog4cplus-dev
+            libssl-dev
+            pkg-config
+            mkvtoolnix
+          use-cache: 'false' # Cache entry for Ubuntu 22.04 and 24.04 are the same (conflict)
+
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Move repository in WSL
+        run: |
+          # Copy to ~/kvs-cpp-repo for simplicity
+          # Note: Can't move due to no permissions
+          REPO_NAME=$(basename ${{ github.repository }})
+          cp -r /mnt/d/a/$REPO_NAME/$REPO_NAME ~/kvs-cpp-repo
+
+      - name: Build samples in WSL
+        run: |
+          mkdir -p ~/kvs-cpp-repo/build
+          cd ~/kvs-cpp-repo/build
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DALIGNED_MEMORY_MODEL=ON -DBUILD_DEPENDENCIES=OFF
+          make -j$(nproc)
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 900
+
+      - name: Run ${{ matrix.sample.name }} (WSL)
+        run: |
+          cd ~/kvs-cpp-repo/build
+          export KVS_DEBUG_DUMP_DATA_FILE_DIR=~/kvs-cpp-repo/build/debug_output
+          mkdir "$KVS_DEBUG_DUMP_DATA_FILE_DIR"
+          export GST_PLUGIN_PATH=~/kvs-cpp-repo/build
+          export AWS_KVS_LOG_LEVEL=2
+
+          curl -fsSL -o sample.mp4 https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
+
+          # Note: `env.` syntax to reference credentials to have GitHub Actions inject
+          # the secret values into these environment variables before the command runs,
+          # since the WSL shell doesn't have access to GitHub's environment variables
+          export AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }}
+          export AWS_SESSION_TOKEN=${{ env.AWS_SESSION_TOKEN }}
+          export AWS_DEFAULT_REGION=${{ env.AWS_DEFAULT_REGION }}
+          
+          set +e  # Disable exit on error for the timeout command
+          ./${{ matrix.sample.name }} demo-stream-producer-cpp-wsl-${{ matrix.image }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+          
+          unset AWS_ACCESS_KEY_ID
+          unset AWS_SECRET_ACCESS_KEY
+          unset AWS_SESSION_TOKEN
+          
+          if [[ EXIT_CODE -ne 0 ]]; then
+            echo "${{ matrix.sample.name }} exited with code: $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+
+      - name: Verify MKV dump exists (WSL)
+        run: |
+          cd ~/kvs-cpp-repo/build/debug_output
+          shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
+
+          ls -tlrh
+          mkvfiles=(*.mkv)
+          if [ ${#mkvfiles[@]} -eq 0 ]; then
+            echo "No MKV files found in debug_output"
+            exit 1
+          fi
+
+          for file in "${mkvfiles[@]}"; do
+            echo "Verifying $file with mkvinfo (verbose and hexdump):"
+            mkvinfo -v -X "$file"
+          done

@@ -48,20 +48,14 @@ extern "C" {
         CHECK(env != NULL && thiz != NULL);
 
         KinesisVideoClientWrapper* pWrapper = FROM_WRAPPER_HANDLE(handle);
-        if (pWrapper != NULL) {
-            // Cache the globalRef for later deletion
-            jobject globalRef = pWrapper->getGlobalRef();
 
-            // Free the existing engine
-            delete pWrapper;
-
-            // Free the global reference
-            if (globalRef != NULL) {
-                env->DeleteGlobalRef(globalRef);
-            }
-        }
-
+        // Calling leave early since the logger is part of pWrapper.
+        // Avoiding errors by logging after free
         LEAVE();
+
+        if (pWrapper != NULL) {
+            delete pWrapper;
+        }
     }
 
     /**

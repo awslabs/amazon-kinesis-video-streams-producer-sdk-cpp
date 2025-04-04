@@ -1011,7 +1011,7 @@ int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name /path/to/file"
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name -f /path/to/file"
                         "AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name");
         return 1;
     }
