@@ -790,6 +790,10 @@ gst_kvs_sink_finalize(GObject *object) {
     if (data->kinesis_video_producer) {
         data->kinesis_video_producer.reset();
     }
+    
+    // Reset the shared pointer to properly release the KvsSinkCustomData
+    kvssink->data.reset();
+ 
     G_OBJECT_CLASS (parent_class)->finalize(object);
 }
 
