@@ -17,6 +17,13 @@
 #define IOT_CONNECTION_TIMEOUT "connection-timeout"
 #define IOT_COMPLETION_TIMEOUT "completion-timeout"
 
+#define KVSSINK_THROW_IF_NULL(ptr) \
+    do { \
+        if ((ptr) == NULL) { \
+            throw std::runtime_error(std::string(INTERNAL_CHECK_PREFIX) + " " #ptr " is unexpectedly NULL!"); \
+        } \
+    } while (0)
+
 namespace kvs_sink_util{
 
     gboolean gstructToMap(GstStructure *g_struct, std::map<std::string, std::string> *user_map);

@@ -137,6 +137,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
+#define INTERNAL_CHECK_PREFIX           "Assertion failed:"
+
 namespace KvsSinkSignals {
     guint err_signal_id;
     guint ack_signal_id;
@@ -261,6 +263,9 @@ void closed(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE uploa
 void kinesis_video_producer_init(GstKvsSink *kvssink)
 {
     auto data = kvssink->data;
+
+    KVSSINK_THROW_IF_NULL(kvssink->stream_name);
+
     unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size,
                                                         kvssink->stop_stream_timeout,
                                                         kvssink->service_connection_timeout,
@@ -302,11 +307,11 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         }
 
     } else {
-        access_key_str = string(kvssink->access_key);
-        secret_key_str = string(kvssink->secret_key);
+        access_key_str = kvssink->access_key ? string(kvssink->access_key) : "";
+        secret_key_str = kvssink->secret_key ? string(kvssink->secret_key) : "";
     }
 
-    // Handle session token seperately, since this is optional with long term credentials
+    // Handle session token separately, since this is optional with long term credentials
     if (0 == strcmp(kvssink->session_token, DEFAULT_SESSION_TOKEN)) {
         session_token_str = "";
         if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
@@ -361,8 +366,10 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                     session_token_str,
                                                     std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
         credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
-    } else {
+    } else if (kvssink->credential_file_path != nullptr && static_cast<bool>(std::ifstream(kvssink->credential_file_path))) {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
+    } else {
+        throw runtime_error("Could not find any AWS credentials!");
     }
 
     // Handle env for providing CP URL
@@ -370,6 +377,9 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         LOG_INFO("Getting URL from env for " << kvssink->stream_name);
         control_plane_uri_str = string(control_plane_uri);
     }
+
+    KVSSINK_THROW_IF_NULL(kvssink->user_agent);
+
     LOG_INFO("User agent string: " << kvssink->user_agent);
     data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
                                                                     std::move(client_callback_provider),
@@ -422,6 +432,14 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
             // no-op because default setup is for video only
             break;
     }
+
+    // StreamDefinition takes in C++ strings, check the gchar* for nullptr before constructing
+    KVSSINK_THROW_IF_NULL(kvssink->stream_name);
+    KVSSINK_THROW_IF_NULL(kvssink->content_type);
+    KVSSINK_THROW_IF_NULL(kvssink->user_agent);
+    KVSSINK_THROW_IF_NULL(kvssink->kms_key_id);
+    KVSSINK_THROW_IF_NULL(kvssink->codec_id);
+    KVSSINK_THROW_IF_NULL(kvssink->track_name);
 
     unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(kvssink->stream_name,
             hours(kvssink->retention_period_hours),
@@ -476,10 +494,16 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
             create_kinesis_video_stream(kvssink);
             break;
         } catch (runtime_error &err) {
+            ostringstream oss;
+            oss << "Failed to create stream. Error: " << err.what();
+            err_msg = oss.str();
+
+            // Don't retry if the error is an internal error
+            if (STRNCMP(INTERNAL_CHECK_PREFIX, err.what(), STRLEN(INTERNAL_CHECK_PREFIX)) == 0) {
+                return false;
+            }
+
             if (--retry_count == 0) {
-                ostringstream oss;
-                oss << "Failed to create stream. Error: " << err.what();
-                err_msg = oss.str();
                 ret = false;
                 do_retry = false;
             } else {
@@ -1317,6 +1341,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                 buf->pts = buf->dts;
             }
         } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
+            // Construct a monotonically increasing DTS if GStreamer doesn't provide one
             buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
         }
 
@@ -1496,6 +1521,10 @@ init_track_data(GstKvsSink *kvssink) {
     gchar *video_content_type = NULL, *audio_content_type = NULL;
     const gchar *media_type;
 
+    if (kvssink == NULL || kvssink->collect == NULL || kvssink->data == NULL) {
+        LOG_AND_THROW("Error initializing track data: kvssink, kvssink->collect, or kvssink->data is NULL.");
+    }
+
     for (walk = kvssink->collect->data; walk != NULL; walk = g_slist_next (walk)) {
         GstKvsSinkTrackData *kvs_sink_track_data = (GstKvsSinkTrackData *) walk->data;
 
@@ -1509,6 +1538,19 @@ init_track_data(GstKvsSink *kvssink) {
 
             // extract media type from GstCaps to check whether it's h264 or h265
             caps = gst_pad_get_allowed_caps(collect_data->pad);
+            
+            if (caps == NULL) {
+                LOG_AND_THROW("Error, GStreamer pad returned NULL caps. Pad has no peer for stream: " << kvssink->stream_name);
+            }
+
+            if (gst_caps_is_empty(caps)) {
+                LOG_AND_THROW("Error, GStreamer caps are empty for stream: " << kvssink->stream_name);
+            }
+
+            gchar *caps_str = gst_caps_to_string(caps);
+            LOG_INFO("GStreamer caps: " << caps_str);
+            g_free(caps_str);
+                        
             media_type = gst_structure_get_name(gst_caps_get_structure(caps, 0));
             if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_H264, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
                 // default codec id is for h264 video.
@@ -1519,7 +1561,7 @@ init_track_data(GstKvsSink *kvssink) {
                 video_content_type = g_strdup(MKV_H265_CONTENT_TYPE);
             } else {
                 // no-op, should result in a caps negotiation error before getting here.
-                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink" << " for " << kvssink->stream_name);
+                LOG_AND_THROW("Error, media type " << media_type << " not accepted by kvssink" << " for " << kvssink->stream_name);
             }
             gst_caps_unref(caps);
 
@@ -1573,6 +1615,8 @@ init_track_data(GstKvsSink *kvssink) {
 
     g_free(video_content_type);
     g_free(audio_content_type);
+
+    KVSSINK_THROW_IF_NULL(kvssink->content_type);
 }
 
 static GstStateChangeReturn
