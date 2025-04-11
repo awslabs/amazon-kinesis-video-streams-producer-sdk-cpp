@@ -10,6 +10,7 @@ include(GNUInstallDirs)
 
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
+option(BUILD_SAMPLES "Whether to build the sample applications." ON)
 option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/Android" OFF)
 option(BUILD_JNI_ONLY "Build ONLY the JNI, don't build C++ Producer SDK" OFF)
 option(BUILD_STATIC "Build with static linkage" OFF)
@@ -221,12 +222,15 @@ if(BUILD_JNI OR BUILD_JNI_ONLY)
   target_link_libraries(KinesisVideoProducerJNI kvspic)
 endif()
 
-
-if(BUILD_GSTREAMER_PLUGIN)
+if(BUILD_GSTREAMER_PLUGIN OR BUILD_SAMPLES)
+  # Find GStreamer.
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
   include_directories(${GST_APP_INCLUDE_DIRS})
   link_directories(${GST_APP_LIBRARY_DIRS})
+endif()
 
+if(BUILD_GSTREAMER_PLUGIN)
+  # Build kvssink.
   if(BUILD_STATIC)
     add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
   else()
@@ -234,8 +238,18 @@ if(BUILD_GSTREAMER_PLUGIN)
   endif()
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
-  add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
-  target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+  install(
+    TARGETS gstkvssink
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+endif()
+
+if(BUILD_SAMPLES)
+  if(BUILD_GSTREAMER_PLUGIN)
+    add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
+    target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+    endif()
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
   target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
