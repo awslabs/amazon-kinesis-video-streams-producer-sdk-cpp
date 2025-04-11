@@ -194,7 +194,7 @@ gst-inspect-1.0 kvssink
 If the build failed or GST_PLUGIN_PATH is not properly set, you may instead see the following output:<br>
 `No such element or plugin kvssink`
 
-After building the SDK, loading `kvssink` into the GStreamer plugin path, and setting a region, the sample executables, which are located in the `build` directory, can be run. For example:
+After building the SDK, loading `kvssink` into the GStreamer plugin path, and setting a region, the kvssink-based sample executables, which are located in the `build` directory, can be run. For example:
 ```
 ./kvssink_gstreamer_sample MyStreamName
 ```
@@ -237,6 +237,7 @@ You can pass the following additional CMake options:
 | Option	                      | Default       | Description	|
 |:-----------------------------|:-------------:|:-------------|
 | BUILD_GSTREAMER_PLUGIN       | OFF           | Build the `kvssink` GStreamer plugin
+| BUILD_SAMPLES                | ON            | Build the sample applications. Will build the kvssink-based application only if BUILD_GSTREAMER_PLUGIN is also enabled.
 | PARALLEL_BUILD               | ON            | When building dependencies, use multiple CPU cores in parallel (speeds up the build). Not available in Windows.
 | BUILD_JNI                    | OFF           | Build C++ wrapper for JNI to expose the functionality to Java/Android
 | BUILD_JNI_ONLY               | OFF           | Build only the JNI. C++ Producer will not be built. Requires Java installed.
