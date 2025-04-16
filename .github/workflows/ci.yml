@@ -20,11 +20,14 @@ jobs:
       contents: read
     steps:
       - name: Clone repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          brew install pkg-config openssl cmake gstreamer log4cplus
-          brew unlink openssl
+          brew install cmake gstreamer log4cplus
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.x'
       - name: Build repository
         run: |
           mkdir build && cd build
@@ -62,11 +65,14 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          brew install pkg-config openssl cmake gstreamer log4cplus
-          brew unlink openssl
+          brew install cmake gstreamer log4cplus
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.x'
       - name: Build repository
         run: |
           mkdir build && cd build
@@ -317,7 +323,11 @@ jobs:
       contents: read
     steps:
       - name: Clone repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.x'
       - name: Move repository
         run: |
           mkdir C:\producer
