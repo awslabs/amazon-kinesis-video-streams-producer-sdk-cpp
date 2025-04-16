@@ -337,6 +337,17 @@ For example, if the application created a pipeline object `GstPipeline* pipeline
 
 <br>
 
+### CI Testing
+
+GitHub actions will run tests and builds for every pull request.
+
+To setup the CI in your environment, follow https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services to setup the IAM permissions and role for your GitHub repository.
+
+Afterwards, go to your repository settings and add the following repository secrets:
+* Key: `AWS_ROLE_TO_ASSUME` -- Assume role ARN
+* Key: `AWS_REGION` -- Region to use (e.g. `us-west-2`)
+* Key: `AWS_ROLE_SESSION_NAME` -- Optional. This name appears in AWS CloudTrail logs for entries associated with this session.
+
 ## Development
 
 The repository is using develop branch as the aggregation and all of the feature development is done in appropriate feature branches. The PRs (Pull Requests) are cut on a feature branch and once approved with all the checks passed, they can be merged by a click of a button on the PR tool. The master branch should always be build-able and all the tests should be passing. We are welcoming any contribution to the code base. The master branch contains our most recent release cycle from develop.
