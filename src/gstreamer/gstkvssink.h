@@ -141,6 +141,8 @@ struct _GstKvsSink {
     guint                       num_video_streams;
 
 
+    // Since this struct is freed (not deleted), these pointers must be
+    // manually cleaned up before freeing (finalize method)
     std::unique_ptr<Credentials> credentials_;
     std::shared_ptr<KvsSinkCustomData> data;
 };

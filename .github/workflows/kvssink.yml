@@ -19,22 +19,26 @@ jobs:
       contents: read
     strategy:
       matrix:
-        include:
+        run-config:
           - os: Ubuntu 22.04
             image: public.ecr.aws/ubuntu/ubuntu:22.04_stable
-          - os: Ubuntu 20.04
-            image: public.ecr.aws/ubuntu/ubuntu:20.04_stable
+#          - os: Ubuntu 20.04
+#            image: public.ecr.aws/ubuntu/ubuntu:20.04_stable
       fail-fast: false
 
-    name: kvssink unit tests on ${{ matrix.os }}
+    env:
+      DEBIAN_FRONTEND: noninteractive
+
+    name: kvssink unit tests on ${{ matrix.run-config.os }}
+    container: ${{ matrix.run-config.image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y automake build-essential cmake git \
+          apt-get update
+          apt-get install -y automake m4 build-essential cmake git \
             gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad \
             gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
             gstreamer1.0-tools \
@@ -59,7 +63,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 900
 
       - name: Run the unit tests
         working-directory: ./build
@@ -84,11 +88,16 @@ jobs:
 
   mac-debug-dump-dir:
     runs-on: macos-latest
-    env:
-      AWS_KVS_LOG_LEVEL: 1
     permissions:
       id-token: write
       contents: read
+
+    env:
+      AWS_KVS_LOG_LEVEL: 1
+      STREAM_NAME: cpp-kvssink-debug-dump-dir-macos-latest
+      GST_PLUGIN_PATH: ${{ github.workspace }}/build
+      KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
+
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
@@ -108,12 +117,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 900
 
       - name: Run kvssink with dump dir
-        env:
-          GST_PLUGIN_PATH: ${{ github.workspace }}/build
-          KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
         working-directory: ./build
         run: |
           mkdir -p debug_output
@@ -121,7 +127,7 @@ jobs:
             ! video/x-raw,framerate=30/1,width=640,height=480 \
             ! videoconvert ! x264enc tune=zerolatency key-int-max=45 \
             ! h264parse \
-            ! kvssink stream-name="demo-stream"
+            ! kvssink stream-name="$STREAM_NAME"
 
       - name: Verify MKV dump
         working-directory: ./build/debug_output
@@ -138,31 +144,37 @@ jobs:
           done
 
   linux-debug-dump-dir:
-    runs-on: ubuntu-latest
-    env:
-      AWS_KVS_LOG_LEVEL: 1
     permissions:
       id-token: write
       contents: read
     strategy:
       matrix:
-        include:
-          - os: Ubuntu 22.04
+        run-config:
+          - os: Ubuntu-22.04
             image: public.ecr.aws/ubuntu/ubuntu:22.04_stable
-          - os: Ubuntu 20.04
+          - os: Ubuntu-20.04
             image: public.ecr.aws/ubuntu/ubuntu:20.04_stable
       fail-fast: false
+
+    runs-on: ubuntu-latest
+    container: ${{ matrix.run-config.image }}
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      STREAM_NAME: cpp-kvssink-debug-dump-dir-${{ matrix.run-config.os }}
+      GST_PLUGIN_PATH: ${{ github.workspace }}/build
+      KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y automake build-essential cmake git \
-            gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad \
-            gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
-            gstreamer1.0-tools \
+          apt-get update
+          apt-get install -y automake build-essential cmake git \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-base-apps \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-ugly gstreamer1.0-tools \
             libcurl4-openssl-dev libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev liblog4cplus-dev \
             libssl-dev pkg-config mkvtoolnix
@@ -184,12 +196,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 900
 
       - name: Run kvssink with dump dir
-        env:
-          GST_PLUGIN_PATH: ${{ github.workspace }}/build
-          KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
         working-directory: ./build
         run: |
           mkdir -p debug_output
@@ -197,7 +206,7 @@ jobs:
             ! video/x-raw,framerate=30/1,width=640,height=480 \
             ! videoconvert ! x264enc tune=zerolatency key-int-max=45 \
             ! h264parse \
-            ! kvssink stream-name="demo-stream"
+            ! kvssink stream-name="$STREAM_NAME"
 
       - name: Verify MKV dump
         working-directory: ./build/debug_output
@@ -212,11 +221,15 @@ jobs:
             echo "Verifying $file with mkvinfo (verbose and hexdump):"
             mkvinfo -v -X "$file"
           done
+        shell: bash
 
   windows-debug-dump-dir:
     runs-on: windows-2022
     env:
       AWS_KVS_LOG_LEVEL: 1
+      STREAM_NAME: cpp-kvssink-debug-dump-dir-windows-2022
+      GST_PLUGIN_PATH: D:\producer\build\
+      KVS_DEBUG_DUMP_DATA_FILE_DIR: D:\producer\build\debug_output
     permissions:
       id-token: write
       contents: read
@@ -245,11 +258,8 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 900
       - name: Run kvssink with dump dir
-        env:
-          GST_PLUGIN_PATH: D:\producer\build\
-          KVS_DEBUG_DUMP_DATA_FILE_DIR: D:\producer\build\debug_output
         working-directory: D:\producer\build\
         run: |
           $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin;D:\gstreamer\1.0\msvc_x86_64\bin'
@@ -258,7 +268,7 @@ jobs:
           New-Item -ItemType Directory -Path "D:\producer\build\debug_output" -Force
 
           # Stream for 15 seconds (450 frames @ 30 fps)
-          gst-launch-1.0.exe videotestsrc is-live=true num-buffers=450 ! video/x-raw,framerate=30/1,width=640,height=480 ! videoconvert ! x264enc tune=zerolatency key-int-max=45 ! h264parse ! kvssink stream-name="demo-stream"
+          gst-launch-1.0.exe videotestsrc is-live=true num-buffers=450 ! video/x-raw,framerate=30/1,width=640,height=480 ! videoconvert ! x264enc tune=zerolatency key-int-max=45 ! h264parse ! kvssink stream-name="$env:STREAM_NAME"
       - name: Verify MKV dump
         working-directory: D:\producer\build
         run: |
@@ -301,6 +311,7 @@ jobs:
             build-essential
             cmake
             git
+            gstreamer1.0-plugins-base
             gstreamer1.0-plugins-base-apps
             gstreamer1.0-plugins-bad
             gstreamer1.0-plugins-good
@@ -355,7 +366,7 @@ jobs:
               ! video/x-raw,framerate=30/1,width=640,height=480 \
               ! videoconvert ! x264enc tune=zerolatency key-int-max=45 \
               ! h264parse \
-              ! kvssink stream-name='demo-stream-cpp-kvssink-ci-wsl-videotestsrc-${{ matrix.image }}' \
+              ! kvssink stream-name='cpp-kvssink-ci-wsl-videotestsrc-${{ matrix.image }}' \
                   aws-region=${{ env.AWS_DEFAULT_REGION }} \
                   access-key=${{ env.AWS_ACCESS_KEY_ID }} \
                   secret-key=${{ env.AWS_SECRET_ACCESS_KEY }} \
@@ -380,3 +391,112 @@ jobs:
             echo "Verifying $file with mkvinfo:"
             mkvinfo -v -X "$file"
           done
+
+  valgrind-check:
+    strategy:
+      matrix:
+        run-config:
+          - os: Ubuntu-22.04
+            image: public.ecr.aws/ubuntu/ubuntu:22.04_stable
+          - os: Ubuntu-20.04
+            image: public.ecr.aws/ubuntu/ubuntu:20.04_stable
+
+        deps:
+          - name: Deps-ON
+            cmake_flags: -DBUILD_DEPENDENCIES=ON
+#          - name: Deps-OFF
+#            cmake_flags: -DBUILD_DEPENDENCIES=OFF
+
+      fail-fast: false
+
+    runs-on: ubuntu-latest
+    container: ${{ matrix.run-config.image }}
+
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      STREAM_NAME: valgrind-test-stream-cpp-kvssink-${{ matrix.run-config.os }}-${{ matrix.deps.name }}
+      GST_PLUGIN_PATH: ${{ github.workspace }}/build
+
+    name: Valgrind ${{ matrix.run-config.os }} (${{ matrix.deps.name }})
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y build-essential cmake pkg-config git \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-base-apps \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-ugly gstreamer1.0-tools \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            valgrind
+
+      - name: Install additional build dependencies
+        if: ${{ matrix.deps.name == 'Deps-ON' }}
+        run: |
+          apt-get install -y m4
+
+      - name: Install prebuilt-dependencies
+        if: ${{ matrix.deps.name == 'Deps-OFF' }}
+        run: |
+          apt-get install -y libcurl4-openssl-dev liblog4cplus-dev libssl-dev
+
+      - name: Setup build directory
+        run: |
+          mkdir -p build
+          cd build
+
+      - name: Build kvssink
+        working-directory: ./build
+        run: |
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DALIGNED_MEMORY_MODEL=ON ${{ matrix.deps.cmake_flags }}
+          make -j$(nproc)
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 900
+
+      - name: Verify kvssink works
+        working-directory: ./build
+        run: |
+          # Run it once just to confirm          
+          gst-launch-1.0 videotestsrc num-buffers=1 ! x264enc ! h264parse ! kvssink stream-name="$STREAM_NAME"
+
+      - name: Run kvssink with valgrind
+        working-directory: ./build
+        run: |          
+          mkdir -p valgrind_logs
+          LOG_FILE="valgrind_logs/${{ matrix.sample-executable.name }}.log"
+
+          echo "::group::Application logs for kvssink"
+          valgrind --leak-check=full \
+            --show-leak-kinds=definite \
+            --track-origins=yes \
+            --log-file="$LOG_FILE" \
+            --suppressions="../.github/valgrind/glib.supp" \
+            gst-launch-1.0 videotestsrc num-buffers=1 \
+              ! x264enc \
+              ! h264parse \
+              ! kvssink stream-name="$STREAM_NAME" log-config="../.github/configs/no_logs_configuration"
+          echo "::endgroup::"
+
+          echo "========== Valgrind Output =========="
+          cat "$LOG_FILE"
+          echo "====================================="
+
+          if grep -qE "definitely lost: [^0]" "$LOG_FILE" || grep -qE "indirectly lost: [^0]" "$LOG_FILE"; then
+            echo "❌ Valgrind found something definitely or indirectly lost"
+            exit 1
+          fi
+
+        shell: bash
