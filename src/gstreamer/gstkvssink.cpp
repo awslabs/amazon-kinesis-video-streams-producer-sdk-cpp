@@ -815,6 +815,10 @@ gst_kvs_sink_finalize(GObject *object) {
     kvssink->credentials_.reset();
     kvssink->data.reset();
 
+    if (kvssink->data.use_count() > 0) {
+        LOG_ERROR("KvsSinkCustomData is not properly cleaned up. The ref count is: " << kvssink->data.use_count());
+    }
+
     // Eventually calls g_free(kvssink), smart pointers need to be cleaned up before
     G_OBJECT_CLASS (parent_class)->finalize(object);
 }
