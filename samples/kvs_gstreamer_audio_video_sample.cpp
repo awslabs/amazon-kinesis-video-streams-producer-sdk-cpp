@@ -506,7 +506,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     // Sample to demonstrate how event metadata tags can be generated for fragment(s)
     // Ref: https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/notifications.html
     //      https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/images.html
-    if (CHECK_FRAME_FLAG_KEY_FRAME(kinesis_video_flags)) {
+    if (CHECK_FRAME_FLAG_KEY_FRAME(frame.flags)) {
     // Add event metadata after key frame
          switch(gEvents) {
             case 1:
