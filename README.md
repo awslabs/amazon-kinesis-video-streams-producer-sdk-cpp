@@ -226,6 +226,28 @@ If playback issues are encountered, pleaser refer to the playback requirements u
 
 <br>
 
+### Using `putEventMetadata` for Events and S3 Image Generation
+
+The image generation feature is available in the _kvs_gstreamer_audio_video_sample.cpp_ sample. To enable it, include the argument `-e <event_option>` where `<event option>` is a string that can be:
+
+- `notification` - for a notification event
+- `image` - for an image event
+- `both` - for both
+
+The addition of event metadata will begin on the 2nd key frame and recur every 200 key frames. To modify this frequency, you can adjust the sample accordingly.
+
+<br>
+
+### Using a File Source
+In the _kvs_gstreamer_audio_video_sample.cpp_ sample, if you would like to upload from a file, include the `-f <file_path>` argument.
+
+<br>
+
+### Running in Offline Mode
+By default, the samples run in near-realtime mode. To use offline mode, set `streamInfo.streamCaps.streamingType` to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.
+
+<br>
+
 ## Build Options
 ### Considerations
 - The **`kvssink`** GStreamer plugin and samples, and the **JNI** are _not_ built by default. To build them, use their corresponding cmake command options: `-DBUILD_GSTREAMER_PLUGIN=ON` and `-DBUILD_JNI=ON`.
