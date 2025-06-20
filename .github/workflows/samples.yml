@@ -561,16 +561,16 @@ jobs:
           
           for file in *.mkv; do
             echo "Verifying $file with mkvinfo:"
-            output=$(mkvinfo -v -X "$file")
+            mkvinfo -v -X "${file}" > mkvinfo_output.txt
             found_notification=false
             found_image=false
 
-            if echo "$output" | grep -q "AWS_KINESISVIDEO_NOTIFICATION"; then
+            if grep -q "AWS_KINESISVIDEO_NOTIFICATION" "mkvinfo_output.txt"; then
               found_notification=true
               echo "Found AWS_KINESISVIDEO_NOTIFICATION in $file"
             fi
 
-            if echo "$output" | grep -q "AWS_KINESISVIDEO_IMAGE_GENERATION"; then
+            if grep -q "AWS_KINESISVIDEO_IMAGE_GENERATION" "mkvinfo_output.txt"; then
               found_image=true
               echo "Found AWS_KINESISVIDEO_IMAGE_GENERATION in $file"
             fi
