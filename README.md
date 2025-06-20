@@ -84,7 +84,7 @@ sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1
 ```
 _Windows_
 ```bat
-choco install gstreamer --version=1.22.8 gstreamer-devel --version=1.22.8
+choco install gstreamer --version=1.22.12 gstreamer-devel --version=1.22.12
 ```
 #### Verify GStreamer Installation
 Run the following command to display the GStreamer version to confirm the installation was successful:
