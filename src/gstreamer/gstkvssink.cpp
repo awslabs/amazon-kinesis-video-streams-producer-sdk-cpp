@@ -788,7 +788,6 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 static void
 gst_kvs_sink_finalize(GObject *object) {
     GstKvsSink *kvssink = GST_KVS_SINK (object);
-    auto data = kvssink->data;
 
     gst_object_unref(kvssink->collect);
     g_free(kvssink->stream_name);
@@ -806,14 +805,21 @@ gst_kvs_sink_finalize(GObject *object) {
     g_free(kvssink->credential_file_path);
 
     if (kvssink->iot_certificate) {
-        gst_structure_free (kvssink->iot_certificate);
+        gst_structure_free(kvssink->iot_certificate);
     }
     if (kvssink->stream_tags) {
-        gst_structure_free (kvssink->stream_tags);
+        gst_structure_free(kvssink->stream_tags);
     }
-    if (data->kinesis_video_producer) {
-        data->kinesis_video_producer.reset();
+
+    // Reset the smart pointers to properly release the data
+    kvssink->credentials_.reset();
+    kvssink->data.reset();
+
+    if (kvssink->data.use_count() > 0) {
+        LOG_ERROR("KvsSinkCustomData is not properly cleaned up. The ref count is: " << kvssink->data.use_count());
     }
+
+    // Eventually calls g_free(kvssink), smart pointers need to be cleaned up before
     G_OBJECT_CLASS (parent_class)->finalize(object);
 }
 

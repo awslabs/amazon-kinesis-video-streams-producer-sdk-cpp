@@ -10,9 +10,41 @@ on:
       - develop
       - master
 
+env:
+  SAMPLE_MP4_LOCATION: https://raw.githubusercontent.com/aws-samples/amazon-kinesis-video-streams-demos/refs/heads/master/sample-video/sample.mp4
+
 jobs:
+  prep-assets:
+    runs-on: ubuntu-latest
+    outputs:
+      sample-artifact-name: ${{ steps.set-output.outputs.artifact-name }}
+    steps:
+    - name: Restore cached sample.mp4
+      uses: actions/cache@v4
+      with:
+        path: sample.mp4
+        key: sample-mp4-v1
+
+    - name: Download sample.mp4 if not cached
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: curl -fsSL -o sample.mp4 "$SAMPLE_MP4_LOCATION"
+
+    - name: Save to cache
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      with:
+        path: sample.mp4
+        key: sample-mp4-v1
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sample-mp4
+        path: sample.mp4
+
   sample-checks:
     name: ${{ matrix.runner.id }} - ${{ matrix.sample.name }}
+    needs: prep-assets
 
     strategy:
       matrix:
@@ -106,13 +138,19 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 900
+
+      - name: Download sample.mp4 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sample-mp4
+          path: ./assets
 
       - name: Run ${{ matrix.sample.name }} (Linux & Mac)
         if: runner.os == 'Linux' || runner.os == 'macOS'
         working-directory: ./build
         run: |
-          curl -fsSL -o sample.mp4 https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
+          mv ../assets/*.mp4 .
           ./${{ matrix.sample.name }} demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
 
       - name: Run ${{ matrix.sample.name }} (Windows)
@@ -129,7 +167,7 @@ jobs:
 
           mkdir D:\producer\debug_output
 
-          Invoke-WebRequest -Uri https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4 -OutFile sample.mp4
+          cp -r D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\assets\*.mp4 .
           dir
           $exePath = Join-Path $PWD ${{ matrix.sample.name }}.exe
           & $exePath demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
@@ -225,7 +263,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 900
 
       - name: Run multistream sample
         working-directory: ./build
@@ -310,6 +348,7 @@ jobs:
 
   wsl-sample-checks:
     name: WSL ${{ matrix.image }} - ${{ matrix.sample.name }}
+    needs: prep-assets
 
     strategy:
       matrix:
@@ -365,6 +404,12 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
 
+      - name: Download sample.mp4 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sample-mp4
+          path: ./assets
+
       - name: Move repository in WSL
         run: |
           # Copy to ~/kvs-cpp-repo for simplicity
@@ -372,10 +417,11 @@ jobs:
           REPO_NAME=$(basename ${{ github.repository }})
           DRIVE_LETTER=$(echo "${{ github.workspace }}" | sed -r 's/^([A-Za-z]):.*/\1/' | tr '[:upper:]' '[:lower:]')
           cp -r /mnt/$DRIVE_LETTER/a/$REPO_NAME/$REPO_NAME ~/kvs-cpp-repo
+          mkdir -p ~/kvs-cpp-repo/build
+          cp -r /mnt/d/a/$REPO_NAME/$REPO_NAME/assets/*.mp4 ~/kvs-cpp-repo/build
 
       - name: Build samples in WSL
         run: |
-          mkdir -p ~/kvs-cpp-repo/build
           cd ~/kvs-cpp-repo/build
           cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DALIGNED_MEMORY_MODEL=ON -DBUILD_DEPENDENCIES=OFF
           make -j$(nproc)
@@ -395,8 +441,6 @@ jobs:
           mkdir "$KVS_DEBUG_DUMP_DATA_FILE_DIR"
           export GST_PLUGIN_PATH=~/kvs-cpp-repo/build
           export AWS_KVS_LOG_LEVEL=2
-
-          curl -fsSL -o sample.mp4 https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
 
           # Note: `env.` syntax to reference credentials to have GitHub Actions inject
           # the secret values into these environment variables before the command runs,
