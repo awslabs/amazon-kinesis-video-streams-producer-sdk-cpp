@@ -110,8 +110,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           choco install nasm strawberryperl pkgconfiglite mkvtoolnix
-          choco install gstreamer --version=1.22.8
-          choco install gstreamer-devel --version=1.22.8
+          choco install gstreamer --version=1.22.12
+          choco install gstreamer-devel --version=1.22.12
 
       - name: Build samples (Linux & Mac)
         if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -415,7 +415,8 @@ jobs:
           # Copy to ~/kvs-cpp-repo for simplicity
           # Note: Can't move due to no permissions
           REPO_NAME=$(basename ${{ github.repository }})
-          cp -r /mnt/d/a/$REPO_NAME/$REPO_NAME ~/kvs-cpp-repo
+          DRIVE_LETTER=$(echo "${{ github.workspace }}" | sed -r 's/^([A-Za-z]):.*/\1/' | tr '[:upper:]' '[:lower:]')
+          cp -r /mnt/$DRIVE_LETTER/a/$REPO_NAME/$REPO_NAME ~/kvs-cpp-repo
           mkdir -p ~/kvs-cpp-repo/build
           cp -r /mnt/d/a/$REPO_NAME/$REPO_NAME/assets/*.mp4 ~/kvs-cpp-repo/build
 
