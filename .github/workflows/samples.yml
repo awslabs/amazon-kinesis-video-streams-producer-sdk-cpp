@@ -51,6 +51,7 @@ jobs:
         sample:
           - name: kvs_gstreamer_audio_video_sample
             args: -f sample.mp4
+            metadata_args: -e both
           - name: kvs_gstreamer_file_uploader_sample
             args: sample.mp4 0 audio-video
           - name: kvs_gstreamer_sample
@@ -151,7 +152,7 @@ jobs:
         working-directory: ./build
         run: |
           mv ../assets/*.mp4 .
-          ./${{ matrix.sample.name }} demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+          ./${{ matrix.sample.name }} demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }} ${{ matrix.sample.metadata_args }}
 
       - name: Run ${{ matrix.sample.name }} (Windows)
         if: runner.os == 'Windows'
@@ -170,7 +171,7 @@ jobs:
           cp -r D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\assets\*.mp4 .
           dir
           $exePath = Join-Path $PWD ${{ matrix.sample.name }}.exe
-          & $exePath demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+          & $exePath demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }} ${{ matrix.sample.metadata_args }}
 
       - name: Verify MKV dump exists (Mac & Linux)
         if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -207,6 +208,76 @@ jobs:
             Write-Output "Verifying $($file.FullName) with mkvinfo (verbose and hexdump):"
             mkvinfo.exe -v -X "$($file.FullName)"
           }
+
+      - name: Check fragment metadata is present (Mac & Linux)
+        if: (runner.os == 'Linux' || runner.os == 'macOS') && matrix.sample.metadata_args != null
+        working-directory: ./build/debug_output
+        run: |
+          shopt -s nullglob
+          
+          for file in *.mkv; do
+            echo "Verifying ${file} with mkvinfo:"
+            mkvinfo -v -X "${file}" > mkvinfo_output.txt 2>&1
+            found_notification=false
+            found_image=false
+      
+            if [ -f "mkvinfo_output.txt" ]; then
+              if grep -q "AWS_KINESISVIDEO_NOTIFICATION" "mkvinfo_output.txt"; then
+                found_notification=true
+                echo "Found AWS_KINESISVIDEO_NOTIFICATION in ${file}"
+              fi
+              
+              if grep -q "AWS_KINESISVIDEO_IMAGE_GENERATION" "mkvinfo_output.txt"; then
+                found_image=true
+                echo "Found AWS_KINESISVIDEO_IMAGE_GENERATION in ${file}"
+              fi
+              
+              if [ "${found_notification}" = false ] || [ "${found_image}" = false ]; then
+                echo "Error: Required metadata strings not found in ${file}"
+                echo "AWS_KINESISVIDEO_NOTIFICATION: ${found_notification}"
+                echo "AWS_KINESISVIDEO_IMAGE_GENERATION: ${found_image}"
+                rm -f "mkvinfo_output.txt"
+                exit 1
+              fi
+              rm -f "mkvinfo_output.txt"
+            else
+              echo "Error: Failed to create mkvinfo output file"
+              exit 1
+            fi
+          done
+
+        shell: bash
+
+      - name: Check fragment metadata is present (Windows)
+        if: runner.os == 'Windows' && matrix.sample.metadata_args != null
+        working-directory: D:\producer\build
+        run: |
+          $env:Path += ";C:\Program Files\MKVToolNix"
+          $mkvFiles = Get-ChildItem -Path "D:\producer\debug_output" -Filter *.mkv
+      
+          foreach ($file in $mkvFiles) {
+            $output = mkvinfo.exe -v -X "$($file.FullName)"
+            $foundNotification = $false
+            $foundImage = $false
+
+            if ($output -match "AWS_KINESISVIDEO_NOTIFICATION") {
+              $foundNotification = $true
+              Write-Output "Found AWS_KINESISVIDEO_NOTIFICATION in $($file.Name)"
+            }
+          
+            if ($output -match "AWS_KINESISVIDEO_IMAGE_GENERATION") {
+              $foundImage = $true
+              Write-Output "Found AWS_KINESISVIDEO_IMAGE_GENERATION in $($file.Name)"
+            }
+          
+            if (-not $foundNotification -or -not $foundImage) {
+              Write-Output "Required metadata strings not found in $($file.Name)"
+              Write-Output "AWS_KINESISVIDEO_NOTIFICATION: $foundNotification"
+              Write-Output "AWS_KINESISVIDEO_IMAGE_GENERATION: $foundImage"
+              exit 1
+            }
+          }
+        shell: pwsh
 
   multistream-sample:
     name: Multistream sample on Ubuntu 22.04
@@ -355,6 +426,7 @@ jobs:
         sample:
           - name: kvs_gstreamer_audio_video_sample
             args: -f sample.mp4
+            metadata_args: -e both
           - name: kvs_gstreamer_file_uploader_sample
             args: sample.mp4 0 audio-video
           - name: kvs_gstreamer_sample
@@ -451,7 +523,7 @@ jobs:
           export AWS_DEFAULT_REGION=${{ env.AWS_DEFAULT_REGION }}
           
           set +e  # Disable exit on error for the timeout command
-          ./${{ matrix.sample.name }} demo-stream-producer-cpp-wsl-${{ matrix.image }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+          ./${{ matrix.sample.name }} demo-stream-producer-cpp-wsl-${{ matrix.image }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }} ${{ matrix.sample.metadata_args }}
           EXIT_CODE=$?
           set -e  # Re-enable exit on error
           
@@ -479,4 +551,34 @@ jobs:
           for file in "${mkvfiles[@]}"; do
             echo "Verifying $file with mkvinfo (verbose and hexdump):"
             mkvinfo -v -X "$file"
+          done
+
+      - name: Check fragment metadata is present (WSL)
+        if: matrix.sample.metadata_args != null
+        run: |
+          shopt -s nullglob
+          cd ~/kvs-cpp-repo/build/debug_output
+          
+          for file in *.mkv; do
+            echo "Verifying $file with mkvinfo:"
+            output=$(mkvinfo -v -X "$file")
+            found_notification=false
+            found_image=false
+
+            if echo "$output" | grep -q "AWS_KINESISVIDEO_NOTIFICATION"; then
+              found_notification=true
+              echo "Found AWS_KINESISVIDEO_NOTIFICATION in $file"
+            fi
+
+            if echo "$output" | grep -q "AWS_KINESISVIDEO_IMAGE_GENERATION"; then
+              found_image=true
+              echo "Found AWS_KINESISVIDEO_IMAGE_GENERATION in $file"
+            fi
+
+            if [ "$found_notification" = false ] || [ "$found_image" = false ]; then
+              echo "Error: Required metadata strings not found in $file"
+              echo "AWS_KINESISVIDEO_NOTIFICATION: ${found_notification}"
+              echo "AWS_KINESISVIDEO_IMAGE_GENERATION: ${found_image}"
+              exit 1
+            fi
           done
