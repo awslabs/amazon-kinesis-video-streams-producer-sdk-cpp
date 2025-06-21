@@ -135,7 +135,7 @@ If the library needs to be installed, run `make install`. This will install in d
 ## Run
 ### GStreamer Plugin (kvssink)
 
-#### Loading Element
+#### Loading kvssink Element
 The GStreamer plugin is located in your `build` directory.
 
 To load this plugin set the following environment variables. This should be run from the root of the repo, NOT the `build` directory.
@@ -180,7 +180,7 @@ No such element or plugin 'kvssink'
 ```
 
 
-#### Using Element
+#### Using kvssink Element
 The kvssink element has the following required parameters:
 
 * `stream-name` -- The name of the destination Kinesis video stream.
@@ -190,7 +190,25 @@ The kvssink element has the following required parameters:
 * `credential-path` -- A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files, see Sample Static Credential and Sample Rotating Credential. For more information on rotating credentials, see Managing Access Keys for IAM Users. You must provide either this parameter or access-key and secret-key.
 
 
-For examples of common use cases you can look at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html)
+### Running kvssink Samples
+The SDK comes with two programmatic GStreamer kvssink samples: `kvssink_gstreamer_sample` and `kvssink_intermittent_sample`. For more use cases, see the CLI pipeline examples at [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
+
+The programmatic samples require the AWS region to be set with the `AWS_DEFAULT_REGION` environment variable. For example:
+```bash
+export AWS_DEFAULT_REGION=us-west-2
+```
+
+After building the SDK, loading kvssink into the GStreamer plugin path, and setting a region, the sample executables, which are located in the `build` directory, can be run.
+
+#### kvssink Intermittent Sample
+Usage:
+```bash
+./kvssink_intermittent_sample <stream-name (optional)> <testsrc or devicesrc (optional)>
+```
+Setting the source to `testsrc` will use [videotestsrc](https://gstreamer.freedesktop.org/documentation/videotestsrc/?gi-language=c) and to `devicesrc` will use [autovideosrc](https://gstreamer.freedesktop.org/documentation/autodetect/autovideosrc.html?gi-language=c). By default, kvssink uses "DEFAULT_STREAM" as the stream name, and the sample uses videotestsrc as the source. If a stream with the provided or default name does not exist, the stream will automatically be created.
+
+The intermittent kvssink sample will stream video for 20 seconds, then pause for 40 seconds, and repeat until an interrupt signal is received. To manually adjust the streaming and paused intervals, you can change the `KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS` and `KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS` values in the *kvssink_intermittent_sample.cpp* file.
+
 
 ## Running in offline mode
 By default, the samples run in near realtime mode. To set offline mode, set streamInfo.streamCaps.streamingType to `STREAMING_TYPE_OFFLINE`, where, `streamInfo` is of type `StreamInfo`, `streamCaps` is of type `StreamCaps` and `streamingType` is of type `STREAMING_TYPE`.

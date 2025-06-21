@@ -243,10 +243,10 @@ if(BUILD_GSTREAMER_PLUGIN)
   target_link_libraries(gstkvssink PRIVATE ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
-  target_link_libraries(kvssink_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspic)
+  target_link_libraries(kvssink_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspicUtils)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(kvs_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
+  target_link_libraries(kvs_gstreamer_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer kvspicUtils)
 
   add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
   target_link_libraries(kvs_gstreamer_multistream_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} KinesisVideoProducer)
@@ -256,6 +256,9 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
   target_link_libraries(kvs_gstreamer_file_uploader_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES})
+
+  add_executable(kvssink_intermittent_sample samples/kvssink_intermittent_sample.cpp )
+  target_link_libraries(kvssink_intermittent_sample ${LOG4CPLUS_LIBRARIES} ${GST_APP_LIBRARIES} kvspicUtils)
 
   install(
     TARGETS gstkvssink
