@@ -14,11 +14,6 @@ Also, install the gstreamer1.0-omx package to get the omxh264enc hardware encode
 
 `sudo apt-get install gstreamer1.0-omx`
 
-If building JNI, ensure Java JDK is available on the system. To check this, run:
-`java -showversion`
-If nothing shows up, install `OpenJDK`:
-`sudo apt-get install openjdk-8-jdk`
-
 
 ### How to run sample applications for sending media to KVS using [GStreamer](https://gstreamer.freedesktop.org/):
 
