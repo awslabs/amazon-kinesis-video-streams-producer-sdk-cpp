@@ -10,15 +10,48 @@ on:
       - develop
       - master
 
+env:
+  SAMPLE_MP4_LOCATION: https://raw.githubusercontent.com/aws-samples/amazon-kinesis-video-streams-demos/refs/heads/master/sample-video/sample.mp4
+
 jobs:
+  prep-assets:
+    runs-on: ubuntu-latest
+    outputs:
+      sample-artifact-name: ${{ steps.set-output.outputs.artifact-name }}
+    steps:
+    - name: Restore cached sample.mp4
+      uses: actions/cache@v4
+      with:
+        path: sample.mp4
+        key: sample-mp4-v1
+
+    - name: Download sample.mp4 if not cached
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: curl -fsSL -o sample.mp4 "$SAMPLE_MP4_LOCATION"
+
+    - name: Save to cache
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      with:
+        path: sample.mp4
+        key: sample-mp4-v1
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sample-mp4
+        path: sample.mp4
+
   sample-checks:
     name: ${{ matrix.runner.id }} - ${{ matrix.sample.name }}
+    needs: prep-assets
 
     strategy:
       matrix:
         sample:
           - name: kvs_gstreamer_audio_video_sample
             args: -f sample.mp4
+            metadata_args: -e both
           - name: kvs_gstreamer_file_uploader_sample
             args: sample.mp4 0 audio-video
           - name: kvs_gstreamer_sample
@@ -78,8 +111,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           choco install nasm strawberryperl pkgconfiglite mkvtoolnix
-          choco install gstreamer --version=1.22.8
-          choco install gstreamer-devel --version=1.22.8
+          choco install gstreamer --version=1.22.12
+          choco install gstreamer-devel --version=1.22.12
 
       - name: Build samples (Linux & Mac)
         if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -106,14 +139,20 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 900
+
+      - name: Download sample.mp4 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sample-mp4
+          path: ./assets
 
       - name: Run ${{ matrix.sample.name }} (Linux & Mac)
         if: runner.os == 'Linux' || runner.os == 'macOS'
         working-directory: ./build
         run: |
-          curl -fsSL -o sample.mp4 https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
-          ./${{ matrix.sample.name }} demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+          mv ../assets/*.mp4 .
+          ./${{ matrix.sample.name }} demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }} ${{ matrix.sample.metadata_args }}
 
       - name: Run ${{ matrix.sample.name }} (Windows)
         if: runner.os == 'Windows'
@@ -129,10 +168,10 @@ jobs:
 
           mkdir D:\producer\debug_output
 
-          Invoke-WebRequest -Uri https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4 -OutFile sample.mp4
+          cp -r D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\assets\*.mp4 .
           dir
           $exePath = Join-Path $PWD ${{ matrix.sample.name }}.exe
-          & $exePath demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+          & $exePath demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }} ${{ matrix.sample.metadata_args }}
 
       - name: Verify MKV dump exists (Mac & Linux)
         if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -169,6 +208,76 @@ jobs:
             Write-Output "Verifying $($file.FullName) with mkvinfo (verbose and hexdump):"
             mkvinfo.exe -v -X "$($file.FullName)"
           }
+
+      - name: Check fragment metadata is present (Mac & Linux)
+        if: (runner.os == 'Linux' || runner.os == 'macOS') && matrix.sample.metadata_args != null
+        working-directory: ./build/debug_output
+        run: |
+          shopt -s nullglob
+          
+          for file in *.mkv; do
+            echo "Verifying ${file} with mkvinfo:"
+            mkvinfo -v -X "${file}" > mkvinfo_output.txt 2>&1
+            found_notification=false
+            found_image=false
+      
+            if [ -f "mkvinfo_output.txt" ]; then
+              if grep -q "AWS_KINESISVIDEO_NOTIFICATION" "mkvinfo_output.txt"; then
+                found_notification=true
+                echo "Found AWS_KINESISVIDEO_NOTIFICATION in ${file}"
+              fi
+              
+              if grep -q "AWS_KINESISVIDEO_IMAGE_GENERATION" "mkvinfo_output.txt"; then
+                found_image=true
+                echo "Found AWS_KINESISVIDEO_IMAGE_GENERATION in ${file}"
+              fi
+              
+              if [ "${found_notification}" = false ] || [ "${found_image}" = false ]; then
+                echo "Error: Required metadata strings not found in ${file}"
+                echo "AWS_KINESISVIDEO_NOTIFICATION: ${found_notification}"
+                echo "AWS_KINESISVIDEO_IMAGE_GENERATION: ${found_image}"
+                rm -f "mkvinfo_output.txt"
+                exit 1
+              fi
+              rm -f "mkvinfo_output.txt"
+            else
+              echo "Error: Failed to create mkvinfo output file"
+              exit 1
+            fi
+          done
+
+        shell: bash
+
+      - name: Check fragment metadata is present (Windows)
+        if: runner.os == 'Windows' && matrix.sample.metadata_args != null
+        working-directory: D:\producer\build
+        run: |
+          $env:Path += ";C:\Program Files\MKVToolNix"
+          $mkvFiles = Get-ChildItem -Path "D:\producer\debug_output" -Filter *.mkv
+      
+          foreach ($file in $mkvFiles) {
+            $output = mkvinfo.exe -v -X "$($file.FullName)"
+            $foundNotification = $false
+            $foundImage = $false
+
+            if ($output -match "AWS_KINESISVIDEO_NOTIFICATION") {
+              $foundNotification = $true
+              Write-Output "Found AWS_KINESISVIDEO_NOTIFICATION in $($file.Name)"
+            }
+          
+            if ($output -match "AWS_KINESISVIDEO_IMAGE_GENERATION") {
+              $foundImage = $true
+              Write-Output "Found AWS_KINESISVIDEO_IMAGE_GENERATION in $($file.Name)"
+            }
+          
+            if (-not $foundNotification -or -not $foundImage) {
+              Write-Output "Required metadata strings not found in $($file.Name)"
+              Write-Output "AWS_KINESISVIDEO_NOTIFICATION: $foundNotification"
+              Write-Output "AWS_KINESISVIDEO_IMAGE_GENERATION: $foundImage"
+              exit 1
+            }
+          }
+        shell: pwsh
 
   multistream-sample:
     name: Multistream sample on Ubuntu 22.04
@@ -225,7 +334,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 900
 
       - name: Run multistream sample
         working-directory: ./build
@@ -310,12 +419,14 @@ jobs:
 
   wsl-sample-checks:
     name: WSL ${{ matrix.image }} - ${{ matrix.sample.name }}
+    needs: prep-assets
 
     strategy:
       matrix:
         sample:
           - name: kvs_gstreamer_audio_video_sample
             args: -f sample.mp4
+            metadata_args: -e both
           - name: kvs_gstreamer_file_uploader_sample
             args: sample.mp4 0 audio-video
           - name: kvs_gstreamer_sample
@@ -365,16 +476,24 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
 
+      - name: Download sample.mp4 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sample-mp4
+          path: ./assets
+
       - name: Move repository in WSL
         run: |
           # Copy to ~/kvs-cpp-repo for simplicity
           # Note: Can't move due to no permissions
           REPO_NAME=$(basename ${{ github.repository }})
-          cp -r /mnt/d/a/$REPO_NAME/$REPO_NAME ~/kvs-cpp-repo
+          DRIVE_LETTER=$(echo "${{ github.workspace }}" | sed -r 's/^([A-Za-z]):.*/\1/' | tr '[:upper:]' '[:lower:]')
+          cp -r /mnt/$DRIVE_LETTER/a/$REPO_NAME/$REPO_NAME ~/kvs-cpp-repo
+          mkdir -p ~/kvs-cpp-repo/build
+          cp -r /mnt/d/a/$REPO_NAME/$REPO_NAME/assets/*.mp4 ~/kvs-cpp-repo/build
 
       - name: Build samples in WSL
         run: |
-          mkdir -p ~/kvs-cpp-repo/build
           cd ~/kvs-cpp-repo/build
           cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DALIGNED_MEMORY_MODEL=ON -DBUILD_DEPENDENCIES=OFF
           make -j$(nproc)
@@ -395,8 +514,6 @@ jobs:
           export GST_PLUGIN_PATH=~/kvs-cpp-repo/build
           export AWS_KVS_LOG_LEVEL=2
 
-          curl -fsSL -o sample.mp4 https://awsj-iot-handson.s3-ap-northeast-1.amazonaws.com/kvs-workshop/sample.mp4
-
           # Note: `env.` syntax to reference credentials to have GitHub Actions inject
           # the secret values into these environment variables before the command runs,
           # since the WSL shell doesn't have access to GitHub's environment variables
@@ -406,7 +523,7 @@ jobs:
           export AWS_DEFAULT_REGION=${{ env.AWS_DEFAULT_REGION }}
           
           set +e  # Disable exit on error for the timeout command
-          ./${{ matrix.sample.name }} demo-stream-producer-cpp-wsl-${{ matrix.image }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }}
+          ./${{ matrix.sample.name }} demo-stream-producer-cpp-wsl-${{ matrix.image }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }} ${{ matrix.sample.metadata_args }}
           EXIT_CODE=$?
           set -e  # Re-enable exit on error
           
@@ -434,4 +551,34 @@ jobs:
           for file in "${mkvfiles[@]}"; do
             echo "Verifying $file with mkvinfo (verbose and hexdump):"
             mkvinfo -v -X "$file"
+          done
+
+      - name: Check fragment metadata is present (WSL)
+        if: matrix.sample.metadata_args != null
+        run: |
+          shopt -s nullglob
+          cd ~/kvs-cpp-repo/build/debug_output
+          
+          for file in *.mkv; do
+            echo "Verifying $file with mkvinfo:"
+            mkvinfo -v -X "${file}" > mkvinfo_output.txt
+            found_notification=false
+            found_image=false
+
+            if grep -q "AWS_KINESISVIDEO_NOTIFICATION" "mkvinfo_output.txt"; then
+              found_notification=true
+              echo "Found AWS_KINESISVIDEO_NOTIFICATION in $file"
+            fi
+
+            if grep -q "AWS_KINESISVIDEO_IMAGE_GENERATION" "mkvinfo_output.txt"; then
+              found_image=true
+              echo "Found AWS_KINESISVIDEO_IMAGE_GENERATION in $file"
+            fi
+
+            if [ "$found_notification" = false ] || [ "$found_image" = false ]; then
+              echo "Error: Required metadata strings not found in $file"
+              echo "AWS_KINESISVIDEO_NOTIFICATION: ${found_notification}"
+              echo "AWS_KINESISVIDEO_IMAGE_GENERATION: ${found_image}"
+              exit 1
+            fi
           done
