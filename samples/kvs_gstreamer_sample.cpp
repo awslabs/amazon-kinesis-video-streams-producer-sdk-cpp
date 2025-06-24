@@ -688,7 +688,7 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
 
     GstElement *source_filter, *filter, *appsink, *h264parse, *encoder, *source, *video_convert;
 
-    /* create the elemnents */
+    /* create the elements */
     /*
        gst-launch-1.0 v4l2src device=/dev/video0 ! video/x-raw,format=I420,width=1280,height=720,framerate=15/1 ! x264enc pass=quant bframes=0 ! video/x-h264,profile=baseline,format=I420,width=1280,height=720,framerate=15/1 ! matroskamux ! filesink location=test.mkv
      */
@@ -821,7 +821,7 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
     gst_caps_unref(src_caps);
     gst_object_unref(srcpad);
 
-    /* create the elemnents needed for the corresponding pipeline */
+    /* create the elements needed for the corresponding pipeline */
     if (!data->h264_stream_supported) {
         video_convert = gst_element_factory_make("videoconvert", "video_convert");
 
