@@ -53,6 +53,14 @@ void sigint_handler(int sigint) {
     }
 }
 
+bool check_element(GstElement* element, const char* name) {
+    if (!element) {
+        LOG_ERROR("[KVS sample] Failed to create element: " << name);
+        return false;
+    }
+    return true;
+}
+
 static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data) {
     GMainLoop *loop = (GMainLoop *) ((CustomData *)data)->main_loop;
     GstElement *pipeline = (GstElement *) ((CustomData *)data)->pipeline;
@@ -280,17 +288,17 @@ int main(int argc, char *argv[]) {
     
 
     /* Check that GStreamer elements were all successfully created */
-
-    if (!kvssink) {
-        LOG_ERROR("[KVS sample] Failed to create kvssink element");
+    if (!check_element(pipeline, "pipeline") ||
+        !check_element(source, "source") ||
+        !check_element(clock_overlay, "clock_overlay") ||
+        !check_element(video_convert, "video_convert") ||
+        !check_element(source_filter, "source_filter") ||
+        !check_element(encoder, "encoder") ||
+        !check_element(sink_filter, "sink_filter") ||
+        !check_element(kvssink, "kvssink")) {
         return -1;
     }
-
-    if (!pipeline || !source || !clock_overlay || !video_convert || !source_filter || !encoder || !sink_filter) {
-        LOG_ERROR("[KVS sample] Not all GStreamer elements could be created.");
-        return -1;
-    }
-
+    
     // Populate data struct.
     customData.main_loop = main_loop;
     customData.pipeline = pipeline;
