@@ -1251,9 +1251,9 @@ put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
     Frame frame;
 
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    put_frame_status = data->kinesis_video_stream->putFrame(frame);
-    if(data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
-        if(CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame){
+    put_frame_status = data->kinesis_video_stream->statusPutFrame(frame);
+    if (data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
+        if (CHECK_FRAME_FLAG_KEY_FRAME(flags) || data->on_first_frame) {
             KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
             kvs_sink_metric->stream_metrics = data->kinesis_video_stream->getMetrics();
             kvs_sink_metric->client_metrics = data->kinesis_video_producer->getMetrics();

@@ -19,7 +19,17 @@ KinesisVideoStream::KinesisVideoStream(const KinesisVideoProducer& kinesis_video
     }
 }
 
-STATUS KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
+// Added statusPutFrame function but leaving the putFrame function as is to still return a bool for backward compatibility.
+bool KinesisVideoStream::putFrame(KinesisVideoFrame& frame) const {
+    STATUS status = statusPutFrame(frame);
+    if (STATUS_FAILED(status)) {
+        return false;
+    }
+
+    return true;
+}
+
+STATUS KinesisVideoStream::statusPutFrame(KinesisVideoFrame& frame) const {
     if (debug_dump_frame_info_) {
         LOG_DEBUG("[" << this->stream_name_ << "] pts: " << frame.presentationTs << ", dts: " << frame.decodingTs << ", duration: " << frame.duration << ", size: " << frame.size << ", trackId: " << frame.trackId
                           << ", isKey: " << CHECK_FRAME_FLAG_KEY_FRAME(frame.flags));

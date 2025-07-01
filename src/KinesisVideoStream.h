@@ -60,7 +60,15 @@ public:
      * @param frame The frame to be packaged and streamed.
      * @return true if the encoder accepted the frame and false otherwise.
      */
-    STATUS putFrame(KinesisVideoFrame& frame) const;
+    bool putFrame(KinesisVideoFrame& frame) const;
+
+    /**
+     * Does putFrame, but returns a STATUS rather than a failure/success bool.
+     *
+     * @param frame The frame to be packaged and streamed.
+     * @return STATUS of the putKinesisVideoFrame call.
+     */
+    STATUS statusPutFrame(KinesisVideoFrame& frame) const;
 
     /**
      * Gets the stream metrics.
