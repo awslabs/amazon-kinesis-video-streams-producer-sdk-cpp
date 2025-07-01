@@ -323,10 +323,10 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
+STATUS put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
-    return kinesis_video_stream->putFrame(frame);
+    return kinesis_video_stream->statusPutFrame(frame);
 }
 
 static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {

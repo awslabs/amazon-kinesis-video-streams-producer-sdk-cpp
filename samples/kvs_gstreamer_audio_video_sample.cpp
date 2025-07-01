@@ -501,7 +501,7 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     create_kinesis_video_frame(&frame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->dts),
                                kinesis_video_flags, info.data, info.size, track_id);
 
-    data->kinesis_video_stream->putFrame(frame);
+    data->kinesis_video_stream->statusPutFrame(frame);
 
     // Sample to demonstrate how event metadata tags can be generated for fragment(s)
     // Ref: https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/notifications.html

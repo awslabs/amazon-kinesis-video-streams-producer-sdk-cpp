@@ -63,6 +63,14 @@ public:
     bool putFrame(KinesisVideoFrame& frame) const;
 
     /**
+     * Does putFrame, but returns a STATUS rather than a failure/success bool.
+     *
+     * @param frame The frame to be packaged and streamed.
+     * @return STATUS of the putKinesisVideoFrame call.
+     */
+    STATUS statusPutFrame(KinesisVideoFrame& frame) const;
+
+    /**
      * Gets the stream metrics.
      *
      * @return Stream metrics object to be filled with the current metrics data.

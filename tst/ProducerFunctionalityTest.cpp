@@ -68,7 +68,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
         timestamp += frame_duration_;
     }
 
@@ -127,7 +127,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
         timestamp += frame_duration_;
     }
 
@@ -192,7 +192,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
                                                   << ", Dts: " << frame.decodingTs
                                                   << ", Pts: " << frame.presentationTs);
 
-            EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
             timestamp += frame_duration_;
 
             // pause at the last frame of each clip
@@ -257,7 +257,7 @@ TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
         timestamp += frame_duration_;
     }
 
@@ -316,7 +316,7 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
         timestamp += frame_duration_;
     }
 
@@ -376,7 +376,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
 
         // Pause on the 5th
         if (i == 5 * key_frame_interval_) {
-            EXPECT_TRUE(kinesis_video_stream->putFrame(eofr));
+            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(eofr));
 
             // Make sure we hit the connection idle timeout
             THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
@@ -398,7 +398,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
         timestamp += frame_duration_;
 
         THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
@@ -483,7 +483,7 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
         timestamp += frame_duration_;
 
         THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
@@ -579,7 +579,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
 
         THREAD_SLEEP(frame_duration_);
     }
@@ -664,7 +664,7 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_TRUE(kinesis_video_stream->putFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
 
         THREAD_SLEEP(frame_duration_);
     }

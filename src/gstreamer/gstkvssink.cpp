@@ -1243,14 +1243,17 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = static_cast<UINT64>(track_id);
 }
 
-bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
+STATUS
+put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
 
+    STATUS put_frame_status = STATUS_SUCCESS;
     Frame frame;
+
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    bool ret = data->kinesis_video_stream->putFrame(frame);
-    if (data->get_metrics && ret) {
-        if (CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame) {
+    put_frame_status = data->kinesis_video_stream->statusPutFrame(frame);
+    if (data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
+        if (CHECK_FRAME_FLAG_KEY_FRAME(flags) || data->on_first_frame) {
             KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
             kvs_sink_metric->stream_metrics = data->kinesis_video_stream->getMetrics();
             kvs_sink_metric->client_metrics = data->kinesis_video_producer->getMetrics();
@@ -1261,7 +1264,7 @@ bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
             delete kvs_sink_metric;
         }
     }
-    return ret;
+    return put_frame_status;
 }
 
 static GstFlowReturn
@@ -1279,6 +1282,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     uint64_t track_id;
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
+    STATUS put_frame_status = STATUS_SUCCESS;
 
     info.data = NULL;
     // eos reached
@@ -1389,9 +1393,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             }
         }
 
-        put_frame(kvssink->data, info.data, info.size,
-                  std::chrono::nanoseconds(buf->pts),
-                  std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+        put_frame_status = put_frame(data, info.data, info.size,
+                                     std::chrono::nanoseconds(buf->pts),
+                                     std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
     } else {
         LOG_WARN("GStreamer buffer is invalid for " << kvssink->stream_name);
@@ -1404,6 +1408,11 @@ CleanUp:
 
     if (buf != NULL) {
         gst_buffer_unref (buf);
+    }
+    
+    if (STATUS_FAILED(put_frame_status)) {
+        GST_ELEMENT_WARNING (kvssink, RESOURCE, WRITE, (NULL),
+                           ("put frame error occurred. Status: 0x%08x", put_frame_status));
     }
 
     return ret;
