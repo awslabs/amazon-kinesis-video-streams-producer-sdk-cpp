@@ -58,6 +58,7 @@ jobs:
             args: sample.mp4
           - name: kvssink_gstreamer_sample
             args: sample.mp4
+          - name: kvssink_intermittent_sample # There is no file source option for this sample (will use gst videotestsrc).
         runner:
           - id: macos-13
             image: macos-13
@@ -433,6 +434,7 @@ jobs:
             args: sample.mp4
           - name: kvssink_gstreamer_sample
             args: sample.mp4
+          - name: kvssink_intermittent_sample # There is no file source option for this sample (will use gst videotestsrc).
         image:
           - Ubuntu-22.04
           - Ubuntu-24.04
