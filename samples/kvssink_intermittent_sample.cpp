@@ -2,6 +2,9 @@
 #include <mutex>
 #include <chrono>
 #include <condition_variable>
+#include <atomic>
+#include <csignal>
+#include <cstdlib>
 
 #include <gst/gst.h>
 #include <glib.h>
@@ -10,6 +13,8 @@
 
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
+
+#define DEFAULT_SAMPLE_DURATION_SECONDS 320
 
 /* Modify these values to change start/stop interval. */
 #define KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS 20
@@ -43,18 +48,16 @@ void sigint_handler(int sigint) {
     LOG_DEBUG("SIGINT received. Exiting...");
     terminated = TRUE;
     cv.notify_all();
-    if(main_loop != NULL) {
+    if (main_loop != NULL) {
         g_main_loop_quit(main_loop);
     }
 }
 
-static gboolean
-bus_call(GstBus *bus, GstMessage *msg, gpointer data)
-{
+static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data) {
     GMainLoop *loop = (GMainLoop *) ((CustomData *)data)->main_loop;
     GstElement *pipeline = (GstElement *) ((CustomData *)data)->pipeline;
 
-    switch(GST_MESSAGE_TYPE(msg)) {
+    switch (GST_MESSAGE_TYPE(msg)) {
         case GST_MESSAGE_EOS: {
             LOG_DEBUG("[KVS sample] Received EOS message");
             cv.notify_all();
@@ -62,7 +65,7 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer data)
         }
 
         case GST_MESSAGE_ERROR: {
-            gchar  *debug;
+            gchar *debug;
             GError *error;
 
             gst_message_parse_error(msg, &error, &debug);
@@ -90,7 +93,7 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
     char const *role_alias;
     char const *ca_cert_path;
     char const *credential_path;
-    if(nullptr != (iot_credential_endpoint = GETENV("IOT_GET_CREDENTIAL_ENDPOINT")) &&
+    if (nullptr != (iot_credential_endpoint = GETENV("IOT_GET_CREDENTIAL_ENDPOINT")) &&
         nullptr != (cert_path = GETENV("CERT_PATH")) &&
         nullptr != (private_key_path = GETENV("PRIVATE_KEY_PATH")) &&
         nullptr != (role_alias = GETENV("ROLE_ALIAS")) &&
@@ -110,7 +113,7 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
         gst_structure_free(iot_credentials);
     // kvssink will search for long term credentials in envvar automatically so no need to include here
     // if no long credentials or IoT credentials provided will look for credential file as last resort.
-    } else if(nullptr != (credential_path = GETENV("AWS_CREDENTIAL_PATH"))) {
+    } else if (nullptr != (credential_path = GETENV("AWS_CREDENTIAL_PATH"))) {
         LOG_DEBUG("[KVS sample] Using AWS_CREDENTIAL_PATH long term credentials.");
         g_object_set(G_OBJECT(kvssink), "credential-path", credential_path, NULL);
     } else {
@@ -123,9 +126,9 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
     std::mutex cv_m;
     std::unique_lock<std::mutex> lck(cv_m);
 
-    while(!terminated) {
+    while (!terminated) {
         // Using cv.wait_for to break sleep early upon signal interrupt.
-        if(cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
+        if (cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             break;
         }
 
@@ -141,7 +144,7 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
 
         // Set videotestsrc to paused state because it does not stop producing frames upon EOS,
         // and the frames are not cleared upon flushing.
-        if(STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
+        if (STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
             gst_element_set_state(source, GST_STATE_PAUSED);
         }
 
@@ -150,26 +153,26 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
         gst_element_send_event(pipeline, flush_start);
 
         // Using cv.wait_for to break sleep early upon signal interrupt. Checking for termination again before waiting.
-        if(terminated || cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
+        if (terminated || cv.wait_for(lck, std::chrono::seconds(KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS)) != std::cv_status::timeout) {
             break;
         }
 
         LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds");
         
         // Stop the flush now that we are resuming streaming.
-        GstEvent* flush_stop = gst_event_new_flush_stop(true);
+        GstEvent* flush_stop = gst_event_new_flush_stop(TRUE);
         gst_element_send_event(pipeline, flush_stop);
 
         // Set videotestsrc back to playing state.
-        if(STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
+        if (STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
             gst_element_set_state(source, GST_STATE_PLAYING);
         }
     }
+
     LOG_DEBUG("[KVS sample] Exited stopStartLoop");
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
 
     CustomData customData;
@@ -180,58 +183,67 @@ int main(int argc, char *argv[])
     StreamSource source_type;
     char stream_name[MAX_STREAM_NAME_LEN + 1] = {0};
 
+    int runtime_duration_seconds = DEFAULT_SAMPLE_DURATION_SECONDS;
+
     gst_init(&argc, &argv);
 
 
     /* Parse input arguments */
 
     // Check for invalid argument count, get stream name.
-    if(argc > 3) {
+    if (argc > 3) {
         LOG_ERROR("[KVS sample] Invalid argument count, too many arguments.");
-        LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)>");
+        LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)> <runtime seconds (optional)>");
         return -1;
-    } else if(argc > 1) {
+    } else if (argc > 1) {
         STRNCPY(stream_name, argv[1], MAX_STREAM_NAME_LEN);
     }
 
     // Get source type.
-    if(argc > 2) {
-        if(0 == STRCMPI(argv[2], "testsrc")) {
+    if (argc > 2) {
+        if (0 == STRCMPI(argv[2], "testsrc")) {
             LOG_INFO("[KVS sample] Using test source (videotestsrc)");
             source_type = TEST_SOURCE;
-        } else if(0 == STRCMPI(argv[2], "devicesrc")) {
+        } else if (0 == STRCMPI(argv[2], "devicesrc")) {
             LOG_INFO("[KVS sample] Using device source (autovideosrc)");
             source_type = DEVICE_SOURCE;
         } else {
             LOG_ERROR("[KVS sample] Invalid source type");
-            LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc(optional)>");
+            LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc(optional)> <runtime seconds (optional)>");
             return -1;
         }
     } else {
-        LOG_ERROR("[KVS sample] No source specified, defualting to test source (videotestsrc)");
+        LOG_INFO("[KVS sample] No source specified, defaulting to test source (videotestsrc)");
         source_type = TEST_SOURCE;
     }
 
+    if (argc > 3) {
+        runtime_duration_seconds = atoi(argv[3]);
+        if (runtime_duration_seconds <= 0) {
+            LOG_ERROR("[KVS sample] Invalid runtime duration: must be a positive integer.");
+            return -1;
+        }
+    }
 
     /* Create GStreamer elements */
 
     pipeline = gst_pipeline_new("kvs-pipeline");
 
     /* source */
-    if(source_type == TEST_SOURCE) {
+    if (source_type == TEST_SOURCE) {
         source = gst_element_factory_make("videotestsrc", KVS_GST_TEST_SOURCE_NAME);
         g_object_set(G_OBJECT(source),
                      "is-live", TRUE,
                      "pattern", 18,
                      "background-color", 0xff003181,
                      "foreground-color", 0xffff9900, NULL);
-    } else if(source_type == DEVICE_SOURCE) {
+    } else {
         source = gst_element_factory_make("autovideosrc", KVS_GST_DEVICE_SOURCE_NAME);
     }
 
     /* clock overlay */
     clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
-    g_object_set(G_OBJECT(clock_overlay),"time-format", "%a %B %d, %Y %I:%M:%S %p", NULL);
+    g_object_set(G_OBJECT(clock_overlay), "time-format", "%a %B %d, %Y %I:%M:%S %p", NULL);
 
     /* video convert */
     video_convert = gst_element_factory_make("videoconvert", "video_convert");
@@ -269,12 +281,12 @@ int main(int argc, char *argv[])
 
     /* Check that GStreamer elements were all successfully created */
 
-    if(!kvssink) {
+    if (!kvssink) {
         LOG_ERROR("[KVS sample] Failed to create kvssink element");
         return -1;
     }
 
-    if(!pipeline || !source || !clock_overlay || !video_convert || !source_filter || !encoder || !sink_filter) {
+    if (!pipeline || !source || !clock_overlay || !video_convert || !source_filter || !encoder || !sink_filter) {
         LOG_ERROR("[KVS sample] Not all GStreamer elements could be created.");
         return -1;
     }
@@ -293,7 +305,7 @@ int main(int argc, char *argv[])
                         source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL);
 
     // Link the elements together.
-    if(!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL)) {
+    if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL)) {
         LOG_ERROR("[KVS sample] Elements could not be linked");
         gst_object_unref(pipeline);
         return -1;
@@ -305,11 +317,24 @@ int main(int argc, char *argv[])
 
     // Start the stop/start thread for intermittent streaming.
     std::thread stopStartThread(stopStartLoop, pipeline, source);
-    
+
+    std::thread timerThread([runtime_duration_seconds]() {
+        std::this_thread::sleep_for(std::chrono::seconds(runtime_duration_seconds));
+        if (!terminated) {
+            LOG_INFO("[KVS sample] Reached maximum runtime of " << runtime_duration_seconds << " seconds. Terminating.");
+            terminated = TRUE;
+            cv.notify_all();
+            if (main_loop != NULL) {
+                g_main_loop_quit(main_loop);
+            }
+        }
+    });
+
     LOG_INFO("[KVS sample] Starting GStreamer main loop");
     g_main_loop_run(main_loop);
 
     stopStartThread.join();
+    timerThread.join();
 
     // Application terminated, cleanup.
     LOG_INFO("[KVS sample] Streaming terminated, cleaning up");
