@@ -1709,7 +1709,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             data->kinesis_video_stream->stopSync();
-            data->streamingStopped.store(true);
             LOG_INFO("Stopped kvssink for " << kvssink->stream_name);
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:
