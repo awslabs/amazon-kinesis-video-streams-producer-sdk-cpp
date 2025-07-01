@@ -1660,7 +1660,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     // Upward transitions
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
-            if(kvssink->log_config_path != NULL) {
+            if (kvssink->log_config_path != NULL) {
                 log4cplus::initialize();
                 log4cplus::PropertyConfigurator::doConfigure(kvssink->log_config_path);
                 LOG_INFO("Logger config being used: " << kvssink->log_config_path);
