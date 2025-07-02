@@ -207,6 +207,7 @@ int main(int argc, char *argv[]) {
     StreamSource source_type;
     char stream_name[MAX_STREAM_NAME_LEN + 1] = {0};
     GstStateChangeReturn gst_state_change_ret;
+    gboolean link_success = FALSE;
 
     int runtime_duration_seconds = DEFAULT_SAMPLE_DURATION_SECONDS;
 
@@ -267,9 +268,14 @@ int main(int argc, char *argv[]) {
         source = gst_element_factory_make("autovideosrc", KVS_GST_DEVICE_SOURCE_NAME);
     }
 
-    /* clock overlay */
+    /* clock overlay (optional) */
     clock_overlay = gst_element_factory_make("clockoverlay", "clock_overlay");
-    g_object_set(G_OBJECT(clock_overlay), "time-format", "%a %B %d, %Y %I:%M:%S %p", NULL);
+    if (clock_overlay) {
+        g_object_set(G_OBJECT(clock_overlay), "time-format", "%a %B %d, %Y %I:%M:%S %p", NULL);
+    } else {
+        // Ubuntu WSL CI runner does not have the clockoverlay element.
+        LOG_WARN("[KVS sample] Clock overlay element not available, will construct gstreamer pipeline without it.");
+    }
 
     /* video convert */
     video_convert = gst_element_factory_make("videoconvert", "video_convert");
@@ -308,7 +314,6 @@ int main(int argc, char *argv[]) {
     /* Check that GStreamer elements were all successfully created */
     if (!check_element(pipeline, "pipeline") ||
         !check_element(source, "source") ||
-        !check_element(clock_overlay, "clock_overlay") ||
         !check_element(video_convert, "video_convert") ||
         !check_element(source_filter, "source_filter") ||
         !check_element(encoder, "encoder") ||
@@ -327,11 +332,20 @@ int main(int argc, char *argv[]) {
     gst_object_unref(bus);
 
     // Add elements into the pipeline.
-    gst_bin_add_many(GST_BIN(pipeline),
-                        source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL);
+    gst_bin_add_many(GST_BIN(pipeline), source, video_convert, source_filter, encoder, sink_filter, kvssink, NULL);
+    if (clock_overlay) {
+        gst_bin_add(GST_BIN(pipeline), clock_overlay);
+    }
 
     // Link the elements together.
-    if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL)) {
+    if (clock_overlay) {
+        link_success = gst_element_link_many(source, clock_overlay, video_convert, source_filter,
+                                            encoder, sink_filter, kvssink, NULL);
+    } else {
+        link_success = gst_element_link_many(source, video_convert, source_filter,
+                                            encoder, sink_filter, kvssink, NULL);
+    }
+    if (!link_success) {
         LOG_ERROR("[KVS sample] Elements could not be linked.");
         gst_object_unref(pipeline);
         return -1;
