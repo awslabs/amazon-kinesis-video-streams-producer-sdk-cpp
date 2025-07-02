@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
     /* Parse input arguments */
 
     // Check for invalid argument count, get stream name.
-    if (argc > 3) {
+    if (argc > 4) {
         LOG_ERROR("[KVS sample] Invalid argument count, too many arguments.");
         LOG_INFO("[KVS sample] Usage: " << argv[0] << " <streamName (optional)> <testsrc or devicesrc (optional)> <runtime seconds (optional)>");
         return -1;
