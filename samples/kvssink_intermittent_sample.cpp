@@ -30,6 +30,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
 std::atomic<bool> terminated(FALSE);
 std::condition_variable cv;
+std::mutex cv_mutex;
 
 typedef enum _StreamSource {
     TEST_SOURCE,
@@ -46,6 +47,7 @@ typedef struct _CustomData {
 } CustomData;
 
 void shutdown_sample () {
+    std::lock_guard<std::mutex> lock(cv_mutex);
     terminated = TRUE;
     cv.notify_all();
     if (main_loop != NULL) {
@@ -136,8 +138,7 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
 
 // This function handles the intermittent starting and stopping of the stream in a loop.
 void stopStartLoop(GstElement *pipeline, GstElement *source) {
-    std::mutex cv_m;
-    std::unique_lock<std::mutex> lck(cv_m);
+    std::unique_lock<std::mutex> lck(cv_mutex);
     GstStateChangeReturn gst_state_change_ret;
 
     while (!terminated) {
@@ -304,7 +305,7 @@ int main(int argc, char *argv[]) {
     /* kvssink */
     kvssink = gst_element_factory_make("kvssink", "kvssink");
     if (IS_EMPTY_STRING(stream_name)) {
-        LOG_INFO("No stream name specified, using default kvssink stream name.")
+        LOG_INFO("No stream name specified, using default kvssink stream name.");
     } else {
         g_object_set(G_OBJECT(kvssink), "stream-name", stream_name, NULL);
     }
@@ -363,11 +364,15 @@ int main(int argc, char *argv[]) {
     // Start the stop/start thread for intermittent streaming.
     std::thread stopStartThread(stopStartLoop, pipeline, source);
 
+    // Start the timer thread to terminate the sample after a specified duration.
     std::thread timerThread([runtime_duration_seconds]() {
-        std::this_thread::sleep_for(std::chrono::seconds(runtime_duration_seconds));
-        if (!terminated) {
-            LOG_INFO("[KVS sample] Reached maximum runtime of " << runtime_duration_seconds << " seconds. Terminating.");
-            shutdown_sample();
+        LOG_INFO("[KVS sample] Timer thread started. Will wait for " << runtime_duration_seconds << " seconds or until terminated.");
+        std::unique_lock<std::mutex> lck(cv_mutex);
+        if (cv.wait_for(lck, std::chrono::seconds(runtime_duration_seconds)) == std::cv_status::timeout) {
+            if (!terminated) {
+                LOG_INFO("[KVS sample] Reached maximum runtime of " << runtime_duration_seconds << " seconds. Terminating.");
+                shutdown_sample();
+            }
         }
     });
 
