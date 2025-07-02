@@ -5,6 +5,7 @@
 #include <atomic>
 #include <csignal>
 #include <cstdlib>
+#include <Logger.h>
 
 #include <gst/gst.h>
 #include <glib.h>
@@ -195,6 +196,8 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
 
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
+
+    PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
     CustomData customData;
     GstElement *pipeline, *source, *clock_overlay, *video_convert, *source_filter, *encoder, *sink_filter, *kvssink;
