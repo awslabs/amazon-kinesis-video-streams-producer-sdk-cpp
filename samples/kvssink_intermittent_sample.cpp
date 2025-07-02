@@ -44,13 +44,17 @@ typedef struct _CustomData {
     GstElement *pipeline;
 } CustomData;
 
-void sigint_handler(int sigint) {
-    LOG_DEBUG("SIGINT received. Exiting...");
+void shutdown_sample () {
     terminated = TRUE;
     cv.notify_all();
     if (main_loop != NULL) {
         g_main_loop_quit(main_loop);
     }
+}
+
+void sigint_handler(int sigint) {
+    LOG_DEBUG("SIGINT received. Exiting...");
+    shutdown_sample();
 }
 
 bool check_element(GstElement* element, const char* name) {
@@ -133,6 +137,7 @@ void determine_aws_credentials(GstElement *kvssink, char* streamName) {
 void stopStartLoop(GstElement *pipeline, GstElement *source) {
     std::mutex cv_m;
     std::unique_lock<std::mutex> lck(cv_m);
+    GstStateChangeReturn gst_state_change_ret;
 
     while (!terminated) {
         // Using cv.wait_for to break sleep early upon signal interrupt.
@@ -140,7 +145,7 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
             break;
         }
 
-        LOG_INFO("[KVS sample] Stopping stream to KVS for " << KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS << " seconds");
+        LOG_INFO("[KVS sample] Stopping stream to KVS for " << KVS_INTERMITTENT_PAUSED_INTERVAL_SECONDS << " seconds.");
 
         // EOS event pushes frames buffered by the h264enc element down to kvssink.
         GstEvent* eos = gst_event_new_eos();
@@ -153,7 +158,11 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
         // Set videotestsrc to paused state because it does not stop producing frames upon EOS,
         // and the frames are not cleared upon flushing.
         if (STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
-            gst_element_set_state(source, GST_STATE_PAUSED);
+            gst_state_change_ret = gst_element_set_state(source, GST_STATE_PAUSED);
+            if (gst_state_change_ret == GST_STATE_CHANGE_FAILURE) {
+                LOG_ERROR("[KVS sample] Unable to set the source to the paused state.");
+                shutdown_sample();
+            }
         }
 
         // Flushing to remove EOS status.
@@ -165,7 +174,7 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
             break;
         }
 
-        LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds");
+        LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds.");
         
         // Stop the flush now that we are resuming streaming.
         GstEvent* flush_stop = gst_event_new_flush_stop(TRUE);
@@ -173,11 +182,15 @@ void stopStartLoop(GstElement *pipeline, GstElement *source) {
 
         // Set videotestsrc back to playing state.
         if (STRCMPI(GST_ELEMENT_NAME(source), KVS_GST_TEST_SOURCE_NAME) == 0) {
-            gst_element_set_state(source, GST_STATE_PLAYING);
+            gst_state_change_ret = gst_element_set_state(source, GST_STATE_PLAYING);
+            if (gst_state_change_ret == GST_STATE_CHANGE_FAILURE) {
+                LOG_ERROR("[KVS sample] Unable to set the source to the playing state.");
+                shutdown_sample();
+            }
         }
     }
 
-    LOG_DEBUG("[KVS sample] Exited stopStartLoop");
+    LOG_DEBUG("[KVS sample] Exited stopStartLoop.");
 }
 
 int main(int argc, char *argv[]) {
@@ -190,6 +203,7 @@ int main(int argc, char *argv[]) {
     guint bus_watch_id;
     StreamSource source_type;
     char stream_name[MAX_STREAM_NAME_LEN + 1] = {0};
+    GstStateChangeReturn gst_state_change_ret;
 
     int runtime_duration_seconds = DEFAULT_SAMPLE_DURATION_SECONDS;
 
@@ -232,6 +246,7 @@ int main(int argc, char *argv[]) {
             return -1;
         }
     }
+
 
     /* Create GStreamer elements */
 
@@ -314,14 +329,19 @@ int main(int argc, char *argv[]) {
 
     // Link the elements together.
     if (!gst_element_link_many(source, clock_overlay, video_convert, source_filter, encoder, sink_filter, kvssink, NULL)) {
-        LOG_ERROR("[KVS sample] Elements could not be linked");
+        LOG_ERROR("[KVS sample] Elements could not be linked.");
         gst_object_unref(pipeline);
         return -1;
     }
 
     // Set the pipeline to playing state.
-    LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds");
-    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    LOG_INFO("[KVS sample] Starting stream to KVS for " << KVS_INTERMITTENT_PLAYING_INTERVAL_SECONDS << " seconds.");
+    gst_state_change_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (gst_state_change_ret == GST_STATE_CHANGE_FAILURE) {
+        LOG_ERROR("[KVS sample] Unable to set the pipeline to the playing state.");
+        gst_object_unref(pipeline);
+        return -1;
+    }
 
     // Start the stop/start thread for intermittent streaming.
     std::thread stopStartThread(stopStartLoop, pipeline, source);
@@ -330,22 +350,18 @@ int main(int argc, char *argv[]) {
         std::this_thread::sleep_for(std::chrono::seconds(runtime_duration_seconds));
         if (!terminated) {
             LOG_INFO("[KVS sample] Reached maximum runtime of " << runtime_duration_seconds << " seconds. Terminating.");
-            terminated = TRUE;
-            cv.notify_all();
-            if (main_loop != NULL) {
-                g_main_loop_quit(main_loop);
-            }
+            shutdown_sample();
         }
     });
 
-    LOG_INFO("[KVS sample] Starting GStreamer main loop");
+    LOG_INFO("[KVS sample] Starting GStreamer main loop.");
     g_main_loop_run(main_loop);
 
     stopStartThread.join();
     timerThread.join();
 
     // Application terminated, cleanup.
-    LOG_INFO("[KVS sample] Streaming terminated, cleaning up");
+    LOG_INFO("[KVS sample] Streaming terminated, cleaning up.");
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(GST_OBJECT(pipeline));
     g_source_remove(bus_watch_id);
