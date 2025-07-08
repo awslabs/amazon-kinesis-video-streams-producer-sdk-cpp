@@ -32,6 +32,9 @@ std::atomic<bool> terminated(FALSE);
 std::condition_variable cv;
 std::mutex cv_mutex;
 
+std::condition_variable duration_cv;
+std::mutex duration_cv_mutex;
+
 typedef enum _StreamSource {
     TEST_SOURCE,
     DEVICE_SOURCE
@@ -47,6 +50,7 @@ typedef struct _CustomData {
 } CustomData;
 
 void shutdown_sample () {
+    LOG_INFO("[KVS sample] Shutting down sample...");
     std::lock_guard<std::mutex> lock(cv_mutex);
     terminated = TRUE;
     cv.notify_all();
@@ -367,8 +371,8 @@ int main(int argc, char *argv[]) {
     // Start the timer thread to terminate the sample after a specified duration.
     std::thread timerThread([runtime_duration_seconds]() {
         LOG_INFO("[KVS sample] Timer thread started. Will wait for " << runtime_duration_seconds << " seconds or until terminated.");
-        std::unique_lock<std::mutex> lck(cv_mutex);
-        if (cv.wait_for(lck, std::chrono::seconds(runtime_duration_seconds)) == std::cv_status::timeout) {
+        std::unique_lock<std::mutex> lck(duration_cv_mutex);
+        if (duration_cv.wait_for(lck, std::chrono::seconds(runtime_duration_seconds)) == std::cv_status::timeout) {
             if (!terminated) {
                 LOG_INFO("[KVS sample] Reached maximum runtime of " << runtime_duration_seconds << " seconds. Terminating.");
                 shutdown_sample();
