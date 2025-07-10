@@ -1220,7 +1220,7 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
             if(data && data->kinesis_video_stream) {
                 Frame eofr = EOFR_FRAME_INITIALIZER;
                 LOG_INFO("Sending EOFR for " << kvssink->stream_name);
-                STATUS put_eofr_status = data->kinesis_video_stream->putFrame(eofr);
+                STATUS put_eofr_status = data->kinesis_video_stream->statusPutFrame(eofr);
                 if(STATUS_FAILED(put_eofr_status)) {
                     LOG_WARN("Failed to put EOFR for " << kvssink->stream_name);
                 }
