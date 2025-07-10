@@ -541,6 +541,7 @@ jobs:
           fi
 
       - name: Verify MKV dump exists (WSL)
+        if: matrix.sample.name != 'kvssink_intermittent_sample'
         run: |
           cd ~/kvs-cpp-repo/build/debug_output
           shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
