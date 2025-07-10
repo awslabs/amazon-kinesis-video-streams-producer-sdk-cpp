@@ -54,6 +54,7 @@ void shutdown_sample () {
     std::lock_guard<std::mutex> lock(cv_mutex);
     terminated = TRUE;
     cv.notify_all();
+    duration_cv.notify_all();
     if (main_loop != NULL) {
         g_main_loop_quit(main_loop);
     }
