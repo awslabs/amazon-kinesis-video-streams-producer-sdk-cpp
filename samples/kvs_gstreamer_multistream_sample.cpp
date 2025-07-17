@@ -7,11 +7,72 @@
 #include <fstream>
 #include <vector>
 #include <map>
+#include <iostream>
+#include <sstream>
+#include <algorithm>
 
 using namespace std;
 using namespace std::chrono;
 using namespace com::amazonaws::kinesis::video;
 using namespace log4cplus;
+
+// Camera configuration structure
+struct CameraConfig {
+    std::string rtsp_url;
+    std::string name;
+    std::string codec;
+};
+
+// Simple JSON parser for cameras.json
+std::vector<CameraConfig> parseCamerasJson(const std::string& filename) {
+    std::vector<CameraConfig> cameras;
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        LOG_ERROR("Failed to open cameras.json file: " << filename);
+        return cameras;
+    }
+    
+    std::string line;
+    CameraConfig current_camera;
+    bool in_object = false;
+    
+    while (std::getline(file, line)) {
+        // Remove leading/trailing whitespace
+        line.erase(0, line.find_first_not_of(" \t\r\n"));
+        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+        
+        if (line == "{") {
+            in_object = true;
+            current_camera = CameraConfig();
+        } else if (line == "}" || line == "},") {
+            if (in_object && !current_camera.rtsp_url.empty()) {
+                cameras.push_back(current_camera);
+            }
+            in_object = false;
+        } else if (in_object && line.find("\"rtsp_url\"") != std::string::npos) {
+            size_t start = line.find(": \"") + 3;
+            size_t end = line.rfind("\"");
+            if (start < end) {
+                current_camera.rtsp_url = line.substr(start, end - start);
+            }
+        } else if (in_object && line.find("\"name\"") != std::string::npos) {
+            size_t start = line.find(": \"") + 3;
+            size_t end = line.rfind("\"");
+            if (start < end) {
+                current_camera.name = line.substr(start, end - start);
+            }
+        } else if (in_object && line.find("\"codec\"") != std::string::npos) {
+            size_t start = line.find(": \"") + 3;
+            size_t end = line.rfind("\"");
+            if (start < end) {
+                current_camera.codec = line.substr(start, end - start);
+            }
+        }
+    }
+    
+    file.close();
+    return cameras;
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -332,15 +393,18 @@ void kinesis_video_init(CustomData *data) {
     LOG_DEBUG("Client is ready");
 }
 
-void kinesis_stream_init(string stream_name, CustomData *data, string stream_handle_key) {
+void kinesis_stream_init(string stream_name, CustomData *data, string stream_handle_key, string codec = "h264") {
     /* create a test stream */
+    string content_type = (codec == "h265") ? "video/h265" : "video/h264";
+    string codec_id = (codec == "h265") ? "V_MPEGH/ISO/HEVC" : "V_MPEG4/ISO/AVC";
+    
     unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(
         stream_name.c_str(),
         hours(DEFAULT_RETENTION_PERIOD_HOURS),
         nullptr,
         DEFAULT_KMS_KEY_ID,
         DEFAULT_STREAMING_TYPE,
-        DEFAULT_CONTENT_TYPE,
+        content_type.c_str(),
         duration_cast<milliseconds> (seconds(DEFAULT_MAX_LATENCY_SECONDS)),
         milliseconds(DEFAULT_FRAGMENT_DURATION_MILLISECONDS),
         milliseconds(DEFAULT_TIMECODE_SCALE_MILLISECONDS),
@@ -357,7 +421,7 @@ void kinesis_stream_init(string stream_name, CustomData *data, string stream_han
         seconds(DEFAULT_BUFFER_DURATION_SECONDS),
         seconds(DEFAULT_REPLAY_DURATION_SECONDS),
         seconds(DEFAULT_CONNECTION_STALENESS_SECONDS),
-        DEFAULT_CODEC_ID,
+        codec_id.c_str(),
         DEFAULT_TRACKNAME,
         nullptr,
         0));
@@ -384,11 +448,10 @@ static void cb_rtsp_pad_created(GstElement *element, GstPad *pad, gpointer data)
 int gstreamer_init(int argc, char *argv[]) {
     PropertyConfigurator::doConfigure("../kvs_log_configuration");
 
-    if (argc < 3) {
+    if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_multistream_app base-stream-name rtsp-url-file-name\n" <<
-                "base-stream-name: the application will create one stream for each rtsp url read. The base-stream-names will be suffixed with indexes to differentiate the streams\n" <<
-                "rtsp-url-file-name: name of the file containing rtsp urls separated by new lines");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_sample_multistream_app cameras.json\n" <<
+                "cameras.json: JSON file containing camera configurations with rtsp_url, name, and codec fields");
 
         return 1;
     }
@@ -410,57 +473,78 @@ int gstreamer_init(int argc, char *argv[]) {
     /* init GStreamer */
     gst_init(&argc, &argv);
 
-    ifstream rtsp_url_file (argv[2]);
-    if (!rtsp_url_file.is_open()) {
-        LOG_ERROR("Failed to open rtsp-urls file");
+    /* Parse cameras.json file */
+    std::vector<CameraConfig> cameras = parseCamerasJson(argv[1]);
+    
+    if (cameras.empty()) {
+        LOG_ERROR("No cameras found in JSON file");
         return 1;
     }
-
-    std::vector<std::string> rtsp_urls;
-    std::string rtsp_url;
-    while (rtsp_url_file >> rtsp_url) {
-        rtsp_urls.push_back(rtsp_url);
-    }
-
-    if (rtsp_urls.empty()) {
-        LOG_ERROR("No rtsp url was read");
-        return 1;
-    }
+    
+    LOG_INFO("Found " << cameras.size() << " cameras in configuration");
 
     /* init Kinesis Video */
-    string base_stream_name(argv[1]);
     string base_appsink_name(APP_SINK_BASE_NAME);
     kinesis_video_init(&data);
-    for (int i = 0; i < rtsp_urls.size(); ++i) {
-        // create a complete gstreamer pipeline for each rtsp url
+    
+    for (size_t i = 0; i < cameras.size(); ++i) {
+        const CameraConfig& camera = cameras[i];
+        // Use camera name from JSON, replacing spaces and special characters with underscores
+        string stream_name = camera.name;
+        std::replace(stream_name.begin(), stream_name.end(), ' ', '_');
+        std::replace(stream_name.begin(), stream_name.end(), '.', '_');
+        std::replace(stream_name.begin(), stream_name.end(), '-', '_');
+        
         string appsink_name = base_appsink_name + std::to_string(i);
-        string stream_name = base_stream_name + '_' + std::to_string(i);
-        kinesis_stream_init(stream_name, &data, appsink_name);
+        
+        LOG_INFO("Setting up camera: " << camera.name << " with codec: " << camera.codec);
+        
+        kinesis_stream_init(stream_name, &data, appsink_name, camera.codec);
         GstElement *appsink, *depay, *source, *filter, *pipeline;
 
         appsink = gst_element_factory_make("appsink", appsink_name.c_str());
-        depay = gst_element_factory_make("rtph264depay", "depay");
+        
+        // Select appropriate depayloader based on codec
+        if (camera.codec == "h264") {
+            depay = gst_element_factory_make("rtph264depay", "depay");
+        } else if (camera.codec == "h265") {
+            depay = gst_element_factory_make("rtph265depay", "depay");
+        } else {
+            LOG_ERROR("Unsupported codec: " << camera.codec << " for camera: " << camera.name);
+            continue;
+        }
         source = gst_element_factory_make("rtspsrc", "source");
         filter = gst_element_factory_make("capsfilter", "encoder_filter");
-        GstCaps *h264_caps = gst_caps_new_simple("video/x-h264",
-                                                 "stream-format", G_TYPE_STRING, "avc",
-                                                 "alignment", G_TYPE_STRING, "au",
-                                                 NULL);
-        g_object_set(G_OBJECT (filter), "caps", h264_caps, NULL);
-        gst_caps_unref(h264_caps);
+        
+        // Set caps based on codec
+        GstCaps *caps;
+        if (camera.codec == "h264") {
+            caps = gst_caps_new_simple("video/x-h264",
+                                     "stream-format", G_TYPE_STRING, "avc",
+                                     "alignment", G_TYPE_STRING, "au",
+                                     NULL);
+        } else { // h265
+            caps = gst_caps_new_simple("video/x-h265",
+                                     "stream-format", G_TYPE_STRING, "hvc1",
+                                     "alignment", G_TYPE_STRING, "au",
+                                     NULL);
+        }
+        
+        g_object_set(G_OBJECT (filter), "caps", caps, NULL);
+        gst_caps_unref(caps);
         pipeline = gst_pipeline_new("rtsp-kinesis-pipeline");
 
         if (!pipeline || !source || !depay  || !appsink) {
-            g_printerr("Not all elements could be created:\n");
+            g_printerr("Not all elements could be created for camera %s:\n", camera.name.c_str());
             if (!pipeline) g_printerr("\tCore pipeline\n");
             if (!source) g_printerr("\trtspsrc (gst-plugins-good)\n");
-            if (!depay) g_printerr("\trtph264depay (gst-plugins-good)\n");
+            if (!depay) g_printerr("\trtph264depay/rtph265depay (gst-plugins-good)\n");
             if (!appsink) g_printerr("\tappsink (gst-plugins-base)\n");
-            return 1;
+            continue;
         }
 
         g_object_set(G_OBJECT (source),
-                     "location", rtsp_urls[i].c_str(),
+                     "location", camera.rtsp_url.c_str(),
                      "short-header", true, // Necessary for target camera
                      NULL);
 
@@ -468,7 +552,7 @@ int gstreamer_init(int argc, char *argv[]) {
         /* configure appsink */
         g_object_set(G_OBJECT (appsink), "emit-signals", TRUE, "sync", FALSE, NULL);
         g_signal_connect(appsink, "new-sample", G_CALLBACK(on_new_sample), &data);
-        LOG_DEBUG("appsink configured");
+        LOG_DEBUG("appsink configured for camera: " << camera.name);
 
         g_signal_connect(source, "pad-added", G_CALLBACK(cb_rtsp_pad_created), depay);
 
@@ -482,9 +566,9 @@ int gstreamer_init(int argc, char *argv[]) {
                                    appsink,
                                    NULL)) {
 
-            g_printerr("Elements could not be linked.\n");
+            g_printerr("Elements could not be linked for camera: %s\n", camera.name.c_str());
             gst_object_unref(pipeline);
-            return 1;
+            continue;
         }
 
         data.pipelines.push_back(pipeline);
