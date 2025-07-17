@@ -241,6 +241,9 @@ typedef struct _CustomData {
     // Pts of first frame
     map<string, uint64_t> first_pts_map;
     map<string, uint64_t> producer_start_time_map;
+    // Metadata tracking
+    map<string, CameraConfig> camera_configs;      // Store camera config by appsink name
+    map<string, uint64_t> last_metadata_time;      // Track when metadata was last added (in seconds)
 } CustomData;
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
@@ -323,6 +326,22 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         if (false == put_frame(data->kinesis_video_stream_handles[stream_handle_key], data->frame_data_map[stream_handle_key], buffer_size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
             GST_WARNING("Dropped frame");
+        }
+        
+        // Add AWS_KINESISVIDEO_IMAGE_GENERATION metadata every 5 seconds
+        auto current_time = std::chrono::system_clock::now();
+        auto time_since_epoch = std::chrono::duration_cast<std::chrono::seconds>(current_time.time_since_epoch()).count();
+        
+        if (time_since_epoch - data->last_metadata_time[stream_handle_key] >= 5) {
+            auto kvs_stream = data->kinesis_video_stream_handles[stream_handle_key];
+            bool metadata_result = kvs_stream->putFragmentMetadata("AWS_KINESISVIDEO_IMAGE_GENERATION", "", false);
+            
+            if (metadata_result) {
+                LOG_DEBUG("Added AWS_KINESISVIDEO_IMAGE_GENERATION metadata for camera: " << data->camera_configs[stream_handle_key].name);
+                data->last_metadata_time[stream_handle_key] = time_since_epoch;
+            } else {
+                LOG_WARN("Failed to add AWS_KINESISVIDEO_IMAGE_GENERATION metadata for camera: " << data->camera_configs[stream_handle_key].name);
+            }
         }
     }
 
@@ -468,7 +487,9 @@ int gstreamer_init(int argc, char *argv[]) {
     data.frame_data_map = map<string, uint8_t*>();
     data.frame_data_size_map = map<string, UINT32>();
     data.first_pts_map = map<string, uint64_t>();
-    data.producer_start_time_map = map<string, uint64_t>();;
+    data.producer_start_time_map = map<string, uint64_t>();
+    data.camera_configs = map<string, CameraConfig>();
+    data.last_metadata_time = map<string, uint64_t>();
 
     /* init GStreamer */
     gst_init(&argc, &argv);
@@ -500,6 +521,11 @@ int gstreamer_init(int argc, char *argv[]) {
         LOG_INFO("Setting up camera: " << camera.name << " with codec: " << camera.codec);
         
         kinesis_stream_init(stream_name, &data, appsink_name, camera.codec);
+        
+        // Store camera configuration for metadata context
+        data.camera_configs[appsink_name] = camera;
+        data.last_metadata_time[appsink_name] = 0;  // Initialize to 0 for immediate first metadata
+        
         GstElement *appsink, *depay, *source, *filter, *pipeline;
 
         appsink = gst_element_factory_make("appsink", appsink_name.c_str());
