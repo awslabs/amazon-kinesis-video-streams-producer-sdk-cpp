@@ -1216,6 +1216,24 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_EOS: {
             LOG_INFO("EOS Event received in sink for " << kvssink->stream_name);
+            
+            if(data && data->kinesis_video_stream) {
+                Frame eofr = EOFR_FRAME_INITIALIZER;
+                LOG_INFO("Sending EOFR for " << kvssink->stream_name);
+                STATUS put_eofr_status = data->kinesis_video_stream->statusPutFrame(eofr);
+                if(STATUS_FAILED(put_eofr_status)) {
+                    LOG_WARN("Failed to put EOFR for " << kvssink->stream_name);
+                }
+            } else {
+                LOG_WARN("Null argument, failed to put EOFR for " << kvssink->stream_name);
+            }
+
+
+            /* "The downstream element should forward the EOS event to its downstream peer elements.
+               This way the event will eventually reach the sinks which should then post an EOS message
+               on the bus when in PLAYING." - GStreamerDocs->Events->EOS */
+            GstMessage * message = gst_message_new_eos(GST_OBJECT_CAST (kvssink));
+            gst_element_post_message (GST_ELEMENT_CAST(kvssink), message);
             break;
         }
         default:
@@ -1285,27 +1303,6 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     STATUS put_frame_status = STATUS_SUCCESS;
 
     info.data = NULL;
-    // eos reached
-    if (buf == NULL && track_data == NULL) {
-        LOG_INFO("Received event for " << kvssink->stream_name);
-        // Need this check in case pipeline is already being set to NULL and
-        // stream  is being or/already stopped. Although stopSync() is an idempotent call,
-        // we want to avoid an extra call. It is not possible for this callback to be invoked
-        // after stopSync() since we stop collecting on pads before invoking. But having this
-        // check anyways in case it happens
-        if (!data->streamingStopped.load()) {
-            data->kinesis_video_stream->stopSync();
-            data->streamingStopped.store(true);
-            LOG_INFO("Sending eos for " << kvssink->stream_name);
-        }
-
-        // send out eos message to gstreamer bus
-        message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
-        gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
-
-        ret = GST_FLOW_EOS;
-        goto CleanUp;
-    }
 
     if (STATUS_FAILED(stream_status)) {
         // in offline case, we cant tell the pipeline to restream the file again in case of network outage.
@@ -1711,15 +1708,7 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
     // Downward transitions
     switch (transition) {
         case GST_STATE_CHANGE_PAUSED_TO_READY:
-            // Need this check in case an EOS was received in the buffer handler and
-            // stream was already stopped. Although stopSync() is an idempotent call,
-            // we want to avoid an extra call
-            if (!data->streamingStopped.load()) {
-                data->kinesis_video_stream->stopSync();
-                data->streamingStopped.store(true);
-            } else {
-                LOG_INFO("Streaming already stopped for " << kvssink->stream_name);
-            }
+            data->kinesis_video_stream->stopSync();
             LOG_INFO("Stopped kvssink for " << kvssink->stream_name);
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:

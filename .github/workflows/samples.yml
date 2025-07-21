@@ -58,6 +58,8 @@ jobs:
             args: sample.mp4
           - name: kvssink_gstreamer_sample
             args: sample.mp4
+          - name: kvssink_intermittent_sample # There is no file source option for this sample (will use gst videotestsrc).
+            args: testsrc 120 # <gst-videotestsrc> <sample_duration_seconds>
         runner:
           - id: macos-13
             image: macos-13
@@ -174,7 +176,7 @@ jobs:
           & $exePath demo-stream-producer-cpp-${{ matrix.runner.id }}-ci-${{ matrix.sample.name }} ${{ matrix.sample.args }} ${{ matrix.sample.metadata_args }}
 
       - name: Verify MKV dump exists (Mac & Linux)
-        if: runner.os == 'Linux' || runner.os == 'macOS'
+        if: (runner.os == 'Linux' || runner.os == 'macOS') && matrix.sample.name != 'kvssink_intermittent_sample'
         working-directory: ./build/debug_output
         run: |
           shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
@@ -193,7 +195,7 @@ jobs:
         shell: bash
 
       - name: Verify MKV dump exists (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.sample.name != 'kvssink_intermittent_sample'
         working-directory: D:\producer\build
         run: |
           $env:Path += ";C:\Program Files\MKVToolNix"
@@ -433,6 +435,8 @@ jobs:
             args: sample.mp4
           - name: kvssink_gstreamer_sample
             args: sample.mp4
+          - name: kvssink_intermittent_sample # There is no file source option for this sample (will use gst videotestsrc).
+            args: testsrc 120 # <gst-videotestsrc> <sample_duration_seconds>
         image:
           - Ubuntu-22.04
           - Ubuntu-24.04
@@ -537,6 +541,7 @@ jobs:
           fi
 
       - name: Verify MKV dump exists (WSL)
+        if: matrix.sample.name != 'kvssink_intermittent_sample'
         run: |
           cd ~/kvs-cpp-repo/build/debug_output
           shopt -s nullglob  # Ensure globbing works correctly and avoids errors when no files are found
