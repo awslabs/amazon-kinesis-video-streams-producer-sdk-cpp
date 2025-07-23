@@ -10,6 +10,10 @@ on:
       - develop
       - master
 
+permissions:
+  contents: read
+  actions: write
+
 env:
   SAMPLE_MP4_LOCATION: https://raw.githubusercontent.com/aws-samples/amazon-kinesis-video-streams-demos/refs/heads/master/sample-video/sample.mp4
 
