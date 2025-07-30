@@ -323,10 +323,10 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
+STATUS put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags) {
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
-    return kinesis_video_stream->putFrame(frame);
+    return kinesis_video_stream->statusPutFrame(frame);
 }
 
 static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
@@ -688,7 +688,7 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
 
     GstElement *source_filter, *filter, *appsink, *h264parse, *encoder, *source, *video_convert;
 
-    /* create the elemnents */
+    /* create the elements */
     /*
        gst-launch-1.0 v4l2src device=/dev/video0 ! video/x-raw,format=I420,width=1280,height=720,framerate=15/1 ! x264enc pass=quant bframes=0 ! video/x-h264,profile=baseline,format=I420,width=1280,height=720,framerate=15/1 ! matroskamux ! filesink location=test.mkv
      */
@@ -821,7 +821,7 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
     gst_caps_unref(src_caps);
     gst_object_unref(srcpad);
 
-    /* create the elemnents needed for the corresponding pipeline */
+    /* create the elements needed for the corresponding pipeline */
     if (!data->h264_stream_supported) {
         video_convert = gst_element_factory_make("videoconvert", "video_convert");
 

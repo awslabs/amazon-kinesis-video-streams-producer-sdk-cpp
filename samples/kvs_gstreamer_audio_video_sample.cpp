@@ -470,19 +470,6 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         } else {
             if (key_frame_count % KEYFRAME_EVENT_INTERVAL == 0) {
                 key_frame_count = 0;
-                switch(gEvents) {
-                    case 1:
-                        data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION, NULL);
-                        break;
-                    case 2:
-                        data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
-                        break;
-                    case 3:
-                        data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
-                        break;
-                    default:
-                        break;
-                }
             }
             kinesis_video_flags = FRAME_FLAG_KEY_FRAME;
             key_frame_count++;
@@ -514,7 +501,30 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
     create_kinesis_video_frame(&frame, std::chrono::nanoseconds(buffer->pts), std::chrono::nanoseconds(buffer->dts),
                                kinesis_video_flags, info.data, info.size, track_id);
 
-    data->kinesis_video_stream->putFrame(frame);
+    data->kinesis_video_stream->statusPutFrame(frame);
+
+    // Sample to demonstrate how event metadata tags can be generated for fragment(s)
+    // Ref: https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/notifications.html
+    //      https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/images.html
+    if (CHECK_FRAME_FLAG_KEY_FRAME(frame.flags)) {
+        // Add event metadata after key frame
+        switch(gEvents) {
+            case 1:
+                DLOGI("Adding metadata for notification");
+                data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION, NULL);
+                break;
+            case 2:
+                DLOGI("Adding the metadata for image generation");
+                data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
+                break;
+            case 3:
+                DLOGI("Adding the metadata for both notification and image generaion");
+                data->kinesis_video_stream->putEventMetadata(STREAM_EVENT_TYPE_NOTIFICATION | STREAM_EVENT_TYPE_IMAGE_GENERATION, NULL);
+                break;
+            default:
+                break;
+        }
+    }
 
 CleanUp:
 
@@ -1011,7 +1021,7 @@ int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name /path/to/file"
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name -f /path/to/file"
                         "AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kinesis_video_gstreamer_audio_video_sample_app my-stream-name");
         return 1;
     }

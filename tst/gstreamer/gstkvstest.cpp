@@ -12,45 +12,68 @@ static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
                                                                    ));
 static char const *accessKey;
 static char const *secretKey;
+static char const *sessionToken;
 
 static GstElement *
 setup_kinesisvideoproducersink(void)
 {
+    cout << "setup_kinesisvideoproducersink() start" << endl;
+
     GstElement *kinesisvideoproducersink;
-    GST_DEBUG ("Setup kinesisvideoproducersink");
     kinesisvideoproducersink = gst_check_setup_element ("kvssink");
+    fail_unless(kinesisvideoproducersink != nullptr, "Failed to create kvssink element (is GST_PLUGIN_PATH set?)");
+
     g_object_set(G_OBJECT (kinesisvideoproducersink),
                  "access-key", accessKey,
                  "secret-key", secretKey,
+                 "session-token", sessionToken,
                  NULL);
+
+    // https://gitlab.freedesktop.org/gstreamer/gst-docs/-/issues/91
+    // Use gst_element_request_pad_simple in newer GStreamer versions
+    GstPad *sinkpad = gst_element_get_request_pad(kinesisvideoproducersink, "video_%u");
+    fail_unless(sinkpad != nullptr, "Failed to request video pad");
+    gst_object_unref(sinkpad);
+
+    cout << "setup_kinesisvideoproducersink() end" << endl;
     return kinesisvideoproducersink;
 }
 
 static void
 cleanup_kinesisvideoproducersink(GstElement * kinesisvideoproducersink)
 {
+    cout << "cleanup_kinesisvideoproducersink() start" << endl;
 
-    gst_check_teardown_src_pad (kinesisvideoproducersink);
+    GstPad *sinkpad = gst_element_get_static_pad(kinesisvideoproducersink, "video_0");
+    if (sinkpad) {
+        gst_element_release_request_pad(kinesisvideoproducersink, sinkpad);
+        gst_object_unref(sinkpad);
+    }
+
     gst_check_teardown_element (kinesisvideoproducersink);
+
+    fail_unless_equals_int(STATUS_SUCCESS, RESET_INSTRUMENTED_ALLOCATORS());
+
+    cout << "cleanup_kinesisvideoproducersink() end" << endl;
 }
 
-GST_START_TEST(kvsproducersinktestplay)
+GST_START_TEST(kvsproducersinktestplayandstop)
     {
-        GstElement *pElement =
-                setup_kinesisvideoproducersink();
-        fail_unless_equals_int(gst_element_set_state(pElement, GST_STATE_PLAYING), GST_STATE_CHANGE_ASYNC);
+        GstElement *pElement = setup_kinesisvideoproducersink();
+
+        // Set up source pad
+        GstPad *srcpad = gst_check_setup_src_pad_by_name(pElement, &srctemplate, "video_0");
+        fail_unless(srcpad != nullptr, "Failed to setup source pad");
+        gst_pad_set_active(srcpad, TRUE);
+
+        // Set to PLAYING state (NULL -> PLAYING)
+        fail_unless_equals_int(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pElement, GST_STATE_PLAYING));
+
+        // Set back to NULL state (PLAYING -> NULL)
+        fail_unless_equals_int(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pElement, GST_STATE_NULL));
+
+        gst_pad_set_active(srcpad, FALSE);
         cleanup_kinesisvideoproducersink(pElement);
-
-    }
-GST_END_TEST;
-
-GST_START_TEST(kvsproducersinktestpause)
-    {
-        GstElement *pElement =
-                setup_kinesisvideoproducersink();
-        fail_unless_equals_int(gst_element_set_state(pElement, GST_STATE_PAUSED), GST_STATE_CHANGE_ASYNC);
-        cleanup_kinesisvideoproducersink(pElement);
-
     }
 GST_END_TEST;
 
@@ -60,7 +83,7 @@ GST_START_TEST(kvsproducersinktestplaytopausetoplay)
                 setup_kinesisvideoproducersink();
         GstPad *srcpad;
 
-        srcpad = gst_check_setup_src_pad_by_name (pElement, &srctemplate, "sink");
+        srcpad = gst_check_setup_src_pad_by_name (pElement, &srctemplate, "video_0");
 
         gst_pad_set_active (srcpad, TRUE);
 
@@ -71,8 +94,10 @@ GST_START_TEST(kvsproducersinktestplaytopausetoplay)
         gst_pad_push_event(srcpad, gst_event_new_caps (gst_caps_from_string("video/x-h264,stream-format=avc,alignment=au,codec_data=abc")));
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PAUSED_TO_PLAYING), GST_STATE_CHANGE_SUCCESS);
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PLAYING_TO_PAUSED), GST_STATE_CHANGE_SUCCESS);
-        cleanup_kinesisvideoproducersink(pElement);
 
+        gst_pad_set_active (srcpad, FALSE);
+
+        cleanup_kinesisvideoproducersink(pElement);
     }
 GST_END_TEST;
 
@@ -83,6 +108,50 @@ GST_START_TEST(kvsproducersinkteststop)
         fail_unless_equals_int(gst_element_set_state(pElement, GST_STATE_NULL), GST_STATE_CHANGE_SUCCESS);
         cleanup_kinesisvideoproducersink(pElement);
 
+    }
+GST_END_TEST;
+
+GST_START_TEST(check_kvssink_null_stream_name_fails_init_play)
+    {
+        GstElement *kinesisvideoproducersink;
+
+        // Setup
+        kinesisvideoproducersink = gst_check_setup_element ("kvssink");
+        fail_unless(kinesisvideoproducersink != nullptr, "Failed to create kvssink element");
+
+        // Set stream-name to null. Only possible programmatically, not through gst-parse-launch-1.0 command
+        g_object_set(G_OBJECT (kinesisvideoproducersink),
+            "stream-name", nullptr,
+            NULL);
+
+        // Test - Initialization of the client & stream occurs here
+        fail_unless_equals_int(GST_STATE_CHANGE_FAILURE, gst_element_set_state(kinesisvideoproducersink, GST_STATE_PLAYING));
+
+        // Teardown
+        fail_unless_equals_int(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(kinesisvideoproducersink, GST_STATE_NULL));
+        gst_check_teardown_element(kinesisvideoproducersink);
+    }
+GST_END_TEST;
+
+GST_START_TEST(check_kvssink_no_pads_fails_to_play)
+    {
+        GstElement *kinesisvideoproducersink;
+
+        // Setup
+        kinesisvideoproducersink = gst_check_setup_element ("kvssink");
+        fail_unless(kinesisvideoproducersink != nullptr, "Failed to create kvssink element");
+
+        g_object_set(G_OBJECT (kinesisvideoproducersink),
+            "stream-name", "test-stream",
+            NULL);
+
+        // Test - Initialization of the client & stream occurs here
+        // Expecting kvssink->content_type == nullptr since no pads attached
+        fail_unless_equals_int(GST_STATE_CHANGE_FAILURE, gst_element_set_state(kinesisvideoproducersink, GST_STATE_PLAYING));
+
+        // Teardown
+        fail_unless_equals_int(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(kinesisvideoproducersink, GST_STATE_NULL));
+        gst_check_teardown_element(kinesisvideoproducersink);
     }
 GST_END_TEST;
 
@@ -148,12 +217,14 @@ GST_START_TEST(check_properties_are_passed_correctly)
 
         g_object_get(G_OBJECT (pElement), "stream-name", &str_val, NULL);
         assert_equals_string(TEST_STREAM_NAME.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "retention-period", &uint_val, NULL);
         assert_equals_uint64(TEST_RETENTION_PERIOD, uint_val);
         g_object_get(G_OBJECT (pElement), "streaming-type", &uint_val, NULL);
         assert_equals_uint64(TEST_STREAMING_TYPE, uint_val);
         g_object_get(G_OBJECT (pElement), "content-type", &str_val, NULL);
         assert_equals_string(TEST_CONTENT_TYPE.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "max-latency", &uint_val, NULL);
         assert_equals_uint64(TEST_MAX_LATENCY, uint_val);
         g_object_get(G_OBJECT (pElement), "fragment-duration", &uint_val, NULL);
@@ -184,16 +255,21 @@ GST_START_TEST(check_properties_are_passed_correctly)
         assert_equals_uint64(TEST_CONNECTION_STALENESS, uint_val);
         g_object_get(G_OBJECT (pElement), "codec-id", &str_val, NULL);
         assert_equals_string(TEST_CODEC_ID.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "track-name", &str_val, NULL);
         assert_equals_string(TEST_TRACK_NAME.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "access-key", &str_val, NULL);
         assert_equals_string(TEST_ACCESS_KEY.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "secret-key", &str_val, NULL);
         assert_equals_string(TEST_SECRET_KEY.c_str(), str_val);
+        g_free(str_val);
         g_object_get(G_OBJECT (pElement), "rotation-period", &uint_val, NULL);
         assert_equals_uint64(TEST_ROTATION_PERIOD, uint_val);
         g_object_get(G_OBJECT (pElement), "log-config", &str_val, NULL);
         assert_equals_string(TEST_LOG_CONFIG.c_str(), str_val);
+        g_free(str_val);
 
         cleanup_kinesisvideoproducersink(pElement);
 
@@ -206,7 +282,7 @@ GST_START_TEST(check_playing_to_paused_and_back_to_playing)
                 setup_kinesisvideoproducersink();
         GstPad *srcpad;
 
-        srcpad = gst_check_setup_src_pad_by_name (pElement, &srctemplate, "sink");
+        srcpad = gst_check_setup_src_pad_by_name (pElement, &srctemplate, "video_0");
 
         gst_pad_set_active (srcpad, TRUE);
 
@@ -217,7 +293,36 @@ GST_START_TEST(check_playing_to_paused_and_back_to_playing)
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PAUSED_TO_PLAYING), GST_STATE_CHANGE_SUCCESS);
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PLAYING_TO_PAUSED), GST_STATE_CHANGE_SUCCESS);
         fail_unless_equals_int(gst_element_change_state(pElement, GST_STATE_CHANGE_PAUSED_TO_PLAYING), GST_STATE_CHANGE_SUCCESS);
+
+        gst_pad_set_active (srcpad, FALSE);
+
         cleanup_kinesisvideoproducersink(pElement);
+    }
+GST_END_TEST;
+
+GST_START_TEST(test_check_credentials)
+    {
+        CHAR missingVars[128] = {0};
+        SIZE_T missingVarsLen = 0;
+
+        if (accessKey[0] == '\0') {
+            SNPRINTF(missingVars + missingVarsLen, SIZEOF(missingVars) - missingVarsLen, "%s", ACCESS_KEY_ENV_VAR);
+            missingVarsLen = STRNLEN(missingVars, SIZEOF(missingVars));
+        }
+
+        if (secretKey[0] == '\0') {
+            if (missingVarsLen > 0) {
+                STRNCAT(missingVars, " and ", SIZEOF(missingVars) - missingVarsLen - 1);
+                missingVarsLen = STRNLEN(missingVars, SIZEOF(missingVars));
+            }
+            STRNCAT(missingVars, SECRET_KEY_ENV_VAR, SIZEOF(missingVars) - missingVarsLen - 1);
+            missingVarsLen = STRNLEN(missingVars, SIZEOF(missingVars));
+        }
+
+        ck_abort_msg("Required environment variable%s %s %s not set",
+                     STRCHR(missingVars, ' ') ? "s" : "",
+                     missingVars,
+                     STRCHR(missingVars, ' ') ? "are" : "is");
     }
 GST_END_TEST;
 
@@ -226,11 +331,30 @@ GST_END_TEST;
 Suite *gst_kinesisvideoproducer_suite(void) {
     Suite *s = suite_create("GstKinesisVideoSinkPlugin");
     TCase *tc = tcase_create("AllStateChangeTests");
-    accessKey = getenv(ACCESS_KEY_ENV_VAR);
-    secretKey = getenv(SECRET_KEY_ENV_VAR);
+    tcase_set_timeout(tc, 15);  // 15 second timeout per test
 
-    tcase_add_test(tc, kvsproducersinktestplay);
-    tcase_add_test(tc, kvsproducersinktestpause);
+    accessKey = GETENV(ACCESS_KEY_ENV_VAR);
+    secretKey = GETENV(SECRET_KEY_ENV_VAR);
+    sessionToken = GETENV(SESSION_TOKEN_ENV_VAR);
+
+    accessKey = accessKey ? accessKey : "";
+    secretKey = secretKey ? secretKey : "";
+    sessionToken = sessionToken ? sessionToken : "";
+
+    // Check if required environment variables are set
+    // Note: Session token can be empty if permanent credentials are used
+    if (accessKey[0] == '\0' || secretKey[0] == '\0') {
+        TCase *tc_env = tcase_create("Credentials check");
+        tcase_add_test_raise_signal(tc_env, test_check_credentials, SIGABRT);
+        suite_add_tcase(s, tc_env);
+
+        // Return the suite with only this failing test
+        return s;
+    }
+
+    tcase_add_test(tc, check_kvssink_null_stream_name_fails_init_play);
+    tcase_add_test(tc, check_kvssink_no_pads_fails_to_play);
+    tcase_add_test(tc, kvsproducersinktestplayandstop);
     tcase_add_test(tc, kvsproducersinktestplaytopausetoplay);
     tcase_add_test(tc, kvsproducersinkteststop);
     tcase_add_test(tc, check_properties_are_passed_correctly);

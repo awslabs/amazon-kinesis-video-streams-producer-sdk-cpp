@@ -3,20 +3,19 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
-project(KinesisVideoProducerCpp VERSION 3.4.2)
+project(KinesisVideoProducerCpp VERSION 3.5.0)
 
 set(CMAKE_CXX_STANDARD 11)
 include(GNUInstallDirs)
 
 # User Flags
 option(BUILD_GSTREAMER_PLUGIN "Build kvssink GStreamer plugin" OFF)
-option(BUILD_JNI "Build C++ wrapper for JNI to expose the functionality to Java/Android" OFF)
 option(BUILD_STATIC "Build with static linkage" OFF)
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
 option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
-
+option(PARALLEL_BUILD "Build dependencies with parallel flag" ON)
 
 # Developer Flags
 option(BUILD_TEST "Build the testing tree" OFF)
@@ -72,12 +71,11 @@ if(BUILD_DEPENDENCIES)
 
 
   message(STATUS "Begin building dependencies.")
-
   if (NOT WIN32)
     build_dependency(autoconf)
     build_dependency(automake)
   endif()
-  
+
   if(BUILD_LOG4CPLUS_HOST)
     set(BUILD_ARGS -DBUILD_LOG4CPLUS_HOST=${BUILD_LOG4CPLUS_HOST})
     build_dependency(log4cplus ${BUILD_ARGS} -DBUILD_STATIC=${BUILD_STATIC})
@@ -98,9 +96,9 @@ set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
 if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
   file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
 endif()
+
 fetch_repo(kvscproducer)
 add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
-
 ############# find dependent libraries ############
 
 find_package(Threads)
@@ -170,7 +168,6 @@ endif()
 ############# Build Targets ############
 file(GLOB PRODUCER_CPP_SOURCE_FILES "src/*.cpp" "src/common/*.cpp" "src/credential-providers/*.cpp")
 file(GLOB GST_PLUGIN_SOURCE_FILES "src/gstreamer/*.cpp" "src/gstreamer/Util/*.cpp")
-file(GLOB_RECURSE JNI_SOURCE_FILES "src/JNI/*.cpp")
 file(GLOB PIC_HEADERS "${pic_project_SOURCE_DIR}/src/*/include")
 
 include_directories(${PIC_HEADERS})
@@ -180,7 +177,6 @@ include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/include)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/credential-providers)
 include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/common)
-include_directories(${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src/JNI/include)
 
 install(
   DIRECTORY ${KINESIS_VIDEO_PRODUCER_CPP_SRC}/src
@@ -200,14 +196,6 @@ install(
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
-if(BUILD_JNI)
-  find_package(JNI REQUIRED)
-  include_directories(${JNI_INCLUDE_DIRS})
-
-  add_library(KinesisVideoProducerJNI SHARED ${JNI_HEADERS} ${JNI_SOURCE_FILES})
-  target_link_libraries(KinesisVideoProducerJNI kvspic)
-endif()
-
 
 if(BUILD_GSTREAMER_PLUGIN)
   pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
@@ -223,6 +211,9 @@ if(BUILD_GSTREAMER_PLUGIN)
 
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
   target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
+  add_executable(kvssink_intermittent_sample samples/kvssink_intermittent_sample.cpp )
+  target_link_libraries(kvssink_intermittent_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
   target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)

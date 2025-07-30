@@ -21,7 +21,7 @@ PutFrameHelper::PutFrameHelper(
 }
 
 void PutFrameHelper::putFrameMultiTrack(Frame frame, bool isVideo) {
-    if (!kinesis_video_stream->putFrame(frame)) {
+    if (kinesis_video_stream->statusPutFrame(frame) != STATUS_SUCCESS) {
         put_frame_status = false;
         LOG_WARN("Failed to put normal frame");
     }
@@ -46,7 +46,7 @@ bool PutFrameHelper::putFrameFailed() {
 
 void PutFrameHelper::putEofr() {
     Frame frame = EOFR_FRAME_INITIALIZER;
-    if (!kinesis_video_stream->putFrame(frame)) {
+    if (kinesis_video_stream->statusPutFrame(frame) != STATUS_SUCCESS) {
         put_frame_status = false;
         LOG_WARN("Failed to put eofr frame");
     }

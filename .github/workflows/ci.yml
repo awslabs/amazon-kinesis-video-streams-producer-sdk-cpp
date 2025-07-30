@@ -20,11 +20,14 @@ jobs:
       contents: read
     steps:
       - name: Clone repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          brew install pkg-config openssl cmake gstreamer log4cplus
-          brew unlink openssl
+          brew install cmake gstreamer log4cplus
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.x'
       - name: Build repository
         run: |
           mkdir build && cd build
@@ -32,19 +35,27 @@ jobs:
           make
           make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 3600
       - name: Run tests
         run: |
-          cd build  
+          cd build
           ./tst/producerTest
 
   mac-os-build-gcc:
     runs-on: macos-13
+    strategy:
+      matrix:
+        parallel-build:
+          - ON
+          - OFF
+
+      fail-fast: false
+
     permissions:
       id-token: write
       contents: read
@@ -54,31 +65,42 @@ jobs:
       AWS_KVS_LOG_LEVEL: 2
     steps:
       - name: Clone repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          brew install pkg-config openssl cmake gstreamer log4cplus
-          brew unlink openssl
+          brew install cmake gstreamer log4cplus
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.x'
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DCMAKE_INSTALL_PREFIX=.
-          make
-          make install
+          cmake .. -DBUILD_TEST=TRUE -DCMAKE_INSTALL_PREFIX=. -DPARALLEL_BUILD=${{ matrix.parallel-build }}
+
+          if [[ "${{ matrix.parallel-build }}" == 'ON' ]]; then
+            make
+            make -j install
+          else
+            make
+            make install
+          fi
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        if: ${{ matrix.parallel-build == 'ON' }} # Only need to run the tests once
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 3600
       - name: Run tests
-        run: |  
+        if: ${{ matrix.parallel-build == 'ON' }}
+        run: |
           cd build
           ./tst/producerTest
-  
+
   linux-gcc-code-coverage:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -88,23 +110,23 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v3
       - name: Install dependencies
-        run: |  
+        run: |
           sudo apt clean && sudo apt update
           sudo apt install -y libunwind-dev
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DCODE_COVERAGE=TRUE -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
           make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 3600
       - name: Run tests
         run: |
           cd build
@@ -113,11 +135,11 @@ jobs:
       - name: Code coverage
         run: |
           cd build
-          for test_file in $(find CMakeFiles/KinesisVideoProducer.dir gstkvssink.dir KinesisVideoProducerJNI.dir -name '*.gcno'); do gcov $test_file; done
+          for test_file in $(find CMakeFiles/KinesisVideoProducer.dir gstkvssink.dir -name '*.gcno'); do gcov $test_file; done
           bash <(curl -s https://codecov.io/bash)
-  
+
   address-sanitizer:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       id-token: write
       contents: read
@@ -136,16 +158,16 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DADDRESS_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DBUILD_TEST=TRUE -DADDRESS_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
           make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 3600
       - name: Run tests
         run: |
           cd build
@@ -153,7 +175,7 @@ jobs:
           timeout --signal=SIGABRT 60m ./tst/producerTest
 
   undefined-behavior-sanitizer:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       id-token: write
       contents: read
@@ -172,16 +194,16 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
+          cmake .. -DBUILD_TEST=TRUE -DUNDEFINED_BEHAVIOR_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DCMAKE_INSTALL_PREFIX=.
           make
           make install
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 3600
       - name: Run tests
         run: |
           cd build
@@ -189,7 +211,7 @@ jobs:
           timeout --signal=SIGABRT 60m ./tst/producerTest
 
   # memory-sanitizer:
-  #   runs-on: ubuntu-20.04 
+  #   runs-on: ubuntu-20.04
   #   permissions:
   #     id-token: write
   #     contents: read
@@ -235,13 +257,22 @@ jobs:
   #       run: |
   #         sudo apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
   #         mkdir build && cd build
-  #         cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE
+  #         cmake .. -DBUILD_TEST=TRUE -DTHREAD_SANITIZER=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE
   #         make
-  #         ulimit -c unlimited -S 
+  #         ulimit -c unlimited -S
   #         timeout --signal=SIGABRT 20m ./tst/producerTest
-  
+
   ubuntu-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+
+    strategy:
+      matrix:
+        parallel-build:
+          - ON
+          - OFF
+
+      fail-fast: false
+
     env:
       AWS_KVS_LOG_LEVEL: 2
       CC: gcc
@@ -260,17 +291,24 @@ jobs:
       - name: Build repository
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_JNI=TRUE -DCMAKE_INSTALL_PREFIX=.
-          make
-          make install
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DCMAKE_INSTALL_PREFIX=. -DPARALLEL_BUILD=${{ matrix.parallel-build }}
+          
+          if [[ "${{ matrix.parallel-build }}" == 'ON' ]]; then
+            make -j install
+          else
+            make install
+          fi
+
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        if: ${{ matrix.parallel-build == 'ON' }} # Only need to run the tests once
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 3600
       - name: Run tests
+        if: ${{ matrix.parallel-build == 'ON' }}
         run: |
           cd build
           ulimit -c unlimited -S
@@ -285,16 +323,20 @@ jobs:
       contents: read
     steps:
       - name: Clone repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.x'
       - name: Move repository
         run: |
           mkdir C:\producer
-          Move-Item -Path "D:\a\amazon-kinesis-video-streams-producer-sdk-cpp\amazon-kinesis-video-streams-producer-sdk-cpp\*" -Destination "D:\producer"
+          Move-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "D:\producer"
       - name: Install dependencies
         run: |
           choco install nasm strawberryperl
-          choco install gstreamer --version=1.22.8
-          choco install gstreamer-devel --version=1.22.8
+          choco install gstreamer --version=1.22.12
+          choco install gstreamer-devel --version=1.22.12
       - name: Build repository
         run: |
           $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin'
@@ -303,19 +345,19 @@ jobs:
           dir
           .\build_windows.bat
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
-          role-duration-seconds: 10800
+          role-duration-seconds: 3600
       - name: Run tests
         run: |
           $env:Path += ';C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM;D:\producer\open-source\local\lib;D:\producer\open-source\local\bin'
-          & "D:\producer\build\tst\producerTest.exe" 
+          & "D:\producer\build\tst\producerTest.exe"
 
   arm64-cross-compilation:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       CC: aarch64-linux-gnu-gcc
       CXX: aarch64-linux-gnu-g++
@@ -338,7 +380,7 @@ jobs:
           file libKinesisVideoProducer.so
 
   linux-aarch64-cross-compilation:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       CC: aarch64-linux-gnu-gcc
       CXX: aarch64-linux-gnu-g++
@@ -361,7 +403,7 @@ jobs:
           file libKinesisVideoProducer.so
 
   arm32-cross-compilation:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       CC: arm-linux-gnueabi-gcc
       CXX: arm-linux-gnueabi-g++
@@ -384,7 +426,7 @@ jobs:
           file libKinesisVideoProducer.so
 
   linux-build-gcc-static:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
@@ -400,7 +442,7 @@ jobs:
           make
 
   linux-build-gcc-shared:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Clone repository
         uses: actions/checkout@v3

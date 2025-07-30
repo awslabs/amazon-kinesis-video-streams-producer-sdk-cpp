@@ -36,6 +36,7 @@
 #include <string.h>
 #include <mutex>
 #include <atomic>
+#include <fstream>
 #include <gst/base/gstcollectpads.h>
 #include <unordered_set>
 
@@ -140,6 +141,8 @@ struct _GstKvsSink {
     guint                       num_video_streams;
 
 
+    // Since this struct is freed (not deleted), these pointers must be
+    // manually cleaned up before freeing (finalize method)
     std::unique_ptr<Credentials> credentials_;
     std::shared_ptr<KvsSinkCustomData> data;
 };
@@ -168,8 +171,7 @@ struct _KvsSinkCustomData {
             on_first_frame(true),
             frame_count(0),
             first_pts(GST_CLOCK_TIME_NONE),
-            producer_start_time(GST_CLOCK_TIME_NONE),
-            streamingStopped(false) {}
+            producer_start_time(GST_CLOCK_TIME_NONE) {}
     std::unique_ptr<KinesisVideoProducer> kinesis_video_producer;
     std::shared_ptr<KinesisVideoStream> kinesis_video_stream;
 
@@ -181,7 +183,6 @@ struct _KvsSinkCustomData {
     bool get_metrics;
     uint32_t frame_count;
     bool on_first_frame;
-    std::atomic<bool> streamingStopped;
     uint64_t frame_pts;
 
     std::atomic_uint stream_status;

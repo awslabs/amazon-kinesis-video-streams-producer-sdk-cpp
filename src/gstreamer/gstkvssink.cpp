@@ -137,6 +137,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 
 #define MAX_GSTREAMER_MEDIA_TYPE_LEN    16
 
+#define INTERNAL_CHECK_PREFIX           "Assertion failed:"
+
 namespace KvsSinkSignals {
     guint err_signal_id;
     guint ack_signal_id;
@@ -261,6 +263,9 @@ void closed(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE uploa
 void kinesis_video_producer_init(GstKvsSink *kvssink)
 {
     auto data = kvssink->data;
+
+    KVSSINK_THROW_IF_NULL(kvssink->stream_name);
+
     unique_ptr<DeviceInfoProvider> device_info_provider(new KvsSinkDeviceInfoProvider(kvssink->storage_size,
                                                         kvssink->stop_stream_timeout,
                                                         kvssink->service_connection_timeout,
@@ -302,11 +307,11 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         }
 
     } else {
-        access_key_str = string(kvssink->access_key);
-        secret_key_str = string(kvssink->secret_key);
+        access_key_str = kvssink->access_key ? string(kvssink->access_key) : "";
+        secret_key_str = kvssink->secret_key ? string(kvssink->secret_key) : "";
     }
 
-    // Handle session token seperately, since this is optional with long term credentials
+    // Handle session token separately, since this is optional with long term credentials
     if (0 == strcmp(kvssink->session_token, DEFAULT_SESSION_TOKEN)) {
         session_token_str = "";
         if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
@@ -361,8 +366,10 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
                                                     session_token_str,
                                                     std::chrono::seconds(DEFAULT_ROTATION_PERIOD_SECONDS)));
         credential_provider.reset(new StaticCredentialProvider(*kvssink->credentials_));
-    } else {
+    } else if (kvssink->credential_file_path != nullptr && static_cast<bool>(std::ifstream(kvssink->credential_file_path))) {
         credential_provider.reset(new RotatingCredentialProvider(kvssink->credential_file_path));
+    } else {
+        throw runtime_error("Could not find any AWS credentials!");
     }
 
     // Handle env for providing CP URL
@@ -370,6 +377,9 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
         LOG_INFO("Getting URL from env for " << kvssink->stream_name);
         control_plane_uri_str = string(control_plane_uri);
     }
+
+    KVSSINK_THROW_IF_NULL(kvssink->user_agent);
+
     LOG_INFO("User agent string: " << kvssink->user_agent);
     data->kinesis_video_producer = KinesisVideoProducer::createSync(std::move(device_info_provider),
                                                                     std::move(client_callback_provider),
@@ -422,6 +432,14 @@ void create_kinesis_video_stream(GstKvsSink *kvssink) {
             // no-op because default setup is for video only
             break;
     }
+
+    // StreamDefinition takes in C++ strings, check the gchar* for nullptr before constructing
+    KVSSINK_THROW_IF_NULL(kvssink->stream_name);
+    KVSSINK_THROW_IF_NULL(kvssink->content_type);
+    KVSSINK_THROW_IF_NULL(kvssink->user_agent);
+    KVSSINK_THROW_IF_NULL(kvssink->kms_key_id);
+    KVSSINK_THROW_IF_NULL(kvssink->codec_id);
+    KVSSINK_THROW_IF_NULL(kvssink->track_name);
 
     unique_ptr<StreamDefinition> stream_definition(new StreamDefinition(kvssink->stream_name,
             hours(kvssink->retention_period_hours),
@@ -476,10 +494,16 @@ bool kinesis_video_stream_init(GstKvsSink *kvssink, string &err_msg) {
             create_kinesis_video_stream(kvssink);
             break;
         } catch (runtime_error &err) {
+            ostringstream oss;
+            oss << "Failed to create stream. Error: " << err.what();
+            err_msg = oss.str();
+
+            // Don't retry if the error is an internal error
+            if (STRNCMP(INTERNAL_CHECK_PREFIX, err.what(), STRLEN(INTERNAL_CHECK_PREFIX)) == 0) {
+                return false;
+            }
+
             if (--retry_count == 0) {
-                ostringstream oss;
-                oss << "Failed to create stream. Error: " << err.what();
-                err_msg = oss.str();
                 ret = false;
                 do_retry = false;
             } else {
@@ -764,7 +788,6 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
 static void
 gst_kvs_sink_finalize(GObject *object) {
     GstKvsSink *kvssink = GST_KVS_SINK (object);
-    auto data = kvssink->data;
 
     gst_object_unref(kvssink->collect);
     g_free(kvssink->stream_name);
@@ -782,14 +805,21 @@ gst_kvs_sink_finalize(GObject *object) {
     g_free(kvssink->credential_file_path);
 
     if (kvssink->iot_certificate) {
-        gst_structure_free (kvssink->iot_certificate);
+        gst_structure_free(kvssink->iot_certificate);
     }
     if (kvssink->stream_tags) {
-        gst_structure_free (kvssink->stream_tags);
+        gst_structure_free(kvssink->stream_tags);
     }
-    if (data->kinesis_video_producer) {
-        data->kinesis_video_producer.reset();
+
+    // Reset the smart pointers to properly release the data
+    kvssink->credentials_.reset();
+    kvssink->data.reset();
+
+    if (kvssink->data.use_count() > 0) {
+        LOG_ERROR("KvsSinkCustomData is not properly cleaned up. The ref count is: " << kvssink->data.use_count());
     }
+
+    // Eventually calls g_free(kvssink), smart pointers need to be cleaned up before
     G_OBJECT_CLASS (parent_class)->finalize(object);
 }
 
@@ -1186,6 +1216,24 @@ gst_kvs_sink_handle_sink_event (GstCollectPads *pads,
         }
         case GST_EVENT_EOS: {
             LOG_INFO("EOS Event received in sink for " << kvssink->stream_name);
+            
+            if(data && data->kinesis_video_stream) {
+                Frame eofr = EOFR_FRAME_INITIALIZER;
+                LOG_INFO("Sending EOFR for " << kvssink->stream_name);
+                STATUS put_eofr_status = data->kinesis_video_stream->statusPutFrame(eofr);
+                if(STATUS_FAILED(put_eofr_status)) {
+                    LOG_WARN("Failed to put EOFR for " << kvssink->stream_name);
+                }
+            } else {
+                LOG_WARN("Null argument, failed to put EOFR for " << kvssink->stream_name);
+            }
+
+
+            /* "The downstream element should forward the EOS event to its downstream peer elements.
+               This way the event will eventually reach the sinks which should then post an EOS message
+               on the bus when in PLAYING." - GStreamerDocs->Events->EOS */
+            GstMessage * message = gst_message_new_eos(GST_OBJECT_CAST (kvssink));
+            gst_element_post_message (GST_ELEMENT_CAST(kvssink), message);
             break;
         }
         default:
@@ -1213,14 +1261,17 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = static_cast<UINT64>(track_id);
 }
 
-bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
+STATUS
+put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len, const nanoseconds &pts,
           const nanoseconds &dts, FRAME_FLAGS flags, uint64_t track_id, uint32_t index) {
 
+    STATUS put_frame_status = STATUS_SUCCESS;
     Frame frame;
+
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
-    bool ret = data->kinesis_video_stream->putFrame(frame);
-    if (data->get_metrics && ret) {
-        if (CHECK_FRAME_FLAG_KEY_FRAME(flags)  || data->on_first_frame) {
+    put_frame_status = data->kinesis_video_stream->statusPutFrame(frame);
+    if (data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
+        if (CHECK_FRAME_FLAG_KEY_FRAME(flags) || data->on_first_frame) {
             KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
             kvs_sink_metric->stream_metrics = data->kinesis_video_stream->getMetrics();
             kvs_sink_metric->client_metrics = data->kinesis_video_producer->getMetrics();
@@ -1231,7 +1282,7 @@ bool put_frame(shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
             delete kvs_sink_metric;
         }
     }
-    return ret;
+    return put_frame_status;
 }
 
 static GstFlowReturn
@@ -1249,29 +1300,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     uint64_t track_id;
     FRAME_FLAGS kinesis_video_flags = FRAME_FLAG_NONE;
     GstMapInfo info;
+    STATUS put_frame_status = STATUS_SUCCESS;
 
     info.data = NULL;
-    // eos reached
-    if (buf == NULL && track_data == NULL) {
-        LOG_INFO("Received event for " << kvssink->stream_name);
-        // Need this check in case pipeline is already being set to NULL and
-        // stream  is being or/already stopped. Although stopSync() is an idempotent call,
-        // we want to avoid an extra call. It is not possible for this callback to be invoked
-        // after stopSync() since we stop collecting on pads before invoking. But having this
-        // check anyways in case it happens
-        if (!data->streamingStopped.load()) {
-            data->kinesis_video_stream->stopSync();
-            data->streamingStopped.store(true);
-            LOG_INFO("Sending eos for " << kvssink->stream_name);
-        }
-
-        // send out eos message to gstreamer bus
-        message = gst_message_new_eos (GST_OBJECT_CAST (kvssink));
-        gst_element_post_message (GST_ELEMENT_CAST (kvssink), message);
-
-        ret = GST_FLOW_EOS;
-        goto CleanUp;
-    }
 
     if (STATUS_FAILED(stream_status)) {
         // in offline case, we cant tell the pipeline to restream the file again in case of network outage.
@@ -1313,6 +1344,7 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
                 buf->pts = buf->dts;
             }
         } else if (!GST_BUFFER_DTS_IS_VALID(buf)) {
+            // Construct a monotonically increasing DTS if GStreamer doesn't provide one
             buf->dts = data->last_dts + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
         }
 
@@ -1358,9 +1390,9 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             }
         }
 
-        put_frame(kvssink->data, info.data, info.size,
-                  std::chrono::nanoseconds(buf->pts),
-                  std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
+        put_frame_status = put_frame(data, info.data, info.size,
+                                     std::chrono::nanoseconds(buf->pts),
+                                     std::chrono::nanoseconds(buf->dts), kinesis_video_flags, track_id, data->frame_count);
         data->frame_count++;
     } else {
         LOG_WARN("GStreamer buffer is invalid for " << kvssink->stream_name);
@@ -1373,6 +1405,11 @@ CleanUp:
 
     if (buf != NULL) {
         gst_buffer_unref (buf);
+    }
+    
+    if (STATUS_FAILED(put_frame_status)) {
+        GST_ELEMENT_WARNING (kvssink, RESOURCE, WRITE, (NULL),
+                           ("put frame error occurred. Status: 0x%08x", put_frame_status));
     }
 
     return ret;
@@ -1492,6 +1529,10 @@ init_track_data(GstKvsSink *kvssink) {
     gchar *video_content_type = NULL, *audio_content_type = NULL;
     const gchar *media_type;
 
+    if (kvssink == NULL || kvssink->collect == NULL || kvssink->data == NULL) {
+        LOG_AND_THROW("Error initializing track data: kvssink, kvssink->collect, or kvssink->data is NULL.");
+    }
+
     for (walk = kvssink->collect->data; walk != NULL; walk = g_slist_next (walk)) {
         GstKvsSinkTrackData *kvs_sink_track_data = (GstKvsSinkTrackData *) walk->data;
 
@@ -1505,6 +1546,19 @@ init_track_data(GstKvsSink *kvssink) {
 
             // extract media type from GstCaps to check whether it's h264 or h265
             caps = gst_pad_get_allowed_caps(collect_data->pad);
+            
+            if (caps == NULL) {
+                LOG_AND_THROW("Error, GStreamer pad returned NULL caps. Pad has no peer for stream: " << kvssink->stream_name);
+            }
+
+            if (gst_caps_is_empty(caps)) {
+                LOG_AND_THROW("Error, GStreamer caps are empty for stream: " << kvssink->stream_name);
+            }
+
+            gchar *caps_str = gst_caps_to_string(caps);
+            LOG_INFO("GStreamer caps: " << caps_str);
+            g_free(caps_str);
+                        
             media_type = gst_structure_get_name(gst_caps_get_structure(caps, 0));
             if (strncmp(media_type, GSTREAMER_MEDIA_TYPE_H264, MAX_GSTREAMER_MEDIA_TYPE_LEN) == 0) {
                 // default codec id is for h264 video.
@@ -1515,7 +1569,7 @@ init_track_data(GstKvsSink *kvssink) {
                 video_content_type = g_strdup(MKV_H265_CONTENT_TYPE);
             } else {
                 // no-op, should result in a caps negotiation error before getting here.
-                LOG_AND_THROW("Error, media type " << media_type << "not accepted by kvssink" << " for " << kvssink->stream_name);
+                LOG_AND_THROW("Error, media type " << media_type << " not accepted by kvssink" << " for " << kvssink->stream_name);
             }
             gst_caps_unref(caps);
 
@@ -1569,16 +1623,41 @@ init_track_data(GstKvsSink *kvssink) {
 
     g_free(video_content_type);
     g_free(audio_content_type);
+
+    KVSSINK_THROW_IF_NULL(kvssink->content_type);
 }
 
 static GstStateChangeReturn
 gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
+    /*
+        The below state transition cases are separated into two switch blocks:
+        one for upward (NULL->READY->PAUSED->PLAYING) transitions and one for
+        downward (PLAYING->PAUSED->READY->NULL) transitions. It is typically* necessary to
+        transition an element's parent class state after any of the element's upward
+        transitions but before any downward transitions. As per GStreamer documentation,
+        "this is necessary in order to safely handle concurrent access by multiple threads."
+        
+        https://gstreamer.freedesktop.org/documentation/plugin-development/basics/states.
+        html?gi-language=c#:~:text=Note%20that%20upwards,destroying%20allocated%20resources.
+
+        * NOTE: The gst_collect_pads_stop call should be called before calling the parent
+                element state change function in the PAUSED_TO_READY state change to ensure
+                no pad is blocked and the element can finish streaming.
+
+                https://gstreamer.freedesktop.org/documentation/base/gstcollectpads.html?gi-
+                language=c#:~:text=The%20gst_collect_pads_stop%20call%20should%20be%20called%
+                20before%20calling%20the%20parent%20element%20state%20change%20function%20in%
+                20the%20PAUSED_TO_READY%20state%20change%20to%20ensure%20no%20pad%20is%20bloc
+                ked%20and%20the%20element%20can%20finish%20streaming.
+    */
+    
     GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
     GstKvsSink *kvssink = GST_KVS_SINK (element);
     auto data = kvssink->data;
     string err_msg = "";
     ostringstream oss;
 
+    // Upward transitions
     switch (transition) {
         case GST_STATE_CHANGE_NULL_TO_READY:
             if (kvssink->log_config_path != NULL) {
@@ -1610,19 +1689,26 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
         case GST_STATE_CHANGE_READY_TO_PAUSED:
             gst_collect_pads_start (kvssink->collect);
             break;
+
+        // (Downward Transition) gst_collect_pads_stop must be called prior to parent class PAUSED->READY transition.
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             LOG_INFO("Stopping kvssink for " << kvssink->stream_name);
-            gst_collect_pads_stop (kvssink->collect);
+            gst_collect_pads_stop(kvssink->collect);
+            break;
+        default:
+            break;
+    }
 
-            // Need this check in case an EOS was received in the buffer handler and
-            // stream was already stopped. Although stopSync() is an idempotent call,
-            // we want to avoid an extra call
-            if (!data->streamingStopped.load()) {
-                data->kinesis_video_stream->stopSync();
-                data->streamingStopped.store(true);
-            } else {
-                LOG_INFO("Streaming already stopped for " << kvssink->stream_name);
-            }
+    // Parent class transition
+    ret = GST_ELEMENT_CLASS (parent_class)->change_state(element, transition);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        goto CleanUp;
+    }
+
+    // Downward transitions
+    switch (transition) {
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
+            data->kinesis_video_stream->stopSync();
             LOG_INFO("Stopped kvssink for " << kvssink->stream_name);
             break;
         case GST_STATE_CHANGE_READY_TO_NULL:
@@ -1631,8 +1717,6 @@ gst_kvs_sink_change_state(GstElement *element, GstStateChange transition) {
         default:
             break;
     }
-
-    ret = GST_ELEMENT_CLASS (parent_class)->change_state(element, transition);
 
 CleanUp:
 

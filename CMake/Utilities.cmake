@@ -1,11 +1,18 @@
 # only fetch target repo for add_subdirectory later
 function(fetch_repo lib_name)
   set(supported_libs
+      kvspic
       kvscproducer)
   list(FIND supported_libs ${lib_name} index)
   if(${index} EQUAL -1)
     message(WARNING "${lib_name} is not supported for fetch_repo")
     return()
+  endif()
+
+  if (WIN32 OR NOT PARALLEL_BUILD)
+    set(PARALLEL_BUILD "")  # No parallel build for Windows
+  else()
+    set(PARALLEL_BUILD "--parallel")  # Enable parallel builds for Unix-like systems
   endif()
 
   # build library
@@ -21,7 +28,7 @@ function(fetch_repo lib_name)
     message(FATAL_ERROR "CMake step for lib${lib_name} failed: ${result}")
   endif()
   execute_process(
-    COMMAND ${CMAKE_COMMAND} --build .
+    COMMAND ${CMAKE_COMMAND} --build . ${PARALLEL_BUILD}
     RESULT_VARIABLE result
     WORKING_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH}/lib${lib_name})
   if(result)
@@ -32,13 +39,9 @@ endfunction()
 # build library from source
 function(build_dependency lib_name)
   set(supported_libs
-      gtest
-      jsmn
-      openssl
-      curl
-      mbedtls
       autoconf
       automake
+      kvspic
       log4cplus)
   list(FIND supported_libs ${lib_name} index)
   if(${index} EQUAL -1)
@@ -78,6 +81,12 @@ function(build_dependency lib_name)
 
   file(REMOVE_RECURSE ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/lib${lib_name})
 
+  if (WIN32 OR NOT PARALLEL_BUILD)
+    set(PARALLEL_BUILD "")  # No parallel build for Windows
+  else()
+    set(PARALLEL_BUILD "--parallel")  # Enable parallel builds for Unix-like systems
+  endif()
+
   # build library
   configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/CMake/Dependencies/lib${lib_name}-CMakeLists.txt
@@ -92,7 +101,7 @@ function(build_dependency lib_name)
     message(FATAL_ERROR "CMake step for lib${lib_name} failed: ${result}")
   endif()
   execute_process(
-    COMMAND ${CMAKE_COMMAND} --build .
+    COMMAND ${CMAKE_COMMAND} --build . ${PARALLEL_BUILD}
     RESULT_VARIABLE result
     WORKING_DIRECTORY ${KINESIS_VIDEO_OPEN_SOURCE_SRC}/lib${lib_name})
   if(result)

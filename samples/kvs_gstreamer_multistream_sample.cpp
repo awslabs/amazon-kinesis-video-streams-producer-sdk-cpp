@@ -53,6 +53,7 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 #define DEFAULT_BUFFER_SIZE (1 * 1024 * 1024)
 #define DEFAULT_STORAGE_SIZE (128 * 1024 * 1024)
 #define DEFAULT_ROTATION_TIME_SECONDS 3600
+#define DEFAULT_FRAME_DURATION_MS 2
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -180,6 +181,7 @@ typedef struct _CustomData {
     // Pts of first frame
     map<string, uint64_t> first_pts_map;
     map<string, uint64_t> producer_start_time_map;
+    map<string, uint64_t> last_dts_map;
 } CustomData;
 
 void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nanoseconds &dts, FRAME_FLAGS flags,
@@ -194,11 +196,11 @@ void create_kinesis_video_frame(Frame *frame, const nanoseconds &pts, const nano
     frame->trackId = DEFAULT_TRACK_ID;
 }
 
-bool put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts,
+STATUS put_frame(shared_ptr<KinesisVideoStream> kinesis_video_stream, void *data, size_t len, const nanoseconds &pts,
                const nanoseconds &dts, FRAME_FLAGS flags) {
     Frame frame;
     create_kinesis_video_frame(&frame, pts, dts, flags, data, len);
-    return kinesis_video_stream->putFrame(frame);
+    return kinesis_video_stream->statusPutFrame(frame);
 }
 
 static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
@@ -258,6 +260,13 @@ static GstFlowReturn on_new_sample(GstElement *sink, CustomData *data) {
         }
 
         buffer->pts += data->producer_start_time_map[stream_handle_key] - data->first_pts_map[stream_handle_key];
+
+        // Construct a monotonically increasing DTS if GStreamer doesn't provide one
+        if (!GST_BUFFER_DTS_IS_VALID(buffer)) {
+            buffer->dts = data->last_dts_map[stream_handle_key] + DEFAULT_FRAME_DURATION_MS * HUNDREDS_OF_NANOS_IN_A_MILLISECOND * DEFAULT_TIME_UNIT_IN_NANOS;
+        }
+
+        data->last_dts_map[stream_handle_key] = buffer->dts;
 
         if (false == put_frame(data->kinesis_video_stream_handles[stream_handle_key], data->frame_data_map[stream_handle_key], buffer_size, std::chrono::nanoseconds(buffer->pts),
                                std::chrono::nanoseconds(buffer->dts), kinesis_video_flags)) {
@@ -405,7 +414,8 @@ int gstreamer_init(int argc, char *argv[]) {
     data.frame_data_map = map<string, uint8_t*>();
     data.frame_data_size_map = map<string, UINT32>();
     data.first_pts_map = map<string, uint64_t>();
-    data.producer_start_time_map = map<string, uint64_t>();;
+    data.producer_start_time_map = map<string, uint64_t>();
+    data.last_dts_map = map<string, uint64_t>();;
 
     /* init GStreamer */
     gst_init(&argc, &argv);
