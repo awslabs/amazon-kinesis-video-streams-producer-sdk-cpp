@@ -322,6 +322,22 @@ To see all `kvssink` parameters, see [AWS Docs - kvssink Paramters](https://docs
 
 For examples of common use cases, see [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
 
+### Certificate configuration (`KVSSINK_CA_CERT_PATH`)
+
+`kvssink` uses **libcurl** to make HTTP requests to AWS. By default, **libcurl** relies on the system’s standard locations for SSL/TLS certificate verification. In some environments, you may need to override where **libcurl** looks for CA certificates. You can do this by setting the environment variable:
+
+```bash
+export KVSSINK_CA_CERT_PATH=/path/to/certs
+```
+
+The value can be either:
+
+- **A directory** containing certificate files, or  
+- **A single certificate file** (with `.pem` extension).
+
+This is particularly useful in restricted or read-only environments—such as certain camera systems that lack CA certificates.  
+In such cases, you can provide certificate bundle from this repo (`certs/cert.pem`).
+
 <br>
 
 ## Java Native Interface (JNI)

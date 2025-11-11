@@ -19,6 +19,7 @@ namespace com { namespace amazonaws { namespace kinesis { namespace video {
                 service_call_connection_timeout_sec_(service_call_connection_timeout_sec),
                 service_call_completion_timeout_sec_(service_call_completion_timeout_sec) {}
         device_info_t getDeviceInfo() override;
+        const std::string getCertPath() override;
     };
 }
 }
