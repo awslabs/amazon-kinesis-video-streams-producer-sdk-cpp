@@ -65,8 +65,8 @@ jobs:
           - name: kvssink_intermittent_sample # There is no file source option for this sample (will use gst videotestsrc).
             args: testsrc 120 # <gst-videotestsrc> <sample_duration_seconds>
         runner:
-          - id: macos-13
-            image: macos-13
+          - id: macos-15-intel
+            image: macos-15-intel
 
           - id: ubuntu-22.04
             image: ubuntu-latest
