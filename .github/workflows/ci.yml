@@ -12,7 +12,7 @@ on:
 
 jobs:
   mac-os-build-clang:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
@@ -47,7 +47,7 @@ jobs:
           ./tst/producerTest
 
   mac-os-build-gcc:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     strategy:
       matrix:
         parallel-build:
