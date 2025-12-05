@@ -85,6 +85,14 @@ _Windows_
 ```bat
 choco install gstreamer --version=1.22.12 gstreamer-devel --version=1.22.12
 ```
+
+> [!IMPORTANT]
+> **Windows users**: After installing GStreamer, add the GStreamer DLL path to your PATH environment variable:
+> ```bat
+> set PATH=%PATH%;C:\gstreamer\1.0\msvc_x86_64\bin
+> ```
+> Replace the path with your actual GStreamer installation directory if different.
+
 #### Verify GStreamer Installation
 Run the following command to display the GStreamer version to confirm the installation was successful:
 ```bash
