@@ -116,7 +116,7 @@ cmake -DBUILD_GSTREAMER_PLUGIN=ON ..
 ```
 _Windows_ (may need to run twice)
 ```bat
-cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=ON" ..
+cmake -G "NMake Makefiles" -DBUILD_GSTREAMER_PLUGIN=ON ..
 ```
 
 
