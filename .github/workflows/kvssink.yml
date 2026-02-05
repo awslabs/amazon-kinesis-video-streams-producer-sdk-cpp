@@ -92,8 +92,8 @@ jobs:
       id-token: write
       contents: read
 
-    matrix:
-      strategy:
+    strategy:
+      matrix:
         BUILD_STATIC:
           - ON
           - OFF
@@ -101,7 +101,7 @@ jobs:
 
     env:
       AWS_KVS_LOG_LEVEL: 1
-      STREAM_NAME: cpp-kvssink-debug-dump-dir-macos-latest
+      STREAM_NAME: cpp-kvssink-debug-dump-dir-macos-latest-${{ matrix.BUILD_STATIC }}
       GST_PLUGIN_PATH: ${{ github.workspace }}/build
       KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
 
@@ -181,7 +181,7 @@ jobs:
     container: ${{ matrix.run-config.image }}
     env:
       DEBIAN_FRONTEND: noninteractive
-      STREAM_NAME: cpp-kvssink-debug-dump-dir-${{ matrix.run-config.os }}
+      STREAM_NAME: cpp-kvssink-debug-dump-dir-${{ matrix.run-config.os }}-${{ matrix.BUILD_STATIC }}
       GST_PLUGIN_PATH: ${{ github.workspace }}/build
       KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
 
@@ -212,7 +212,7 @@ jobs:
           make -j$(nproc)
 
       - name: Verify static build
-        if: matrix.BUILD_STATIC == 'ON'
+        if: ${{ matrix.BUILD_STATIC == 'ON' }}
         working-directory: ./build
         run: |
           ldd libgstkvssink.so
