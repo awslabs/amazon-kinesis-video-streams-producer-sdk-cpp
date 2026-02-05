@@ -92,6 +92,13 @@ jobs:
       id-token: write
       contents: read
 
+    matrix:
+      strategy:
+        BUILD_STATIC:
+          - ON
+          - OFF
+      fail-fast: false
+
     env:
       AWS_KVS_LOG_LEVEL: 1
       STREAM_NAME: cpp-kvssink-debug-dump-dir-macos-latest
@@ -108,8 +115,19 @@ jobs:
       - name: Build kvssink
         run: |
           mkdir build && cd build
-          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF -DBUILD_STATIC=${{ matrix.BUILD_STATIC }}
           make -j$(nproc)
+
+      - name: Verify static build
+        if: ${{ matrix.BUILD_STATIC == 'ON' }}
+        working-directory: build
+        run: |
+          otool -L libgstkvssink.dylib
+          if otool -L libgstkvssink.dylib | grep -E 'libKinesisVideoProducer|libcproducer|libkvspic'; then
+            echo "❌ Static build verification failed: KVS libraries are dynamically linked"
+            exit 1
+          fi
+          echo "✅ Static build verified: No KVS dynamic libraries found"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -154,6 +172,9 @@ jobs:
             image: public.ecr.aws/ubuntu/ubuntu:22.04_stable
           - os: Ubuntu-20.04
             image: public.ecr.aws/ubuntu/ubuntu:20.04_stable
+        BUILD_STATIC:
+          - ON
+          - OFF
       fail-fast: false
 
     runs-on: ubuntu-latest
@@ -187,8 +208,19 @@ jobs:
       - name: Build kvssink
         working-directory: ./build
         run: |
-          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DCMAKE_BUILD_TYPE=Debug -DALIGNED_MEMORY_MODEL=ON -DBUILD_DEPENDENCIES=OFF
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DCMAKE_BUILD_TYPE=Debug -DALIGNED_MEMORY_MODEL=ON -DBUILD_DEPENDENCIES=OFF -DBUILD_STATIC=${{ matrix.BUILD_STATIC }}
           make -j$(nproc)
+
+      - name: Verify static build
+        if: matrix.BUILD_STATIC == 'ON'
+        working-directory: ./build
+        run: |
+          ldd libgstkvssink.so
+          if ldd libgstkvssink.so | grep -E 'libKinesisVideoProducer|libcproducer|libkvspic'; then
+            echo "❌ Static build verification failed: KVS libraries are dynamically linked"
+            exit 1
+          fi
+          echo "✅ Static build verified: No KVS dynamic libraries found"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
