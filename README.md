@@ -270,6 +270,7 @@ You can pass the following additional CMake options:
 | ALIGNED_MEMORY_MODEL         | OFF           | Build for aligned memory model only devices
 | BUILD_LOG4CPLUS_HOST         | OFF           | Specify host-name for log4cplus for cross-compilation
 | CONSTRAINED_DEVICE           | OFF           | Set the thread stack size to 0.5MB, needed for Alpine builds
+| KVS_LINK_PIC_ALSO            | OFF           | Explicitly link kvspic to targets, needed for some external dependency builds
 
 These options can be set as arguments to the `cmake` command, for example:
 ```
