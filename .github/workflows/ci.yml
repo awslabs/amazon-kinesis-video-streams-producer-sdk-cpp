@@ -358,6 +358,8 @@ jobs:
 
   arm64-cross-compilation:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     env:
       CC: aarch64-linux-gnu-gcc
       CXX: aarch64-linux-gnu-g++
@@ -381,6 +383,8 @@ jobs:
 
   linux-aarch64-cross-compilation:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     env:
       CC: aarch64-linux-gnu-gcc
       CXX: aarch64-linux-gnu-g++
@@ -404,6 +408,8 @@ jobs:
 
   arm32-cross-compilation:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     env:
       CC: arm-linux-gnueabi-gcc
       CXX: arm-linux-gnueabi-g++
@@ -427,6 +433,8 @@ jobs:
 
   linux-build-gcc-static:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
@@ -443,6 +451,8 @@ jobs:
 
   linux-build-gcc-shared:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
