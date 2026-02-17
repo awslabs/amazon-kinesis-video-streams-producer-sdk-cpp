@@ -1,4 +1,5 @@
 #include "KvsSinkDeviceInfoProvider.h"
+#include <cstdlib>
 
 using namespace com::amazonaws::kinesis::video;
 
@@ -10,4 +11,12 @@ KvsSinkDeviceInfoProvider::device_info_t KvsSinkDeviceInfoProvider::getDeviceInf
     device_info.clientInfo.serviceCallCompletionTimeout = static_cast<UINT64>(service_call_completion_timeout_sec_ * HUNDREDS_OF_NANOS_IN_A_SECOND);
     device_info.clientInfo.serviceCallConnectionTimeout = static_cast<UINT64>(service_call_connection_timeout_sec_ * HUNDREDS_OF_NANOS_IN_A_SECOND);
     return device_info;
+}
+
+const std::string KvsSinkDeviceInfoProvider::getCertPath() {
+    static const std::string cert_path = []() {
+        const char* env_path = std::getenv("KVSSINK_CA_CERT_PATH");
+        return env_path != nullptr ? std::string(env_path) : "";
+    }();
+    return cert_path;
 }

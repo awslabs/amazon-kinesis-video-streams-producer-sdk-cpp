@@ -20,6 +20,9 @@ on:
   schedule:
     - cron: '41 13 * * 2'
 
+permissions:
+  security-events: write
+
 jobs:
   analyze:
     name: Analyze
@@ -41,6 +44,7 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v2
       with:
+        aws-region: us-west-2
         languages: ${{ matrix.language }}
         # If you wish to specify custom queries, you can do so here or in a config file.
         # By default, queries listed here will override any specified in a config file.

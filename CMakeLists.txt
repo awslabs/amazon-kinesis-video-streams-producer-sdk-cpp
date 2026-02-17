@@ -3,7 +3,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
 include(Utilities)
 project(KinesisVideoProducerCpp)
 
-project(KinesisVideoProducerCpp VERSION 3.5.0)
+project(KinesisVideoProducerCpp VERSION 3.6.0)
 
 set(CMAKE_CXX_STANDARD 11)
 include(GNUInstallDirs)
@@ -16,6 +16,7 @@ option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from sour
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
 option(BUILD_LOG4CPLUS_HOST "Specify host-name for log4cplus for cross-compilation" OFF)
 option(PARALLEL_BUILD "Build dependencies with parallel flag" ON)
+option(KVS_LINK_PIC_ALSO "Explicitly link kvspic to targets (needed for some external dependency builds)" OFF)
 
 # Developer Flags
 option(BUILD_TEST "Build the testing tree" OFF)
@@ -33,7 +34,9 @@ get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
 
 # static settings
 if(BUILD_STATIC)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+  if(NOT APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+  endif()
   set(LINKAGE STATIC)
 elseif(WIN32)
   set(LINKAGE STATIC)
@@ -190,6 +193,10 @@ target_link_libraries(
          ${Log4cplus}
          ${LIBCURL_LIBRARIES})
 
+if(KVS_LINK_PIC_ALSO)
+  target_link_libraries(KinesisVideoProducer PUBLIC kvspic)
+endif()
+
 install(
     TARGETS KinesisVideoProducer
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -203,7 +210,7 @@ if(BUILD_GSTREAMER_PLUGIN)
   link_directories(${GST_APP_LIBRARY_DIRS})
 
   if(BUILD_STATIC)
-    add_library(gstkvssink STATIC ${GST_PLUGIN_SOURCE_FILES})
+    add_library(gstkvssink SHARED ${GST_PLUGIN_SOURCE_FILES})
   else()
     add_library(gstkvssink MODULE ${GST_PLUGIN_SOURCE_FILES})
   endif()
@@ -216,7 +223,7 @@ if(BUILD_GSTREAMER_PLUGIN)
   target_link_libraries(kvssink_intermittent_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_sample samples/kvs_gstreamer_sample.cpp)
-  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer kvspic)
+  target_link_libraries(kvs_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_multistream_sample samples/kvs_gstreamer_multistream_sample.cpp)
   target_link_libraries(kvs_gstreamer_multistream_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
@@ -225,7 +232,17 @@ if(BUILD_GSTREAMER_PLUGIN)
   target_link_libraries(kvs_gstreamer_audio_video_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
   add_executable(kvs_gstreamer_file_uploader_sample samples/kvs_gstreamer_file_uploader_sample.cpp)
-  target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES})
+  target_link_libraries(kvs_gstreamer_file_uploader_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
+
+  if(KVS_LINK_PIC_ALSO)
+    target_link_libraries(gstkvssink PRIVATE kvspic)
+    target_link_libraries(kvssink_gstreamer_sample kvspic)
+    target_link_libraries(kvssink_intermittent_sample kvspic)
+    target_link_libraries(kvs_gstreamer_sample kvspic)
+    target_link_libraries(kvs_gstreamer_multistream_sample kvspic)
+    target_link_libraries(kvs_gstreamer_audio_video_sample kvspic)
+    target_link_libraries(kvs_gstreamer_file_uploader_sample kvspic)
+  endif()
 endif()
 
 if(BUILD_TEST)

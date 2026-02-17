@@ -85,6 +85,14 @@ _Windows_
 ```bat
 choco install gstreamer --version=1.22.12 gstreamer-devel --version=1.22.12
 ```
+
+> [!IMPORTANT]
+> **Windows users**: After installing GStreamer, add the GStreamer DLL path to your PATH environment variable:
+> ```bat
+> set PATH=%PATH%;C:\gstreamer\1.0\msvc_x86_64\bin
+> ```
+> Replace the path with your actual GStreamer installation directory if different.
+
 #### Verify GStreamer Installation
 Run the following command to display the GStreamer version to confirm the installation was successful:
 ```bash
@@ -116,7 +124,7 @@ cmake -DBUILD_GSTREAMER_PLUGIN=ON ..
 ```
 _Windows_ (may need to run twice)
 ```bat
-cmake -G "NMake Makefiles -DBUILD_GSTREAMER_PLUGIN=ON" ..
+cmake -G "NMake Makefiles" -DBUILD_GSTREAMER_PLUGIN=ON ..
 ```
 
 
@@ -270,6 +278,7 @@ You can pass the following additional CMake options:
 | ALIGNED_MEMORY_MODEL         | OFF           | Build for aligned memory model only devices
 | BUILD_LOG4CPLUS_HOST         | OFF           | Specify host-name for log4cplus for cross-compilation
 | CONSTRAINED_DEVICE           | OFF           | Set the thread stack size to 0.5MB, needed for Alpine builds
+| KVS_LINK_PIC_ALSO            | OFF           | Explicitly link kvspic to targets, needed for some external dependency builds
 
 These options can be set as arguments to the `cmake` command, for example:
 ```
@@ -321,6 +330,22 @@ The `kvssink` GStreamer element includes the following parameters:
 To see all `kvssink` parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html).
 
 For examples of common use cases, see [Example: Kinesis Video Streams Producer SDK GStreamer Plugin](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin.html).
+
+### Certificate configuration (`KVSSINK_CA_CERT_PATH`)
+
+`kvssink` uses **libcurl** to make HTTP requests to AWS. By default, **libcurl** relies on the system’s standard locations for SSL/TLS certificate verification. In some environments, you may need to override where **libcurl** looks for CA certificates. You can do this by setting the environment variable:
+
+```bash
+export KVSSINK_CA_CERT_PATH=/path/to/certs
+```
+
+The value can be either:
+
+- **A directory** containing certificate files, or  
+- **A single certificate file** (with `.pem` extension).
+
+This is particularly useful in restricted or read-only environments—such as certain camera systems that lack CA certificates.  
+In such cases, you can provide certificate bundle from this repo (`certs/cert.pem`).
 
 <br>
 
