@@ -47,7 +47,7 @@ The following instructions describe the SDK and samples setup for Mac, Linux, an
 The following packages are required to build the SDK libraries. Using a package manager such as [_Homebrew_](https://brew.sh/) (Mac), [_APT_](https://en.wikipedia.org/wiki/APT_(software)) (Linux), and [_Chocolatey_](https://chocolatey.org/install) (Windows) is the prefered method of installation.
 * C++ Compiler (GNU or Clang recommended)
 * `git`
-* `CMake`
+* `CMake` (requires 3.x, `CMake` 4.x is not yet supported)
 * `pkg-config` for _Mac_/_Linux_, `pkgconfiglite` for _Windows_
 * `m4`
 * _Windows_ only: `nasm` and `strawberryperl`
