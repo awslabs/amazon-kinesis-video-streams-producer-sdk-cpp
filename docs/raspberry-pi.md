@@ -5,15 +5,26 @@ The following steps were tested on a Debian buster platform
 
 Run the following commands to install the prerequisite libraries to get started:
 
-`sudo apt-get install cmake m4 git build-essential`
+```
+sudo apt-get install cmake m4 git build-essential
 
-`sudo apt-get install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-tools gstreamer1.0-omx-rpi
-gstreamer1.0-plugins-base-apps`
+sudo apt-get install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-tools gstreamer1.0-omx-rpi
+gstreamer1.0-plugins-base-apps
+```
 
 Also, install the gstreamer1.0-omx package to get the omxh264enc hardware encoder:
 
-`sudo apt-get install gstreamer1.0-omx`
+```
+sudo apt-get install gstreamer1.0-omx
+```
 
+On **Raspberry Pi OS Bookworm and later**, `gstreamer1.0-omx` is no longer available. These versions will have the `v4l2h264enc` hardware encoder
+
+**Note:** For Pi camera modules, install `gstreamer1.0-libcamera` to enable `libcamerasrc` support, the programmatic samples provided will fall back to `v4l2src` for USB cameras if it is not available.
+
+```
+sudo apt-get install gstreamer1.0-libcamera
+```
 
 ### How to run sample applications for sending media to KVS using [GStreamer](https://gstreamer.freedesktop.org/):
 
@@ -90,10 +101,16 @@ or use a different encoder
 $ gst-launch-1.0 -v v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! x264enc  bframes=0 key-int-max=45 bitrate=500 tune=zerolatency ! video/x-h264,stream-format=avc,alignment=au ! kvssink stream-name=YourStreamName storage-size=128 access-key="YourAccessKey" secret-key="YourSecretKey"
 ```
 
-**Note:** If you are using **Raspberry PI with Bullseye** you have to use another encoder as well as `libcamerasrc` instead of `v4l2src device=/dev/video0`
+**Note:** If you are using **Raspberry Pi with Bullseye or later** (Bookworm, Trixie), use `libcamerasrc` instead of `v4l2src` for Pi camera modules. On Bookworm and later, `omxh264enc` is no longer available, use `v4l2h264enc` or `x264enc` instead.
 
+Using `v4l2h264enc` (hardware encoder, may not work on all kernel versions):
 ```
 $ gst-launch-1.0 libcamerasrc ! video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! videoconvert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! video/x-h264,level='(string)4' ! h264parse ! video/x-h264,stream-format=avc, alignment=au,width=640,height=480,framerate=30/1 ! kvssink stream-name="test-stream" access-key="YourAccessKey" secret-key="YourSecretKey" aws-region="YourRegion"
+```
+
+Using `x264enc` (software encoder):
+```
+$ gst-launch-1.0 libcamerasrc ! video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! videoconvert ! x264enc bframes=0 key-int-max=45 bitrate=512 speed-preset=veryfast tune=zerolatency ! video/x-h264,stream-format=avc,alignment=au ! h264parse ! kvssink stream-name="test-stream" access-key="YourAccessKey" secret-key="YourSecretKey" aws-region="YourRegion"
 ```
 
 
@@ -258,7 +275,7 @@ To send log information to a file (named kvsProducerLog.index), you need to use 
 
 The addFileLoggerPlatformCallbacksProvider API takes five parameters.
 
-* First parameter is the PClientCallbacks that is created during the createCallback provider API (e.g.createDefaultCallbacksProviderWithAuthCallbacks.
+* First parameter is the PClientCallbacks that is created during the createCallback provider API (e.g.createDefaultCallbacksProviderWithAuthCallbacks).
 * Second parameter is the size of string buffer that file logger will use. Logs are buffered in the string buffer and flushed into files when the buffer is full.
 * Third parameter is the maximum number of files that file logger will generate. When the limit is reached, oldest log file will be deleted before creating the new one.
 * Fourth parameter is the absolute directory path to store the log file.

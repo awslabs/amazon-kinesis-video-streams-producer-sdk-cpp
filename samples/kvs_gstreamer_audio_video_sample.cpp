@@ -906,28 +906,83 @@ int gstreamer_init(int argc, char *argv[], CustomData &data) {
         video_caps_string += ", width=(int) 1280, height=(int) 720";
 
 #elif defined __linux__
-        videosrc = gst_element_factory_make("v4l2src", "videosrc");
-        if (!video_device.empty()) {
-            LOG_INFO("Using video device " << video_device);
-            // find your video device by running path/to/sdk/kinesis-video-native-build/downloads/local/bin/gst-device-monitor-1.0
-            g_object_set(G_OBJECT (videosrc), "device", video_device.c_str(), NULL);
-        } else {
-            LOG_INFO("Using default video device");
+        // Video source: libcamerasrc (Pi camera modules) -> v4l2src (USB/legacy cameras)
+        videosrc = gst_element_factory_make("libcamerasrc", "videosrc");
+        if (videosrc) {
+            if (gst_element_set_state(videosrc, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
+                gst_element_set_state(videosrc, GST_STATE_NULL);
+                LOG_INFO("Using libcamerasrc");
+            } else {
+                LOG_INFO("libcamerasrc found but no compatible camera detected, falling back");
+                gst_object_unref(videosrc);
+                videosrc = NULL;
+            }
+        }
+        if (!videosrc) {
+            videosrc = gst_element_factory_make("v4l2src", "videosrc");
+            if (videosrc) {
+                LOG_INFO("Using v4l2src");
+                if (!video_device.empty()) {
+                    LOG_INFO("Using video device " << video_device);
+                    g_object_set(G_OBJECT (videosrc), "device", video_device.c_str(), NULL);
+                } else {
+                    LOG_INFO("Using default video device");
+                }
+            } else {
+                LOG_ERROR("Failed to create any video source");
+                return 1;
+            }
         }
 
-        if (nullptr != (h264enc = gst_element_factory_make("omxh264enc", "h264enc"))) {
-            // setting target bitrate in omx is currently broken: https://gitlab.freedesktop.org/gstreamer/gst-omx/issues/21
-            g_object_set(G_OBJECT (h264enc), "periodicty-idr", 45, "inline-header", FALSE, NULL);
-        } else {
+        // Encoder: omxh264enc (legacy Pi) -> v4l2h264enc (Bookworm and later) -> x264enc (software)
+        h264enc = gst_element_factory_make("omxh264enc", "h264enc");
+        if (h264enc) {
+            if (gst_element_set_state(h264enc, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
+                gst_element_set_state(h264enc, GST_STATE_NULL);
+                LOG_INFO("Using omxh264enc");
+                g_object_set(G_OBJECT (h264enc), "periodicty-idr", 45, "inline-header", FALSE, NULL);
+            } else {
+                LOG_INFO("omxh264enc found but not usable, falling back");
+                gst_object_unref(h264enc);
+                h264enc = NULL;
+            }
+        }
+
+        if (!h264enc) {
+            h264enc = gst_element_factory_make("v4l2h264enc", "h264enc");
+            if (h264enc) {
+                if (gst_element_set_state(h264enc, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
+                    gst_element_set_state(h264enc, GST_STATE_NULL);
+                    LOG_INFO("Using v4l2h264enc");
+                    GstStructure *extra_controls = gst_structure_new("controls",
+                        "repeat_sequence_header", G_TYPE_INT, 1,
+                        NULL);
+                    g_object_set(G_OBJECT (h264enc), "extra-controls", extra_controls, NULL);
+                    gst_structure_free(extra_controls);
+                } else {
+                    LOG_INFO("v4l2h264enc found but not usable, falling back");
+                    gst_object_unref(h264enc);
+                    h264enc = NULL;
+                }
+            }
+        }
+
+        if (!h264enc) {
             h264enc = gst_element_factory_make("x264enc", "h264enc");
-            g_object_set(G_OBJECT (h264enc), "bframes", 0, "key-int-max", 45, "bitrate", 512, NULL);
-            gst_util_set_object_arg(G_OBJECT (h264enc), "tune", "zerolatency");
+            if (h264enc) {
+                LOG_INFO("Using x264enc");
+                g_object_set(G_OBJECT (h264enc), "bframes", 0, "key-int-max", 45, "bitrate", 512, NULL);
+                gst_util_set_object_arg(G_OBJECT (h264enc), "speed-preset", "veryfast");
+                gst_util_set_object_arg(G_OBJECT (h264enc), "tune", "zerolatency");
+            } else {
+                LOG_ERROR("Failed to create any H.264 encoder");
+                return 1;
+            }
         }
 
         audiosrc = gst_element_factory_make("alsasrc", "audiosrc");
         if (!audio_device.empty()) {
             LOG_INFO("Using audio device " << audio_device);
-            // find your audio recording device by running "arecord -l"
             g_object_set(G_OBJECT (audiosrc), "device", audio_device.c_str(), NULL);
         } else {
             LOG_ERROR("No audio device found. Please do export " << AUDIO_DEVICE_ENV_VAR << "=audio_device to config audio device (e.g. export AWS_KVS_AUDIO_DEVICE=hw:1,0)");
