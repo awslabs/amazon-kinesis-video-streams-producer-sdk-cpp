@@ -940,7 +940,7 @@ int gstreamer_init(int argc, char *argv[], CustomData &data) {
             if (gst_element_set_state(h264enc, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
                 gst_element_set_state(h264enc, GST_STATE_NULL);
                 LOG_INFO("Using omxh264enc");
-                g_object_set(G_OBJECT (h264enc), "periodicty-idr", 45, "inline-header", FALSE, NULL);
+                g_object_set(G_OBJECT (h264enc), "periodicity-idr", 45, "inline-header", FALSE, NULL);
             } else {
                 LOG_INFO("omxh264enc found but not usable, falling back");
                 gst_object_unref(h264enc);

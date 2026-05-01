@@ -903,7 +903,7 @@ int gstreamer_live_source_init(int argc, char* argv[], CustomData *data, GstElem
             gst_structure_free(extra_controls);
         } else if (isOmxEnc) {
             g_object_set(G_OBJECT(encoder), "control-rate", 2, "target-bitrate", bitrateInKBPS * 1000,
-                         "periodicty-idr", 45, "inline-header", FALSE, NULL);
+                         "periodicity-idr", 45, "inline-header", FALSE, NULL);
         } else {
             g_object_set(G_OBJECT(encoder), "bframes", 0, "key-int-max", 45, "bitrate", bitrateInKBPS, NULL);
             gst_util_set_object_arg(G_OBJECT(encoder), "speed-preset", "veryfast");
