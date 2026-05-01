@@ -807,10 +807,14 @@ int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample my-stream-name -w width -h height -f framerate -b bitrateInKBPS -runtime runtimeInSeconds\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample my-stream-name\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample my-stream-name rtsp-url -runtime runtimeInSeconds\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample my-stream-name path/to/file1 path/to/file2 ...\n");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET " 
+                << argv[0] << " my-stream-name -w width -h height -f framerate -b bitrateInKBPS -runtime runtimeInSeconds\n"
+                "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET " 
+                << argv[0] << "my-stream-name\n"
+                "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET "
+                << argv[0] << "my-stream-name rtsp-url -runtime runtimeInSeconds\n"
+                "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET "
+                << argv[0] << "my-stream-name path/to/file1 path/to/file2 ...");
         return 1;
     }
 

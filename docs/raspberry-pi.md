@@ -24,7 +24,14 @@ On **Raspberry Pi OS Bookworm and later**, `gstreamer1.0-omx` is no longer avail
 
 ```
 sudo apt-get install gstreamer1.0-libcamera
+
+// use gst-inspect to verify installation of the plugin
+gst-inspect-1.0 libcamerasrc
+
+// try using libcamerasrc in basic pipeline to verify camera is detected
+gst-launch-1.0 -v v4l2src ! videoconvert ! autovideosink
 ```
+For additional info, pleae refer the [Use the C++ producer SDK on Raspberry Pi](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producersdk-cpp-rpi.html)
 
 ### How to run sample applications for sending media to KVS using [GStreamer](https://gstreamer.freedesktop.org/):
 
