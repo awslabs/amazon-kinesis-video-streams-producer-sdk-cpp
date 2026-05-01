@@ -21,7 +21,7 @@ jobs:
 
           # labels to be added
           stale-issue-label: closing-soon
-          exempt-issue-label: enhancement,pending-research,pending-action,needs-triage
+          exempt-issue-labels: enhancement,pending-research,pending-action,needs-triage
           response-requested-label: pending-response
 
           closed-for-staleness-label: closed-for-staleness

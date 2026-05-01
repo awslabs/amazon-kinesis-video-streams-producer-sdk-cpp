@@ -260,7 +260,7 @@ void determine_credentials(GstElement *kvssink, CustomData *data) {
 
 int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElement *pipeline) {
 
-    bool vtenc = false, isOnRpi = false;
+    bool vtenc = false, isOmxEnc = false, isV4l2Enc = false;
 
     /* init stream format */
     int width = 0, height = 0, framerate = 25, bitrateInKBPS = 512;
@@ -367,14 +367,39 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
             return 1;
         }
     } else {
-        // Failed creating vtenc - check pi hardware encoder
+        // Try hardware encoders with readiness check, then software fallback
+        // 1. omxh264enc (legacy Pi OS)
         encoder = gst_element_factory_make("omxh264enc", "encoder");
         if (encoder) {
-            LOG_DEBUG("Using omxh264enc")
-            isOnRpi = true;
-        } else {
-            // - attempt x264enc
-            isOnRpi = false;
+            if (gst_element_set_state(encoder, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
+                gst_element_set_state(encoder, GST_STATE_NULL);
+                LOG_DEBUG("Using omxh264enc")
+                isOmxEnc = true;
+            } else {
+                LOG_DEBUG("omxh264enc found but not usable, falling back")
+                gst_object_unref(encoder);
+                encoder = NULL;
+            }
+        }
+
+        // 2. v4l2h264enc (Bookworm Pi)
+        if (!encoder) {
+            encoder = gst_element_factory_make("v4l2h264enc", "encoder");
+            if (encoder) {
+                if (gst_element_set_state(encoder, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
+                    gst_element_set_state(encoder, GST_STATE_NULL);
+                    LOG_DEBUG("Using v4l2h264enc")
+                    isV4l2Enc = true;
+                } else {
+                    LOG_DEBUG("v4l2h264enc found but not usable, falling back")
+                    gst_object_unref(encoder);
+                    encoder = NULL;
+                }
+            }
+        }
+
+        // 3. x264enc software fallback
+        if (!encoder) {
             encoder = gst_element_factory_make("x264enc", "encoder");
             if (encoder) {
                 LOG_DEBUG("Using x264enc");
@@ -383,20 +408,34 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
                 return 1;
             }
         }
-        source = gst_element_factory_make("v4l2src", "source");
+        source = gst_element_factory_make("libcamerasrc", "source");
         if (source) {
-            LOG_DEBUG("Using v4l2src");
-        } else {
-            LOG_DEBUG("Failed to create v4l2src, trying ksvideosrc")
-            source = gst_element_factory_make("ksvideosrc", "source");
-            if (source) {
-                LOG_DEBUG("Using ksvideosrc");
+            if (gst_element_set_state(source, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
+                gst_element_set_state(source, GST_STATE_NULL);
+                LOG_DEBUG("Using libcamerasrc");
             } else {
-                LOG_ERROR("Failed to create ksvideosrc");
-                return 1;
+                LOG_DEBUG("libcamerasrc found but no compatible camera detected, falling back");
+                gst_object_unref(source);
+                source = NULL;
             }
         }
-        vtenc = false;
+        if (!source) {
+            LOG_WARN("GStreamer libcamera plugin not installed or no compatible camera detected.");
+            LOG_WARN("Install gstreamer1.0-libcamera to use camera modules compatible with the libcamera stack.");
+            source = gst_element_factory_make("v4l2src", "source");
+            if (source) {
+                LOG_DEBUG("Using v4l2src");
+            } else {
+                LOG_DEBUG("Failed to create v4l2src, trying ksvideosrc")
+                source = gst_element_factory_make("ksvideosrc", "source");
+                if (source) {
+                    LOG_DEBUG("Using ksvideosrc");
+                } else {
+                    LOG_ERROR("Failed to create any video source");
+                    return 1;
+                }
+            }
+        }
     }
 
     if (!pipeline || !source || !source_filter || !encoder || !filter || !kvssink || !h264parse) {
@@ -407,9 +446,12 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     /* configure source */
     if (vtenc) {
         g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
-    } else {
+    } else if (g_strcmp0(gst_element_get_name(gst_element_get_factory(source)), "v4l2src") == 0) {
         g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
+    } else if (g_strcmp0(gst_element_get_name(gst_element_get_factory(source)), "ksvideosrc") == 0) {
+        g_object_set(G_OBJECT(source), "do-timestamp", TRUE, NULL);
     }
+    /* libcamerasrc handles timestamps and device selection internally */
 
     /* Determine whether device supports h264 encoding and select a streaming resolution supported by the device*/
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(source, GST_STATE_READY)) {
@@ -495,11 +537,19 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
         if (vtenc) {
             g_object_set(G_OBJECT(encoder), "allow-frame-reordering", FALSE, "realtime", TRUE, "max-keyframe-interval",
                          45, "bitrate", bitrateInKBPS, NULL);
-        } else if (isOnRpi) {
+        } else if (isV4l2Enc) {
+            GstStructure *extra_controls = gst_structure_new("controls",
+                "repeat_sequence_header", G_TYPE_INT, 1,
+                NULL);
+            g_object_set(G_OBJECT(encoder), "extra-controls", extra_controls, NULL);
+            gst_structure_free(extra_controls);
+        } else if (isOmxEnc) {
             g_object_set(G_OBJECT(encoder), "control-rate", 2, "target-bitrate", bitrateInKBPS * 1000,
-                         "periodicty-idr", 45, "inline-header", FALSE, NULL);
+                         "periodicity-idr", 45, "inline-header", FALSE, NULL);
         } else {
             g_object_set(G_OBJECT(encoder), "bframes", 0, "key-int-max", 45, "bitrate", bitrateInKBPS, NULL);
+            gst_util_set_object_arg(G_OBJECT(encoder), "speed-preset", "veryfast");
+            gst_util_set_object_arg(G_OBJECT(encoder), "tune", "zerolatency");
         }
     }
 
@@ -509,6 +559,9 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
                                              "stream-format", G_TYPE_STRING, "avc",
                                              "alignment", G_TYPE_STRING, "au",
                                              NULL);
+    if (isV4l2Enc) {
+        gst_caps_set_simple(h264_caps, "level", G_TYPE_STRING, "4", NULL);
+    }
     if (!data->h264_stream_supported) {
         gst_caps_set_simple(h264_caps, "profile", G_TYPE_STRING, "baseline",
                             NULL);
@@ -754,10 +807,14 @@ int main(int argc, char *argv[]) {
 
     if (argc < 2) {
         LOG_ERROR(
-                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample_app my-stream-name -w width -h height -f framerate -b bitrateInKBPS -runtime runtimeInSeconds\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample_app my-stream-name\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample_app my-stream-name rtsp-url -runtime runtimeInSeconds\n \
-           or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET ./kvssink_gstreamer_sample_app my-stream-name path/to/file1 path/to/file2 ...\n");
+                "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET " 
+                << argv[0] << " my-stream-name -w width -h height -f framerate -b bitrateInKBPS -runtime runtimeInSeconds\n"
+                "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET " 
+                << argv[0] << "my-stream-name\n"
+                "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET "
+                << argv[0] << "my-stream-name rtsp-url -runtime runtimeInSeconds\n"
+                "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET "
+                << argv[0] << "my-stream-name path/to/file1 path/to/file2 ...");
         return 1;
     }
 
