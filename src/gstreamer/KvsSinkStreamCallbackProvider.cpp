@@ -32,7 +32,7 @@ KvsSinkStreamCallbackProvider::streamErrorReportHandler(UINT64 custom_data,
                                                         STATUS status_code) {
     auto customDataObj = reinterpret_cast<KvsSinkCustomData*>(custom_data);
     LOG_ERROR("Reported stream error. Errored timecode: " << errored_timecode << " Status: 0x" << std::hex << status_code << " for " << customDataObj->kvs_sink->stream_name);
-    if(customDataObj != NULL && (!IS_RECOVERABLE_ERROR(status_code))) {
+    if(customDataObj != NULL && (!IS_RECOVERABLE_ERROR(status_code)) && (!IS_RETRIABLE_COMMON_LIB_ERROR(status_code))) {
         customDataObj->stream_status = status_code;
         g_signal_emit(G_OBJECT(customDataObj->kvs_sink), customDataObj->err_signal_id, 0, status_code);
     }
