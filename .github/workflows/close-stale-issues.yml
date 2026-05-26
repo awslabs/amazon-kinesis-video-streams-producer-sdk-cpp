@@ -14,14 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     name: Close stale issues
     steps:
-      - uses: aws-actions/stale-issue-cleanup@v7
+      - uses: aws-actions/stale-issue-cleanup@v7.1.1
         with:
           ancient-issue-message: This is a very old issue. We encourage you to check if this is still an issue in the latest release and if you find that this is still a problem, please feel free to open a new one.
           stale-issue-message: It looks like this issue has not been active for 10 days. If the issue is not resolved, please add an update to the ticket, else it will be automatically resolved in a few days.
 
           # labels to be added
           stale-issue-label: closing-soon
-          exempt-issue-labels: enhancement,pending-research,pending-action,needs-triage
+          exempt-issue-labels: enhancement,pending-research,pending-action,needs-triage,bug
           response-requested-label: pending-response
 
           closed-for-staleness-label: closed-for-staleness
