@@ -54,13 +54,13 @@ The following packages are required to build the SDK libraries. Using a package 
 
 _Mac_
 ```bash
-brew install git cmake pkgconf m4
+brew install git cmake pkg-config m4
 ```
 
 _Linux_
 ```bash
 sudo apt update
-sudo apt install git cmake pkgconf m4
+sudo apt install git cmake build-essential pkg-config m4
 ```
 
 _Windows_
