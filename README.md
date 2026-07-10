@@ -399,6 +399,43 @@ Afterwards, go to your repository settings and add the following repository secr
 * Key: `AWS_REGION` -- Region to use (e.g. `us-west-2`)
 * Key: `AWS_ROLE_SESSION_NAME` -- Optional. This name appears in AWS CloudTrail logs for entries associated with this session.
 
+## Local Development with Dependency Overrides
+
+When developing changes across the SDK stack (C++ SDK → C Producer → PIC), you can point the build to local checkouts instead of fetching from GitHub. This avoids the git-fetch cycle and lets you test changes across repos immediately.
+
+### CMake Variables
+
+| Variable | Used By | Description |
+|----------|---------|-------------|
+| `LOCAL_KVSC_PATH` | C++ SDK | Path to a local [KVS Producer C SDK](https://github.com/awslabs/amazon-kinesis-video-streams-producer-c) checkout |
+| `LOCAL_KVSPIC_PATH` | C++ SDK, C Producer | Path to a local [KVS PIC](https://github.com/awslabs/amazon-kinesis-video-streams-pic) checkout |
+
+### Usage
+
+```bash
+# Build C++ SDK using local C Producer and local PIC
+mkdir -p build && cd build
+cmake .. \
+  -DBUILD_GSTREAMER_PLUGIN=ON \
+  -DLOCAL_KVSC_PATH=/path/to/amazon-kinesis-video-streams-producer-c \
+  -DLOCAL_KVSPIC_PATH=/path/to/amazon-kinesis-video-streams-pic
+make
+```
+
+You can use either variable independently:
+
+```bash
+# Only override PIC (C Producer is still fetched from GitHub)
+cmake .. -DLOCAL_KVSPIC_PATH=/path/to/amazon-kinesis-video-streams-pic
+
+# Only override C Producer (PIC is fetched by C Producer from GitHub)
+cmake .. -DLOCAL_KVSC_PATH=/path/to/amazon-kinesis-video-streams-producer-c
+```
+
+When `LOCAL_KVSC_PATH` is set, the C++ SDK uses `add_subdirectory` to include the local C Producer directly. When `LOCAL_KVSPIC_PATH` is set, it is forwarded to the C Producer build so PIC is also resolved locally. This means a single `cmake` + `make` builds all three layers from your working copies. Changes in PIC or C Producer source files are picked up on the next `make` without re-running `cmake`.
+
+<br>
+
 ## Development
 
 The repository is using develop branch as the aggregation and all of the feature development is done in appropriate feature branches. The PRs (Pull Requests) are cut on a feature branch and once approved with all the checks passed, they can be merged by a click of a button on the PR tool. The master branch should always be build-able and all the tests should be passing. We are welcoming any contribution to the code base. The master branch contains our most recent release cycle from develop.

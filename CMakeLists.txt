@@ -95,13 +95,33 @@ set(BUILD_COMMON_LWS
 set(BUILD_COMMON_CURL
     TRUE
     CACHE BOOL "Build ProducerC with CURL Support" FORCE)
-set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
-if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
-  file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
-endif()
 
-fetch_repo(kvscproducer)
-add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
+# Local development override: point to your local producer-C checkout
+set(LOCAL_KVSC_PATH "" CACHE PATH "Path to local KVS Producer C SDK (skips git fetch when set)")
+set(LOCAL_KVSPIC_PATH "" CACHE PATH "Path to local KVS PIC SDK (passed to Producer C, skips git fetch when set)")
+
+if(LOCAL_KVSC_PATH)
+  message(STATUS "Using LOCAL KVS Producer C SDK at: ${LOCAL_KVSC_PATH}")
+  if(NOT EXISTS ${LOCAL_KVSC_PATH}/CMakeLists.txt)
+    message(FATAL_ERROR "LOCAL_KVSC_PATH does not contain a CMakeLists.txt: ${LOCAL_KVSC_PATH}")
+  endif()
+  # Forward LOCAL_KVSPIC_PATH to Producer C so it uses local PIC too
+  if(LOCAL_KVSPIC_PATH)
+    set(LOCAL_KVSPIC_PATH ${LOCAL_KVSPIC_PATH} CACHE PATH "" FORCE)
+  endif()
+  add_subdirectory(${LOCAL_KVSC_PATH} ${CMAKE_CURRENT_BINARY_DIR}/kvscproducer-build EXCLUDE_FROM_ALL)
+else()
+  set(DEPENDENCY_DOWNLOAD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dependency)
+  if(NOT EXISTS ${DEPENDENCY_DOWNLOAD_PATH})
+    file(MAKE_DIRECTORY ${DEPENDENCY_DOWNLOAD_PATH})
+  endif()
+  fetch_repo(kvscproducer)
+  # Forward LOCAL_KVSPIC_PATH even when using fetched Producer C
+  if(LOCAL_KVSPIC_PATH)
+    set(LOCAL_KVSPIC_PATH ${LOCAL_KVSPIC_PATH} CACHE PATH "" FORCE)
+  endif()
+  add_subdirectory(${DEPENDENCY_DOWNLOAD_PATH}/libkvscproducer/kvscproducer-src EXCLUDE_FROM_ALL)
+endif()
 ############# find dependent libraries ############
 
 find_package(Threads)
