@@ -1305,15 +1305,17 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     info.data = NULL;
 
     if (STATUS_FAILED(stream_status)) {
+        GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL),
+            ("Stream error occurred. Status: 0x%08x", stream_status));
         // in offline case, we cant tell the pipeline to restream the file again in case of network outage.
         // therefore error out and let higher level application do the retry.
-        if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type) || !IS_RETRIABLE_ERROR(stream_status)) {
+        if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
             // fatal cases
-            GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL),
-                           ("[%s] Stream error occurred. Status: 0x%08x", kvssink->stream_name, stream_status));
+            GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL), ("Stop stream in offline mode"));
             ret = GST_FLOW_ERROR;
             goto CleanUp;
         } else {
+            GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL), ("Reset stream"));
             // resetStream, note that this will flush out producer buffer
             data->kinesis_video_stream->resetStream();
             // reset state
