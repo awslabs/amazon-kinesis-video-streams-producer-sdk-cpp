@@ -1305,17 +1305,21 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
     info.data = NULL;
 
     if (STATUS_FAILED(stream_status)) {
-        GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL),
-            ("Stream error occurred. Status: 0x%08x", stream_status));
-        // in offline case, we cant tell the pipeline to restream the file again in case of network outage.
-        // therefore error out and let higher level application do the retry.
-        if (IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
-            // fatal cases
-            GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL), ("Stop stream in offline mode"));
+        // A stream error is fatal to the pipeline when:
+        //   - restart-on-error is disabled (user opted out of recovery), OR
+        //   - we are in offline mode: we can't re-stream a file after a network
+        //     outage, so let the higher level application handle the retry.
+        if (!kvssink->restart_on_error || IS_OFFLINE_STREAMING_MODE(kvssink->streaming_type)) {
+            // fatal case: post a fatal ERROR to the bus so the pipeline terminates
+            GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL),
+                ("Stream error occurred. Status: 0x%08x", stream_status));
             ret = GST_FLOW_ERROR;
             goto CleanUp;
         } else {
-            GST_ELEMENT_ERROR (kvssink, STREAM, FAILED, (NULL), ("Reset stream"));
+            // non-fatal case: post a WARNING (not ERROR) so the pipeline keeps running,
+            // then reset the stream and continue.
+            GST_ELEMENT_WARNING (kvssink, STREAM, FAILED, (NULL),
+                ("Stream error occurred, resetting stream. Status: 0x%08x", stream_status));
             // resetStream, note that this will flush out producer buffer
             data->kinesis_video_stream->resetStream();
             // reset state
