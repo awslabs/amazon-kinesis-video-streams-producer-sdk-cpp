@@ -1,5 +1,5 @@
 #include "gstkvssink.h" //import this first, or will cause build error on Mac
-#include "Util/KvsSinkUtil.h"
+#include "Util/KvsSinkResolution.h"
 #include <gst/check/gstcheck.h>
 #include <string>
 
