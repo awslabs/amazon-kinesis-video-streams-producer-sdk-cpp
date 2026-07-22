@@ -106,6 +106,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_kvs_sink_debug);
 #define DEFAULT_SECRET_KEY "secret_key"
 #define DEFAULT_SESSION_TOKEN "session_token"
 #define DEFAULT_REGION "us-west-2"
+#define DEFAULT_IGNORE_REGION_ENV FALSE
+#define DEFAULT_IGNORE_CREDENTIALS_ENV FALSE
 #define DEFAULT_ROTATION_PERIOD_SECONDS 3600
 #define DEFAULT_LOG_FILE_PATH "../kvs_log_configuration"
 #define DEFAULT_STORAGE_SIZE_MB 128
@@ -171,6 +173,8 @@ enum {
     PROP_SECRET_KEY,
     PROP_SESSION_TOKEN,
     PROP_AWS_REGION,
+    PROP_IGNORE_REGION_ENV,
+    PROP_IGNORE_CREDENTIALS_ENV,
     PROP_ROTATION_PERIOD,
     PROP_LOG_CONFIG_PATH,
     PROP_STORAGE_SIZE,
@@ -275,10 +279,6 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
 
     kvssink->data->kvs_sink = kvssink;
 
-    char const *access_key;
-    char const *secret_key;
-    char const *session_token;
-    char const *default_region;
     char const *control_plane_uri;
     string access_key_str;
     string secret_key_str;
@@ -286,6 +286,13 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     string region_str;
     string control_plane_uri_str = "";
     bool credential_is_static = true;
+
+    // Snapshot the AWS environment variables once, up front. Resolution below reads only these
+    // cached values so the env cannot appear to change between reads within this function.
+    char const *access_key_env = getenv(ACCESS_KEY_ENV_VAR);
+    char const *secret_key_env = getenv(SECRET_KEY_ENV_VAR);
+    char const *session_token_env = getenv(SESSION_TOKEN_ENV_VAR);
+    char const *default_region_env = getenv(DEFAULT_REGION_ENV_VAR);
 
     // This needs to happen after we've read in ALL of the properties
     if (!kvssink->disable_buffer_clipping) {
@@ -296,14 +303,16 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     kvssink->data->kvs_sink = kvssink;
 
     if (0 == strcmp(kvssink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
-        if (nullptr == (access_key = getenv(ACCESS_KEY_ENV_VAR))
-            || nullptr == (secret_key = getenv(SECRET_KEY_ENV_VAR))) { // if no static credential is available in env var.
+        // When ignore-credentials-env is set, the AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars are
+        // never consulted, so kvssink always respects the access-key / secret-key properties (which are unset here).
+        if (!kvs_sink_util::shouldUseCredentialsEnv(kvssink->ignore_credentials_env, access_key_env)
+            || !kvs_sink_util::shouldUseCredentialsEnv(kvssink->ignore_credentials_env, secret_key_env)) { // if no static credential is available in env var.
             credential_is_static = false; // No static credential available.
             access_key_str = "";
             secret_key_str = "";
         } else {
-            access_key_str = string(access_key);
-            secret_key_str = string(secret_key);
+            access_key_str = string(access_key_env);
+            secret_key_str = string(secret_key_env);
         }
 
     } else {
@@ -314,19 +323,26 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     // Handle session token separately, since this is optional with long term credentials
     if (0 == strcmp(kvssink->session_token, DEFAULT_SESSION_TOKEN)) {
         session_token_str = "";
-        if (nullptr != (session_token = getenv(SESSION_TOKEN_ENV_VAR))) {
+        // When ignore-credentials-env is set, the AWS_SESSION_TOKEN env var is never consulted.
+        if (kvs_sink_util::shouldUseCredentialsEnv(kvssink->ignore_credentials_env, session_token_env)) {
             LOG_INFO("Setting session token from env for " << kvssink->stream_name);
-            session_token_str = string(session_token);
+            session_token_str = string(session_token_env);
         }
     } else {
         LOG_INFO("Setting session token from config for " << kvssink->stream_name);
         session_token_str = string(kvssink->session_token);
     }
 
-    if (nullptr == (default_region = getenv(DEFAULT_REGION_ENV_VAR))) {
-        region_str = string(kvssink->aws_region);
-    } else {
-        region_str = string(default_region); // Use env var if both property and env var are available.
+    // Region resolution: by default the AWS_DEFAULT_REGION env var overrides the aws-region property.
+    // When ignore-region-env is set, the env var is ignored and the aws-region property is always used.
+    region_str = kvs_sink_util::resolveRegion(kvssink->aws_region, default_region_env, kvssink->ignore_region_env);
+    // Warn when the env var is silently overriding an explicitly-set aws-region property, since this
+    // can point streams at an unexpected region (see ignore-region-env to opt out of this override).
+    if (!kvssink->ignore_region_env && nullptr != default_region_env
+        && 0 != strcmp(kvssink->aws_region, DEFAULT_REGION) && region_str != kvssink->aws_region) {
+        LOG_WARN("The " << DEFAULT_REGION_ENV_VAR << " environment variable (" << region_str
+                 << ") is overriding the aws-region property (" << kvssink->aws_region << ") for "
+                 << kvssink->stream_name << ". Set ignore-region-env=true to always use the aws-region property.");
     }
 
     unique_ptr<CredentialProvider> credential_provider;
@@ -636,6 +652,18 @@ gst_kvs_sink_class_init(GstKvsSinkClass *klass) {
                                      g_param_spec_string ("aws-region", "AWS Region",
                                                           "AWS Region", DEFAULT_REGION, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property (gobject_class, PROP_IGNORE_REGION_ENV,
+                                     g_param_spec_boolean ("ignore-region-env", "Ignore region environment variable",
+                                                           "If true, ignore the AWS_DEFAULT_REGION environment variable and always use the aws-region property. "
+                                                           "By default (false), the AWS_DEFAULT_REGION environment variable takes precedence over the aws-region property.", DEFAULT_IGNORE_REGION_ENV,
+                                                           (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property (gobject_class, PROP_IGNORE_CREDENTIALS_ENV,
+                                     g_param_spec_boolean ("ignore-credentials-env", "Ignore credentials environment variables",
+                                                           "If true, ignore the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN environment variables and always use the access-key, secret-key, and session-token properties. "
+                                                           "By default (false), these environment variables take precedence over the corresponding properties.", DEFAULT_IGNORE_CREDENTIALS_ENV,
+                                                           (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     g_object_class_install_property (gobject_class, PROP_ROTATION_PERIOD,
                                      g_param_spec_uint ("rotation-period", "Rotation Period",
                                                         "Rotation Period. Unit: seconds", 0, G_MAXUINT, DEFAULT_ROTATION_PERIOD_SECONDS, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -761,6 +789,8 @@ gst_kvs_sink_init(GstKvsSink *kvssink) {
     kvssink->secret_key = g_strdup (DEFAULT_SECRET_KEY);
     kvssink->session_token = g_strdup(DEFAULT_SESSION_TOKEN);
     kvssink->aws_region = g_strdup (DEFAULT_REGION);
+    kvssink->ignore_region_env = DEFAULT_IGNORE_REGION_ENV;
+    kvssink->ignore_credentials_env = DEFAULT_IGNORE_CREDENTIALS_ENV;
     kvssink->rotation_period = DEFAULT_ROTATION_PERIOD_SECONDS;
     kvssink->log_config_path = g_strdup (DEFAULT_LOG_FILE_PATH);
     kvssink->storage_size = DEFAULT_STORAGE_SIZE_MB;
@@ -912,6 +942,12 @@ gst_kvs_sink_set_property(GObject *object, guint prop_id,
             g_free(kvssink->aws_region);
             kvssink->aws_region = g_strdup (g_value_get_string (value));
             break;
+        case PROP_IGNORE_REGION_ENV:
+            kvssink->ignore_region_env = g_value_get_boolean (value);
+            break;
+        case PROP_IGNORE_CREDENTIALS_ENV:
+            kvssink->ignore_credentials_env = g_value_get_boolean (value);
+            break;
         case PROP_ROTATION_PERIOD:
             kvssink->rotation_period = g_value_get_uint (value);
             break;
@@ -1059,6 +1095,12 @@ gst_kvs_sink_get_property(GObject *object, guint prop_id, GValue *value,
             break;
         case PROP_AWS_REGION:
             g_value_set_string (value, kvssink->aws_region);
+            break;
+        case PROP_IGNORE_REGION_ENV:
+            g_value_set_boolean (value, kvssink->ignore_region_env);
+            break;
+        case PROP_IGNORE_CREDENTIALS_ENV:
+            g_value_set_boolean (value, kvssink->ignore_credentials_env);
             break;
         case PROP_ROTATION_PERIOD:
             g_value_set_uint (value, kvssink->rotation_period);

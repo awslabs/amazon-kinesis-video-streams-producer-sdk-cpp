@@ -326,6 +326,16 @@ The `kvssink` GStreamer element includes the following parameters:
 | access&#x2011;key      | N/A               | The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_ACCESS_KEY_ID environment variable.
 | secret&#x2011;key      | N/A               | The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_SECRET_ACCESS_KEY environment variable.
 | credential&#x2011;path | '.kvs/credential' | A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files and more information, see [Provide credentials to kvssink](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#credentials-to-kvssink). You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
+| ignore&#x2011;region&#x2011;env | false | When true, the AWS_DEFAULT_REGION environment variable is ignored and the `aws-region` parameter is always used. See the precedence note below.
+| ignore&#x2011;credentials&#x2011;env | false | When true, the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN environment variables are ignored and the `access-key`, `secret-key`, and `session-token` parameters are always used. See the precedence note below.
+
+**Environment variable precedence.** By default, when both an environment variable and its corresponding `kvssink` parameter are set, the environment variable takes precedence. The region lookup order is:
+
+1. `AWS_DEFAULT_REGION` environment variable is reviewed first. If it is set, that region is used to configure the client.
+2. `aws-region` parameter is reviewed next. If it is set, that region is used to configure the client.
+3. If neither of the previous methods were used, `kvssink` defaults to `us-west-2`.
+
+Set kvssink's `ignore-region-env=true` property to skip step 1 so the `aws-region` parameter is always used. Credentials follow the same env-first precedence; set `ignore-credentials-env=true` to skip the `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` environment variables so the `access-key` / `secret-key` / `session-token` parameters are always used. Both ignore environment properties default to `false`.
 
 To see all `kvssink` parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html).
 

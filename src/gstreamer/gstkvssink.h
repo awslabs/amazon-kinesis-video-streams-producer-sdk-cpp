@@ -122,6 +122,8 @@ struct _GstKvsSink {
     gchar                       *secret_key;
     gchar                       *session_token;
     gchar                       *aws_region;
+    gboolean                    ignore_region_env;
+    gboolean                    ignore_credentials_env;
     guint                       rotation_period;
     gchar                       *log_config_path;
     guint                       storage_size;
