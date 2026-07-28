@@ -327,7 +327,7 @@ GST_START_TEST(check_region_env_override_resolution)
     }
 GST_END_TEST;
 
-// Exercises the credential env precedence logic directly via the pure shouldUseCredentialsEnv helper.
+// Exercises the credential env precedence logic directly via the pure shouldUseEnvVar helper.
 // Each row is one scenario; env_value == nullptr models an unset credential env var (e.g.
 // AWS_ACCESS_KEY_ID), and a non-null value models it being present. A true result means the env var
 // is consulted; false means the corresponding property wins.
@@ -353,14 +353,14 @@ GST_START_TEST(check_credentials_env_override_resolution)
 
         for (const CredentialCase &c : cases) {
             const char *env_display = c.env_value ? c.env_value : "(unset)";
-            cout << "shouldUseCredentialsEnv case: " << c.description
+            cout << "shouldUseEnvVar case: " << c.description
                  << " [ignore_env=" << (c.ignore_env ? "true" : "false")
                  << ", env=" << env_display
                  << ", expect_use_env=" << (c.expect_use_env ? "true" : "false") << "]" << endl;
 
-            bool use_env = kvs_sink_util::shouldUseCredentialsEnv(c.ignore_env, c.env_value);
+            bool use_env = kvs_sink_util::shouldUseEnvVar(c.ignore_env, c.env_value);
             fail_unless(use_env == c.expect_use_env,
-                        "shouldUseCredentialsEnv failed for case \"%s\": ignore_env=%s, env=%s -> expected %s but got %s",
+                        "shouldUseEnvVar failed for case \"%s\": ignore_env=%s, env=%s -> expected %s but got %s",
                         c.description, c.ignore_env ? "true" : "false", env_display,
                         c.expect_use_env ? "true" : "false", use_env ? "true" : "false");
         }

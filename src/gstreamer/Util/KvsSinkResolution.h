@@ -10,6 +10,16 @@
 // in the test executable and once in the dlopened kvssink plugin - and crash at teardown.
 namespace kvs_sink_util {
 
+    // Returns whether an AWS environment variable should be consulted. Returns false when ignore_env
+    // is true so the corresponding GStreamer property always wins, or when the environment variable is
+    // unset. Used for both the region (AWS_DEFAULT_REGION) and credential (e.g. AWS_ACCESS_KEY_ID)
+    // env vars.
+    //
+    // The caller (kvssink) provides these values rather than the function reading them itself, keeping
+    // it pure and unit testable. kvssink passes the relevant ignore flag and a snapshot of getenv() for
+    // the variable (nullptr if unset).
+    bool shouldUseEnvVar(bool ignore_env, const char *env_value);
+
     // Resolves the effective AWS region. The lookup order is:
     //   1. AWS_DEFAULT_REGION environment variable (unless ignore_env is true).
     //   2. aws-region property.
@@ -20,15 +30,6 @@ namespace kvs_sink_util {
     // keeps the function pure (no getenv / no dependency on the GstKvsSink struct), so the full
     // property/env/ignore matrix can be unit tested without mutating the process environment.
     std::string resolveRegion(const std::string &property_region, const char *env_region, bool ignore_env);
-
-    // Returns whether a credential-related environment variable (e.g. AWS_ACCESS_KEY_ID) should be
-    // consulted. Returns false when ignore_env is true so the corresponding GStreamer property always
-    // wins, or when the environment variable is unset.
-    //
-    // As with resolveRegion, the caller (kvssink) provides these values rather than the function
-    // reading them itself, keeping it pure and unit testable. kvssink passes kvssink->ignore_credentials_env
-    // and a snapshot of getenv() for the relevant credential variable (nullptr if unset).
-    bool shouldUseCredentialsEnv(bool ignore_env, const char *env_value);
 
 }
 

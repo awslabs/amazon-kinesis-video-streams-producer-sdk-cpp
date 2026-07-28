@@ -305,8 +305,8 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     if (0 == strcmp(kvssink->access_key, DEFAULT_ACCESS_KEY)) { // if no static credential is available in plugin property.
         // When ignore-credentials-env is set, the AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars are
         // never consulted, so kvssink always respects the access-key / secret-key properties (which are unset here).
-        if (!kvs_sink_util::shouldUseCredentialsEnv(kvssink->ignore_credentials_env, access_key_env)
-            || !kvs_sink_util::shouldUseCredentialsEnv(kvssink->ignore_credentials_env, secret_key_env)) { // if no static credential is available in env var.
+        if (!kvs_sink_util::shouldUseEnvVar(kvssink->ignore_credentials_env, access_key_env)
+            || !kvs_sink_util::shouldUseEnvVar(kvssink->ignore_credentials_env, secret_key_env)) { // if no static credential is available in env var.
             credential_is_static = false; // No static credential available.
             access_key_str = "";
             secret_key_str = "";
@@ -324,7 +324,7 @@ void kinesis_video_producer_init(GstKvsSink *kvssink)
     if (0 == strcmp(kvssink->session_token, DEFAULT_SESSION_TOKEN)) {
         session_token_str = "";
         // When ignore-credentials-env is set, the AWS_SESSION_TOKEN env var is never consulted.
-        if (kvs_sink_util::shouldUseCredentialsEnv(kvssink->ignore_credentials_env, session_token_env)) {
+        if (kvs_sink_util::shouldUseEnvVar(kvssink->ignore_credentials_env, session_token_env)) {
             LOG_INFO("Setting session token from env for " << kvssink->stream_name);
             session_token_str = string(session_token_env);
         }
