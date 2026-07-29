@@ -1,4 +1,5 @@
 #include "gstkvssink.h" //import this first, or will cause build error on Mac
+#include "Util/KvsSinkResolution.h"
 #include <gst/check/gstcheck.h>
 #include <string>
 
@@ -276,6 +277,96 @@ GST_START_TEST(check_properties_are_passed_correctly)
     }
 GST_END_TEST;
 
+// Exercises the region precedence logic directly via the pure resolveRegion helper, so the full
+// property/env/ignore-flag matrix is verified deterministically without mutating the process
+// environment (not portable) or making network calls. Each row is one scenario; env_region == nullptr
+// models an unset AWS_DEFAULT_REGION, and a non-null value models the env var being present.
+//
+// The aws-region property carries the us-west-2 default (DEFAULT_REGION), so a case where the env var
+// is unset and the property is left at that default is what produces the documented "defaults to
+// us-west-2" behavior (region lookup step 3).
+GST_START_TEST(check_region_env_override_resolution)
+    {
+        struct RegionCase {
+            const char *description;
+            const char *property_region; // value of the aws-region property
+            const char *env_region;      // snapshot of AWS_DEFAULT_REGION (nullptr == unset)
+            bool ignore_env;             // value of the ignore-region-env property
+            const char *expected;        // region resolveRegion should return
+        };
+
+        const RegionCase cases[] = {
+            // env set + property set, default flag -> env wins
+            {"env overrides property by default",        "us-east-1", "us-west-1", false, "us-west-1"},
+            // property set, env unset, default flag     -> property used
+            {"property used when env unset",             "us-east-1", nullptr,     false, "us-east-1"},
+            // neither explicitly set (property at us-west-2 default), env unset -> us-west-2 fallback
+            {"falls back to us-west-2 when neither set",  "us-west-2", nullptr,     false, "us-west-2"},
+            // env set + property set, ignore flag       -> property wins despite env
+            {"ignore flag makes property win over env",  "us-east-1", "us-west-1", true,  "us-east-1"},
+            // property set, env unset, ignore flag      -> property used
+            {"ignore flag with env unset uses property", "us-east-1", nullptr,     true,  "us-east-1"},
+            // neither explicitly set, ignore flag       -> us-west-2 fallback still holds
+            {"ignore flag preserves us-west-2 fallback", "us-west-2", nullptr,     true,  "us-west-2"},
+        };
+
+        for (const RegionCase &c : cases) {
+            const char *env_display = c.env_region ? c.env_region : "(unset)";
+            cout << "resolveRegion case: " << c.description
+                 << " [property=" << c.property_region
+                 << ", env=" << env_display
+                 << ", ignore_env=" << (c.ignore_env ? "true" : "false")
+                 << ", expected=" << c.expected << "]" << endl;
+
+            string resolved = kvs_sink_util::resolveRegion(c.property_region, c.env_region, c.ignore_env);
+            fail_unless(resolved == c.expected,
+                        "resolveRegion failed for case \"%s\": property=%s, env=%s, ignore_env=%s -> expected \"%s\" but got \"%s\"",
+                        c.description, c.property_region, env_display,
+                        c.ignore_env ? "true" : "false", c.expected, resolved.c_str());
+        }
+    }
+GST_END_TEST;
+
+// Exercises the credential env precedence logic directly via the pure shouldUseEnvVar helper.
+// Each row is one scenario; env_value == nullptr models an unset credential env var (e.g.
+// AWS_ACCESS_KEY_ID), and a non-null value models it being present. A true result means the env var
+// is consulted; false means the corresponding property wins.
+GST_START_TEST(check_credentials_env_override_resolution)
+    {
+        struct CredentialCase {
+            const char *description;
+            bool ignore_env;         // value of the ignore-credentials-env property
+            const char *env_value;   // snapshot of the credential env var (nullptr == unset)
+            bool expect_use_env;     // whether the env var should be consulted
+        };
+
+        const CredentialCase cases[] = {
+            // env set, default flag  -> env is consulted (existing behavior)
+            {"env used when present by default", false, "AKIDEXAMPLE", true},
+            // env unset, default flag -> nothing to consult, property/other providers used
+            {"env ignored when unset",           false, nullptr,       false},
+            // env set, ignore flag   -> env never consulted, property wins
+            {"ignore flag skips present env",    true,  "AKIDEXAMPLE", false},
+            // env unset, ignore flag -> still not consulted
+            {"ignore flag with env unset",       true,  nullptr,       false},
+        };
+
+        for (const CredentialCase &c : cases) {
+            const char *env_display = c.env_value ? c.env_value : "(unset)";
+            cout << "shouldUseEnvVar case: " << c.description
+                 << " [ignore_env=" << (c.ignore_env ? "true" : "false")
+                 << ", env=" << env_display
+                 << ", expect_use_env=" << (c.expect_use_env ? "true" : "false") << "]" << endl;
+
+            bool use_env = kvs_sink_util::shouldUseEnvVar(c.ignore_env, c.env_value);
+            fail_unless(use_env == c.expect_use_env,
+                        "shouldUseEnvVar failed for case \"%s\": ignore_env=%s, env=%s -> expected %s but got %s",
+                        c.description, c.ignore_env ? "true" : "false", env_display,
+                        c.expect_use_env ? "true" : "false", use_env ? "true" : "false");
+        }
+    }
+GST_END_TEST;
+
 GST_START_TEST(check_playing_to_paused_and_back_to_playing)
     {
         GstElement *pElement =
@@ -340,6 +431,13 @@ Suite *gst_kinesisvideoproducer_suite(void) {
     accessKey = accessKey ? accessKey : "";
     secretKey = secretKey ? secretKey : "";
     sessionToken = sessionToken ? sessionToken : "";
+
+    // Resolution-logic tests. These exercise the pure precedence helpers only; they don't contact
+    // AWS, so they run regardless of whether AWS credentials are present in the environment.
+    TCase *tc_resolution = tcase_create("EnvOverrideResolution");
+    tcase_add_test(tc_resolution, check_region_env_override_resolution);
+    tcase_add_test(tc_resolution, check_credentials_env_override_resolution);
+    suite_add_tcase(s, tc_resolution);
 
     // Check if required environment variables are set
     // Note: Session token can be empty if permanent credentials are used

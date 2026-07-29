@@ -26,6 +26,11 @@ if(BUILD_GSTREAMER_PLUGIN AND NOT WIN32)
   pkg_check_modules(GST_CHECK REQUIRED gstreamer-check-1.0)
 
   file(GLOB GST_PLUGIN_TEST_SOURCES gstreamer/*.cpp)
+  # Compile in the pure region/credential resolution helpers so they can be unit tested directly,
+  # rather than only through the runtime-loaded kvssink plugin. This is a dependency-free translation
+  # unit (no logging / no static initializers), so linking it into the test binary does not duplicate
+  # the plugin's static state (which would crash forked test children at teardown).
+  list(APPEND GST_PLUGIN_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/gstreamer/Util/KvsSinkResolution.cpp")
   SET(GST_KVS_PLUGIN_TEST_NAME gstkvsplugintest)
 
   include_directories("../src/gstreamer")

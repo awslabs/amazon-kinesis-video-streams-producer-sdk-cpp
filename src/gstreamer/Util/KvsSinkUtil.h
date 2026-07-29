@@ -7,6 +7,7 @@
 #include <set>
 #include <Logger.h>
 #include <chrono>
+#include "KvsSinkResolution.h"
 
 #define IOT_GET_CREDENTIAL_ENDPOINT "endpoint"
 #define CERTIFICATE_PATH "cert-path"
@@ -30,6 +31,7 @@ namespace kvs_sink_util{
 
     gboolean parseIotCredentialGstructure(GstStructure *g_struct,
                                              std::map<std::string, std::string> &iot_cert_params);
+
 
 }
 
