@@ -31,7 +31,8 @@ LOGGER_TAG("com.amazonaws.kinesis.video.gstreamer");
 typedef enum _StreamSource {
     FILE_SOURCE,
     LIVE_SOURCE,
-    RTSP_SOURCE
+    RTSP_SOURCE,
+    TEST_SOURCE
 } StreamSource;
 
 typedef struct _FileInfo {
@@ -144,6 +145,19 @@ static bool format_supported_by_source(GstCaps *src_caps, GstCaps *query_caps, i
 
 static bool resolution_supported(GstCaps *src_caps, GstCaps *query_caps_raw, GstCaps *query_caps_h264,
                                  CustomData &data, int width, int height, int framerate) {
+    if (gst_caps_is_any(src_caps)) {
+        // Sources wrapped in a bin (e.g. autovideosrc) report ANY caps before the
+        // pipeline negotiates. Assume raw video at the requested resolution and let
+        // caps negotiation settle the details at PLAYING time.
+        LOG_DEBUG("src caps are ANY, assuming raw video");
+        gst_caps_set_simple(query_caps_raw,
+                            "width", G_TYPE_INT, width,
+                            "height", G_TYPE_INT, height,
+                            "framerate", GST_TYPE_FRACTION, framerate, 1,
+                            NULL);
+        data.h264_stream_supported = false;
+        return true;
+    }
     if (query_caps_h264 && format_supported_by_source(src_caps, query_caps_h264, width, height, framerate)) {
         LOG_DEBUG("src supports h264")
         data.h264_stream_supported = true;
@@ -266,6 +280,10 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
     int width = 0, height = 0, framerate = 25, bitrateInKBPS = 512;
     // index 1 is stream name which is already processed
     for (int i = 2; i < argc; i++) {
+        // skip the stream source selector token, already processed in main
+        if (0 == STRCMPI(argv[i], "testsrc")) {
+            continue;
+        }
         if (i < argc) {
             if ((0 == STRCMPI(argv[i], "-w")) ||
                 (0 == STRCMPI(argv[i], "/w")) ||
@@ -355,64 +373,117 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
         return 1;
     }
 
-    // Attempt to create vtenc encoder
-    encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
-    if (encoder) {
-        vtenc = true;
+    source = NULL;
+
+    /* TEST_SOURCE: videotestsrc works on any platform */
+    if (data->streamSource == TEST_SOURCE) {
         source = gst_element_factory_make("videotestsrc", "source");
-        if (source) {
-            LOG_DEBUG("Using videotestsrc");
-        } else {
+        if (!source) {
             LOG_ERROR("Failed to create videotestsrc");
             return 1;
         }
+        LOG_DEBUG("Using videotestsrc");
+        g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
+    }
+
+#if defined __APPLE__
+    /* Encoder: vtenc_h264_hw (hardware) -> x264enc (software fallback) */
+    encoder = gst_element_factory_make("vtenc_h264_hw", "encoder");
+    if (encoder) {
+        vtenc = true;
+        LOG_DEBUG("Using vtenc_h264_hw");
     } else {
-        // Try hardware encoders with readiness check, then software fallback
-        // 1. omxh264enc (legacy Pi OS)
-        encoder = gst_element_factory_make("omxh264enc", "encoder");
+        encoder = gst_element_factory_make("x264enc", "encoder");
+        if (encoder) {
+            LOG_DEBUG("Using x264enc");
+        } else {
+            LOG_ERROR("Failed to create x264enc");
+            return 1;
+        }
+    }
+
+    /* macOS live source: autovideosrc (auto-detects the default camera, e.g. avfvideosrc) */
+    if (!source) {
+        source = gst_element_factory_make("autovideosrc", "source");
+        if (source) {
+            LOG_DEBUG("Using autovideosrc");
+        } else {
+            LOG_ERROR("Failed to create autovideosrc. Use 'testsrc' argument to stream a test pattern without a camera.");
+            return 1;
+        }
+    }
+#elif defined _WIN32
+    /* Encoder: x264enc software encoder */
+    encoder = gst_element_factory_make("x264enc", "encoder");
+    if (encoder) {
+        LOG_DEBUG("Using x264enc");
+    } else {
+        LOG_ERROR("Failed to create x264enc");
+        return 1;
+    }
+
+    /* Windows live source: ksvideosrc */
+    if (!source) {
+        source = gst_element_factory_make("ksvideosrc", "source");
+        if (source) {
+            LOG_DEBUG("Using ksvideosrc");
+            g_object_set(G_OBJECT(source), "do-timestamp", TRUE, NULL);
+        } else {
+            LOG_ERROR("Failed to create ksvideosrc");
+            return 1;
+        }
+    }
+#else
+    /* Linux/RPi: try hardware encoders with readiness check, then software fallback */
+    // 1. omxh264enc (legacy Pi OS)
+    encoder = gst_element_factory_make("omxh264enc", "encoder");
+    if (encoder) {
+        if (gst_element_set_state(encoder, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
+            gst_element_set_state(encoder, GST_STATE_NULL);
+            LOG_DEBUG("Using omxh264enc")
+            isOmxEnc = true;
+        } else {
+            LOG_DEBUG("omxh264enc found but not usable, falling back")
+            gst_object_unref(encoder);
+            encoder = NULL;
+        }
+    }
+
+    // 2. v4l2h264enc (Bookworm Pi)
+    if (!encoder) {
+        encoder = gst_element_factory_make("v4l2h264enc", "encoder");
         if (encoder) {
             if (gst_element_set_state(encoder, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
                 gst_element_set_state(encoder, GST_STATE_NULL);
-                LOG_DEBUG("Using omxh264enc")
-                isOmxEnc = true;
+                LOG_DEBUG("Using v4l2h264enc")
+                isV4l2Enc = true;
             } else {
-                LOG_DEBUG("omxh264enc found but not usable, falling back")
+                LOG_DEBUG("v4l2h264enc found but not usable, falling back")
                 gst_object_unref(encoder);
                 encoder = NULL;
             }
         }
+    }
 
-        // 2. v4l2h264enc (Bookworm Pi)
-        if (!encoder) {
-            encoder = gst_element_factory_make("v4l2h264enc", "encoder");
-            if (encoder) {
-                if (gst_element_set_state(encoder, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
-                    gst_element_set_state(encoder, GST_STATE_NULL);
-                    LOG_DEBUG("Using v4l2h264enc")
-                    isV4l2Enc = true;
-                } else {
-                    LOG_DEBUG("v4l2h264enc found but not usable, falling back")
-                    gst_object_unref(encoder);
-                    encoder = NULL;
-                }
-            }
+    // 3. x264enc software fallback
+    if (!encoder) {
+        encoder = gst_element_factory_make("x264enc", "encoder");
+        if (encoder) {
+            LOG_DEBUG("Using x264enc");
+        } else {
+            LOG_ERROR("Failed to create x264enc");
+            return 1;
         }
+    }
 
-        // 3. x264enc software fallback
-        if (!encoder) {
-            encoder = gst_element_factory_make("x264enc", "encoder");
-            if (encoder) {
-                LOG_DEBUG("Using x264enc");
-            } else {
-                LOG_ERROR("Failed to create x264enc");
-                return 1;
-            }
-        }
+    /* Linux live source: libcamerasrc (Pi camera modules) -> v4l2src (USB/legacy cameras) */
+    if (!source) {
         source = gst_element_factory_make("libcamerasrc", "source");
         if (source) {
             if (gst_element_set_state(source, GST_STATE_READY) == GST_STATE_CHANGE_SUCCESS) {
                 gst_element_set_state(source, GST_STATE_NULL);
                 LOG_DEBUG("Using libcamerasrc");
+                /* libcamerasrc handles timestamps and device selection internally */
             } else {
                 LOG_DEBUG("libcamerasrc found but no compatible camera detected, falling back");
                 gst_object_unref(source);
@@ -425,33 +496,19 @@ int gstreamer_live_source_init(int argc, char *argv[], CustomData *data, GstElem
             source = gst_element_factory_make("v4l2src", "source");
             if (source) {
                 LOG_DEBUG("Using v4l2src");
+                g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
             } else {
-                LOG_DEBUG("Failed to create v4l2src, trying ksvideosrc")
-                source = gst_element_factory_make("ksvideosrc", "source");
-                if (source) {
-                    LOG_DEBUG("Using ksvideosrc");
-                } else {
-                    LOG_ERROR("Failed to create any video source");
-                    return 1;
-                }
+                LOG_ERROR("Failed to create any video source. Use '" << "testsrc" << "' argument to stream a test pattern without a camera.");
+                return 1;
             }
         }
     }
+#endif
 
     if (!pipeline || !source || !source_filter || !encoder || !filter || !kvssink || !h264parse) {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
-
-    /* configure source */
-    if (vtenc) {
-        g_object_set(G_OBJECT(source), "is-live", TRUE, NULL);
-    } else if (g_strcmp0(gst_element_get_name(gst_element_get_factory(source)), "v4l2src") == 0) {
-        g_object_set(G_OBJECT(source), "do-timestamp", TRUE, "device", "/dev/video0", NULL);
-    } else if (g_strcmp0(gst_element_get_name(gst_element_get_factory(source)), "ksvideosrc") == 0) {
-        g_object_set(G_OBJECT(source), "do-timestamp", TRUE, NULL);
-    }
-    /* libcamerasrc handles timestamps and device selection internally */
 
     /* Determine whether device supports h264 encoding and select a streaming resolution supported by the device*/
     if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(source, GST_STATE_READY)) {
@@ -744,6 +801,11 @@ int gstreamer_init(int argc, char *argv[], CustomData *data) {
     data->first_pts = GST_CLOCK_TIME_NONE;
 
     switch (data->streamSource) {
+        case TEST_SOURCE:
+            LOG_INFO("Streaming from test source");
+            pipeline = gst_pipeline_new("test-kinesis-pipeline");
+            ret = gstreamer_live_source_init(argc, argv, data, pipeline);
+            break;
         case LIVE_SOURCE:
             LOG_INFO("Streaming from live source");
             pipeline = gst_pipeline_new("live-kinesis-pipeline");
@@ -814,7 +876,9 @@ int main(int argc, char *argv[]) {
                 "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET "
                 << argv[0] << "my-stream-name rtsp-url -runtime runtimeInSeconds\n"
                 "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET "
-                << argv[0] << "my-stream-name path/to/file1 path/to/file2 ...");
+                << argv[0] << "my-stream-name path/to/file1 path/to/file2 ...\n"
+                "   or AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET "
+                << argv[0] << " my-stream-name testsrc -w width -h height -f framerate -b bitrateInKBPS -runtime runtimeInSeconds");
         return 1;
     }
 
@@ -836,7 +900,10 @@ int main(int argc, char *argv[]) {
         if (third_arg[0] != '-') {
             string prefix = third_arg.substr(0, 4);
             string suffix = third_arg.substr(third_arg.size() - 3);
-            if (prefix.compare("rtsp") == 0) {
+            if (third_arg.compare("testsrc") == 0) {
+                data_global.streamSource = TEST_SOURCE;
+
+            } else if (prefix.compare("rtsp") == 0) {
                 data_global.streamSource = RTSP_SOURCE;
                 data_global.rtsp_url = string(argv[2]);
 
