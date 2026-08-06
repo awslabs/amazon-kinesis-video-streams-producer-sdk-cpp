@@ -1312,6 +1312,39 @@ put_frame(std::shared_ptr<KvsSinkCustomData> data, void *frame_data, size_t len,
 
     create_kinesis_video_frame(&frame, pts, dts, flags, frame_data, len, track_id, index);
     put_frame_status = data->kinesis_video_stream->statusPutFrame(frame);
+
+    // Log fragment boundaries: keyframe = new fragment start
+    if (CHECK_FRAME_FLAG_KEY_FRAME(flags)) {
+        if (data->fragment_count > 0) {
+            // Epoch ms timestamps (matching KVS backend's view)
+            uint64_t prev_start_ms = data->fragment_start_pts * DEFAULT_TIME_UNIT_IN_NANOS / 1000000;
+            uint64_t prev_end_ms = data->fragment_max_pts * DEFAULT_TIME_UNIT_IN_NANOS / 1000000;
+            uint64_t curr_start_ms = frame.presentationTs * DEFAULT_TIME_UNIT_IN_NANOS / 1000000;
+            LOG_DEBUG("Fragment #" << data->fragment_count
+                     << " start=" << prev_start_ms
+                     << " end=" << prev_end_ms
+                     << " next_start=" << curr_start_ms
+                     << " gap=" << (int64_t)(curr_start_ms - prev_end_ms) << "ms");
+            // Raw GStreamer PTS (running time ns)
+            uint64_t offset_ns = data->producer_start_time - data->first_pts;
+            LOG_DEBUG("Fragment #" << data->fragment_count
+                     << " gst_start=" << (data->fragment_start_pts_ns - offset_ns)
+                     << " gst_end=" << (data->fragment_max_pts_ns - offset_ns)
+                     << " gst_next_start=" << (static_cast<uint64_t>(pts.count()) - offset_ns) << "ns");
+        }
+        data->fragment_start_pts = frame.presentationTs;
+        data->fragment_max_pts = frame.presentationTs;
+        data->fragment_start_pts_ns = static_cast<uint64_t>(pts.count());
+        data->fragment_max_pts_ns = static_cast<uint64_t>(pts.count());
+        data->fragment_count++;
+    }
+
+    // Track max PTS across all frames in the current fragment
+    if (frame.presentationTs > data->fragment_max_pts) {
+        data->fragment_max_pts = frame.presentationTs;
+        data->fragment_max_pts_ns = static_cast<uint64_t>(pts.count());
+    }
+
     if (data->get_metrics && STATUS_SUCCEEDED(put_frame_status)) {
         if (CHECK_FRAME_FLAG_KEY_FRAME(flags) || data->on_first_frame) {
             KvsSinkMetric *kvs_sink_metric = new KvsSinkMetric();
@@ -1429,6 +1462,8 @@ gst_kvs_sink_handle_buffer (GstCollectPads * pads,
             if (data->producer_start_time == GST_CLOCK_TIME_NONE) {
                 data->producer_start_time = (uint64_t) chrono::duration_cast<nanoseconds>(
                         systemCurrentTime().time_since_epoch()).count();
+                LOG_INFO("kvssink PTS baseline: first_pts=" << data->first_pts
+                         << "ns producer_start_time=" << data->producer_start_time << "ns");
             }
 
             if (!data->use_original_pts) {
