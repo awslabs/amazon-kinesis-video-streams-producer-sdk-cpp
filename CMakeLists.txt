@@ -247,6 +247,17 @@ if(BUILD_GSTREAMER_PLUGIN)
   endif()
   target_link_libraries(gstkvssink PRIVATE ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
+  if((USE_AWS_LC OR USE_AWS_LC_FIPS) AND NOT APPLE AND NOT WIN32)
+    # A static AWS-LC build (BUILD_STATIC=ON) links the TLS stack into the plugin.
+    # Keep those symbols out of the plugin's dynamic symbol table: a host process
+    # that also loads the system libcrypto (glib-networking, libsoup, other
+    # plugins) must not be able to interpose one libcrypto implementation into the
+    # other. A GStreamer plugin only needs its gst_plugin_* entry points exported.
+    # In shared AWS-LC builds the crypto stack is a shared library and is not
+    # affected. Enforced by tst/scripts/check_symbol_clash.sh in CI.
+    set_property(TARGET gstkvssink APPEND_STRING PROPERTY LINK_FLAGS " -Wl,--exclude-libs,ALL")
+  endif()
+
   add_executable(kvssink_gstreamer_sample samples/kvssink_gstreamer_sample.cpp)
   target_link_libraries(kvssink_gstreamer_sample ${GST_APP_LIBRARIES} KinesisVideoProducer)
 
