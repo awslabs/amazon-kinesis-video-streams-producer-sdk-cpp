@@ -255,6 +255,152 @@ jobs:
           done
         shell: bash
 
+  linux-aws-lc-e2e:
+    # End-to-end kvssink streaming over the AWS-LC backend against the live
+    # service, gated on TLS key exchange evidence. The allowlist is
+    # rollout-tolerant: at the time of writing the KVS control plane negotiates
+    # hybrid X25519MLKEM768 while the PutMedia hosts negotiate X25519, and a
+    # service-side rollout step must not break unrelated pull requests. Every
+    # connection must still log an allowlisted group with the AWS-LC backend -
+    # anything else (classical fallback to an unexpected group, an OpenSSL
+    # backend string, missing evidence lines) fails the job.
+    #
+    # The stream also runs with the system libssl.so.3/libcrypto.so.3 preloaded,
+    # i.e. first in the process's global lookup scope, which is what a GStreamer
+    # host using the system TLS stack looks like. Real AWS-LC handshakes then
+    # resolve every lazily bound crypto call: if the plugin's AWS-LC symbols were
+    # interposable (no --exclude-libs,ALL), those calls would bind to OpenSSL and
+    # mix two incompatible implementations in one handshake, which is expected
+    # to fail the handshake or crash the process. This is the runtime half of the
+    # guard whose static half (check_symbol_clash.sh) runs in ci.yml
+    # ubuntu-gcc-aws-lc.
+    #
+    # kvssink takes its log level from the log4cplus configuration
+    # (../kvs_log_configuration relative to build/, DEBUG), not from
+    # AWS_KVS_LOG_LEVEL, so the log can carry request details and hosts. It goes
+    # to a file that is never printed or uploaded; only the TLS evidence and
+    # error lines are echoed, with hosts redacted.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_KVS_LOG_LEVEL: 2
+      STREAM_NAME: cpp-kvssink-aws-lc-e2e
+      GST_PLUGIN_PATH: ${{ github.workspace }}/build
+      KVS_DEBUG_DUMP_DATA_FILE_DIR: ${{ github.workspace }}/build/debug_output
+      ALLOWED_GROUPS: 'X25519MLKEM768|X25519'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone producer-c with the AWS-LC backend (CI-only pin override)
+        uses: actions/checkout@v4
+        with:
+          repository: awslabs/amazon-kinesis-video-streams-producer-c
+          ref: ${{ vars.KVSC_AWS_LC_REF || '844a0626ae17f84d3d54757335398e5e26beddb0' }}
+          path: kvsc-aws-lc
+
+      - name: Install dependencies
+        run: |
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
+          sudo apt-get install -y libcurl4-openssl-dev liblog4cplus-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
+            gstreamer1.0-tools mkvtoolnix
+
+      - name: Build kvssink
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_STATIC=ON \
+            -DUSE_OPENSSL=OFF -DUSE_AWS_LC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DLOCAL_KVSC_PATH="$GITHUB_WORKSPACE/kvsc-aws-lc"
+          make -j$(nproc)
+
+      - name: Verify crypto backend is AWS-LC
+        run: |
+          ./tst/scripts/check_crypto_backend.sh aws-lc ./build ./open-source/local/lib
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 900
+
+      - name: Run kvssink against the live service with the system OpenSSL preloaded
+        working-directory: ./build
+        run: |
+          mkdir -p debug_output
+          system_ssl=$(ldconfig -p | awk '/libssl\.so\.3 /{print $NF; exit}')
+          system_crypto=$(ldconfig -p | awk '/libcrypto\.so\.3 /{print $NF; exit}')
+          if [ -z "$system_ssl" ] || [ -z "$system_crypto" ]; then
+            echo "System libssl.so.3/libcrypto.so.3 not found; the interposition check would be vacuous"
+            exit 1
+          fi
+          export LD_PRELOAD="$system_ssl:$system_crypto"
+          echo "LD_PRELOAD=$LD_PRELOAD"
+          # Positive control: the preload is really in the process's link map.
+          ldd "$(command -v gst-launch-1.0)" | grep -E 'lib(ssl|crypto)\.so\.3'
+          test "$(ldd "$(command -v gst-launch-1.0)" | grep -cE 'lib(ssl|crypto)\.so\.3')" -ge 2
+          rc=0
+          gst-launch-1.0 videotestsrc is-live=true num-buffers=450 \
+            ! video/x-raw,framerate=30/1,width=640,height=480 \
+            ! videoconvert ! x264enc tune=zerolatency key-int-max=45 \
+            ! h264parse \
+            ! kvssink stream-name="$STREAM_NAME" > kvssink-e2e.log 2>&1 || rc=$?
+          unset LD_PRELOAD
+          echo "gst-launch-1.0 exit code: $rc"
+          # Evidence and errors only, with any URL or KVS host name redacted.
+          grep -E 'TLS negotiated:|ERROR' kvssink-e2e.log | tail -n 50 \
+            | sed -E 's#https?://[^ ]+#<url>#g; s#[A-Za-z0-9.-]+\.amazonaws\.com#<host>#g' || true
+          exit "$rc"
+
+      - name: Verify MKV dump
+        working-directory: ./build/debug_output
+        run: |
+          shopt -s nullglob
+          mkvfiles=(*.mkv)
+          if [ ${#mkvfiles[@]} -eq 0 ]; then
+            echo "No MKV files found in debug_output"
+            exit 1
+          fi
+          for file in "${mkvfiles[@]}"; do
+            mkvinfo -v "$file" > /dev/null && echo "$file OK"
+          done
+
+      - name: Verify TLS key exchange evidence against the allowlist
+        working-directory: ./build
+        run: |
+          set -e
+          echo "Allowlisted groups: $ALLOWED_GROUPS"
+          if ! test -s kvssink-e2e.log; then
+            echo "kvssink-e2e.log is missing or empty: no TLS evidence to check"
+            exit 1
+          fi
+          # Every connection logs its negotiated group; the backend must be AWS-LC.
+          tls_lines=$(grep -c 'TLS negotiated:.*keyExchange=.*AWS-LC' kvssink-e2e.log || true)
+          tls_lines=${tls_lines:-0}
+          echo "TLS evidence lines: $tls_lines"
+          # describeStream + getDataEndpoint (control plane) plus the PutMedia
+          # data-plane connection: both producer-c call sites must have fired.
+          if [ "$tls_lines" -lt 3 ]; then
+            echo "Expected at least 3 'TLS negotiated' lines (control plane x2 + PutMedia), got $tls_lines"
+            exit 1
+          fi
+          # No line may carry a group outside the allowlist.
+          offlist=$(grep 'TLS negotiated:' kvssink-e2e.log | grep -vE "keyExchange=($ALLOWED_GROUPS)( |$)" || true)
+          if [ -n "$offlist" ]; then
+            echo "TLS connections negotiated a group outside the allowlist:"
+            echo "$offlist"
+            exit 1
+          fi
+          echo "All $tls_lines TLS connections negotiated an allowlisted group over AWS-LC"
+
   windows-debug-dump-dir:
     runs-on: windows-2022
     env:
