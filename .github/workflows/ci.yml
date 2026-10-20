@@ -418,6 +418,9 @@ jobs:
           cmake-version: '3.x'
       - name: Build repository
         run: |
+          # The log4cplus autoconf build calls the toolchain cc directly; without SDKROOT it
+          # cannot find the macOS SDK and configure fails ("C compiler cannot create executables").
+          export SDKROOT="$(xcrun --show-sdk-path)"
           mkdir build && cd build
           cmake .. -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_STATIC=ON \
             -DUSE_OPENSSL=OFF -DUSE_AWS_LC=ON \
