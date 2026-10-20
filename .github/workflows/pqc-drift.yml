@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: awslabs/amazon-kinesis-video-streams-producer-c
-          ref: ${{ vars.KVSC_AWS_LC_REF || '844a0626ae17f84d3d54757335398e5e26beddb0' }}
+          ref: ${{ vars.KVSC_AWS_LC_REF || 'c99b7b342fa875c6bd0b5e09fdae896cc3c5a01b' }}
           path: kvsc-aws-lc
 
       - name: Install dependencies
