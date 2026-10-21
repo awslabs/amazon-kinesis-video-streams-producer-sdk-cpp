@@ -1,0 +1,261 @@
+name: PQC key exchange drift check
+
+# Nightly guard for the post-quantum TLS path against the LIVE service.
+#
+# The per-PR kvssink end-to-end job (kvssink.yml, linux-aws-lc-e2e) tolerates
+# either classical or hybrid ML-KEM key exchange so a service-side rollout cannot
+# break unrelated pull requests. This workflow is the strict counterpart: it pins
+# the group the SDK is expected to negotiate with each KVS plane and fails on ANY
+# change, in either direction:
+#   - classical -> ML-KEM: the service enabled PQC on that plane; update the
+#     expectation (below) and, once both planes are ML-KEM, tighten the
+#     kvssink.yml allowlist to make ML-KEM the permanent gate;
+#   - ML-KEM -> classical: a silent fallback (SDK, dependency, or service
+#     regression); investigate before anything else.
+#
+# Expected groups are repository variables (Settings -> Secrets and variables ->
+# Actions -> Variables); the defaults match the service state when this
+# workflow was added:
+#   KVS_EXPECTED_CONTROL_PLANE_GROUP  default X25519MLKEM768  (kinesisvideo.<region>)
+#   KVS_EXPECTED_DATA_PLANE_GROUP     default X25519          (PutMedia data endpoint)
+#
+# The TLS stack under test is producer-c's; the C++ SDK compiles it as a
+# sub-project at the same fixed producer-c commit as ci.yml (overridable with
+# KVSC_AWS_LC_REF; replace the SHA with the producer-c release tag when the
+# default dependency pin moves). The probe binary is a producer-c sample, built
+# here by explicit target name because the sub-project is added EXCLUDE_FROM_ALL.
+#
+# Order: the credential-free control-plane probe runs first, then kvssink
+# streams (creating the stream), then the data-plane probe against the stream's
+# PutMedia endpoint, then the per-connection check of the kvssink log.
+#
+# An issue labelled "pqc-drift" is opened (or the open one updated) only when a
+# drift step actually observed an unexpected group. Infrastructure failures
+# (build, credentials, network, too little evidence) fail the run without an
+# issue.
+#
+# Logging: kvssink takes its log level from the log4cplus configuration
+# (../kvs_log_configuration relative to build/, DEBUG), not from
+# AWS_KVS_LOG_LEVEL, so its log can carry request details and hosts. All SDK
+# output goes to files that are never printed or uploaded. Only key exchange
+# evidence and error lines are echoed, and the data endpoint is masked and never
+# printed.
+
+on:
+  schedule:
+    - cron: '47 9 * * *'   # daily, 09:47 UTC
+  workflow_dispatch:
+    inputs:
+      control_plane_group:
+        description: 'Expected group on the control plane (overrides the repository variable)'
+        required: false
+        default: ''
+      data_plane_group:
+        description: 'Expected group on the PutMedia data plane (overrides the repository variable)'
+        required: false
+        default: ''
+
+jobs:
+  drift-check:
+    # Scheduled runs only in the upstream repository (forks have no credentials);
+    # manual dispatch works anywhere.
+    if: github.event_name != 'schedule' || github.repository == 'awslabs/amazon-kinesis-video-streams-producer-sdk-cpp'
+    runs-on: ubuntu-22.04
+    name: AWS-LC vs live KVS endpoints (kvssink)
+    timeout-minutes: 75
+
+    env:
+      # Repository convention; kvssink's level comes from log4cplus (see Logging above).
+      AWS_KVS_LOG_LEVEL: 2
+      STREAM_NAME: cpp-kvssink-aws-lc-pqc-drift
+      GST_PLUGIN_PATH: ${{ github.workspace }}/build
+      EXPECTED_CP: ${{ inputs.control_plane_group || vars.KVS_EXPECTED_CONTROL_PLANE_GROUP || 'X25519MLKEM768' }}
+      EXPECTED_DP: ${{ inputs.data_plane_group || vars.KVS_EXPECTED_DATA_PLANE_GROUP || 'X25519' }}
+
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Clone producer-c with the AWS-LC backend (CI-only pin override)
+        uses: actions/checkout@v4
+        with:
+          repository: awslabs/amazon-kinesis-video-streams-producer-c
+          ref: ${{ vars.KVSC_AWS_LC_REF || 'c99b7b342fa875c6bd0b5e09fdae896cc3c5a01b' }}
+          path: kvsc-aws-lc
+
+      - name: Install dependencies
+        run: |
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
+          sudo apt-get install -y libcurl4-openssl-dev liblog4cplus-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
+            gstreamer1.0-tools
+
+      - name: Build kvssink and the key exchange probe (USE_AWS_LC)
+        id: build
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_STATIC=ON \
+            -DUSE_OPENSSL=OFF -DUSE_AWS_LC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DLOCAL_KVSC_PATH="$GITHUB_WORKSPACE/kvsc-aws-lc"
+          make -j$(nproc)
+          make kvsTlsKeyExchangeProbe
+          test -x kvscproducer-build/kvsTlsKeyExchangeProbe
+
+      - name: Verify crypto backend is AWS-LC
+        id: backend
+        run: |
+          ./tst/scripts/check_crypto_backend.sh aws-lc ./build ./open-source/local/lib
+
+      - name: Control plane probe (strict, no credentials)
+        id: probe_cp
+        working-directory: ./build
+        env:
+          PROBE_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          echo "Expected control plane group: $EXPECTED_CP"
+          rc=0
+          ./kvscproducer-build/kvsTlsKeyExchangeProbe \
+            "https://kinesisvideo.${PROBE_REGION}.amazonaws.com/" - "$EXPECTED_CP" > probe-control-plane.log 2>&1 || rc=$?
+          grep -E '^(negotiated group|expected group|RESULT)' probe-control-plane.log || true
+          if grep -q 'RESULT: FAIL (key exchange group mismatch)' probe-control-plane.log; then
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$rc"
+
+      - name: Configure AWS Credentials
+        if: ${{ !cancelled() && steps.backend.outcome == 'success' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 900
+
+      - name: Stream kvssink (creates the stream, exercises control plane and PutMedia)
+        id: stream
+        if: ${{ !cancelled() && steps.backend.outcome == 'success' }}
+        working-directory: ./build
+        run: |
+          rc=0
+          gst-launch-1.0 videotestsrc is-live=true num-buffers=450 \
+            ! video/x-raw,framerate=30/1,width=640,height=480 \
+            ! videoconvert ! x264enc tune=zerolatency key-int-max=45 \
+            ! h264parse \
+            ! kvssink stream-name="$STREAM_NAME" > output.log 2>&1 || rc=$?
+          echo "gst-launch-1.0 exit code: $rc"
+          # Evidence and errors only, with any URL or KVS host name redacted.
+          grep -E 'TLS negotiated:|ERROR' output.log | tail -n 50 \
+            | sed -E 's#https?://[^ ]+#<url>#g; s#[A-Za-z0-9.-]+\.amazonaws\.com#<host>#g' || true
+          exit "$rc"
+
+      - name: Data plane probe (strict)
+        id: probe_dp
+        if: ${{ !cancelled() && steps.backend.outcome == 'success' }}
+        working-directory: ./build
+        run: |
+          echo "Expected data plane group: $EXPECTED_DP"
+          data_endpoint=$(aws kinesisvideo get-data-endpoint --stream-name "$STREAM_NAME" --api-name PUT_MEDIA \
+            --query DataEndpoint --output text --no-cli-pager)
+          case "$data_endpoint" in https://*) ;; *) echo "Could not resolve the PutMedia data endpoint"; exit 1;; esac
+          # Account-specific host: keep it out of the public log.
+          echo "::add-mask::$data_endpoint"
+          echo "::add-mask::${data_endpoint#https://}"
+          rc=0
+          # Unauthenticated GET: the HTTP status is irrelevant, only the negotiated group is checked.
+          ./kvscproducer-build/kvsTlsKeyExchangeProbe "$data_endpoint/" - "$EXPECTED_DP" > probe-data-plane.log 2>&1 || rc=$?
+          grep -E '^(negotiated group|expected group|RESULT)' probe-data-plane.log || true
+          if grep -q 'RESULT: FAIL (key exchange group mismatch)' probe-data-plane.log; then
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$rc"
+
+      - name: Every kvssink connection must use an expected group (strict)
+        id: groups
+        if: ${{ !cancelled() && steps.stream.outcome != 'skipped' }}
+        working-directory: ./build
+        run: |
+          # The 'TLS negotiated' line carries no host, so connections cannot be
+          # tagged by plane one by one. Checked instead, all strict:
+          #   - every 'TLS negotiated' line is AWS-LC and its group is the
+          #     control plane OR the data plane expectation;
+          #   - the first connection (describeStream, always before PutMedia)
+          #     negotiated the control plane group;
+          #   - when the two expectations differ, the control plane group shows
+          #     up at least twice (describeStream, getDataEndpoint) and the data
+          #     plane group at least once (PutMedia).
+          # A plane swap that still matches these counts is caught by the two
+          # per-plane probes, which remain the authoritative per-plane signal.
+          if ! test -s output.log; then
+            echo "output.log is missing or empty: no TLS evidence to check"
+            exit 1
+          fi
+          awk -v cp="$EXPECTED_CP" -v dp="$EXPECTED_DP" -v out="$GITHUB_OUTPUT" '
+            /TLS negotiated:/ {
+              total++
+              if ($0 !~ /backend=.*AWS-LC/) { notawslc++ }
+              match($0, /keyExchange=[^ ]+/); g = substr($0, RSTART + 12, RLENGTH - 12)
+              n[g]++
+              if (total == 1 && g != cp) { bad++; print "DRIFT (first connection, control plane): negotiated " g ", expected " cp }
+              if (g != cp && g != dp) { bad++; print "DRIFT: negotiated " g ", expected " cp " or " dp }
+            }
+            END {
+              printf "TLS lines: %d (control plane %s: %d, data plane %s: %d)\n", total, cp, n[cp], dp, n[dp]
+              if (notawslc) { print notawslc " TLS line(s) without the AWS-LC backend string"; exit 1 }
+              if (total >= 3 && cp != dp && (n[cp] < 2 || n[dp] < 1)) { bad++; print "DRIFT: expected at least 2 " cp " and 1 " dp " connection(s)" }
+              # An unexpected group is drift even when the stream stopped early.
+              if (bad) { print "drift=true" >> out; exit 1 }
+              if (total < 3) { print "Too few TLS lines: both call sites must have logged"; exit 1 }
+              print "No drift"
+            }' output.log
+
+      - name: Open or update the drift issue
+        if: ${{ !cancelled() && (steps.probe_cp.outputs.drift == 'true' || steps.probe_dp.outputs.drift == 'true' || steps.groups.outputs.drift == 'true') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -e
+          # A pipeline's status is its last command's (sed), so defaults are applied on the result, not with ||
+          groups_seen=$(grep -o 'keyExchange=[^ ]*' build/output.log 2>/dev/null | sort | uniq -c | sed 's/^/    /')
+          cp_probe=$(grep -E '^(RESULT|negotiated group)' build/probe-control-plane.log 2>/dev/null | sed 's/^/    /')
+          dp_probe=$(grep -E '^(RESULT|negotiated group)' build/probe-data-plane.log 2>/dev/null | sed 's/^/    /')
+          [ -n "$groups_seen" ] || groups_seen="    (no kvssink output)"
+          [ -n "$cp_probe" ] || cp_probe="    (no probe output)"
+          [ -n "$dp_probe" ] || dp_probe="    (no probe output)"
+          title="PQC drift: KVS key exchange no longer matches expected (control plane $EXPECTED_CP, data plane $EXPECTED_DP)"
+          body=$(cat <<EOF
+          The nightly PQC key exchange drift check observed an unexpected key exchange group.
+
+          Expected: control plane \`$EXPECTED_CP\` (KVS_EXPECTED_CONTROL_PLANE_GROUP), data plane \`$EXPECTED_DP\` (KVS_EXPECTED_DATA_PLANE_GROUP).
+
+          Control plane probe:
+          $cp_probe
+
+          Data plane probe:
+          $dp_probe
+
+          kvssink stream, groups negotiated per connection:
+          $groups_seen
+
+          Run: $RUN_URL
+
+          If KVS enabled ML-KEM on a plane, update the matching repository variable; once both planes are X25519MLKEM768, tighten the allowlist in kvssink.yml (linux-aws-lc-e2e). If a group moved back to classical, treat it as a silent fallback and investigate the SDK, its dependencies, and the service.
+          EOF
+          )
+          # '// empty' matters: on an empty list '.[0].number' prints the string "null", which would pass -n
+          existing=$(gh issue list --label pqc-drift --state open --json number --jq '.[0].number // empty' || true)
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "Updated issue #$existing"
+          else
+            gh label create pqc-drift --description "Nightly PQC key exchange drift check observed an unexpected group" --color D93F0B 2>/dev/null || true
+            gh issue create --title "$title" --label pqc-drift --body "$body"
+          fi
