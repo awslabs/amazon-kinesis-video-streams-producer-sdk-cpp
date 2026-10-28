@@ -395,7 +395,17 @@ jobs:
   mac-aws-lc:
     # Build-only (plus artifact-level backend identity): macOS has no
     # --exclude-libs equivalent wired up and is not an enforcement platform.
-    runs-on: macos-15
+    # Both Mac architectures: the AWS-LC build has x86_64 and arm64 assembly sets.
+    strategy:
+      matrix:
+        cpu:
+          - name: Intel
+            image: macos-15-intel
+          - name: Apple Silicon
+            image: macos-15
+      fail-fast: false
+    runs-on: ${{ matrix.cpu.image }}
+    name: mac-aws-lc (${{ matrix.cpu.name }})
     env:
       AWS_KVS_LOG_LEVEL: 2
     permissions:
