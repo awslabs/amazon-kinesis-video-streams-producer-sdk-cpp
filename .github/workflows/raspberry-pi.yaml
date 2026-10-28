@@ -16,12 +16,26 @@ jobs:
     strategy:
       matrix:
         include:
-          # Debian 11
-          - os: bullseye
-            image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bullseye@sha256:72311cfece0656c91407b4fd982f5aaf0eded0fee477de58281e82ab67f4478f
-          # Debian 12
+          # Debian 12. Debian 11 (bullseye) was dropped after it reached end of life:
+          # its packages were removed from deb.debian.org and apt-get install 404s.
+          # Keep the matrix on supported releases only.
           - os: bookworm
             image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bookworm@sha256:0632946b7dc03ec3d9f7aeef9df4287affb3d6fe413f0e5dfd11c2b73466a845
+            extra_packages: gstreamer1.0-omx-generic
+            extra_cmake_args: ""
+          # Debian 13 (trixie), the current Raspberry Pi OS release. dtcooper/raspberrypi-os
+          # has no trixie image yet (dtcooper/raspberrypi-os-docker#6), so this cell uses the
+          # official Debian image; the job only installs Debian packages.
+          # gstreamer1.0-omx-generic was removed in trixie and the test pipeline does not use it.
+          # PIC v1.3.1 (pinned through producer-c v1.6.2) defines _GNU_SOURCE after <stdint.h>,
+          # so pthread_getname_np has no declaration and gcc 14 rejects the implicit one.
+          # Drop the -D_GNU_SOURCE workaround once
+          # https://github.com/awslabs/amazon-kinesis-video-streams-pic/pull/306 reaches the
+          # pinned producer-c release.
+          - os: trixie
+            image: debian:trixie@sha256:8c4733a92aacd0bcff3779eadc35a4a5147f36cb20a5fcb56504cbc740212259
+            extra_packages: ""
+            extra_cmake_args: -DCMAKE_C_FLAGS=-D_GNU_SOURCE
       fail-fast: false
 
     name: Build on ${{ matrix.os }}
@@ -60,15 +74,15 @@ jobs:
               apt-get install -y automake build-essential cmake git \
                 gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad \
                 gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
-                gstreamer1.0-tools gstreamer1.0-omx-generic \
+                gstreamer1.0-tools \
                 libcurl4-openssl-dev libgstreamer1.0-dev \
                 libgstreamer-plugins-base1.0-dev liblog4cplus-dev \
-                libssl-dev pkg-config
+                libssl-dev pkg-config ${{ matrix.extra_packages }}
 
               mkdir -p build
               cd build
 
-              cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF -DALIGNED_MEMORY_MODEL=ON
+              cmake .. -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_DEPENDENCIES=OFF -DALIGNED_MEMORY_MODEL=ON ${{ matrix.extra_cmake_args }}
               if [ $? -ne 0 ]; then
                 echo "CMake configuration failed!"
                 exit 1
