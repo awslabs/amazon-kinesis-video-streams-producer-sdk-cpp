@@ -333,8 +333,18 @@ jobs:
   # The same SHA appears in every AWS-LC job here and in kvssink.yml,
   # pqc-drift.yml and deps-latest.yml; keep them in sync.
   ubuntu-gcc-aws-lc:
-    runs-on: ubuntu-22.04
-    name: ubuntu-22.04-gcc-aws-lc-static
+    strategy:
+      matrix:
+        # 22.04 (gcc 11, GStreamer 1.20) and 24.04 (gcc 13, GStreamer 1.24).
+        # The default-backend jobs run 24.04 only under WSL (samples.yml,
+        # kvssink.yml); before this, gcc 11 was the only gcc that built AWS-LC's
+        # x86-64 assembly and curl from source.
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }}-gcc-aws-lc-static
     env:
       AWS_KVS_LOG_LEVEL: 2
       CC: gcc
