@@ -16,9 +16,7 @@ jobs:
     strategy:
       matrix:
         include:
-          # Debian 12. Debian 11 (bullseye) was dropped after it reached end of life:
-          # its packages were removed from deb.debian.org and apt-get install 404s.
-          # Keep the matrix on supported releases only.
+          # Debian 12. Keep the matrix on supported releases only.
           - os: bookworm
             image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bookworm@sha256:0632946b7dc03ec3d9f7aeef9df4287affb3d6fe413f0e5dfd11c2b73466a845
       fail-fast: false
