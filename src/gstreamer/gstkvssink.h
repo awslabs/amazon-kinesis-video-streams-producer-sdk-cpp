@@ -197,6 +197,14 @@ struct _KvsSinkCustomData {
     guint ack_signal_id = 0;
     guint metric_signal_id = 0;
     uint64_t start_time;  // [nanoSeconds]
+
+    // Fragment boundary tracking (PTS in 100ns units, same as frame.presentationTs)
+    uint64_t fragment_start_pts = 0;
+    uint64_t fragment_max_pts = 0;
+    uint32_t fragment_count = 0;
+    // Raw nanosecond PTS (before division by 100) for accurate gst correlation
+    uint64_t fragment_start_pts_ns = 0;
+    uint64_t fragment_max_pts_ns = 0;
 };
 
 struct _KvsSinkMetric {
