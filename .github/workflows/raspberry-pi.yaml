@@ -16,10 +16,7 @@ jobs:
     strategy:
       matrix:
         include:
-          # Debian 11
-          - os: bullseye
-            image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bullseye@sha256:72311cfece0656c91407b4fd982f5aaf0eded0fee477de58281e82ab67f4478f
-          # Debian 12
+          # Debian 12. Keep the matrix on supported releases only.
           - os: bookworm
             image: ghcr.io/dtcooper/raspberrypi-os:python3.12-bookworm@sha256:0632946b7dc03ec3d9f7aeef9df4287affb3d6fe413f0e5dfd11c2b73466a845
       fail-fast: false
