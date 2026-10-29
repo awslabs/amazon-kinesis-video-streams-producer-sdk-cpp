@@ -314,6 +314,187 @@ jobs:
           ulimit -c unlimited -S
           timeout --signal=SIGABRT 60m ./tst/producerTest
 
+      - name: Verify crypto backend is OpenSSL (no AWS-LC code, libssl/libcrypto linked)
+        run: |
+          # Fetched producer-c installs its dependencies into open-source/local
+          # in the source tree, not under ./build. In openssl mode the script
+          # also requires libgstkvssink.so and libKinesisVideoProducer.so to
+          # resolve libssl and libcrypto via ldd.
+          ./tst/scripts/check_crypto_backend.sh openssl ./build ./open-source/local/lib
+
+  # The AWS-LC jobs point producer-c at a checkout that contains the AWS-LC
+  # backend (CI-only override via LOCAL_KVSC_PATH). The default producer-c pin in
+  # CMake/Dependencies/libkvscproducer-CMakeLists.txt is deliberately untouched:
+  # it moves when a producer-c release containing the backend is cut. Until then
+  # the jobs check out a fixed producer-c commit (full SHA, so per-PR results do
+  # not follow a moving branch); the repository variable KVSC_AWS_LC_REF
+  # overrides it. When the default pin moves to that producer-c release, replace
+  # this SHA with the release tag (or drop the override and LOCAL_KVSC_PATH).
+  # The same SHA appears in every AWS-LC job here and in kvssink.yml,
+  # pqc-drift.yml and deps-latest.yml; keep them in sync.
+  ubuntu-gcc-aws-lc:
+    strategy:
+      matrix:
+        # 22.04 (gcc 11, GStreamer 1.20) and 24.04 (gcc 13, GStreamer 1.24).
+        # The default-backend jobs run 24.04 only under WSL (samples.yml,
+        # kvssink.yml); before this, gcc 11 was the only gcc that built AWS-LC's
+        # x86-64 assembly and curl from source.
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }}-gcc-aws-lc-static
+    env:
+      AWS_KVS_LOG_LEVEL: 2
+      CC: gcc
+      CXX: g++
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+      - name: Clone producer-c with the AWS-LC backend (CI-only pin override)
+        uses: actions/checkout@v4
+        with:
+          repository: awslabs/amazon-kinesis-video-streams-producer-c
+          ref: ${{ vars.KVSC_AWS_LC_REF || 'c99b7b342fa875c6bd0b5e09fdae896cc3c5a01b' }}
+          path: kvsc-aws-lc
+      - name: Install dependencies
+        run: |
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
+          sudo apt-get install -y libcurl4-openssl-dev liblog4cplus-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly gstreamer1.0-tools
+      - name: Build repository
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_STATIC=ON \
+            -DUSE_OPENSSL=OFF -DUSE_AWS_LC=ON \
+            -DLOCAL_KVSC_PATH="$GITHUB_WORKSPACE/kvsc-aws-lc"
+          make -j$(nproc)
+      - name: Verify crypto backend is AWS-LC
+        run: |
+          ./tst/scripts/check_crypto_backend.sh aws-lc ./build ./open-source/local/lib
+      - name: Verify no crypto symbol clash in the GStreamer plugin
+        run: |
+          # Static half of the interposition guard: the plugin's dynamic symbol
+          # table must carry no crypto/curl symbols (--exclude-libs,ALL in
+          # CMakeLists.txt). The runtime half, a real AWS-LC TLS stream with the
+          # system libssl/libcrypto preloaded, runs in kvssink.yml
+          # (linux-aws-lc-e2e).
+          ./tst/scripts/check_symbol_clash.sh ./build ./open-source/local/lib/libcrypto.a
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 3600
+      - name: Run producer tests
+        run: |
+          cd build
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 60m ./tst/producerTest
+      - name: Run kvssink unit tests
+        run: |
+          cd build
+          export GST_PLUGIN_PATH=$(pwd)
+          timeout --signal=SIGABRT 30m ./tst/gstkvsplugintest
+
+  mac-aws-lc:
+    # Build-only (plus artifact-level backend identity): macOS has no
+    # --exclude-libs equivalent wired up and is not an enforcement platform.
+    # Both Mac architectures: the AWS-LC build has x86_64 and arm64 assembly sets.
+    strategy:
+      matrix:
+        cpu:
+          - name: Intel
+            image: macos-15-intel
+          - name: Apple Silicon
+            image: macos-15
+      fail-fast: false
+    runs-on: ${{ matrix.cpu.image }}
+    name: mac-aws-lc (${{ matrix.cpu.name }})
+    env:
+      AWS_KVS_LOG_LEVEL: 2
+    permissions:
+      contents: read
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+      - name: Clone producer-c with the AWS-LC backend (CI-only pin override)
+        uses: actions/checkout@v4
+        with:
+          repository: awslabs/amazon-kinesis-video-streams-producer-c
+          ref: ${{ vars.KVSC_AWS_LC_REF || 'c99b7b342fa875c6bd0b5e09fdae896cc3c5a01b' }}
+          path: kvsc-aws-lc
+      - name: Install dependencies
+        run: |
+          brew install cmake gstreamer log4cplus
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.x'
+      - name: Build repository
+        run: |
+          # The log4cplus autoconf build calls the toolchain cc directly; without SDKROOT it
+          # cannot find the macOS SDK and configure fails ("C compiler cannot create executables").
+          export SDKROOT="$(xcrun --show-sdk-path)"
+          mkdir build && cd build
+          cmake .. -DBUILD_GSTREAMER_PLUGIN=TRUE -DBUILD_STATIC=ON \
+            -DUSE_OPENSSL=OFF -DUSE_AWS_LC=ON \
+            -DLOCAL_KVSC_PATH="$GITHUB_WORKSPACE/kvsc-aws-lc"
+          make -j$(sysctl -n hw.ncpu)
+      - name: Verify crypto backend is AWS-LC
+        run: |
+          ./tst/scripts/check_crypto_backend.sh aws-lc ./build ./open-source/local/lib
+
+  windows-msvc-aws-lc:
+    # Build-only: proves the AWS-LC backend selection and kvssink compile with
+    # MSVC/NMake. Needs NASM and Perl for the AWS-LC assembly and curl builds.
+    # Not run against the service: on Windows producer-c builds curl with
+    # Schannel, so TLS (and its key exchange) is the OS stack, not AWS-LC;
+    # AWS-LC only backs the SDK's own crypto there.
+    runs-on: windows-2022
+    env:
+      AWS_KVS_LOG_LEVEL: 7
+    permissions:
+      contents: read
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+      - name: Clone producer-c with the AWS-LC backend (CI-only pin override)
+        uses: actions/checkout@v4
+        with:
+          repository: awslabs/amazon-kinesis-video-streams-producer-c
+          ref: ${{ vars.KVSC_AWS_LC_REF || 'c99b7b342fa875c6bd0b5e09fdae896cc3c5a01b' }}
+          path: kvsc-aws-lc
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.x'
+      - name: Move repository
+        run: |
+          mkdir D:\producer
+          Move-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "D:\producer"
+      - name: Install dependencies
+        run: |
+          choco install nasm strawberryperl
+          choco install gstreamer --version=1.22.12
+          choco install gstreamer-devel --version=1.22.12
+      - name: Build repository
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set PATH=%PATH%;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Strawberry\c\bin;C:\Program Files\NASM
+          git config --system core.longpaths true
+          cd /d D:\producer
+          mkdir build
+          cd build
+          cmake -G "NMake Makefiles" -DBUILD_GSTREAMER_PLUGIN=TRUE -DUSE_OPENSSL=OFF -DUSE_AWS_LC=ON -DLOCAL_KVSC_PATH=D:/producer/kvsc-aws-lc -DPKG_CONFIG_EXECUTABLE="D:\\gstreamer\\1.0\\msvc_x86_64\\bin\\pkg-config.exe" ..
+          nmake
+
   windows-msvc:
     runs-on: windows-2022
     env:

@@ -1,0 +1,214 @@
+name: AWS-LC and curl latest-release build
+
+# Weekly early warning: build kvssink's AWS-LC backend against the newest AWS-LC
+# and libcurl releases instead of the pinned tags, so an upstream change that
+# breaks the SDK (API removal, group rename, curl option rename) is seen before
+# the next pin bump. Schedule-only, so it never blocks a pull request; the
+# pinned builds in ci.yml stay the gate. A failed run opens an issue labelled
+# "deps-latest" (or updates the open one), which is the signal this job exists
+# to produce, so it is not marked continue-on-error.
+#
+# AWS-LC publishes two release lines from one repository (vX.Y.Z and
+# AWS-LC-FIPS-X.Y.Z); "latest" here means the newest non-prerelease vX.Y.Z tag,
+# which is the line USE_AWS_LC pins.
+#
+# The pins live in producer-c, compiled here as a sub-project at the same fixed
+# producer-c commit as ci.yml (overridable with KVSC_AWS_LC_REF; replace the SHA
+# with the producer-c release tag when the default dependency pin moves).
+# AWS_LC_GIT_TAG / CURL_GIT_TAG reach it through the shared CMake cache; that
+# commit accepts both overrides. The version check below fails loudly if the
+# built libcrypto or libcurl is not the requested release, so a producer-c ref
+# that ignores an override cannot pass silently.
+
+on:
+  schedule:
+    - cron: '53 7 * * 1'   # Mondays, 07:53 UTC
+  workflow_dispatch:
+    inputs:
+      aws_lc_tag:
+        description: 'AWS-LC git tag, e.g. v5.8.0 (empty = latest release)'
+        required: false
+        default: ''
+      curl_tag:
+        description: 'curl git tag, e.g. curl-8_22_0 (empty = latest release)'
+        required: false
+        default: ''
+
+jobs:
+  latest-deps:
+    # Scheduled runs only in the upstream repository (forks have no credentials);
+    # manual dispatch works anywhere.
+    if: github.event_name != 'schedule' || github.repository == 'awslabs/amazon-kinesis-video-streams-producer-sdk-cpp'
+    runs-on: ubuntu-22.04
+    name: ubuntu-22.04-gcc-aws-lc-latest-deps
+    timeout-minutes: 150
+
+    env:
+      AWS_KVS_LOG_LEVEL: 2
+      CC: gcc
+      CXX: g++
+      GST_PLUGIN_PATH: ${{ github.workspace }}/build
+
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Clone producer-c with the AWS-LC backend (CI-only pin override)
+        uses: actions/checkout@v4
+        with:
+          repository: awslabs/amazon-kinesis-video-streams-producer-c
+          ref: ${{ vars.KVSC_AWS_LC_REF || 'c99b7b342fa875c6bd0b5e09fdae896cc3c5a01b' }}
+          path: kvsc-aws-lc
+
+      - name: Install dependencies
+        run: |
+          sudo apt clean && sudo apt update
+          sudo apt install -y libunwind-dev
+          sudo apt-get install -y libcurl4-openssl-dev liblog4cplus-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
+            gstreamer1.0-tools
+
+      - name: Resolve latest release tags
+        id: tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Inputs are passed through the environment, never interpolated into the script
+          INPUT_AWS_LC_TAG: ${{ inputs.aws_lc_tag }}
+          INPUT_CURL_TAG: ${{ inputs.curl_tag }}
+        run: |
+          set -e
+          aws_lc_tag="$INPUT_AWS_LC_TAG"
+          curl_tag="$INPUT_CURL_TAG"
+          if [ -z "$aws_lc_tag" ]; then
+            # Not releases/latest: that returns the newest release of EITHER line, which is
+            # the FIPS line right after a FIPS release. Take the highest vX.Y.Z by version,
+            # not by publication date (a maintenance release of an older line can be newer).
+            aws_lc_tag=$(gh api 'repos/aws/aws-lc/releases?per_page=100' \
+              --jq '[.[] | select(.draft == false and .prerelease == false and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")))] | sort_by(.tag_name | ltrimstr("v") | split(".") | map(tonumber)) | last | .tag_name')
+          fi
+          if [ -z "$curl_tag" ]; then
+            curl_tag=$(gh api repos/curl/curl/releases/latest --jq .tag_name)
+          fi
+          case "$aws_lc_tag" in ''|null) echo "Could not resolve the latest AWS-LC release tag"; exit 1;; esac
+          case "$curl_tag" in ''|null) echo "Could not resolve the latest curl release tag"; exit 1;; esac
+          echo "AWS-LC: $aws_lc_tag   curl: $curl_tag"
+          echo "aws_lc_tag=$aws_lc_tag" >> "$GITHUB_OUTPUT"
+          echo "curl_tag=$curl_tag" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Latest-dependency build"
+            echo "* AWS-LC: \`$aws_lc_tag\`"
+            echo "* curl: \`$curl_tag\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build repository (USE_AWS_LC, latest tags)
+        id: build
+        env:
+          AWS_LC_GIT_TAG: ${{ steps.tags.outputs.aws_lc_tag }}
+          CURL_GIT_TAG: ${{ steps.tags.outputs.curl_tag }}
+        run: |
+          mkdir build && cd build
+          cmake .. -DBUILD_TEST=TRUE -DBUILD_GSTREAMER_PLUGIN=ON -DBUILD_STATIC=ON \
+            -DUSE_OPENSSL=OFF -DUSE_AWS_LC=ON \
+            -DLOCAL_KVSC_PATH="$GITHUB_WORKSPACE/kvsc-aws-lc" \
+            -DAWS_LC_GIT_TAG="$AWS_LC_GIT_TAG" -DCURL_GIT_TAG="$CURL_GIT_TAG"
+          make -j$(nproc)
+
+      - name: Verify crypto backend is AWS-LC and the requested tags were built
+        id: backend
+        env:
+          AWS_LC_GIT_TAG: ${{ steps.tags.outputs.aws_lc_tag }}
+          CURL_GIT_TAG: ${{ steps.tags.outputs.curl_tag }}
+        run: |
+          ./tst/scripts/check_crypto_backend.sh aws-lc ./build ./open-source/local/lib
+          # Fail loudly if a pinned version was silently built instead of the
+          # requested one. Matches are bounded so 5.8.0 does not accept 5.8.01;
+          # libcurl may carry a suffix (local builds report e.g. 8.22.0-DEV).
+          aws_lc_ver="${AWS_LC_GIT_TAG#v}"
+          if ! strings ./open-source/local/lib/libcrypto.a | grep -qE "AWS-LC ${aws_lc_ver//./\\.}([^0-9.]|\$)"; then
+            echo "libcrypto does not identify as 'AWS-LC $aws_lc_ver': the AWS_LC_GIT_TAG override was not honored."
+            exit 1
+          fi
+          echo "libcrypto identifies as AWS-LC $aws_lc_ver"
+          curl_ver="${CURL_GIT_TAG#curl-}"
+          curl_ver="${curl_ver//_/.}"
+          if ! strings ./open-source/local/lib/libcurl.a | grep -qE "libcurl/${curl_ver//./\\.}([^0-9.]|\$)"; then
+            echo "libcurl does not identify as 'libcurl/$curl_ver': the CURL_GIT_TAG override was not honored."
+            exit 1
+          fi
+          echo "libcurl identifies as libcurl/$curl_ver"
+
+      - name: Check the plugin's dynamic symbol table
+        id: clash
+        run: |
+          ./tst/scripts/check_symbol_clash.sh ./build ./open-source/local/lib/libcrypto.a
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: ${{ secrets.AWS_ROLE_SESSION_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      - name: Run producer tests
+        id: tests
+        working-directory: ./build
+        run: |
+          ulimit -c unlimited -S
+          timeout --signal=SIGABRT 60m ./tst/producerTest
+
+      - name: Run kvssink unit tests
+        id: gsttests
+        working-directory: ./build
+        run: |
+          timeout --signal=SIGABRT 30m ./tst/gstkvsplugintest
+
+      - name: Open or update the latest-dependency issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          AWS_LC_TAG: ${{ steps.tags.outputs.aws_lc_tag }}
+          CURL_TAG: ${{ steps.tags.outputs.curl_tag }}
+          OUTCOME_TAGS: ${{ steps.tags.outcome }}
+          OUTCOME_BUILD: ${{ steps.build.outcome }}
+          OUTCOME_BACKEND: ${{ steps.backend.outcome }}
+          OUTCOME_CLASH: ${{ steps.clash.outcome }}
+          OUTCOME_TESTS: ${{ steps.tests.outcome }}
+          OUTCOME_GSTTESTS: ${{ steps.gsttests.outcome }}
+        run: |
+          set -e
+          title="Latest AWS-LC/curl build failed (AWS-LC ${AWS_LC_TAG:-unresolved}, curl ${CURL_TAG:-unresolved})"
+          body=$(cat <<EOF
+          The weekly build against the newest AWS-LC and curl releases failed.
+
+          | Step | Outcome |
+          |---|---|
+          | Resolve tags | $OUTCOME_TAGS |
+          | Build (AWS-LC \`${AWS_LC_TAG:-unresolved}\`, curl \`${CURL_TAG:-unresolved}\`) | $OUTCOME_BUILD |
+          | Crypto backend / tag check | $OUTCOME_BACKEND |
+          | Symbol clash check | $OUTCOME_CLASH |
+          | producerTest | $OUTCOME_TESTS |
+          | kvssink unit tests | $OUTCOME_GSTTESTS |
+
+          Run: $RUN_URL
+
+          The pinned builds in ci.yml are unaffected. Decide whether the next pin bump needs an SDK change (API removal, renamed group or curl option) or whether the upstream release is at fault.
+          EOF
+          )
+          # '// empty' matters: on an empty list '.[0].number' prints the string "null", which would pass -n
+          existing=$(gh issue list --label deps-latest --state open --json number --jq '.[0].number // empty' || true)
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "Updated issue #$existing"
+          else
+            gh label create deps-latest --description "Weekly latest AWS-LC/curl build failed" --color FBCA04 2>/dev/null || true
+            gh issue create --title "$title" --label deps-latest --body "$body"
+          fi
