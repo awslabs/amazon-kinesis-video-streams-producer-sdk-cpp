@@ -403,8 +403,9 @@ jobs:
           timeout --signal=SIGABRT 30m ./tst/gstkvsplugintest
 
   mac-aws-lc:
-    # Build-only (plus artifact-level backend identity): macOS has no
-    # --exclude-libs equivalent wired up and is not an enforcement platform.
+    # Build, artifact-level backend identity and a plugin load check; no live
+    # streaming (no credentials). macOS has no --exclude-libs equivalent wired up
+    # and is not an enforcement platform.
     # Both Mac architectures: the AWS-LC build has x86_64 and arm64 assembly sets.
     strategy:
       matrix:
@@ -449,6 +450,16 @@ jobs:
       - name: Verify crypto backend is AWS-LC
         run: |
           ./tst/scripts/check_crypto_backend.sh aws-lc ./build ./open-source/local/lib
+      - name: Verify the kvssink plugin loads
+        run: |
+          # Load-time check on this architecture: GStreamer must register the plugin from
+          # our build directory. A missing symbol or an init-time clash in the static
+          # AWS-LC + curl dylib fails here, not at compile time. Offline: nothing
+          # connects to the service.
+          export GST_PLUGIN_PATH="$PWD/build"
+          gst-inspect-1.0 kvssink > inspect.log 2>&1 || { cat inspect.log; exit 1; }
+          grep -E 'Long-name|Filename|Version' inspect.log
+          grep -q "Filename.*$PWD/build/libgstkvssink" inspect.log
 
   windows-msvc-aws-lc:
     # Build-only: proves the AWS-LC backend selection and kvssink compile with
