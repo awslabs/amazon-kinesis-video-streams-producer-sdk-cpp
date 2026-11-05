@@ -34,7 +34,6 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration) {
 
     CreateProducer();
 
-    buffering_ack_in_sequence_ = true;
     const int test_buffer_duration_seconds = 4;
 
     UINT64 timestamp = 0;
@@ -68,7 +67,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
         timestamp += frame_duration_;
     }
 
@@ -77,7 +76,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_buffer_duration) {
     EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
     EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
     EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-    EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+    expectAllFragmentsPersisted(kinesis_video_stream);
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 }
@@ -93,8 +92,6 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage) {
     const uint32_t test_frame_size = 12500; // each fragment contains 20 frames. Storage can only contain 4 fragments at the same time
     BYTE test_frame_data[test_frame_size];
     CreateProducer();
-
-    buffering_ack_in_sequence_ = true;
 
     UINT64 timestamp = 0;
     Frame frame;
@@ -127,7 +124,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
         timestamp += frame_duration_;
     }
 
@@ -136,7 +133,7 @@ TEST_F(ProducerFunctionalityTest, offline_upload_limited_storage) {
     EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
     EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
     EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-    EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+    expectAllFragmentsPersisted(kinesis_video_stream);
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 }
@@ -158,8 +155,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
     CreateProducer();
 
     for (auto pause_seconds : pause_between_clip_seconds) {
-        buffering_ack_in_sequence_ = true;
-        previous_buffering_ack_timestamp_.clear();
+        resetFragmentTracking();
 
         UINT64 timestamp = 0;
         Frame frame;
@@ -192,7 +188,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
                                                   << ", Dts: " << frame.decodingTs
                                                   << ", Pts: " << frame.presentationTs);
 
-            EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+            EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
             timestamp += frame_duration_;
 
             // pause at the last frame of each clip
@@ -207,7 +203,7 @@ TEST_F(ProducerFunctionalityTest, intermittent_file_upload) {
         EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
         EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
         EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-        EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+        expectAllFragmentsPersisted(kinesis_video_stream);
         kinesis_video_producer_->freeStreams();
         streams_[0] = nullptr;
     }
@@ -223,8 +219,6 @@ TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload) {
     key_frame_interval_ = 4;
 
     CreateProducer();
-
-    buffering_ack_in_sequence_ = true;
 
     UINT64 timestamp = 0;
     Frame frame;
@@ -257,7 +251,7 @@ TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
         timestamp += frame_duration_;
     }
 
@@ -266,7 +260,7 @@ TEST_F(ProducerFunctionalityTest, high_fragment_rate_file_upload) {
     EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
     EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
     EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-    EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+    expectAllFragmentsPersisted(kinesis_video_stream);
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 
@@ -282,8 +276,6 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space) {
     device_storage_size_ = 10 * 1024 * 1024llu; // 10MB heap
     uint64_t test_total_frame_count =  10 * 1000llu;
     CreateProducer();
-
-    buffering_ack_in_sequence_ = true;
 
     UINT64 timestamp = 0;
     Frame frame;
@@ -316,7 +308,7 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
         timestamp += frame_duration_;
     }
 
@@ -325,7 +317,7 @@ TEST_F(ProducerFunctionalityTest, offline_mode_token_rotation_block_on_space) {
     EXPECT_TRUE(kinesis_video_stream->stopSync()) << "Timed out awaiting for the stream stop notification";
     EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
     EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-    EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+    expectAllFragmentsPersisted(kinesis_video_stream);
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 
@@ -350,7 +342,6 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
 
     CreateProducer();
 
-    buffering_ack_in_sequence_ = true;
     key_frame_interval_ = 60;
     total_frame_count_ = 6 * key_frame_interval_;
 
@@ -398,7 +389,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_no_latency_pressure_eofr
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
         timestamp += frame_duration_;
 
         THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
@@ -438,7 +429,6 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
 
     CreateProducer();
 
-    buffering_ack_in_sequence_ = true;
     key_frame_interval_ = 60;
     total_frame_count_ = 6 * key_frame_interval_;
 
@@ -483,7 +473,7 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
         timestamp += frame_duration_;
 
         THREAD_SLEEP(30 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
@@ -495,7 +485,7 @@ TEST_F(ProducerFunctionalityTest, DISABLED_realtime_intermittent_no_latency_pres
     EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
     EXPECT_EQ(0, latency_pressure_count_) << "Should not have latency pressure events";
     EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-    EXPECT_TRUE(buffering_ack_in_sequence_); // all fragments should be sent
+    expectAllFragmentsPersisted(kinesis_video_stream);
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 }
@@ -525,7 +515,6 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
 
     CreateProducer(false, AUTOMATIC_STREAMING_ALWAYS_CONTINUOUS);
 
-    buffering_ack_in_sequence_ = true;
     key_frame_interval_ = 60;
     total_frame_count_ = 7 * key_frame_interval_;
     frame_duration_ = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
@@ -558,9 +547,6 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
             UINT64 start = GETTIME();
             THREAD_SLEEP(60 * HUNDREDS_OF_NANOS_IN_A_SECOND);
             delta = GETTIME() - start;
-        } else if ( i < 5 * key_frame_interval_ ) {
-            // This should not flip to false until after the 60s sleep when we start putting frames
-            EXPECT_TRUE(buffering_ack_in_sequence_);
         }
 
         timestamp = startTime + i*frame_duration_ + delta;
@@ -579,7 +565,7 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
 
         THREAD_SLEEP(frame_duration_);
     }
@@ -590,7 +576,8 @@ TEST_F(ProducerFunctionalityTest, realtime_intermittent_latency_pressure) {
     EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
     EXPECT_NE(0, latency_pressure_count_) << "Should fire latency pressure events";
     EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-    EXPECT_FALSE(buffering_ack_in_sequence_);
+    // The last fragment before the pause has no PERSISTED ACK until the new session replays it
+    expectAllFragmentsPersisted(kinesis_video_stream);
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 }
@@ -613,7 +600,6 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
 
     CreateProducer();
 
-    buffering_ack_in_sequence_ = true;
     key_frame_interval_ = 60;
     total_frame_count_ = 6 * key_frame_interval_;
     frame_duration_ = 16 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
@@ -664,7 +650,7 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
                                               << ", Dts: " << frame.decodingTs
                                               << ", Pts: " << frame.presentationTs);
 
-        EXPECT_EQ(STATUS_SUCCESS, kinesis_video_stream->statusPutFrame(frame));
+        EXPECT_EQ(STATUS_SUCCESS, putFrameAndTrack(kinesis_video_stream, frame));
 
         THREAD_SLEEP(frame_duration_);
     }
@@ -675,7 +661,7 @@ TEST_F(ProducerFunctionalityTest, realtime_auto_intermittent_latency_pressure) {
     EXPECT_FALSE(frame_dropped_) << "Status of frame drop " << frame_dropped_;
     EXPECT_EQ(0, latency_pressure_count_) << "Should fire latency pressure events";
     EXPECT_TRUE(STATUS_SUCCEEDED(getErrorStatus())) << "Status of stream error " << getErrorStatus();
-    EXPECT_TRUE(buffering_ack_in_sequence_);
+    expectAllFragmentsPersisted(kinesis_video_stream);
     kinesis_video_producer_->freeStreams();
     streams_[0] = nullptr;
 }
