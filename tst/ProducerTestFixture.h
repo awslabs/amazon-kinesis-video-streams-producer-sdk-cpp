@@ -14,6 +14,8 @@
 
 #include <atomic>
 #include <map>
+#include <mutex>
+#include <set>
 
 namespace com { namespace amazonaws { namespace kinesis { namespace video {
 
@@ -187,7 +189,6 @@ public:
                          fps_(TEST_FPS),
                          total_frame_count_(TEST_TOTAL_FRAME_COUNT),
                          current_pressure_state_(OK),
-                         buffering_ack_in_sequence_(true),
                          key_frame_interval_(TEST_FPS),
                          token_rotation_seconds_(TEST_STREAMING_TOKEN_DURATION_IN_SECONDS) {
 
@@ -221,18 +222,58 @@ public:
         return (STATUS) error_status_.load();
     }
 
-    uint64_t getFragmentDurationMs() {
-        return key_frame_interval_ * frame_duration_ / HUNDREDS_OF_NANOS_IN_A_MILLISECOND;
+    // Puts the frame and, on success, records a key frame as the start of a fragment the service must persist.
+    STATUS putFrameAndTrack(const std::shared_ptr<KinesisVideoStream>& stream, Frame& frame) {
+        STATUS status = stream->statusPutFrame(frame);
+        if (STATUS_SUCCEEDED(status) && CHECK_FRAME_FLAG_KEY_FRAME(frame.flags)) {
+            std::lock_guard<std::mutex> lock(fragment_tracking_mutex_);
+            put_fragment_timestamps_[*stream->getStreamHandle()].insert(frame.presentationTs / HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+        }
+        return status;
+    }
+
+    // Called from the fragment ACK callback. The ACK timestamp is the fragment start in milliseconds.
+    void recordPersistedFragment(STREAM_HANDLE stream_handle, uint64_t fragment_timestamp_ms) {
+        std::lock_guard<std::mutex> lock(fragment_tracking_mutex_);
+        persisted_fragment_timestamps_[stream_handle].insert(fragment_timestamp_ms);
+    }
+
+    // Expects a PERSISTED ACK for every fragment put through putFrameAndTrack, on any upload handle.
+    // Call after stopSync, before the stream is freed.
+    void expectAllFragmentsPersisted(const std::shared_ptr<KinesisVideoStream>& stream) {
+        std::lock_guard<std::mutex> lock(fragment_tracking_mutex_);
+        STREAM_HANDLE stream_handle = *stream->getStreamHandle();
+        const std::set<uint64_t>& put = put_fragment_timestamps_[stream_handle];
+        const std::set<uint64_t>& persisted = persisted_fragment_timestamps_[stream_handle];
+        uint64_t missing = 0;
+
+        EXPECT_FALSE(put.empty()) << "No fragments were put";
+        for (uint64_t fragment_timestamp_ms : put) {
+            if (persisted.find(fragment_timestamp_ms) == persisted.end()) {
+                LOG_ERROR("No PERSISTED ACK for fragment with timestamp " << fragment_timestamp_ms);
+                missing++;
+            }
+        }
+        EXPECT_EQ(0, missing) << missing << " of " << put.size() << " fragments did not get a PERSISTED ACK";
+    }
+
+    void resetFragmentTracking() {
+        std::lock_guard<std::mutex> lock(fragment_tracking_mutex_);
+        put_fragment_timestamps_.clear();
+        persisted_fragment_timestamps_.clear();
     }
 
     std::atomic_bool stop_called_;
     std::atomic_bool frame_dropped_;
     std::atomic_bool buffer_duration_pressure_;
     std::atomic_bool storage_overflow_;
-    std::atomic_bool buffering_ack_in_sequence_;
     std::atomic_uint error_status_;
     std::atomic_uint latency_pressure_count_;
-    std::map<UPLOAD_HANDLE, uint64_t> previous_buffering_ack_timestamp_;
+
+    // Fragment start timestamps in milliseconds, per stream: fragments the test put, and fragments the service persisted
+    std::mutex fragment_tracking_mutex_;
+    std::map<STREAM_HANDLE, std::set<uint64_t>> put_fragment_timestamps_;
+    std::map<STREAM_HANDLE, std::set<uint64_t>> persisted_fragment_timestamps_;
 
 protected:
 
@@ -416,8 +457,7 @@ protected:
     virtual void TearDown() {
         auto producer_ptr = kinesis_video_producer_.release();
         delete producer_ptr;
-        previous_buffering_ack_timestamp_.clear();
-        buffering_ack_in_sequence_ = true;
+        resetFragmentTracking();
         frame_dropped_ = false;
         LOG_INFO("Tearing down test: " << GetTestName());
     };

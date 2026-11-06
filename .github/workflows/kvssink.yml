@@ -11,7 +11,15 @@ on:
       - master
 
 jobs:
+  ecr-login:
+    uses: ./.github/workflows/ecr-public-login.yml
+    permissions:
+      id-token: write
+      contents: read
+    secrets: inherit
+
   unit-tests:
+    needs: ecr-login
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -30,7 +38,10 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
 
     name: kvssink unit tests on ${{ matrix.run-config.os }}
-    container: ${{ matrix.run-config.image }}
+    container:
+      image: ${{ matrix.run-config.image }}
+      # Authenticated pull; see ecr-public-login.yml.
+      credentials: ${{ fromJSON(needs.ecr-login.outputs.attempt == github.run_attempt && needs.ecr-login.outputs.credentials || '{}') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -162,6 +173,7 @@ jobs:
           done
 
   linux-debug-dump-dir:
+    needs: ecr-login
     permissions:
       id-token: write
       contents: read
@@ -178,7 +190,10 @@ jobs:
       fail-fast: false
 
     runs-on: ubuntu-latest
-    container: ${{ matrix.run-config.image }}
+    container:
+      image: ${{ matrix.run-config.image }}
+      # Authenticated pull; see ecr-public-login.yml.
+      credentials: ${{ fromJSON(needs.ecr-login.outputs.attempt == github.run_attempt && needs.ecr-login.outputs.credentials || '{}') }}
     env:
       DEBIAN_FRONTEND: noninteractive
       STREAM_NAME: cpp-kvssink-debug-dump-dir-${{ matrix.run-config.os }}-${{ matrix.BUILD_STATIC }}
@@ -426,6 +441,7 @@ jobs:
           done
 
   valgrind-check:
+    needs: ecr-login
     strategy:
       matrix:
         run-config:
@@ -443,7 +459,10 @@ jobs:
       fail-fast: false
 
     runs-on: ubuntu-latest
-    container: ${{ matrix.run-config.image }}
+    container:
+      image: ${{ matrix.run-config.image }}
+      # Authenticated pull; see ecr-public-login.yml.
+      credentials: ${{ fromJSON(needs.ecr-login.outputs.attempt == github.run_attempt && needs.ecr-login.outputs.credentials || '{}') }}
 
     timeout-minutes: 30
     permissions:

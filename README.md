@@ -41,26 +41,26 @@ For more info on KVS please see [AWS KVS Documentation](https://docs.aws.amazon.
 <br>
 
 ## Quick Start
-The following instructions describe the SDK and samples setup for Mac, Linux, and Windows platforms. For dedicated Raspberry Pi instructions, see [Use the C++ producer SDK on Raspberry Pi](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producersdk-cpp-rpi.html)
+The following instructions describe the SDK and samples setup for Mac, Linux, and Windows platforms. For dedicated Raspberry Pi instructions, see [Use the C++ producer SDK on Raspberry Pi](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/producersdk-cpp-rpi.html) and [Raspberry Pi setup guide](docs/raspberry-pi.md).
 
 ### Required Tools
 The following packages are required to build the SDK libraries. Using a package manager such as [_Homebrew_](https://brew.sh/) (Mac), [_APT_](https://en.wikipedia.org/wiki/APT_(software)) (Linux), and [_Chocolatey_](https://chocolatey.org/install) (Windows) is the prefered method of installation.
 * C++ Compiler (GNU or Clang recommended)
 * `git`
-* `CMake`
+* `CMake` (requires 3.x, `CMake` 4.x is not yet supported)
 * `pkg-config` for _Mac_/_Linux_, `pkgconfiglite` for _Windows_
 * `m4`
 * _Windows_ only: `nasm` and `strawberryperl`
 
 _Mac_
 ```bash
-brew install git cmake pkgconf m4
+brew install git cmake pkg-config m4
 ```
 
 _Linux_
 ```bash
 sudo apt update
-sudo apt install git cmake pkgconf m4
+sudo apt install git cmake build-essential pkg-config m4
 ```
 
 _Windows_
@@ -326,6 +326,16 @@ The `kvssink` GStreamer element includes the following parameters:
 | access&#x2011;key      | N/A               | The AWS access key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_ACCESS_KEY_ID environment variable.
 | secret&#x2011;key      | N/A               | The AWS secret key that is used to access Kinesis Video Streams. You must provide either this parameter or credential-path, or set the AWS_SECRET_ACCESS_KEY environment variable.
 | credential&#x2011;path | '.kvs/credential' | A path to a file containing your credentials for accessing Kinesis Video Streams. For example credential files and more information, see [Provide credentials to kvssink](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html#credentials-to-kvssink). You must provide either this parameter or access-key and secret-key, or set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.
+| ignore&#x2011;region&#x2011;env | false | When true, the AWS_DEFAULT_REGION environment variable is ignored and the `aws-region` parameter is always used. See the precedence note below.
+| ignore&#x2011;credentials&#x2011;env | false | When true, the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN environment variables are ignored and the `access-key`, `secret-key`, and `session-token` parameters are always used. See the precedence note below.
+
+**Environment variable precedence.** By default, when both an environment variable and its corresponding `kvssink` parameter are set, the environment variable takes precedence. The region lookup order is:
+
+1. `AWS_DEFAULT_REGION` environment variable is reviewed first. If it is set, that region is used to configure the client.
+2. `aws-region` parameter is reviewed next. If it is set, that region is used to configure the client.
+3. If neither of the previous methods were used, `kvssink` defaults to `us-west-2`.
+
+Set kvssink's `ignore-region-env=true` property to skip step 1 so the `aws-region` parameter is always used. Credentials follow the same env-first precedence; set `ignore-credentials-env=true` to skip the `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` environment variables so the `access-key` / `secret-key` / `session-token` parameters are always used. Both ignore environment properties default to `false`.
 
 To see all `kvssink` parameters, see [AWS Docs - kvssink Paramters](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/examples-gstreamer-plugin-parameters.html).
 
@@ -398,6 +408,43 @@ Afterwards, go to your repository settings and add the following repository secr
 * Key: `AWS_ROLE_TO_ASSUME` -- Assume role ARN
 * Key: `AWS_REGION` -- Region to use (e.g. `us-west-2`)
 * Key: `AWS_ROLE_SESSION_NAME` -- Optional. This name appears in AWS CloudTrail logs for entries associated with this session.
+
+## Local Development with Dependency Overrides
+
+When developing changes across the SDK stack (C++ SDK → C Producer → PIC), you can point the build to local checkouts instead of fetching from GitHub. This avoids the git-fetch cycle and lets you test changes across repos immediately.
+
+### CMake Variables
+
+| Variable | Used By | Description |
+|----------|---------|-------------|
+| `LOCAL_KVSC_PATH` | C++ SDK | Path to a local [KVS Producer C SDK](https://github.com/awslabs/amazon-kinesis-video-streams-producer-c) checkout |
+| `LOCAL_KVSPIC_PATH` | C++ SDK, C Producer | Path to a local [KVS PIC](https://github.com/awslabs/amazon-kinesis-video-streams-pic) checkout |
+
+### Usage
+
+```bash
+# Build C++ SDK using local C Producer and local PIC
+mkdir -p build && cd build
+cmake .. \
+  -DBUILD_GSTREAMER_PLUGIN=ON \
+  -DLOCAL_KVSC_PATH=/path/to/amazon-kinesis-video-streams-producer-c \
+  -DLOCAL_KVSPIC_PATH=/path/to/amazon-kinesis-video-streams-pic
+make
+```
+
+You can use either variable independently:
+
+```bash
+# Only override PIC (C Producer is still fetched from GitHub)
+cmake .. -DLOCAL_KVSPIC_PATH=/path/to/amazon-kinesis-video-streams-pic
+
+# Only override C Producer (PIC is fetched by C Producer from GitHub)
+cmake .. -DLOCAL_KVSC_PATH=/path/to/amazon-kinesis-video-streams-producer-c
+```
+
+When `LOCAL_KVSC_PATH` is set, the C++ SDK uses `add_subdirectory` to include the local C Producer directly. When `LOCAL_KVSPIC_PATH` is set, it is forwarded to the C Producer build so PIC is also resolved locally. This means a single `cmake` + `make` builds all three layers from your working copies. Changes in PIC or C Producer source files are picked up on the next `make` without re-running `cmake`.
+
+<br>
 
 ## Development
 

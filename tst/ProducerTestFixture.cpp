@@ -94,8 +94,7 @@ STATUS TestStreamCallbackProvider::bufferDurationOverflowPressureHandler(UINT64 
 }
 
 STATUS TestStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data, STREAM_HANDLE stream_handle, UPLOAD_HANDLE upload_handle, PFragmentAck fragment_ack) {
-    UNUSED_PARAM(stream_handle);
-    UNUSED_PARAM(fragment_ack);
+    UNUSED_PARAM(upload_handle);
     LOG_TRACE("Reporting fragment ack");
     ProducerTestBase* testBase;
     STATUS ret = getProducerTestBase(custom_data, &testBase);
@@ -103,15 +102,9 @@ STATUS TestStreamCallbackProvider::fragmentAckReceivedHandler(UINT64 custom_data
         return ret;
     }
 
-    if (fragment_ack->ackType == FRAGMENT_ACK_TYPE_BUFFERING) {
-        if (testBase->previous_buffering_ack_timestamp_.find(upload_handle) != testBase->previous_buffering_ack_timestamp_.end() &&
-            fragment_ack->timestamp != testBase->previous_buffering_ack_timestamp_[upload_handle] && // timestamp can be same when retransmit happens
-            fragment_ack->timestamp - testBase->previous_buffering_ack_timestamp_[upload_handle] > testBase->getFragmentDurationMs()) {
-            LOG_ERROR("Buffering ack not in sequence. Previous ack ts: " << testBase->previous_buffering_ack_timestamp_[upload_handle] << " Current ack ts: " << fragment_ack->timestamp);
-            testBase->buffering_ack_in_sequence_ = false;
-        }
-
-        testBase->previous_buffering_ack_timestamp_[upload_handle] = fragment_ack->timestamp;
+    // Record per stream, not per upload handle: a reconnect can replay a fragment on a new upload handle.
+    if (fragment_ack->ackType == FRAGMENT_ACK_TYPE_PERSISTED) {
+        testBase->recordPersistedFragment(stream_handle, fragment_ack->timestamp);
     }
 
     return validateCallback(custom_data);

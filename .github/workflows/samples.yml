@@ -18,6 +18,13 @@ env:
   SAMPLE_MP4_LOCATION: https://raw.githubusercontent.com/aws-samples/amazon-kinesis-video-streams-demos/refs/heads/master/sample-video/sample.mp4
 
 jobs:
+  ecr-login:
+    uses: ./.github/workflows/ecr-public-login.yml
+    permissions:
+      id-token: write
+      contents: read
+    secrets: inherit
+
   prep-assets:
     runs-on: ubuntu-latest
     outputs:
@@ -48,7 +55,7 @@ jobs:
 
   sample-checks:
     name: ${{ matrix.runner.id }} - ${{ matrix.sample.name }}
-    needs: prep-assets
+    needs: [prep-assets, ecr-login]
 
     strategy:
       matrix:
@@ -82,7 +89,12 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.runner.image }}
-    container: ${{ matrix.runner.docker || '' }}
+    # macOS/Windows entries have no `docker:`; an empty image means "no
+    # container" in mapping form too, exactly like the scalar form did.
+    container:
+      image: ${{ matrix.runner.docker || '' }}
+      # Authenticated pull; see ecr-public-login.yml.
+      credentials: ${{ fromJSON(needs.ecr-login.outputs.attempt == github.run_attempt && needs.ecr-login.outputs.credentials || '{}') }}
     timeout-minutes: 30
 
     env:
@@ -287,8 +299,12 @@ jobs:
 
   multistream-sample:
     name: Multistream sample on Ubuntu 22.04
+    needs: ecr-login
     runs-on: ubuntu-latest
-    container: public.ecr.aws/ubuntu/ubuntu:22.04_stable
+    container:
+      image: public.ecr.aws/ubuntu/ubuntu:22.04_stable
+      # Authenticated pull; see ecr-public-login.yml.
+      credentials: ${{ fromJSON(needs.ecr-login.outputs.attempt == github.run_attempt && needs.ecr-login.outputs.credentials || '{}') }}
     timeout-minutes: 30
 
     env:
